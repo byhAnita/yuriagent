@@ -29,7 +29,7 @@ Four pillars, in priority order:
 
 | Milestone | Contents |
 |---|---|
-| **MVP** | 1 identity (Artist Assistant), 5 prebuilt idols all present and all romanceable, 1 group, zh/en, one 3-week cycle, chips + free text, 2-axis relationship + jealousy, exposure-driven rumor propagation, dossier memory, two-layer deterministic calendar, knowledge-gated gifts, balance simulator, save/load, PWA |
+| **MVP** | 1 identity (Artist Assistant), 5 prebuilt cards all present and all romanceable, zh/en, one 3-week company cycle, chips + free text, 2-axis relationship + jealousy, exposure-driven rumor propagation, dossier memory, two-layer deterministic calendar, knowledge-gated gifts, balance simulator, save/load, PWA |
 | **v1** | Event anchor nodes, confrontation events, bad ends + endings screen incl. the balance ending, repair events, group scenes (2 members interactive), retry/copy, card picker UI |
 | **v2** | More identities, 50+ card library, custom card editor, player-uploaded portraits (`single` / `multi` modes), ko/pt, multi-model expansion |
 
@@ -428,7 +428,25 @@ Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: di
 
 ## 10. Time, Calendar, Tasks
 
-3-week cycle: `PREP -> COMEBACK -> REST`. Each day has 3 time blocks: morning / afternoon / evening.
+3-week cycle: `PREP -> PEAK -> RECOVERY`. Each day has 3 time blocks: morning / afternoon / evening.
+
+### The cycle is company-level, not group-level
+
+The cast is **cross-group by design**: a playthrough may mix Irene, a member of another group, and three more. In fiction they are labelmates at one agency, not groupmates, and the player is staff at that agency. There is therefore no shared comeback to build a calendar around, so the macro cycle is anchored to the company instead:
+
+| Week | Phase | Members are | Exposure profile |
+|---|---|---|---|
+| 1 | **PREP** | recording, rehearsing, fitting - in the building | low everywhere |
+| 2 | **PEAK** | broadcasts, premieres, radio, events - scattered outward | high everywhere |
+| 3 | **RECOVERY** | light schedules, downtime, reachable | mid, many free blocks |
+
+This works for any cast composition, and it drives the section 5b tension on a rhythm:
+
+- **PREP** - intimacy grows, admissibility cannot move, rumors are rare. Safe building.
+- **PEAK** - admissibility can finally rise, but rumors travel and jealousy spikes. Risk week.
+- **RECOVERY** - the repair week, where `piqued` jealousy gets converted before it hardens.
+
+Build, risk, repair - a three-week emotional loop that falls out of the constraint rather than being imposed on it.
 
 **The calendar is deterministic.** Hand-authored slot templates per week-phase, filled by a seeded RNG. No LLM call. Reasons: replayable, testable, instant, and the player can be shown the whole week upfront - opportunity cost only bites when it is visible. The LLM may write a flavor label for a slot; it may never decide the slot.
 
@@ -441,7 +459,9 @@ weekPlan: {
 }
 ```
 
-Occupancy for any `(day, block, location)` is derived: group slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
+Occupancy for any `(day, block, location)` is derived: company slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
+
+Solo slots are generated from each card's `activityProfile.types`, resolved through the shared table in `data/activities.js`, which maps an activity type to its location, its `exposureBase`, and the phases it can appear in. Cards therefore stay portable: a card from any group drops into any cast without touching the calendar code.
 
 It also feeds the dossier: routines are learnable. `known_facts` may hold `"she practises alone on Wednesday nights"`, and knowing it is how a player engineers a low-`exposure` meeting - which is the safe-but-stagnant side of the section 5b tension.
 
@@ -491,12 +511,26 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
 {
   "id": "irene",
   "schema": 1,
-  "displayName": { "en": "Irene", "zh": "Irene" },
+  "name": "Irene",
+  "nameRoman": "Bae Ju-hyun",
+  "emoji": "🐰",
+  "origin": "Red Velvet",
   "mascot": "rabbit",
-  "palette": { "base": "#c9a0dc", "accent": "#f2e6f7" },
-  "personality": "reserved, precise, dislikes being fussed over",
-  "speechStyle": "short sentences, understated, rarely finishes a feeling",
-  "queerTexture": "deflects with professionalism when it gets close",
+  "mascotNote": "cool on the surface, fiercely protective underneath",
+  "palette": { "base": "#f0c8d8", "accent": "#c2185b" },
+  "mbti": "ISFJ",
+  "birthday": "1991-03-29",
+  "birthplace": "Daegu",
+  "ig": "renebaebae",
+  "activityProfile": {
+    "primary": "soloist",
+    "types": ["solo_recording", "tour_rehearsal", "photoshoot", "brand_event"]
+  },
+  "publicImage": "...",
+  "personality": "...",
+  "speechStyle": "...",
+  "queerTexture": "...",
+  "hiddenConflict": null,
   "styleHints": { "zh": null, "ko": null },
   "likesSeed": ["quiet mornings"],
   "startIntimacy": 5,
@@ -504,6 +538,10 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "portraits": { "neutral": "portraits/irene.svg" }
 }
 ```
+
+`origin` is flavour only - the in-fiction agency is shared by the whole cast regardless of where each member came from (section 10). `activityProfile.types` are keys into `data/activities.js` and are what drives her solo schedule. `hiddenConflict` is optional and names the specific way this character fails under neglect; it is injected only when jealousy reaches `piqued` or above.
+
+Localized display names live in `i18n/`, not on the card, so a card stays a single portable file.
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
 
@@ -618,8 +656,9 @@ src/
   tools/
     llmTool.js               # multi-model router, streaming, retries
   data/
-    characters/*.json
+    characters/*.json        # irene, seulgi, wendy, joy, yeri
     identities/*.json
+    activities.js            # activity type -> location, exposureBase, phases
     locations.js
     gifts.js
     events/                  # anchor nodes
@@ -641,13 +680,30 @@ public/
 
 ---
 
-## 17. Git Workflow
+## 17. Git & Session Workflow
 
 | Branch | Role |
 |---|---|
 | `main` | stable, always runnable, what players get. Deploy only from here. |
 | `dev` | integration branch. All features land here first. |
 | `feat/<name>` | branched off `dev`, merged back with `--no-ff` |
+
+### Session model
+
+The engine systems are tightly coupled - jealousy depends on exposure, which drives rumor, which writes into the dossier, which is assembled by the prompt builder. Splitting them across parallel sessions means each session re-derives the same design and the work collides at merge. So:
+
+**One primary session, sequential milestones, compacted at each milestone boundary.** `CLAUDE.md` plus `docs/PROGRESS.md` are the durable context that makes compaction safe - they are updated *before* a milestone closes, never after.
+
+A second session is worthwhile only for work with zero coupling to the engine, on its own branch, on a cheaper model:
+
+| Session | Model | Branch | Owns |
+|---|---|---|---|
+| primary | Opus | `feat/m*` | `systems/`, `agent/`, `ui/`, integration |
+| assets | Sonnet | `feat/assets` | `public/portraits/`, PWA icons, `i18n/` string files |
+
+**File ownership is exclusive.** The assets session never edits `systems/` or `agent/`; the primary session never edits portrait SVGs. That rule is what keeps merges trivial.
+
+Never delegate `relationship.js`, `jealousy.js`, `rumor.js`, `promptBuilder.js`, `responseParser.js`, or `balanceSim.js` to a cheaper model - subtle errors there are expensive and hard to detect from the outside.
 
 Rules:
 
