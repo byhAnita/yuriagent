@@ -1,122 +1,199 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+/**
+ * M0 scaffold harness.
+ *
+ * This screen exists to prove the M0 exit criteria: the app boots, cards load,
+ * and theme / font scale / language switch correctly through the token layer.
+ * It is NOT the game UI - the real VN interface arrives in M3 with a proper
+ * design pass. Expect this file to be replaced wholesale.
+ */
 
-function App() {
-  const [count, setCount] = useState(0)
+import { useEffect, useMemo, useState } from 'react';
+import { applyTheme, THEMES, FONT_SCALES } from './config/themes.js';
+import { loadSettings, saveSettings } from './store/settings.js';
+import { makeT, LANGS, LANG_LABELS } from './i18n/index.js';
+import { getCast } from './data/cast.js';
+import { LOCATIONS } from './data/locations.js';
+
+/**
+ * Class names must be written out in full - Tailwind extracts them statically,
+ * so a constructed string like `bg-${id}` produces no CSS.
+ */
+const METERS = [
+  { id: 'guard', cls: 'bg-guard' },
+  { id: 'fluster', cls: 'bg-fluster' },
+  { id: 'exposure', cls: 'bg-exposure' },
+];
+
+export default function App() {
+  const [settings, setSettings] = useState(loadSettings);
+  const [focusId, setFocusId] = useState('irene');
+
+  const cast = useMemo(() => getCast(), []);
+  const t = useMemo(() => makeT(settings.lang), [settings.lang]);
+  const focus = cast.find((c) => c.id === focusId) ?? cast[0];
+
+  useEffect(() => {
+    applyTheme(settings, focus?.palette ?? null);
+    saveSettings(settings);
+  }, [settings, focus]);
+
+  const set = (patch) => setSettings((s) => ({ ...s, ...patch }));
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div className="mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-6 px-5 py-8">
+      <header className="flex items-baseline justify-between">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('app.title')}</h1>
+          <p className="text-sm text-dim">{t('app.tagline')}</p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs text-accent">
+          {t('dev.scaffold')}
+        </span>
+      </header>
 
-      <div className="ticks"></div>
+      <Section title={t('dev.castLoaded')}>
+        <ul className="flex flex-col gap-2">
+          {cast.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => setFocusId(c.id)}
+                aria-pressed={c.id === focusId}
+                className="flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2 text-left transition-colors"
+                style={{
+                  borderColor: c.id === focusId ? c.palette.base : 'var(--border)',
+                  background: c.id === focusId ? 'var(--surface-alt)' : 'var(--surface)',
+                }}
+              >
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg"
+                  style={{ background: c.palette.base, color: c.palette.accent }}
+                >
+                  {c.emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{c.name}</span>
+                  <span className="block truncate text-xs text-dim">
+                    {c.preferredRoles.map((r) => t(`role.${r}`)).join(' / ')}
+                  </span>
+                </span>
+                <span className="text-xs text-dim">{c.mascot}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Section>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      <Section title={t('settings.theme')}>
+        <Row>
+          {THEMES.map((th) => (
+            <Chip
+              key={th}
+              active={settings.theme === th}
+              onClick={() => set({ theme: th })}
+              label={t(`theme.${th}`)}
+            />
+          ))}
+        </Row>
+        {settings.theme === 'bloom' && (
+          <p className="mt-2 text-xs text-dim">{t('theme.bloomHint')}</p>
+        )}
+      </Section>
+
+      <Section title={t('settings.fontSize')}>
+        <Row>
+          {FONT_SCALES.map((fs) => (
+            <Chip
+              key={fs}
+              active={settings.fontScale === fs}
+              onClick={() => set({ fontScale: fs })}
+              label={`${Math.round(fs * 100)}%`}
+            />
+          ))}
+        </Row>
+      </Section>
+
+      <Section title={t('settings.language')}>
+        <Row>
+          {LANGS.map((l) => (
+            <Chip
+              key={l}
+              active={settings.lang === l}
+              onClick={() => set({ lang: l })}
+              label={LANG_LABELS[l]}
+            />
+          ))}
+        </Row>
+      </Section>
+
+      <Section title={t('settings.reduceMotion')}>
+        <Row>
+          <Chip
+            active={!settings.reduceMotion}
+            onClick={() => set({ reduceMotion: false })}
+            label="Off"
+          />
+          <Chip
+            active={settings.reduceMotion}
+            onClick={() => set({ reduceMotion: true })}
+            label="On"
+          />
+        </Row>
+      </Section>
+
+      <Section title={t('dev.tokenCheck')}>
+        <div className="grid grid-cols-3 gap-2">
+          {METERS.map(({ id, cls }) => (
+            <div
+              key={id}
+              className="rounded-[var(--radius)] border border-border bg-surface p-2"
+            >
+              <span className="block text-xs text-dim">{t(`meter.${id}`)}</span>
+              <span className={`mt-1.5 block h-1.5 rounded-full ${cls}`} />
+            </div>
+          ))}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
+        <ul className="mt-3 flex flex-col gap-1 text-xs text-dim">
+          {Object.entries(LOCATIONS).map(([id, loc]) => (
+            <li key={id} className="flex justify-between gap-3">
+              <span className="truncate">{t(`location.${id}`)}</span>
+              <span className="shrink-0 tabular-nums">
+                {t('meter.exposure')} {loc.exposureBase} / {loc.presence}
+              </span>
             </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          ))}
+        </ul>
+      </Section>
+    </div>
+  );
 }
 
-export default App
+function Section({ title, children }) {
+  return (
+    <section>
+      <h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-dim">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Row({ children }) {
+  return <div className="flex flex-wrap gap-2">{children}</div>;
+}
+
+function Chip({ active, onClick, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+        active
+          ? 'border-accent bg-accent text-on-accent'
+          : 'border-border bg-surface text-text hover:bg-surface-alt'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
