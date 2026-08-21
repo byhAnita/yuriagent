@@ -29,9 +29,9 @@ Four pillars, in priority order:
 
 | Milestone | Contents |
 |---|---|
-| **MVP** | 1 identity (Artist Assistant), 5 prebuilt idols all present, 1 group, zh/en, one 3-week cycle, chips + free text, 2-axis relationship, dossier memory, deterministic calendar, knowledge-gated gifts, save/load, PWA |
-| **v1** | Event anchor nodes, bad ends + endings screen, repair events, retry/copy, character-card picker UI, custom card editor |
-| **v2** | More identities, 50+ card library, multi-member scenes (2 max interactive), ko/pt, multi-model expansion |
+| **MVP** | 1 identity (Artist Assistant), 5 prebuilt idols all present and all romanceable, 1 group, zh/en, one 3-week cycle, chips + free text, 2-axis relationship + jealousy, exposure-driven rumor propagation, dossier memory, two-layer deterministic calendar, knowledge-gated gifts, balance simulator, save/load, PWA |
+| **v1** | Event anchor nodes, confrontation events, bad ends + endings screen incl. the balance ending, repair events, group scenes (2 members interactive), retry/copy, card picker UI |
+| **v2** | More identities, 50+ card library, custom card editor, player-uploaded portraits (`single` / `multi` modes), ko/pt, multi-model expansion |
 
 Everything in v2 must have its **interface stubbed in MVP** (identity config, card loader, language keys) so adding content later requires no refactor.
 
@@ -169,24 +169,85 @@ Bad Ends are exits from the map, not regions on it. Low/low is where every run s
 | stage was `reckless` at collapse | `severance_end` - she cuts contact |
 | `peakIntimacy < 40` | no BE; `drift_end` at campaign end (neutral) |
 
+Endings resolve **per character**. A run can end with one route at `ours`, one at `nameless_end`, and three at `drift_end`. The campaign ending screen reports all five. The **balance ending** - every member at `unspoken` or above with jealousy held under 50 - is a distinct result and the hardest one to reach (section 5b).
+
 `peakIntimacy` also reframes the map: bottom-left with `peakIntimacy = 0` is **Stranger**; with `peakIntimacy = 75` it is **Aftermath** - same coordinates, different scene framing and a different chip set.
 
-### Route focus
+---
 
-Every cast member carries a full track in `relations`, but only one is an active **route** at a time, named by `run.focusId`.
+## 5b. Multi-Route & Jealousy
 
-| | `focusId` member | other cast |
+Every cast member is simultaneously romanceable and carries a full independent track. `run.focusId` is **derived, not chosen** - it is whoever currently holds the highest intimacy, and it drives UI emphasis and the `bloom` theme only. It gates nothing.
+
+One additional value per character:
+
+| Quantity | Range | Meaning |
 |---|---|---|
-| `intimacy` | 0-100 | 0-50, hard cap at `good_friends` |
-| `admissibility` | active | frozen at 0 |
-| `strain` | active | frozen at 0 |
-| endings | eligible | never |
+| `jealousy` | 0-100 | pressure from believing your attention is elsewhere |
 
-Non-focus members are social texture, not routes. They appear in scenes, react, hold dossier entries, and gain friendship intimacy. They cannot reach `nameless` or beyond.
+Jealousy is **pressure, not damage**. It feeds `strain` only when left unaddressed, and in its lower band it converts into intimacy.
 
-Rationale: "I cannot name what this is" is not a feeling you have about four people at once. Five parallel admissibility tracks dilute the exact tension the game exists for, and they require a jealousy system that is a separate design problem.
+### How she finds out: exposure doubles as leakage
 
-Switching focus is allowed before `nameless`. After that it costs `strain += 25` on the abandoned track. Multi-route is a v2 mode: a flag plus one system file, not a refactor, because the state shape already supports it.
+A member cannot be jealous about something she does not know about. Rather than making every member omniscient, awareness propagates from the `exposure` value the scene already computes:
+
+```
+at scene exit, for each absent cast member M:
+  p(M learns of it) = clamp((exposure - 30) / 70) * proximity(M, location)
+  if learned -> append a rumor to M's dossier.heard_about
+```
+
+The rumor is written **from her point of view**, never as a transcript:
+`"you heard the player was at the cafe with Wendy"`.
+Member separation (section 9) is preserved - Irene's prompt never contains Wendy's scene.
+
+`exposure` therefore carries three jobs at once, which is the central strategic tension of the game:
+
+| Scene exposure | Admissibility | Scandal risk | Rival awareness |
+|---|---|---|---|
+| low (practice room, night) | cannot rise | safe | safe |
+| high (cafe, noon) | rises | rises | rises |
+
+Privacy is safe and stagnant. Visibility is the only route to a relationship that can be named - and the same property that makes it real makes it contested.
+
+### Jealousy scales with her own investment
+
+```
+jealousyGain = rumorWeight * (intimacy / 100) * exclusivity(stage)
+
+exclusivity: stranger 0.2, colleague 0.4, good_friends 0.7,
+             nameless 1.2, unspoken 1.6, ours 2.2, out 2.5
+```
+
+A stranger does not care who you had coffee with. Someone at `nameless` cares enormously.
+
+The intended consequence: **breadth is cheap while everything is shallow, and becomes punishing as any single route deepens.** One deep route is the easy path. Holding all five in love at once is reachable, but it demands keeping five tracks inside a narrow band against escalating exclusivity pressure - the hardest ending in the game, not the default one.
+
+Decay: `jealousy -= 5` per scene spent with her that produces no new rumor. Attention is the currency.
+
+### Jealousy bands
+
+| Band | Range | Effect |
+|---|---|---|
+| calm | 0-24 | none |
+| **piqued** | 25-49 | she probes about it; `reassure` or `confide` converts: `jealousy -20, intimacy +2` |
+| sharp | 50-74 | scene `guard` starts +15; `tease` and `touch` locked; `strain += 3` per unaddressed scene |
+| corrosive | 75-100 | `strain += 8` per scene; group scenes turn hostile; unlocks a confrontation event |
+
+The `piqued` band is the point of the system: jealousy there is an **opportunity**, not a tax. Noticing it and visibly choosing her is one of the strongest intimacy gains available.
+
+### Group scenes
+
+Two members present is where jealousy becomes visible rather than inferred.
+
+- Any gesture toward one member is **witnessed** by the other at `exposure = max(sceneExposure, 80)` - direct observation, no probability roll.
+- Witnessed gestures give a larger admissibility gain and a larger jealousy hit than rumors. High-risk, high-reward is the mechanical identity of a group scene.
+- Block 4 states cross-awareness explicitly when it applies: `Irene is aware of and unsettled by your closeness to Wendy.`
+- The 2-member interactive cap and the parser roster rule (section 9) both still apply.
+
+### Balance is a simulation problem
+
+Five interacting tracks cannot be tuned on paper. `systems/` ships with a **headless balance simulator** (M1): run N scripted playthroughs with no UI and no LLM, and report the distribution of reachable endings. Target: "all five in love" is reachable in well under 10% of competent runs. All coefficients in this section are starting values to be tuned by that harness, not final.
 
 ---
 
@@ -198,7 +259,7 @@ Switching focus is allowed before `nameless`. After that it costs `strain += 25`
 |---|---|---|
 | `guard` | down = good | seeded from `100 - intimacy`, moved by the LLM per turn |
 | `fluster` | up = you landed | starts at 0, moved by the LLM per turn |
-| `exposure` | up = risky | **derived from location + time block + secrecy, not from the LLM** |
+| `exposure` | up = risky | **derived from location + time block + secrecy, not from the LLM**; also drives rumor propagation (section 5b) |
 
 `exposure` being deterministic is what makes map choice matter romantically instead of only logistically: practice room at night is low, cafeteria at noon is high.
 
@@ -211,6 +272,9 @@ risk action at exposure >= 60, survived    -> admissibility += 3..6
 risk action at exposure >= 60, failed      -> strain        += 10..20
 stage == 'reckless'                        -> strain        += 5 / scene
 daily task failed and it affected her      -> strain        += 8
+scene exit, per absent member              -> rumor roll    (section 5b)
+gesture witnessed in a group scene         -> larger admissibility gain,
+                                              larger jealousy hit, no roll
 ```
 
 Deltas are computed by `systems/relationship.js` from accumulated per-turn metadata.
@@ -256,7 +320,8 @@ dossier: {
     known_facts:     [],  // max 8, LRU   - "hates cold hands"
     shared_moments:  [],  // max 5, LRU   - "you fixed her mic pack before showtime"
     open_threads:    [],  // max 3, FIFO  - "she asked if you are free Sunday"
-    player_told_her: []   // max 5, LRU   - "you are from Busan"
+    player_told_her: [],  // max 5, LRU   - "you are from Busan"
+    heard_about:     []   // max 4, FIFO  - "you heard the player was at the cafe with Wendy"
   }
 }
 ```
@@ -265,7 +330,7 @@ Unresolved `open_threads` at cycle end cost `strain += 5` each. The model is ins
 
 Two rules that are not optional:
 
-1. **Roster scoping.** Block 3 contains dossier entries only for members present in the current scene. An absent member's facts are simply not in the prompt, which is the cheapest possible defence against member bleed.
+1. **Roster scoping.** Block 3 contains dossier entries only for members present in the current scene. An absent member's facts are simply not in the prompt, which is the cheapest possible defence against member bleed. `heard_about` is the one channel by which a member knows anything about another member's scene, and it is always phrased from her point of view - never as a transcript (section 5b).
 2. **English always.** Ledger entries and dossier entries are written in English regardless of the player's UI language (see section 19). Memory stays language-agnostic, the player can switch language mid-run without corrupting history, and block 1 stays byte-stable across the switch.
 
 ### Scene exit pipeline
@@ -366,6 +431,19 @@ Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: di
 3-week cycle: `PREP -> COMEBACK -> REST`. Each day has 3 time blocks: morning / afternoon / evening.
 
 **The calendar is deterministic.** Hand-authored slot templates per week-phase, filled by a seeded RNG. No LLM call. Reasons: replayable, testable, instant, and the player can be shown the whole week upfront - opportunity cost only bites when it is visible. The LLM may write a flavor label for a slot; it may never decide the slot.
+
+### Two schedule layers
+
+```js
+weekPlan: {
+  group:   [ { day, block, location, label } ],          // all members
+  members: { irene: [ { day, block, location, label } ] } // solo work
+}
+```
+
+Occupancy for any `(day, block, location)` is derived: group slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
+
+It also feeds the dossier: routines are learnable. `known_facts` may hold `"she practises alone on Wednesday nights"`, and knowing it is how a player engineers a low-`exposure` meeting - which is the safe-but-stagnant side of the section 5b tension.
 
 ### Daily tasks
 
@@ -493,11 +571,12 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
 {
   meta:      { schemaVersion: 1, savedAt, lang, model },
   settings:  { theme: 'night', fontScale: 1, reduceMotion: false },
-  run:       { identityId, focusId, day, week, phase, block, seed },
+  run:       { identityId, day, week, phase, block, seed },
+             // focusId is DERIVED (highest intimacy), never stored
   player:    { name, competence, energy, secrecy, credits },
   cast:      [ characterId ],
   relations: {
-    irene: { intimacy, admissibility, strain,
+    irene: { intimacy, admissibility, strain, jealousy,
              peakIntimacy, peakAdmissibility, stage, endingLocked: null }
   },
   dossier:   { irene: { known_facts, shared_moments, open_threads, player_told_her } },
@@ -528,11 +607,14 @@ src/
     summarizer.js            # scene-exit call
   systems/                   # PURE. no React, no network.
     relationship.js          # intimacy/admissibility/strain, stage, endings
-    calendar.js              # deterministic seeded schedule
+    jealousy.js              # bands, gain/decay, exclusivity curve
+    rumor.js                 # exposure -> awareness propagation
+    calendar.js              # deterministic seeded group + member schedules
     tasks.js
     economy.js               # credits, knowledge-gated gifts
     exposure.js              # location x block x secrecy -> risk
     chips.js                 # stance chip generation + locking
+    balanceSim.js            # headless playthrough harness (dev only)
   tools/
     llmTool.js               # multi-model router, streaming, retries
   data/
@@ -581,7 +663,7 @@ Rules:
 | Phase | Deliverable | Done when |
 |---|---|---|
 | **M0** | Repo hygiene: git init, `main` / `dev`, Tailwind wired with theme tokens, font-scale root, PWA manifest, i18n skeleton (zh/en) | `npm run build` clean, app boots, theme + font scale switchable |
-| **M1** | Pure systems: `relationship`, `exposure`, `calendar`, `chips`, `economy` | stage / ending / strain transitions and route-focus caps verified with no UI and no LLM |
+| **M1** | Pure systems: `relationship`, `jealousy`, `exposure`, `rumor`, `calendar`, `chips`, `economy` + **headless balance simulator** | stage / strain / jealousy transitions verified with no UI and no LLM; simulator reports an ending distribution with the balance ending under 10% |
 | **M2** | Prompt pipeline: `promptBuilder`, `llmTool`, `responseParser`, `memory` | a scene runs in a console harness; cache invariants and roster enforcement asserted |
 | **M3** | VN layer: portrait + CSS emotions, dialogue box with beat reveal, chip bar, meters, Read her | one full scene playable end to end |
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
