@@ -18,6 +18,7 @@ import {
   JEALOUSY_DECAY_PER_ATTENTIVE_SCENE,
   JEALOUSY_CONVERT,
   EXCLUSIVITY,
+  JEALOUSY_GAIN_SCALE,
 } from '../config/constants.js';
 import { clamp } from './rng.js';
 
@@ -39,7 +40,7 @@ export function exclusivity(stage) {
  * @param {object} rel         - the relation of the member who is learning
  */
 export function jealousyGain(rumorWeight, rel) {
-  return rumorWeight * (rel.intimacy / 100) * exclusivity(rel.stage);
+  return rumorWeight * (rel.intimacy / 100) * exclusivity(rel.stage) * JEALOUSY_GAIN_SCALE;
 }
 
 /** Attention is the currency: a scene with her that produces no new rumor. */

@@ -147,18 +147,46 @@ export function resolveBadEnd(rel) {
 export function resolveEnding(rel) {
   if (rel.endingLocked) return rel.endingLocked;
   if (rel.peakIntimacy < 40) return 'drift_end';
-  if (rel.stage === 'out') return 'out_end';
-  if (rel.stage === 'ours') return 'ours_end';
-  if (rel.stage === 'unspoken') return 'unspoken_end';
-  if (rel.stage === 'confidante') return 'confidante_end';
-  return 'drift_end';
+
+  switch (rel.stage) {
+    case 'out':
+      return 'out_end';
+    case 'ours':
+      return 'ours_end';
+    case 'unspoken':
+      return 'unspoken_end';
+    // The signature zone gets its own ending. Deeply close, never nameable, and
+    // crucially NOT broken - which is a different thing from `nameless_end`,
+    // the collapse that leaves her permanently filed as a friend.
+    case 'nameless':
+      return 'unnamed_end';
+    case 'confidante':
+      return 'confidante_end';
+    case 'good_friends':
+      return 'friends_end';
+    // Public before private was ready, and it survived to the end anyway.
+    // Nothing has broken yet. It is going to.
+    case 'reckless':
+      return 'reckless_end';
+    default:
+      return 'drift_end';
+  }
 }
 
-export const GOOD_ENDINGS = new Set(['out_end', 'ours_end', 'unspoken_end']);
+/**
+ * Endings that count as having got somewhere real.
+ *
+ * `unnamed_end` belongs here. Five relationships that are deeply close and
+ * cannot be named is the truest version of this game's balance ending -
+ * considerably more interesting than five public girlfriends, and it is the
+ * bar the simulator is tuned against.
+ */
+export const GOOD_ENDINGS = new Set(['out_end', 'ours_end', 'unspoken_end', 'unnamed_end']);
 
 /**
- * The balance ending: every member at `unspoken` or above with jealousy held
- * under 50. Reachable, and by design the hardest result in the game.
+ * The balance ending: every member at `nameless` or above with jealousy held
+ * under 50 and nothing collapsed. Reachable, and by design the hardest result
+ * in the game.
  */
 export function isBalanceEnding(relations) {
   const all = Object.values(relations);

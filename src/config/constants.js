@@ -38,6 +38,18 @@ export const JEALOUSY_BANDS = { calm: 0, piqued: 25, sharp: 50, corrosive: 75 };
 export const JEALOUSY_DECAY_PER_ATTENTIVE_SCENE = 5;
 export const JEALOUSY_CONVERT = { jealousy: -20, intimacy: 2 };
 
+/**
+ * Scale factor on jealousy gain.
+ *
+ * Found by balanceSim: the raw formula (weight * intimacy/100 * exclusivity)
+ * tops out near 2.5, while the bands sit at 25/50/75 and decay is 5 per
+ * attentive scene. Unscaled, jealousy could never reach even `piqued` and the
+ * whole pressure system was inert - a competent spread player hit the balance
+ * ending 31.8% of the time. The shape of the formula was right; the scale was
+ * not.
+ */
+export const JEALOUSY_GAIN_SCALE = 6;
+
 export const EXCLUSIVITY = {
   stranger: 0.2,
   colleague: 0.4,
@@ -61,6 +73,16 @@ export const PHASES = ['prep', 'comeback', 'rest'];
 export const BLOCKS = ['morning', 'afternoon', 'evening'];
 export const DAYS_PER_WEEK = 7;
 export const WEEKS_PER_CYCLE = 3;
+
+/**
+ * A campaign is several comeback cycles, not one.
+ *
+ * Found by balanceSim: a single 3-week cycle is 63 blocks, which is ~12 scenes
+ * per member across five routes - not enough to move any of them out of
+ * drift_end. One cycle is a fine length for a single devoted route and far too
+ * short for the multi-route game. See docs/PROGRESS.md.
+ */
+export const CYCLES_PER_CAMPAIGN = 3;
 
 // --- scene ------------------------------------------------------------------
 export const READ_HER_USES_PER_SCENE = 2;

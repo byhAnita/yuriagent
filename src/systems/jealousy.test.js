@@ -11,6 +11,7 @@ import {
   sceneModifiers,
 } from './jealousy.js';
 import { newRelation } from './relationship.js';
+import { JEALOUSY_BANDS } from '../config/constants.js';
 
 const rel = (patch) => ({ ...newRelation(50), ...patch });
 
@@ -41,12 +42,20 @@ describe('exclusivity', () => {
 });
 
 describe('jealousyGain', () => {
-  it('is near zero for a stranger and large at nameless', () => {
+  it('is negligible for a stranger and consequential at nameless', () => {
     const stranger = jealousyGain(1, rel({ intimacy: 10, stage: 'stranger' }));
     const deep = jealousyGain(1, rel({ intimacy: 70, stage: 'nameless' }));
-    expect(stranger).toBeLessThan(0.1);
-    expect(deep).toBeGreaterThan(0.8);
+
+    // Assertions are about the SHAPE of the curve, not the current scale
+    // factor - that number belongs to balanceSim and is expected to move.
+    expect(stranger).toBeLessThan(1);
     expect(deep / stranger).toBeGreaterThan(20);
+
+    // A deeply invested member should need a handful of rumors to reach
+    // `piqued`, not two and not thirty.
+    const toPiqued = JEALOUSY_BANDS.piqued / deep;
+    expect(toPiqued).toBeGreaterThan(2);
+    expect(toPiqued).toBeLessThan(12);
   });
 
   it('scales linearly with rumor weight', () => {
