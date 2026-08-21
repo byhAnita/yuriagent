@@ -351,7 +351,12 @@ a Leave button. Disabled chips with no explanation read as a frozen screen.
 
 ### Player input
 
-Three **chips** per turn plus optional free text. Chips are generated client-side from stance templates filtered by stage and strain band: zero LLM cost, instant render, and they cover the latency of the previous stream.
+Three **chips** per turn plus optional free text. A chip is a **stance**: the
+player commits to a posture, and what she actually says back is the model's
+answer. The player never writes her side and never picks a scripted line.
+
+The baseline set is the stance names themselves, which is what ships when there
+is no key, no budget, or no response:
 
 ```
 [ Tease ]   [ Reassure ]   [ Change the subject ]        (pen) free text
@@ -360,11 +365,118 @@ Three **chips** per turn plus optional free text. Chips are generated client-sid
 Stance vocabulary: `tease, reassure, deflect, press, confide, touch, retreat, joke, apologize, invite`.
 Locking: `press` / `touch` / `confide` unavailable in `rift`; `touch` requires `intimacy >= 50`.
 
+`systems/chips.js` resolves which stances are legal from stage, strain band,
+jealousy band and energy, and which the situation is actively asking for. That
+resolution is pure, deterministic and free, and it is the source of truth for
+what may be offered. Nothing below is allowed to widen it.
+
+### Written chips
+
+A bare `[ Tease ]` is legible but generic - it reads the same in week 1 and in
+the middle of a fight. So the label may be **written by the model for this
+moment**, while the stance underneath stays exactly what `chips.js` decided:
+
+```
+[ You're doing that thing with your hands again ]     -> tease
+[ I'm not going anywhere ]                            -> reassure
+[ So. The schedule. ]                                 -> deflect
+```
+
+The stance is what the game acts on. The label is what the player reads. Keeping
+those separate is what lets the writing improve without any mechanic changing.
+
+#### Latency: the static chips are already on screen
+
+This is the whole design. Chips are **never awaited**. `chips.js` renders its set
+the instant the turn resolves, and the written ones replace them if and when they
+arrive. There is no spinner and no empty bar, so a slow call, a failed call and a
+disabled feature are all invisible.
+
+The call itself is the `Read her` shape (below): it branches off the prefix that
+just finished streaming, so it is a near-total cache hit.
+
+| | beat call | chip call |
+|---|---|---|
+| prefix | cache hit | **same prefix, same hit** |
+| miss | ~60 tok | ~20 tok |
+| output | ~160 tok | ~25 tok |
+
+Output tokens dominate wall time, and this generates roughly six times fewer. It
+cannot run *concurrently* with the beat call - it has to know what she said - so
+it fires at stream end and runs while the player is tapping through beats.
+
+**Swap only while beats are still being revealed.** Once the player reveals the
+last beat the chip bar is live, and relabelling a button under a finger is a
+misclick. Late arrivals are discarded. The feature is therefore strictly
+opportunistic: it can improve the bar, never degrade it.
+
+Do not route chips to a different, faster model. That abandons the shared prefix
+and turns a 20-token miss into 2200. Same model is what makes this cheap.
+
+#### Contract
+
+One line per chip, pipe-delimited, same house style as section 9. Not JSON -
+more tokens, and small models break it more often.
+
+```
+tease|You're doing that thing with your hands again
+reassure|I'm not going anywhere
+deflect|So. The schedule.
+```
+
+Validated client-side, never trusted:
+
+1. The stance must already be in `availableStances().available`. Every lock rule
+   is preserved for free, and the model cannot unlock `touch` by asking.
+2. Deduplicate stances. Trim and cap the label - it must survive `zh` at
+   `fontScale` 1.25 on a 390px screen.
+3. Fewer than three survive -> **backfill from `generateChips`**, keeping the
+   ones that did. Degrading chip by chip beats degrading all at once.
+4. None survive -> the static set stands, and the player never knows.
+
+Labels are prose, so they are written in `meta.lang`. Stance ids are machine
+tokens and stay ASCII English in every locale (section 19).
+
+#### Chips must not hand over the answer key
+
+The pillar is that the player *reads* hidden state and bets on it, which is why
+`Read her` is rationed rather than streamed. A chip reading *"Ask why she's upset
+about Wendy"* hands over jealousy the player never detected, for free, and
+bypasses that economy entirely. The chip writer can see blocks 3 and 4, so it
+holds the material to do exactly that.
+
+The rule:
+
+> **The stance may be informed by everything the model knows. The label may only
+> contain what the player could have seen or heard.**
+
+That keeps the value - the model knowing `reassure` is the live move is the point
+of writing chips at all - while forbidding it to narrate what it knows. Two
+consequences, both enforced in code rather than hoped for:
+
+- A label naming a member who is not in the scene is **rejected**, mirroring the
+  parser's roster rule (section 9).
+- Chips are intentions, never outcomes. *"Kiss her"*, not *"Kiss her and she
+  melts."* The chip is what the player tries; what happens is the model's answer.
+
+#### Failure budget
+
+Token cost is negligible, but request count roughly doubles - about 500 extra
+calls per campaign - which matters for free-tier rate limits, not for money. Two
+consecutive chip failures in a scene disables the writer for the rest of that
+scene, and a setting disables it entirely. Both fall back to `chips.js`, which is
+a complete input system on its own and must stay that way.
+
+`agent/chipWriter.js` owns the call, the parse and the validation. It lives in
+`agent/` and not `systems/` because it touches a model (section 4). Its request
+frame is **ephemeral and never committed**: unlike `Read her`, a chip request must
+not append to block 5, or the transcript fills with chip requests and every later
+turn loses its prefix.
+
 ### "Read her"
 
 Inner thought is **not** streamed on every line - that hands the player the answer key and kills the tension.
 `Read her` is a limited action: 2 uses per scene, or 1 Energy. It appends a system note at the tail of the scene buffer and requests a thought-only response (~30 output tokens, full prefix cache hit).
-
 ---
 
 ## 7. Memory Architecture
@@ -933,6 +1045,7 @@ src/
     responseParser.js        # tolerant streaming state machine
     memory.js                # ledger append + compaction, dossier CRUD
     summarizer.js            # scene-exit call
+    chipWriter.js            # written chip labels; ephemeral frame, never committed
   systems/                   # PURE. no React, no network.
     rng.js                   # seeded mulberry32, injected everywhere
     relationship.js          # intimacy/admissibility/strain, stage, endings
@@ -945,7 +1058,7 @@ src/
     soloWork.js              # empty rooms: work, snooping, learned facts
     economy.js               # credits, knowledge-gated gifts
     exposure.js              # location x block x secrecy -> risk
-    chips.js                 # stance chip generation + locking
+    chips.js                 # stance legality + the fallback chip set
     balanceSim.js            # headless playthrough harness (dev only)
     *.test.js                # colocated; vitest
   tools/
