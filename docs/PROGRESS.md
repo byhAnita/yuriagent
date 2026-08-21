@@ -5,7 +5,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M2 complete, M3 next
+## Current: M3 complete, M4 next
 
 ### M0 - scaffold (done)
 
@@ -127,16 +127,67 @@ messages actually handed to the client.
 
 ---
 
-## Next: M3 - the VN layer
+## M3 - the VN layer (done)
 
-Portrait with the six CSS emotion treatments, dialogue box with beat reveal,
-chip bar, meters, Read her. Exit criterion: one full scene playable end to end.
+218 tests. One full scene is playable end to end, with no API key.
 
-This is the first milestone where visual design actually matters, so it gets a
-real design pass rather than the token-check harness that `App.jsx` is now.
+### Art direction: backstage monitor
 
-Blocking: the placeholder mascot SVGs on `feat/assets` are minimal and are due
-to be replaced.
+The chrome is production equipment - monospace timecode, VU-style meters,
+hairline rules - and the dialogue box is the only warm, soft surface in the
+frame. Feelings under instrumentation. Type is `Instrument Serif` for names,
+`Newsreader` for dialogue prose, `DM Mono` for every piece of chrome.
+
+Deliberately not pastel otome: the game is about a thing that cannot be named,
+and a cute palette would have argued against its own premise.
+
+| Component | Notes |
+|---|---|
+| `Portrait.jsx` | one asset, six CSS emotion states, palette recolour |
+| `DialogueBox.jsx` | beat reveal on tap; parses `*action*` vs `"speech"` |
+| `ChipBar.jsx` | three stance chips, suggested marker, free text, Read her |
+| `MeterBar.jsx` | guard and fluster as levels, exposure as a hazard read |
+| `ThoughtBubble.jsx` | rationed Read her result, floats over the portrait |
+| `SceneHeader.jsx` | timecode strip |
+| `beatQueue.js` | pure reveal-pacing logic, tested without a DOM |
+| `VNStage.jsx` | drives one scene through `sceneEngine` |
+
+### The stage light does work
+
+A radial pool behind the portrait takes its hue from the speaking member's
+palette and shifts with emotion - warmer on `blush`, colder on `upset`. That is
+one CSS variable doing what would otherwise need per-emotion art, and it is the
+same data the `bloom` theme already uses.
+
+### Offline mock client
+
+`tools/mockClient.js` emits the real contract format, streams chunk by chunk,
+and fails the format on about 8% of turns on purpose - so the tolerant parser is
+exercised in real play rather than only in tests. The whole loop is playable
+with no key, which also makes M4 development possible without spending tokens.
+
+### Known gaps leaving M3
+
+- No real API key path in the UI yet. `llmTool.js` is written and unused; the
+  key input and model picker land with the settings modal in M4.
+- Group scenes (2 portraits, dimmed non-speaker) are built for in `Portrait`
+  via the `speaking` prop but `VNStage` only renders the focus member.
+- `SceneSetup.jsx` is a stand-in for the map and calendar. It exists so a scene
+  is reachable and so the two choices that matter romantically - who, and how
+  visible - are already the choices the player makes.
+- Still no retry / regenerate.
+- The mascot SVGs remain placeholders, to be replaced after a v1 pass.
+
+---
+
+## Next: M4 - the shell
+
+Map, time blocks, week calendar, daily tasks, gift modal, day rollover. Exit
+criterion: one full in-game day playable.
+
+Re-run `balanceSim` at the end of M4. Gifts and chips will make a real player
+more efficient than the stand-in scene model, and the calibration numbers will
+move.
 
 ---
 

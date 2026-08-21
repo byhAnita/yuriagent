@@ -1,10 +1,13 @@
 /**
- * M0 scaffold harness.
+ * M3 shell.
  *
- * This screen exists to prove the M0 exit criteria: the app boots, cards load,
- * and theme / font scale / language switch correctly through the token layer.
- * It is NOT the game UI - the real VN interface arrives in M3 with a proper
- * design pass. Expect this file to be replaced wholesale.
+ * Setup -> scene -> aftermath, wired to the real engine. The map, calendar and
+ * task layer arrive in M4; until then SceneSetup stands in for them so a scene
+ * is reachable and the two romantically meaningful choices - who, and how
+ * visible - are already the choices the player makes.
+ *
+ * Runs against the offline mock client by default so the whole loop is playable
+ * with no API key.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -12,188 +15,247 @@ import { applyTheme, THEMES, FONT_SCALES } from './config/themes.js';
 import { loadSettings, saveSettings } from './store/settings.js';
 import { makeT, LANGS, LANG_LABELS } from './i18n/index.js';
 import { getCast } from './data/cast.js';
-import { LOCATIONS } from './data/locations.js';
+import { buildLineup } from './systems/castBuilder.js';
+import { newRelation, resolveStage } from './systems/relationship.js';
+import { newMemory } from './agent/memory.js';
+import { createMockClient } from './tools/mockClient.js';
+import VNStage from './ui/vn/VNStage.jsx';
+import SceneSetup from './ui/screens/SceneSetup.jsx';
 
-/**
- * Class names must be written out in full - Tailwind extracts them statically,
- * so a constructed string like `bg-${id}` produces no CSS.
- */
-const METERS = [
-  { id: 'guard', cls: 'bg-guard' },
-  { id: 'fluster', cls: 'bg-fluster' },
-  { id: 'exposure', cls: 'bg-exposure' },
-];
+const IDENTITY = {
+  id: 'assistant',
+  promptRole: 'an artist assistant at the agency',
+  exposureModifier: { wardrobe: -10, cafe: 10 },
+};
 
 export default function App() {
-  const [settings, setSettings] = useState(loadSettings);
-  const [focusId, setFocusId] = useState('irene');
+  const cards = useMemo(() => getCast(), []);
+  const lineup = useMemo(() => buildLineup(cards), [cards]);
+  const castIds = useMemo(() => cards.map((c) => c.id), [cards]);
 
-  const cast = useMemo(() => getCast(), []);
+  const [settings, setSettings] = useState(loadSettings);
+  const [screen, setScreen] = useState('setup');
+  const [sceneNo, setSceneNo] = useState(0);
+  const [outcome, setOutcome] = useState(null);
+
+  const [player] = useState({ name: 'You', energy: 80, secrecy: 70, credits: 6, competence: 20 });
+  const [relations, setRelations] = useState(() =>
+    Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
+  );
+  const [memory, setMemory] = useState(() => newMemory(castIds));
+
+  const [choice, setChoice] = useState({
+    memberId: 'irene',
+    locationId: 'practice_room',
+    block: 'evening',
+    phase: 'prep',
+  });
+
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
-  const focus = cast.find((c) => c.id === focusId) ?? cast[0];
+  const client = useMemo(() => createMockClient({ seed: 7 + sceneNo }), [sceneNo]);
+
+  const focusCard = cards.find((c) => c.id === choice.memberId);
 
   useEffect(() => {
-    applyTheme(settings, focus?.palette ?? null);
+    applyTheme(settings, focusCard?.palette ?? null);
     saveSettings(settings);
-  }, [settings, focus]);
+  }, [settings, focusCard]);
 
-  const set = (patch) => setSettings((s) => ({ ...s, ...patch }));
+  const scene = useMemo(
+    () => ({
+      id: `s${sceneNo}`,
+      seed: 1000 + sceneNo,
+      rosterIds: [choice.memberId],
+      focusId: choice.memberId,
+      week: 0,
+      day: 1,
+      block: choice.block,
+      phase: choice.phase,
+      locationId: choice.locationId,
+      locationLabel: t(`location.${choice.locationId}`),
+    }),
+    [choice, sceneNo, t],
+  );
+
+  const setup = useMemo(
+    () => ({ cards, lineup, identity: IDENTITY, player, lang: settings.lang, memory, relations, scene }),
+    [cards, lineup, player, settings.lang, memory, relations, scene],
+  );
+
+  const onSceneEnd = (result) => {
+    setMemory(result.memory);
+    setRelations(result.relations);
+    setOutcome(result);
+    setScreen('after');
+    setSceneNo((n) => n + 1);
+  };
+
+  if (screen === 'scene') {
+    return (
+      <VNStage
+        key={sceneNo}
+        setup={setup}
+        client={client}
+        onSceneEnd={onSceneEnd}
+        t={t}
+      />
+    );
+  }
+
+  if (screen === 'after') {
+    return (
+      <Aftermath
+        outcome={outcome}
+        cards={cards}
+        relations={relations}
+        memory={memory}
+        onAgain={() => setScreen('setup')}
+        t={t}
+      />
+    );
+  }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-6 px-5 py-8">
-      <header className="flex items-baseline justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('app.title')}</h1>
-          <p className="text-sm text-dim">{t('app.tagline')}</p>
-        </div>
-        <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs text-accent">
-          {t('dev.scaffold')}
-        </span>
-      </header>
+    <>
+      <SceneSetup
+        cards={cards}
+        relations={relations}
+        choice={choice}
+        onChange={setChoice}
+        onBegin={() => setScreen('scene')}
+        t={t}
+      />
+      <SettingsStrip settings={settings} onChange={setSettings} t={t} />
+    </>
+  );
+}
 
-      <Section title={t('dev.castLoaded')}>
-        <ul className="flex flex-col gap-2">
-          {cast.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onClick={() => setFocusId(c.id)}
-                aria-pressed={c.id === focusId}
-                className="flex w-full items-center gap-3 rounded-[var(--radius)] border px-3 py-2 text-left transition-colors"
-                style={{
-                  borderColor: c.id === focusId ? c.palette.base : 'var(--border)',
-                  background: c.id === focusId ? 'var(--surface-alt)' : 'var(--surface)',
-                }}
-              >
-                <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg"
-                  style={{ background: c.palette.base, color: c.palette.accent }}
-                >
-                  {c.emoji}
+function Aftermath({ outcome, cards, relations, memory, onAgain, t }) {
+  const { delta, rumors } = outcome;
+
+  return (
+    <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-5 px-5 py-8">
+      <h2 className="font-display text-[1.5rem] tracking-wide">{t('vn.sceneOver')}</h2>
+
+      <ul className="flex flex-col gap-1 font-mono text-[0.6875rem] uppercase tracking-[0.12em]">
+        {['intimacy', 'admissibility', 'strain'].map((k) => (
+          <li key={k} className="flex justify-between border-b border-hairline pb-1 text-dim">
+            <span>{k}</span>
+            <span className={delta[k] > 0 ? 'text-accent' : 'text-faint'}>
+              {delta[k] > 0 ? '+' : ''}
+              {delta[k]}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {rumors.length > 0 ? (
+        <section>
+          <h3 className="mb-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-warn">
+            {t('exposureBand.public')}
+          </h3>
+          <ul className="flex flex-col gap-1">
+            {rumors.map((r, i) => (
+              <li key={i} className="font-body text-[0.875rem] italic text-dim">
+                {cards.find((c) => c.id === r.memberId)?.name}: {r.text}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section>
+        <h3 className="mb-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-faint">
+          {t('dev.castLoaded')}
+        </h3>
+        <ul className="flex flex-col gap-1">
+          {cards.map((c) => {
+            const rel = relations[c.id];
+            return (
+              <li key={c.id} className="flex items-baseline gap-2 font-mono text-[0.625rem]">
+                <span className="w-14 text-dim">{c.name}</span>
+                <span className="flex-1 text-faint">
+                  {t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{c.name}</span>
-                  <span className="block truncate text-xs text-dim">
-                    {c.preferredRoles.map((r) => t(`role.${r}`)).join(' / ')}
-                  </span>
-                </span>
-                <span className="text-xs text-dim">{c.mascot}</span>
-              </button>
-            </li>
-          ))}
+                <span className="tabular-nums text-dim">{Math.round(rel.intimacy)}</span>
+                <span className="tabular-nums text-warn">{Math.round(rel.jealousy)}</span>
+              </li>
+            );
+          })}
         </ul>
-      </Section>
+      </section>
 
-      <Section title={t('settings.theme')}>
-        <Row>
-          {THEMES.map((th) => (
-            <Chip
-              key={th}
-              active={settings.theme === th}
-              onClick={() => set({ theme: th })}
-              label={t(`theme.${th}`)}
-            />
-          ))}
-        </Row>
-        {settings.theme === 'bloom' && (
-          <p className="mt-2 text-xs text-dim">{t('theme.bloomHint')}</p>
-        )}
-      </Section>
+      {memory.ledger.length > 0 ? (
+        <p className="font-body text-[0.875rem] italic text-dim">
+          {memory.ledger.at(-1).text}
+        </p>
+      ) : null}
 
-      <Section title={t('settings.fontSize')}>
-        <Row>
-          {FONT_SCALES.map((fs) => (
-            <Chip
-              key={fs}
-              active={settings.fontScale === fs}
-              onClick={() => set({ fontScale: fs })}
-              label={`${Math.round(fs * 100)}%`}
-            />
-          ))}
-        </Row>
-      </Section>
-
-      <Section title={t('settings.language')}>
-        <Row>
-          {LANGS.map((l) => (
-            <Chip
-              key={l}
-              active={settings.lang === l}
-              onClick={() => set({ lang: l })}
-              label={LANG_LABELS[l]}
-            />
-          ))}
-        </Row>
-      </Section>
-
-      <Section title={t('settings.reduceMotion')}>
-        <Row>
-          <Chip
-            active={!settings.reduceMotion}
-            onClick={() => set({ reduceMotion: false })}
-            label="Off"
-          />
-          <Chip
-            active={settings.reduceMotion}
-            onClick={() => set({ reduceMotion: true })}
-            label="On"
-          />
-        </Row>
-      </Section>
-
-      <Section title={t('dev.tokenCheck')}>
-        <div className="grid grid-cols-3 gap-2">
-          {METERS.map(({ id, cls }) => (
-            <div
-              key={id}
-              className="rounded-[var(--radius)] border border-border bg-surface p-2"
-            >
-              <span className="block text-xs text-dim">{t(`meter.${id}`)}</span>
-              <span className={`mt-1.5 block h-1.5 rounded-full ${cls}`} />
-            </div>
-          ))}
-        </div>
-        <ul className="mt-3 flex flex-col gap-1 text-xs text-dim">
-          {Object.entries(LOCATIONS).map(([id, loc]) => (
-            <li key={id} className="flex justify-between gap-3">
-              <span className="truncate">{t(`location.${id}`)}</span>
-              <span className="shrink-0 tabular-nums">
-                {t('meter.exposure')} {loc.exposureBase} / {loc.presence}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      <button
+        type="button"
+        onClick={onAgain}
+        className="mt-auto rounded-[var(--radius)] border border-accent px-4 py-3 font-mono text-[0.75rem] uppercase tracking-[0.2em] text-accent"
+      >
+        {t('vn.again')}
+      </button>
     </div>
   );
 }
 
-function Section({ title, children }) {
-  return (
-    <section>
-      <h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-dim">{title}</h2>
-      {children}
-    </section>
-  );
-}
+function SettingsStrip({ settings, onChange, t }) {
+  const set = (patch) => onChange({ ...settings, ...patch });
 
-function Row({ children }) {
-  return <div className="flex flex-wrap gap-2">{children}</div>;
-}
-
-function Chip({ active, onClick, label }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-        active
-          ? 'border-accent bg-accent text-on-accent'
-          : 'border-border bg-surface text-text hover:bg-surface-alt'
-      }`}
-    >
-      {label}
-    </button>
+    <div className="mx-auto w-full max-w-[26rem] px-5 pb-6">
+      <hr className="rule mb-3" />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[0.5625rem] uppercase tracking-[0.14em]">
+        <span className="text-faint">{t('settings.theme')}</span>
+        {THEMES.map((th) => (
+          <button
+            key={th}
+            type="button"
+            onClick={() => set({ theme: th })}
+            className={settings.theme === th ? 'text-accent' : 'text-faint hover:text-dim'}
+          >
+            {t(`theme.${th}`)}
+          </button>
+        ))}
+
+        <span className="ml-2 text-faint">{t('settings.fontSize')}</span>
+        {FONT_SCALES.map((fs) => (
+          <button
+            key={fs}
+            type="button"
+            onClick={() => set({ fontScale: fs })}
+            className={settings.fontScale === fs ? 'text-accent' : 'text-faint hover:text-dim'}
+          >
+            {Math.round(fs * 100)}
+          </button>
+        ))}
+
+        <span className="ml-2 text-faint">{t('settings.language')}</span>
+        {LANGS.map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => set({ lang: l })}
+            className={settings.lang === l ? 'text-accent' : 'text-faint hover:text-dim'}
+          >
+            {LANG_LABELS[l]}
+          </button>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => set({ reduceMotion: !settings.reduceMotion })}
+          className={settings.reduceMotion ? 'ml-2 text-accent' : 'ml-2 text-faint hover:text-dim'}
+        >
+          {t('settings.reduceMotion')}
+        </button>
+      </div>
+      <p className="mt-2 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-faint">
+        {t('vn.offline')} &middot; {t('vn.offlineNote')}
+      </p>
+    </div>
   );
 }
