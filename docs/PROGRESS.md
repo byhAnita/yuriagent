@@ -5,7 +5,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M1 complete, M2 next
+## Current: M2 complete, M3 next
 
 ### M0 - scaffold (done)
 
@@ -84,20 +84,59 @@ efficient than the stand-in scene model, which will push these numbers up.
 
 ---
 
-## Next: M2 - prompt pipeline
+## M2 - prompt pipeline (done)
 
-`promptBuilder`, `llmTool`, `responseParser`, `memory`. Exit criterion: a scene
-runs in a console harness with the cache invariants and the roster rule
-asserted.
+211 tests total. A whole scene runs end to end with no network and no API key.
 
-Two things to get right, both of which are tests rather than hopes:
+| Module | Notes |
+|---|---|
+| `memory.js` | append-only ledger with in-place compaction; slot-capped dossier |
+| `promptBuilder.js` | 5 blocks; `openScene` returns a **frozen** frame |
+| `responseParser.js` | streaming state machine; roster enforcement |
+| `summarizer.js` | scene-exit call, 4-level fallback, never throws |
+| `sceneEngine.js` | turn loop, meters, micro-to-macro, exit pipeline |
+| `llmTool.js` | OpenAI-compatible router, SSE streaming, retry, key scrubbing |
+| `config/modelConfigs.js` | 4 providers, 3 call presets |
 
-1. **The freeze rule** (CLAUDE.md section 8). Nothing above block 5 may change
-   while a scene is open. A test should open a scene, mutate live meters, and
-   assert the rendered prefix is byte-identical.
-2. **Roster enforcement.** The parser drops any beat whose speaker is not in the
-   current scene roster. That is the hard guarantee against member bleed, and
-   prompting alone will not hold it.
+### The freeze rule is structural, not a convention
+
+`openScene` computes blocks 1-4 and returns a frozen frame holding **strings**,
+not references to game state. There is no way to rebuild the prefix from live
+state mid-scene because the frame does not keep any. `sceneEngine.test.js`
+mutates relations, player energy, ledger and dossier while a scene is open and
+asserts the prefix stays byte-identical across every turn, including in the
+messages actually handed to the client.
+
+### Member bleed has three layers and the last one is not a hope
+
+1. Block 3 carries dossier entries only for the roster.
+2. Block 4 names absent members as absent.
+3. **The parser drops an off-roster beat entirely** - not remapped onto the
+   focus character, dropped. Tested both single-shot and mid-stream, and tested
+   that the dropped beat's meter deltas do not leak into the scene either.
+
+### Known gaps leaving M2
+
+- `llmTool.js` has no test against a live provider. Its shape is exercised only
+  through the mock client in `sceneEngine.test.js`.
+- `sceneEngine` handles a 1-member roster properly; the 2-member group scene
+  path builds correct prompts but the witnessed-gesture bonus is not wired into
+  `computeDeltas` yet. That lands with group scenes in v1.
+- No scene-level retry / regenerate yet. The rv-simulator snapshot pattern
+  should be ported when the VN layer lands.
+
+---
+
+## Next: M3 - the VN layer
+
+Portrait with the six CSS emotion treatments, dialogue box with beat reveal,
+chip bar, meters, Read her. Exit criterion: one full scene playable end to end.
+
+This is the first milestone where visual design actually matters, so it gets a
+real design pass rather than the token-check harness that `App.jsx` is now.
+
+Blocking: the placeholder mascot SVGs on `feat/assets` are minimal and are due
+to be replaced.
 
 ---
 

@@ -1,2 +1,181 @@
-// responseParser - see CLAUDE.md. Implemented in a later milestone.
-export {};
+/**
+ * Tolerant streaming parser. CLAUDE.md section 9.
+ *
+ * Format failures are GUARANTEED at this model tier, so every rule here is a
+ * fallback rather than a validation. The parser never throws and never shows a
+ * raw metadata line to the player.
+ *
+ * Rule 3 is the important one: a beat whose speaker is not in the scene roster
+ * is DROPPED ENTIRELY. That is the hard guarantee against member bleed, and it
+ * is the only one of the three defence layers that does not depend on the model
+ * cooperating.
+ */
+
+import { EMOTIONS } from './promptBuilder.js';
+
+const META = /^@\s*([a-z0-9_]+)\s*\|\s*([a-z_]+)\s*\|?\s*guard\s*([+-]?\d+)?\s*\|?\s*fluster\s*([+-]?\d+)?/i;
+
+/** A looser pass for when the model drops a pipe or reorders the fields. */
+const META_LOOSE = /^@\s*([a-z0-9_]+)/i;
+const GUARD = /guard\s*([+-]?\d+)/i;
+const FLUSTER = /fluster\s*([+-]?\d+)/i;
+
+const DELTA_LIMIT = 40;
+
+function clampDelta(raw) {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(-DELTA_LIMIT, Math.min(DELTA_LIMIT, n));
+}
+
+function normalizeEmotion(raw) {
+  const e = String(raw ?? '').toLowerCase();
+  return EMOTIONS.includes(e) ? e : 'neutral';
+}
+
+/**
+ * Parse one metadata line. Returns null when the line is not metadata at all,
+ * which is how prose gets distinguished from a header.
+ */
+export function parseMetaLine(line) {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('@')) return null;
+
+  const strict = META.exec(trimmed);
+  if (strict) {
+    return {
+      speaker: strict[1].toLowerCase(),
+      emotion: normalizeEmotion(strict[2]),
+      guard: clampDelta(strict[3]),
+      fluster: clampDelta(strict[4]),
+    };
+  }
+
+  const loose = META_LOOSE.exec(trimmed);
+  if (!loose) return null;
+
+  const parts = trimmed.split('|');
+  const emotionGuess = parts[1]?.trim();
+
+  return {
+    speaker: loose[1].toLowerCase(),
+    emotion: normalizeEmotion(emotionGuess),
+    guard: clampDelta(GUARD.exec(trimmed)?.[1]),
+    fluster: clampDelta(FLUSTER.exec(trimmed)?.[1]),
+  };
+}
+
+/**
+ * Parse a whole response into beats.
+ *
+ * @param {string} text
+ * @param {object} ctx - { rosterIds, focusId }
+ * @returns {{ beats: Array, dropped: Array, malformed: boolean }}
+ */
+export function parseResponse(text, { rosterIds = [], focusId = null } = {}) {
+  const raw = String(text ?? '');
+  const roster = new Set(rosterIds);
+  const fallbackSpeaker = focusId ?? rosterIds[0] ?? null;
+
+  const chunks = raw.split(/\n\s*\n/);
+  const beats = [];
+  const dropped = [];
+  let sawMeta = false;
+
+  for (const chunk of chunks) {
+    const lines = chunk.split('\n');
+    const meta = parseMetaLine(lines[0] ?? '');
+
+    if (!meta) {
+      // Rule 1: no metadata anywhere -> the whole thing is prose from focus.
+      const prose = chunk.trim();
+      if (prose) beats.push({ speaker: fallbackSpeaker, emotion: null, guard: 0, fluster: 0, text: prose, inferred: true });
+      continue;
+    }
+
+    sawMeta = true;
+    const prose = lines.slice(1).join('\n').trim();
+
+    // Rule 3: off-roster speakers are dropped entirely. Not remapped - dropped.
+    if (!roster.has(meta.speaker)) {
+      dropped.push({ ...meta, text: prose, reason: 'off-roster' });
+      continue;
+    }
+
+    if (!prose) continue;
+    beats.push({ ...meta, text: prose, inferred: false });
+  }
+
+  // Rule 1, strict reading: if nothing parsed as metadata, no state should move.
+  if (!sawMeta) {
+    return {
+      beats: beats.map((b) => ({ ...b, emotion: null, guard: 0, fluster: 0 })),
+      dropped,
+      malformed: true,
+    };
+  }
+
+  return {
+    beats: beats.map((b) => ({ ...b, emotion: b.emotion ?? 'neutral' })),
+    dropped,
+    malformed: false,
+  };
+}
+
+/** Aggregate meter movement for the scene engine. */
+export function totalDeltas(beats) {
+  return beats.reduce(
+    (acc, b) => ({ guard: acc.guard + (b.guard ?? 0), fluster: acc.fluster + (b.fluster ?? 0) }),
+    { guard: 0, fluster: 0 },
+  );
+}
+
+/**
+ * Incremental parser for streaming.
+ *
+ * Emits a beat as soon as its blank-line terminator arrives, so the portrait
+ * reacts on the metadata line while the prose is still coming in.
+ */
+export function createStreamParser(ctx = {}) {
+  let buffer = '';
+  const emitted = [];
+  const dropped = [];
+
+  return {
+    /** @returns {Array} beats completed by this chunk */
+    push(chunk) {
+      buffer += chunk;
+      const out = [];
+
+      let idx;
+      while ((idx = buffer.search(/\n\s*\n/)) !== -1) {
+        const piece = buffer.slice(0, idx);
+        buffer = buffer.slice(idx).replace(/^\n\s*\n/, '');
+        const { beats, dropped: d } = parseResponse(piece, ctx);
+        out.push(...beats);
+        dropped.push(...d);
+      }
+
+      emitted.push(...out);
+      return out;
+    },
+
+    /** Flush the tail and report the whole response. */
+    end() {
+      const out = [];
+      if (buffer.trim()) {
+        const { beats, dropped: d } = parseResponse(buffer, ctx);
+        out.push(...beats);
+        dropped.push(...d);
+        buffer = '';
+      }
+      emitted.push(...out);
+      return { beats: emitted, dropped, tail: out };
+    },
+
+    /** The metadata line must never reach the player. */
+    get pending() {
+      return buffer;
+    },
+  };
+}
