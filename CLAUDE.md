@@ -171,6 +171,23 @@ Bad Ends are exits from the map, not regions on it. Low/low is where every run s
 
 `peakIntimacy` also reframes the map: bottom-left with `peakIntimacy = 0` is **Stranger**; with `peakIntimacy = 75` it is **Aftermath** - same coordinates, different scene framing and a different chip set.
 
+### Route focus
+
+Every cast member carries a full track in `relations`, but only one is an active **route** at a time, named by `run.focusId`.
+
+| | `focusId` member | other cast |
+|---|---|---|
+| `intimacy` | 0-100 | 0-50, hard cap at `good_friends` |
+| `admissibility` | active | frozen at 0 |
+| `strain` | active | frozen at 0 |
+| endings | eligible | never |
+
+Non-focus members are social texture, not routes. They appear in scenes, react, hold dossier entries, and gain friendship intimacy. They cannot reach `nameless` or beyond.
+
+Rationale: "I cannot name what this is" is not a feeling you have about four people at once. Five parallel admissibility tracks dilute the exact tension the game exists for, and they require a jealousy system that is a separate design problem.
+
+Switching focus is allowed before `nameless`. After that it costs `strain += 25` on the abandoned track. Multi-route is a v2 mode: a flag plus one system file, not a refactor, because the state shape already supports it.
+
 ---
 
 ## 6. Interaction Loop
@@ -219,14 +236,15 @@ Inner thought is **not** streamed on every line - that hands the player the answ
 
 ## 7. Memory Architecture
 
-Four structures; three of them frozen while a scene is open.
+Five prompt blocks; four of them frozen while a scene is open.
 
-| # | Structure | Lifetime | Size |
+| Block | Structure | Lifetime | Size |
 |---|---|---|---|
-| L1 | **Static system** - rules, format contract, identity, present character cards | whole run | ~2000 tok |
-| L1b | **Dossier** - per-character known facts | persistent, slot-capped | ~60 tok / char |
-| L2 | **Ledger** - append-only one-sentence scene summaries + macro state | whole run | ~1200 tok |
-| L3 | **Scene buffer** - dialogue turns in the current room | **purged on exit** | grows |
+| 1 | **Static system** - rules, format contract, identity, all cast cards | whole run, byte-stable | ~2200 tok |
+| 2 | **Ledger** - append-only one-sentence scene summaries + macro state | whole run | ~1200 tok |
+| 3 | **Dossier** - learned facts, **only for members present in this scene** | rebuilt at scene start | ~60 tok / char |
+| 4 | **Scene header** - roster, time, location, exposure, stats, gift note | rebuilt at scene start | ~150 tok |
+| 5 | **Scene buffer** - dialogue turns in the current room | **purged on exit** | grows |
 
 ### Dossier
 
@@ -245,13 +263,18 @@ dossier: {
 
 Unresolved `open_threads` at cycle end cost `strain += 5` each. The model is instructed to reference them.
 
+Two rules that are not optional:
+
+1. **Roster scoping.** Block 3 contains dossier entries only for members present in the current scene. An absent member's facts are simply not in the prompt, which is the cheapest possible defence against member bleed.
+2. **English always.** Ledger entries and dossier entries are written in English regardless of the player's UI language (see section 19). Memory stays language-agnostic, the player can switch language mid-run without corrupting history, and block 1 stays byte-stable across the switch.
+
 ### Scene exit pipeline
 
 ```
-1. Enter room  -> build L1 + L1b + L2 + scene header; L3 empty
-2. Interact    -> append turns to L3 only
+1. Enter room  -> build blocks 1-4; block 5 empty
+2. Interact    -> append turns to block 5 only
 3. Exit        -> one summarizer call: { summary, dossier_add[], dossier_resolve[] }
-4. Commit      -> summary appended to L2; dossier updated; L3 discarded
+4. Commit      -> summary appended to ledger; dossier updated; block 5 discarded
 5. Deltas      -> systems/relationship.js applies macro changes from accumulated turn meta
 ```
 
@@ -262,12 +285,29 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 ## 8. Prompt Assembly & Cache Rules
 
 ```
-[ block 1  L1  system   ]  fixed for the whole run
-[ block 2  L1b dossier  ]  rebuilt at scene start, then frozen
-[ block 3  L2  ledger   ]  append-only, frozen during a scene
-[ block 4  scene header ]  time, location, present chars, stats, exposure, gift note
-[ block 5  L3  turns    ]  the ONLY thing that grows during a scene
+[ block 1  system       ]  byte-stable for the whole run
+[ block 2  ledger       ]  append-only; gains an entry at every scene boundary
+[ block 3  dossier      ]  present members only; rebuilt at every scene boundary
+[ block 4  scene header ]  roster, time, location, exposure, stats, gift note
+[ block 5  turns        ]  the ONLY thing that grows during a scene
 ```
+
+### Why this order
+
+The ledger gains an entry after *every* scene. So on the first turn of a new scene, everything after block 1 is a cache miss no matter how blocks 2-4 are arranged - moving the dossier earlier or later changes nothing.
+
+Ordering is therefore chosen for **salience, not cache**: the most decision-relevant material sits closest to the dialogue. Dossier facts about the woman in the room matter more to the next line than a summary of week 1, so the dossier goes after the ledger.
+
+### Cache accounting
+
+| Call | Blocks hit | Miss size |
+|---|---|---|
+| turn 1 of a scene | block 1 only | ~1550 tok |
+| turns 2..N | everything up to the tail | last turn only, ~60 tok |
+| "Read her" | everything up to the tail | ~20 tok |
+| scene summarizer | everything up to the tail | ~40 tok |
+
+Roughly 63 scene openings per 3-week playthrough, so about 230k uncached input tokens for a full run. Cost is not the binding constraint; latency is (see section 6).
 
 ### Cache invariants - violating any of these breaks the design
 
@@ -292,6 +332,8 @@ Metadata on the **first line**, machine-readable, then prose. Metadata first mea
 Grammar: `@<speaker_id>|<emotion>|guard<signed_int>|fluster<signed_int>`
 Emotions (MVP set): `neutral, happy, blush, shy, upset, surprised`.
 
+**All machine-readable tokens stay ASCII English in every language.** Speaker ids, emotion names, and field names are never localized. Only the prose after the metadata line is written in the player's language. A localized emotion name kills the parser.
+
 Up to **3 beats** per response, separated by a blank line, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
 
 ### Parser rules (`agent/responseParser.js`)
@@ -300,9 +342,20 @@ Streaming state machine. Format failures are guaranteed at this model tier, so:
 
 1. No metadata line found -> render the whole output as prose from the current focus character, no state change.
 2. Unknown emotion -> fall back to `neutral`.
-3. Unknown speaker id -> fall back to focus character.
-4. Malformed delta -> treat as 0.
-5. **Never** show a raw metadata line to the player.
+3. **Speaker id not in the current scene roster -> drop the beat entirely.** This is the hard guarantee against member bleed; prompting alone will not hold it.
+4. Unknown but rostered speaker id -> fall back to the focus character.
+5. Malformed delta -> treat as 0.
+6. **Never** show a raw metadata line to the player.
+
+### Member separation
+
+Three layers, cheapest first:
+
+1. Block 3 carries dossier entries only for present members - an absent member's facts are not in the prompt at all.
+2. Block 4 lists the roster explicitly and names absent members as absent.
+3. The parser enforces the roster (rule 3 above).
+
+Interactive scenes cap at **2 present members**. Three or more only inside scripted event nodes, where the prompt is tight and one retry is acceptable.
 
 Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: direct parse -> strip markdown -> regex field extraction -> safe defaults. Never crash.
 
@@ -366,11 +419,17 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "personality": "reserved, precise, dislikes being fussed over",
   "speechStyle": "short sentences, understated, rarely finishes a feeling",
   "queerTexture": "deflects with professionalism when it gets close",
+  "styleHints": { "zh": null, "ko": null },
   "likesSeed": ["quiet mornings"],
   "startIntimacy": 5,
-  "portrait": "portraits/irene.svg"
+  "portraitMode": "mascot",
+  "portraits": { "neutral": "portraits/irene.svg" }
 }
 ```
+
+**Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
+
+`portraitMode` is one of `mascot` | `single` | `multi` (see section 14). MVP writes only `mascot`; the field exists now so v2 is content, not a refactor.
 
 MVP ships 5 cards, all present in the playthrough. The picker UI (choose from library / create custom) is stubbed but hardcoded to the 5.
 
@@ -412,6 +471,20 @@ SVG preferred: small, and recolorable from the card `palette`. Scales to a 50+ c
 
 Multi-character focus: the speaker sits at full opacity and scale, others dim to 0.55 and scale 0.95.
 
+### Portrait modes
+
+| Mode | Source | How emotion is shown | Status |
+|---|---|---|---|
+| `mascot` | 1 shipped SVG | the 6 CSS treatments above, applied to the face | **MVP** |
+| `single` | 1 player-uploaded image | **frame, not face**: rim-glow colour, tint wash, shake / bounce keyframe, corner emotion badge | v2 |
+| `multi` | up to 6 player-uploaded images | direct swap, one per emotion | v2 |
+
+`single` is the important one: it works with any image the player has, including a photo, without needing six of them. The renderer treats the portrait as an opaque rectangle and expresses everything in the surrounding chrome.
+
+Storage for uploads: **IndexedDB, not localStorage** - localStorage caps near 5MB and base64 inflates by 33%. Downscale to 512px on the long edge at upload time.
+
+Uploaded images stay on the device. They are never uploaded anywhere and never sent to the model - the model only ever sees text. The shipped card library remains mascot-only; what a player puts in their own local save is their own choice.
+
 ---
 
 ## 15. State Schema
@@ -419,7 +492,8 @@ Multi-character focus: the speaker sits at full opacity and scale, others dim to
 ```js
 {
   meta:      { schemaVersion: 1, savedAt, lang, model },
-  run:       { identityId, day, week, phase, block, seed },
+  settings:  { theme: 'night', fontScale: 1, reduceMotion: false },
+  run:       { identityId, focusId, day, week, phase, block, seed },
   player:    { name, competence, energy, secrecy, credits },
   cast:      [ characterId ],
   relations: {
@@ -506,9 +580,9 @@ Rules:
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| **M0** | Repo hygiene: git init, `main` / `dev`, Tailwind wired, PWA manifest, i18n skeleton | `npm run build` clean, app boots |
-| **M1** | Pure systems: `relationship`, `exposure`, `calendar`, `chips`, `economy` | stage / ending / strain transitions verified with no UI and no LLM |
-| **M2** | Prompt pipeline: `promptBuilder`, `llmTool`, `responseParser`, `memory` | a scene runs in a console harness; cache invariants asserted |
+| **M0** | Repo hygiene: git init, `main` / `dev`, Tailwind wired with theme tokens, font-scale root, PWA manifest, i18n skeleton (zh/en) | `npm run build` clean, app boots, theme + font scale switchable |
+| **M1** | Pure systems: `relationship`, `exposure`, `calendar`, `chips`, `economy` | stage / ending / strain transitions and route-focus caps verified with no UI and no LLM |
+| **M2** | Prompt pipeline: `promptBuilder`, `llmTool`, `responseParser`, `memory` | a scene runs in a console harness; cache invariants and roster enforcement asserted |
 | **M3** | VN layer: portrait + CSS emotions, dialogue box with beat reveal, chip bar, meters, Read her | one full scene playable end to end |
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
 | **M5** | Run layer: 3-week cycle, event anchors, endings, save/load, PWA install | full playthrough reaches an ending |
@@ -517,24 +591,96 @@ M1 before M2 is deliberate: the relationship model is the product, and it must b
 
 ---
 
-## 19. Coding Conventions
+## 19. Multilingual Design
+
+UI strings are pre-written in `i18n/`. Generated prose is produced by the model. The two are kept strictly apart.
+
+### Directive
+
+Block 1 carries a language directive built from `meta.lang`:
+
+```
+Write all prose and dialogue in {Simplified Chinese}.
+Metadata lines, speaker ids, emotion names, and all field names remain in ASCII English.
+```
+
+### The three hard rules
+
+1. **Machine tokens never localize.** Speaker ids, emotion names, stance ids, JSON keys - ASCII English in every locale. See section 9.
+2. **Memory is always English.** Ledger summaries and dossier entries are written in English regardless of `meta.lang`. Consequences: the player can switch language mid-run without corrupting history; block 1 stays byte-stable across the switch; and one card library serves every locale.
+3. **Card semantics are English, with a per-locale escape hatch.** See `styleHints` in section 12.
+
+### Locale support
+
+| Locale | Status | Note |
+|---|---|---|
+| `zh` | MVP | primary |
+| `en` | MVP | |
+| `ko` | v2 | output quality on Flash-tier models is materially weaker |
+| `pt` | v2 | same |
+
+Language switching is allowed at any time from settings and does not reset the run.
+
+---
+
+## 20. Theming, Type Scale, Accessibility
+
+**No literal colour or font-size values in components.** This is a review-blocking rule, not a preference.
+
+### Tokens
+
+All visual constants are CSS custom properties on `:root`, defined in `config/themes.js` and mapped into Tailwind 4 via `@theme`.
+
+```
+--bg, --surface, --surface-alt, --text, --text-dim, --border,
+--accent, --accent-soft, --danger, --warn,
+--meter-guard, --meter-fluster, --meter-exposure,
+--font-scale, --radius, --shadow
+```
+
+### Themes
+
+| id | Note |
+|---|---|
+| `day` | light |
+| `night` | dark, default |
+| `dusk` | warm low-contrast |
+| `bloom` | tinted from the focus character's card `palette` |
+
+`bloom` is worth building because the data already exists: every card carries `palette.base` / `palette.accent`, so the whole UI can take on the colour of whoever you are pursuing.
+
+### Type scale
+
+`html { font-size: calc(16px * var(--font-scale)); }` and **every size in the app is expressed in `rem`**. `settings.fontScale` offers 0.875 / 1.0 / 1.125 / 1.25. A larger scale must not break the 390x844 layout - verify the widest strings in `zh` and `pt` at 1.25 before merging any UI work.
+
+### Permitted exceptions
+
+Inline styles are allowed only for values that come from data at runtime: character `palette` application, and meter fill widths. Everything else uses tokens.
+
+### Accessibility
+
+`settings.reduceMotion` disables the emotion keyframes (bounce, shake) and beat-reveal transitions, falling back to instant state changes. Also honour `prefers-reduced-motion` as the initial value.
+
+---
+
+## 21. Coding Conventions
 
 - **English only** in code, comments, identifiers, and filenames. All files UTF-8, no non-ASCII in source.
 - Player-facing strings go through `i18n/`. Zero hardcoded display text in components.
 - `systems/` stays pure and side-effect free - that is what makes the relationship model testable.
-- Tailwind for layout; inline styles only for values driven by data (character palette, meter widths).
-- Mobile-first, 390x844 reference.
+- **No literal colours or font sizes in components.** Use the tokens from section 20. Inline styles only for runtime data (character palette, meter widths).
+- Mobile-first, 390x844 reference. Verify layouts at `fontScale` 1.25 with `zh` strings.
 - Validate every change with `npm run build` and `npm run lint`. Do not commit a red build.
 - No workaround flags, no commented-out errors. Fix the cause.
 
 ---
 
-## 20. Content Guardrails
+## 22. Content Guardrails
 
 Carried over from `rv-simulator`, non-negotiable:
 
 - Fan-made, non-profit, MIT. Not affiliated with any agency or artist.
-- Characters are **fictional personas** with animal-mascot presentation. No real-person likeness art.
+- Characters are **fictional personas** with animal-mascot presentation. The shipped card library contains no real-person likeness art. Player-uploaded portraits (v2) stay on the player's device, are never transmitted, and are never sent to the model.
 - No negative real-world claims about real artists; no real romantic or marital assertions.
 - No politics, graphic violence, occult, or sexual content involving minors.
 - Adult-adult romance stays tasteful. The game is about tension, not explicitness.
