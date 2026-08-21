@@ -5,7 +5,13 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M4 complete, M5 next
+## Current: M0-M4 complete, M5 next
+
+260 tests, lint and build clean. The game is playable end to end for a day:
+map -> empty room or scene -> gift -> dialogue -> exit -> rumor -> rollover,
+with no API key required.
+
+**Read "Still open" at the bottom before starting anything.**
 
 ### M0 - scaffold (done)
 
@@ -70,17 +76,7 @@ building M1 before M2.
 Re-run this at M4. Gifts, chips and the dossier will make a real player more
 efficient than the stand-in scene model, which will push these numbers up.
 
-### Known gaps leaving M1
-
-- `simulateScene` in `balanceSim.js` is a **stand-in** for the LLM turn loop. It
-  drives the same state transitions but makes no claim to model conversation.
-- `data/identities/*.json` is still empty. `generateDayTask` falls back to the
-  full `TASKS` table when no identity is supplied.
-- `applyRepair` exists but nothing calls it, and `flags.repairUsed` is unused
-  until the event system lands in M5.
-- Vite boilerplate `src/App.css` and `src/assets/{react,vite}.svg`, `hero.png`
-  are unused and still tracked. Awaiting the go-ahead to delete.
-- `public/portraits/*.svg` and `public/icons/*` pending on `feat/assets`.
+_(superseded by **Still open** at the end of this file.)_
 
 ---
 
@@ -115,15 +111,7 @@ messages actually handed to the client.
    focus character, dropped. Tested both single-shot and mid-stream, and tested
    that the dropped beat's meter deltas do not leak into the scene either.
 
-### Known gaps leaving M2
-
-- `llmTool.js` has no test against a live provider. Its shape is exercised only
-  through the mock client in `sceneEngine.test.js`.
-- `sceneEngine` handles a 1-member roster properly; the 2-member group scene
-  path builds correct prompts but the witnessed-gesture bonus is not wired into
-  `computeDeltas` yet. That lands with group scenes in v1.
-- No scene-level retry / regenerate yet. The rv-simulator snapshot pattern
-  should be ported when the VN layer lands.
+_(superseded by **Still open** at the end of this file.)_
 
 ---
 
@@ -166,17 +154,7 @@ and fails the format on about 8% of turns on purpose - so the tolerant parser is
 exercised in real play rather than only in tests. The whole loop is playable
 with no key, which also makes M4 development possible without spending tokens.
 
-### Known gaps leaving M3
-
-- No real API key path in the UI yet. `llmTool.js` is written and unused; the
-  key input and model picker land with the settings modal in M4.
-- Group scenes (2 portraits, dimmed non-speaker) are built for in `Portrait`
-  via the `speaking` prop but `VNStage` only renders the focus member.
-- `SceneSetup.jsx` is a stand-in for the map and calendar. It exists so a scene
-  is reachable and so the two choices that matter romantically - who, and how
-  visible - are already the choices the player makes.
-- Still no retry / regenerate.
-- The mascot SVGs remain placeholders, to be replaced after a v1 pass.
+_(superseded by **Still open** at the end of this file.)_
 
 ---
 
@@ -213,29 +191,73 @@ shows in the scene header and turns amber at two.
 Energy drains per block and only comes back from sleeping, so a day has a
 natural shape rather than being an unlimited menu.
 
-### Known gaps leaving M4
+## Post-M4 playtest fixes
 
-- **`balanceSim` has not been re-run meaningfully.** Gifts are now in the UI but
-  `simulateScene` does not model them, so the numbers are unchanged rather than
-  re-validated. Modelling gift purchases and chip choice in the sim is real work
-  and belongs with M5.
-- No save/load yet. Closing the tab loses the run.
-- `ui/screens/SceneSetup.jsx` is now unused - superseded by `Day.jsx`. Kept
-  pending permission to delete.
-- Group scenes still render one portrait. `onEnter` already caps the roster at
-  `MAX_INTERACTIVE_MEMBERS` and the prompt handles two, but `VNStage` shows only
-  the focus member and the witnessed-gesture bonus is still not in
-  `computeDeltas`.
-- No endings screen; the campaign can run past its last week without resolving.
-- Repair events and event anchors are still unimplemented.
+Four bugs came out of playing it, and all four were mine rather than tuning.
+
+1. **The scene froze when the block ran out.** `outOfTurns` disabled the chips,
+   but the notice explaining why only rendered while pending with no beat on
+   screen - so the player saw dead buttons and no reason. The chip bar is now
+   *replaced* by a notice and a Leave button. Turn limit 12 -> 8; the opening
+   beat no longer consumes one.
+2. **A carefully chosen gift got answered with "You came."** Two causes, and the
+   worse one would have hit a real model too: the scene opened by sending
+   `*enters*` as a fake player action, which gave the model nothing to react to;
+   and the note did not say what *tier* of gift it was. The opening turn is now
+   an instruction, the first beat is hers, and the note distinguishes an iced
+   coffee from something she never told anyone she needed. Nine tests pin it.
+3. **The task completed silently.** Clicking an empty task location just
+   advanced the clock with no feedback. The objective moved into the solo-work
+   screen at its own location, so it costs the block and always shows a result.
+4. **Chrome was unreadable.** `--text-faint` sat near 3:1 (2.3:1 in `day`).
+   Both dim tokens lifted across all four themes and every label carrying
+   meaning moved from faint to dim.
+
+Also added, from the same session: solo work in empty rooms, the two-step dorm
+with a player bedroom, the energy rebalance, and an in-room picker so a room
+with several people lets you choose who you walk up to.
 
 ---
 
-## Next: M5 - the run layer
+## Still open
 
-Full 3-week x 3-cycle campaign, event anchors on weekend blocks, endings screen
-reporting all five routes, save/load, PWA install. Exit criterion: a full
-playthrough reaches an ending.
+The list to work from. Roughly in the order they should be picked up.
+
+### M5 proper
+
+- **Save/load.** Closing the tab loses the run. `store/save.js` is an empty stub
+  and the state schema in CLAUDE.md section 15 is the contract.
+- **Endings screen.** The campaign can run past its last week without resolving.
+  `resolveEnding` and `isBalanceEnding` exist and are tested; nothing calls them.
+- **Event anchors.** `eventWindows()` returns the six weekend blocks and nothing
+  uses them. `data/events/` is empty.
+- **Repair events.** `applyRepair` is implemented and tested; nothing calls it,
+  and `flags.repairUsed` is unused.
+- **PWA install / service worker.** Manifest and icons exist; no SW.
+
+### Known gaps that are not M5
+
+- **`balanceSim` is out of date.** It does not model gifts, chips, solo work or
+  the energy economy, all of which now exist. The 2.8% figure is therefore
+  stale rather than wrong. Re-running it honestly means teaching
+  `simulateScene` about them first - real work, and worth doing before any
+  further coefficient tuning.
+- **Group scenes.** Prompt and parser handle two members; `VNStage` renders one
+  portrait, so `App` deliberately passes a roster of one. Needs the two-portrait
+  stage plus the witnessed-gesture bonus in `computeDeltas`.
+- **`llmTool.js` has never talked to a live provider.** Its shape is exercised
+  only through the mock. The first real call will surface something.
+- **No retry / regenerate.** The rv-simulator snapshot pattern should be ported.
+- **`data/identities/*.json` is empty.** The identity is a literal in `App.jsx`.
+  Section 13 is the schema it should move into.
+- **Mascot SVGs are placeholders**, to be replaced after a v1 pass.
+- **Dead files awaiting permission to delete:** `ui/screens/SceneSetup.jsx`
+  (superseded by `Day.jsx`), `src/App.css`, `src/assets/{react,vite}.svg`,
+  `src/assets/hero.png`.
+- **No `prefers-reduced-motion` audit** of the newer animations.
+- **ko / pt** are stubbed in `i18n/index.js` and fall back to `en`.
+
+---
 
 ---
 
@@ -252,3 +274,9 @@ after being written down.
 | 2026-08-21 | Weekends carry no group slot, no solo slot and no task; they are the event-anchor window. |
 | 2026-08-21 | Campaign length raised from 1 cycle to 3, after balanceSim showed the balance ending was unreachable. |
 | 2026-08-21 | Balance ending bar lowered from `unspoken` to `nameless` - five unnameable relationships is the truer version of that ending. |
+| 2026-08-21 | Locked knowledge gifts hidden rather than shown; the earlier "show them as a pull" argument was overruled in playtesting. |
+| 2026-08-21 | A scene opens with an instruction and her beat, never a synthesised `*enters*` player action. |
+| 2026-08-21 | The daily task is discharged at its own location inside the solo-work screen, not from a global button. |
+| 2026-08-21 | Empty rooms became solo work; snooping trades `secrecy` for a `known_facts` entry. |
+| 2026-08-21 | Overnight energy 34 -> 24 so a rest block has to compete for the day. |
+| 2026-08-21 | `.gitattributes` added (`eol=lf`) after mixed CRLF/LF broke multi-line edits to CLAUDE.md. |

@@ -61,7 +61,11 @@ Everything in v2 must have its **interface stubbed in MVP** (identity config, ca
 - LLM: OpenAI-compatible router - DeepSeek V4 Flash (default), Gemini 3.5 Flash-Lite, GPT-5.6 Luna, Qwen 3.8 Max
 - PWA: manifest + service worker, mobile-first 390x844
 - Persistence: localStorage
-- Lint: oxlint (`npm run lint`). Validate with `npm run build`.
+- Tests: vitest (`npm test`). Lint: oxlint (`npm run lint`). Build: `npm run build`.
+- **The game is playable with no API key.** `tools/mockClient.js` emits the real
+  contract format and `tools/client.js` picks between it and the live router.
+  That is a supported mode, not a degraded one: it keeps the loop free to play
+  and lets development continue without spending tokens.
 
 ---
 
@@ -335,6 +339,16 @@ gesture witnessed in a group scene         -> larger admissibility gain,
 Deltas are computed by `systems/relationship.js` from accumulated per-turn metadata.
 **The LLM never reports macro deltas** - only per-turn `guard` / `fluster` movement and emotion. Fewer things for a small model to get wrong.
 
+### A scene occupies one block
+
+`SCENE_TURN_LIMIT = 8`. Past that the block ends on its own. Without a cap a
+player could grind a single block indefinitely and the opportunity cost that
+makes three-blocks-a-day work would evaporate.
+
+The opening beat does not count against it - nobody spent a turn walking through
+a door. When the count reaches zero the chip bar is **replaced** by a notice and
+a Leave button. Disabled chips with no explanation read as a frozen screen.
+
 ### Player input
 
 Three **chips** per turn plus optional free text. Chips are generated client-side from stance templates filtered by stage and strain band: zero LLM cost, instant render, and they cover the latency of the previous stream.
@@ -456,6 +470,24 @@ Emotions (MVP set): `neutral, happy, blush, shy, upset, surprised`.
 
 Up to **3 beats** per response, separated by a blank line, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
 
+### The opening beat is hers
+
+A scene does **not** open with a synthesised player action. `*enters*` gives the
+model nothing to react to, which is how a carefully chosen gift once got
+answered with "You came."
+
+Instead the first turn is an instruction (`openingDirective` in
+`agent/sceneEngine.js`):
+
+- no gift: *write her opening beat - what she does in the moment she notices the
+  player has walked in.*
+- with a gift: *write her opening beat. It is her reaction to what she has just
+  been handed, and to the person holding it.*
+
+The gift note itself is appended ahead of that instruction and **carries its
+tier** (section 11), because an iced coffee and a hand warmer she never told
+anyone she needed are otherwise the same sentence to the model.
+
 ### Parser rules (`agent/responseParser.js`)
 
 Streaming state machine. Format failures are guaranteed at this model tier, so:
@@ -549,9 +581,24 @@ Most locations move these together. The **dorm is the one place that splits them
 | `wardrobe` | 20 | 1-2 - the assistant's own turf |
 | `dorm_living` | **15** | **all four others** |
 | `dorm_kitchen` | 12 | 1-2 |
-| `dorm_room` | **5** | 1 |
+| `dorm_room` | **5** | 1 - **needs `intimacy >= 50`** |
+| `dorm_player_room` | 5 | 0 - yours, and the only place that gives anything back |
 
 So the dorm is safe from scandal and dangerous for jealousy, and every other location trades the two together. Going out raises admissibility and risks a leak; going home builds intimacy and gets you watched.
+
+**The dorm is a second step in the map**, not a row: living room, kitchen, your
+own room, and five closed doors. Her door opens at `intimacy >= 50` - the same
+threshold as the `touch` stance, so "you may go into her room" and "you may
+reach for her hand" unlock together, which is the correct reading. A locked door
+shows her name and the number: that is a goal, not a spoiler. A dark door means
+she is not home tonight.
+
+**The dorm is a second step in the map**, not a row: living room, kitchen, your
+own room, and five closed doors. Her door opens at `intimacy >= 50` - the same
+threshold as the `touch` stance, so "you may go into her room" and "you may
+reach for her hand" unlock together, which is the correct reading. A locked door
+shows her name and the number: that is a goal, not a spoiler. A dark door means
+she is not home tonight.
 
 ### Private scene, public approach
 
@@ -567,8 +614,27 @@ One mandatory work objective per day, flexible execution window across the three
 
 **Tasks do not auto-complete on room entry.** A task creates a *conflict*: one block left, the outfit is not ready, and she wants to talk. Choose. That tension is the point of the task system.
 
+The objective is discharged **at its own location**, listed alongside the solo
+actions for that room (section 10b). Never from a menu - a button that works
+from anywhere ignores where the player is standing, which is the only thing
+that made the task cost something.
+
 - Success: `competence +`, positive ledger entry.
 - Failure: `competence -`, `energy -`, and if the failure touched her, `strain += 8`.
+
+### Energy is the pacing mechanism
+
+| | |
+|---|---|
+| a block | `-6` |
+| "Read her" | `-1` each |
+| a night | `+24` |
+| sleeping in your own room | `+30`, and it costs the block |
+
+Overnight deliberately does **not** cover a full day. Three blocks with a couple
+of Read her uses runs slightly negative, so a heavy day forces a rest block -
+and that block is one the player wanted to spend on her. If sleep ever becomes
+free, the whole day structure stops mattering.
 
 ### Player stats
 
@@ -578,6 +644,57 @@ One mandatory work objective per day, flexible execution window across the three
 | `energy` | consumed by blocks and by "Read her"; low energy narrows chip options |
 | `secrecy` | low secrecy amplifies scene `exposure`; feeds `exposure_end` |
 | `credits` | earned from completed tasks, spent on gifts |
+
+---
+
+## 10b. Solo Work: the empty room
+
+Most blocks are spent in a room with nobody in it. That has to be worth doing,
+or two thirds of the map is dead space and the day is a menu of one option.
+
+Authored, deterministic, **no LLM call** - the same argument as the calendar.
+Spending a model call on "you restocked the wardrobe" is waste, and these need
+to be instant because they are the filler between scenes. `data/soloActions.js`
+holds the table; `systems/soloWork.js` resolves one.
+
+### The point is not the credits
+
+The credit earners are the boring half. The important actions are the **snoops**:
+an empty room is how you learn something about a member who is not in it, which
+is the second path into `known_facts` and therefore into the knowledge-gated
+gifts. That is what makes an empty wardrobe worth entering.
+
+| Room | Work | Snoop |
+|---|---|---|
+| `wardrobe` | prep the fittings | **read the fitting notes** |
+| `corridor` | chase the schedule | **take your time getting through** |
+| `practice_room` | run the setlist / tidy up | - |
+| `cafe` | buy the table coffee | - |
+| `dorm_kitchen` | cook for whoever comes in | - |
+| `dorm_living` | - | **wait up** |
+| `dorm_player_room` | sleep / lie awake | - |
+
+Snooping trades **`secrecy`** for a fact. Low secrecy amplifies scene exposure
+and feeds `exposure_end`, so the cost is real and it lands later - which is the
+right shape for a cost that buys knowledge.
+
+Three rules that are not optional:
+
+1. **No charge for a search that found nothing.** Once you know everything
+   learnable about the cast, snooping stops taking secrecy. The player should
+   not be taxed for having already done the work.
+2. **Never about someone in the room.** You do not learn a secret about a woman
+   who is standing next to you.
+3. **A member drops out once you know all of her facts**, which quietly pushes
+   the player toward whoever they have been neglecting.
+
+Every solo action writes a line to the ledger in English, composed in code
+rather than by the model - it is bookkeeping, and the summarizer call it would
+otherwise cost is better spent on a scene.
+
+`learnableFacts` on the card (section 12) is the pool. Every knowledge gift in
+`data/gifts.js` must have at least one owner among the cast, or it is
+unreachable; there is a test that asserts this.
 
 ---
 
@@ -593,6 +710,23 @@ dialogue --reveals--> dossier fact --unlocks--> a specific gift --> LLM sees the
 
 - Generic gift (rose, iced coffee): `+1` effect, generic reaction.
 - **Knowledge-gated gift**: purchasable only once the matching `known_facts` entry exists. `+5` effect and a unique reaction, because the fact is in-prompt.
+
+**Locked gifts are not shown.** Naming a gift the player cannot buy spoils the
+fact it is waiting on and clutters the list with things they cannot act on. When
+nothing is unlocked the modal says only that such gifts open when she tells you
+the right thing.
+
+**The scene note carries the tier**, not just the object:
+
+- generic - *"an ordinary, thoughtful gesture - kind, but nothing she could not
+  have guessed at."*
+- knowledge - *"She has never told anyone she needed one. Only somebody who had
+  been paying very close attention would have known to bring it."*
+
+Without that, an iced coffee and a hand warmer are the same sentence to the
+model, and the reaction cannot be proportionate - which is the entire payoff of
+the knowledge economy. The reaction itself is the scene's opening beat
+(section 9).
 
 Gifts are chosen in a pre-scene modal before the first LLM call, then injected as the opening line of block 5:
 `System note: the player opened the scene by giving Irene a hand warmer.`
@@ -630,6 +764,7 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "hiddenConflict": null,
   "styleHints": { "zh": null, "ko": null },
   "likesSeed": ["quiet mornings"],
+  "learnableFacts": ["hates cold hands", "cannot sleep the week before a comeback"],
   "startIntimacy": 5,
   "portraitMode": "mascot",
   "portraits": { "neutral": "portraits/irene.svg" }
@@ -641,6 +776,10 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
 Localized display names live in `i18n/`, not on the card, so a card stays a single portable file.
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
+
+`learnableFacts` is the pool solo-work snooping draws from (section 10b). Each
+entry should contain the substring a knowledge gift matches on, so that learning
+it genuinely opens something.
 
 `portraitMode` is one of `mascot` | `single` | `multi` (see section 14). MVP writes only `mascot`; the field exists now so v2 is content, not a refactor.
 
@@ -712,9 +851,11 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
   cast:      [ characterId ],
   relations: {
     irene: { intimacy, admissibility, strain, jealousy,
-             peakIntimacy, peakAdmissibility, stage, endingLocked: null }
+             peakIntimacy, peakAdmissibility, criticalScenes,
+             stage, endingLocked: null }
   },
-  dossier:   { irene: { known_facts, shared_moments, open_threads, player_told_her } },
+  dossier:   { irene: { known_facts, shared_moments, open_threads,
+                        player_told_her, heard_about } },
   ledger:    [ { id, day, block, type: 'full' | 'summary', text, summary } ],
   calendar:  { weekPlan, todayTask, taskState },
   flags:     { firedEvents: [], repairUsed: {} },
@@ -725,6 +866,10 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
 `scene` is deliberately excluded from saves: the memory design says a scene is ephemeral, so saving mid-scene means saving at the room door.
 
 Save key: `yuriagent_saves_v1`. On load, unknown or missing fields fill from defaults rather than throwing.
+
+The **API key is not in here**. It lives in `yuriagent_key_v1` via `store/apiKey.js`,
+in its own module with its own storage key, so it can never be accidentally
+serialised into a save file that gets exported or shared (section 22).
 
 ---
 
@@ -741,37 +886,48 @@ src/
     memory.js                # ledger append + compaction, dossier CRUD
     summarizer.js            # scene-exit call
   systems/                   # PURE. no React, no network.
+    rng.js                   # seeded mulberry32, injected everywhere
     relationship.js          # intimacy/admissibility/strain, stage, endings
     jealousy.js              # bands, gain/decay, exclusivity curve
     rumor.js                 # exposure -> awareness; presence -> witnessed events
     castBuilder.js           # any 5 cards -> a coherent X lineup
     calendar.js              # deterministic seeded group + member schedules
+    clock.js                 # block/day/week/phase advance, energy
     tasks.js
+    soloWork.js              # empty rooms: work, snooping, learned facts
     economy.js               # credits, knowledge-gated gifts
     exposure.js              # location x block x secrecy -> risk
     chips.js                 # stance chip generation + locking
     balanceSim.js            # headless playthrough harness (dev only)
+    *.test.js                # colocated; vitest
   tools/
     llmTool.js               # multi-model router, streaming, retries
+    mockClient.js            # offline writer; the game runs with no API key
+    client.js                # picks live vs mock, falls back per call
   data/
     characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri
                              # library: seulgi, wendy, joy
     identities/*.json
     activities.js            # group / solo / idle activity tables
-    locations.js             # exposureBase + presence per location
+    locations.js             # exposureBase + presence + zone per location
+    soloActions.js           # what the assistant does in an empty room
     gifts.js
+    cast.js                  # card loader; PROMPT_EXCLUDED_FIELDS
     events/                  # anchor nodes
   ui/
-    vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar, ThoughtBubble
-    map/                     # LocationGrid, WeekCalendar
-    modals/                  # GiftModal, SaveModal, SettingsModal
-    screens/                 # Cover, Setup, Game, Ending
+    vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar,
+                             # ThoughtBubble, SceneHeader, beatQueue
+    map/                     # LocationGrid, DormMap, WeekCalendar
+    modals/                  # GiftModal, SettingsModal, SaveModal (M5)
+    screens/                 # Day, SoloAction, Cover/Ending (M5)
   i18n/                      # zh/en (ko/pt stubs)
   config/
     constants.js
     modelConfigs.js
   store/
-    save.js
+    save.js                  # M5
+    settings.js
+    apiKey.js                # its own key so it can never join a save file
 public/
   portraits/*.svg
   manifest.webmanifest
@@ -808,7 +964,7 @@ Rules:
 
 - Never commit directly to `main`. Merge `dev -> main` only after `npm run build` passes and the affected loop has been played manually.
 - Tag `main` merges: `v0.1.0`, `v0.2.0`, ...
-- `npm run build` and `npm run lint` must pass before any merge.
+- `npm test`, `npm run lint` and `npm run build` must pass before any merge.
 - Never commit API keys or key files.
 
 ---
@@ -822,7 +978,11 @@ Rules:
 | **M2** | Prompt pipeline: `promptBuilder`, `llmTool`, `responseParser`, `memory` | a scene runs in a console harness; cache invariants and roster enforcement asserted |
 | **M3** | VN layer: portrait + CSS emotions, dialogue box with beat reveal, chip bar, meters, Read her | one full scene playable end to end |
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
-| **M5** | Run layer: 3-week cycle, event anchors, endings, save/load, PWA install | full playthrough reaches an ending |
+| **M5** | Run layer: full 3x3 campaign, event anchors on weekend blocks, endings screen, save/load, PWA install | full playthrough reaches an ending |
+
+**Status: M0-M4 complete. M5 is next.** Running state, what is done and what is
+still open, lives in `docs/PROGRESS.md` - that file is updated *before* a
+milestone closes, and it is what makes compacting this session safe.
 
 M1 before M2 is deliberate: the relationship model is the product, and it must be correct before a single token is spent on it.
 
@@ -907,7 +1067,11 @@ Inline styles are allowed only for values that come from data at runtime: charac
 - `systems/` stays pure and side-effect free - that is what makes the relationship model testable.
 - **No literal colours or font sizes in components.** Use the tokens from section 20. Inline styles only for runtime data (character palette, meter widths).
 - Mobile-first, 390x844 reference. Verify layouts at `fontScale` 1.25 with `zh` strings.
-- Validate every change with `npm run build` and `npm run lint`. Do not commit a red build.
+- Validate every change with `npm test`, `npm run lint` and `npm run build`. Do
+  not commit a red build or a red suite.
+- `systems/` and `agent/` changes need a test. A design rule that is not asserted
+  somewhere is a rule that will be quietly broken later - every bug found in
+  playtesting so far had no test covering it.
 - No workaround flags, no commented-out errors. Fix the cause.
 
 ---
