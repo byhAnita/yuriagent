@@ -186,7 +186,27 @@ Bad Ends are exits from the map, not regions on it. Low/low is where every run s
 | stage was `reckless` at collapse | `severance_end` - she cuts contact |
 | `peakIntimacy < 40` | no BE; `drift_end` at campaign end (neutral) |
 
-Endings resolve **per character**. A run can end with one route at `ours`, one at `nameless_end`, and three at `drift_end`. The campaign ending screen reports all five. The **balance ending** - every member at `unspoken` or above with jealousy held under 50 - is a distinct result and the hardest one to reach (section 5b).
+Endings resolve **per character**. A run can end with one route at `ours`, one at `nameless_end`, and three at `drift_end`. The campaign ending screen reports all five.
+
+### Ending ids
+
+| id | Condition | Kind |
+|---|---|---|
+| `out_end` | stage `out` | good |
+| `ours_end` | stage `ours` | good |
+| `unspoken_end` | stage `unspoken` | good |
+| `unnamed_end` | stage `nameless` | **good** - deeply close, never nameable, not broken |
+| `confidante_end` | stage `confidante` | neutral - it stalled |
+| `friends_end` | stage `good_friends` | neutral |
+| `reckless_end` | stage `reckless` at campaign end | neutral - public, hollow, unresolved |
+| `drift_end` | `peakIntimacy < 40` | neutral - it never started |
+| `nameless_end` `exposure_end` `severance_end` | collapse (above) | bad |
+
+`unnamed_end` and `nameless_end` are deliberately close and deliberately distinct: the first is the signature zone reached and held, the second is the signature zone reached and then broken.
+
+### The campaign is three cycles, not one
+
+**Found by `balanceSim`.** One 3-week cycle is 63 blocks, which across five routes is ~12 scenes each - not enough to lift any of them out of `drift_end`. One cycle is a good length for a single devoted route and far too short for the multi-route game. `CYCLES_PER_CAMPAIGN = 3`.
 
 `peakIntimacy` also reframes the map: bottom-left with `peakIntimacy = 0` is **Stranger**; with `peakIntimacy = 75` it is **Aftermath** - same coordinates, different scene framing and a different chip set.
 
@@ -230,11 +250,14 @@ Privacy is safe and stagnant. Visibility is the only route to a relationship tha
 ### Jealousy scales with her own investment
 
 ```
-jealousyGain = rumorWeight * (intimacy / 100) * exclusivity(stage)
+jealousyGain = rumorWeight * (intimacy / 100) * exclusivity(stage) * SCALE
 
 exclusivity: stranger 0.2, colleague 0.4, good_friends 0.7,
              nameless 1.2, unspoken 1.6, ours 2.2, out 2.5
+SCALE = 6
 ```
+
+`SCALE` exists because the raw formula tops out near 2.5 while the bands sit at 25 / 50 / 75 and decay is 5 per attentive scene. Unscaled, jealousy could never reach even `piqued` and the entire pressure system was inert. The shape of the formula was right; the magnitude was not. `balanceSim` found this.
 
 A stranger does not care who you had coffee with. Someone at `nameless` cares enormously.
 
@@ -264,7 +287,22 @@ Two members present is where jealousy becomes visible rather than inferred.
 
 ### Balance is a simulation problem
 
-Five interacting tracks cannot be tuned on paper. `systems/` ships with a **headless balance simulator** (M1): run N scripted playthroughs with no UI and no LLM, and report the distribution of reachable endings. Target: "all five in love" is reachable in well under 10% of competent runs. All coefficients in this section are starting values to be tuned by that harness, not final.
+Five interacting tracks cannot be tuned on paper. `systems/balanceSim.js` runs N scripted playthroughs with no UI and no LLM and reports the distribution of reachable endings.
+
+The **balance ending** is every member at `nameless` or above (`GOOD_ENDINGS`), with jealousy under 50 and nothing collapsed. `nameless` rather than `unspoken` is the right bar: five relationships that are deeply close and cannot be named is the truest version of this game's best outcome, and considerably more interesting than five public girlfriends.
+
+Four policies stand in for player skill. Measured at 400 runs each:
+
+| Policy | Balance ending | Reads as |
+|---|---|---|
+| `balanced` | **2.8%** | a competent multi-route player - converts `piqued` before it hardens |
+| `spread` | 1.5% | naive round-robin |
+| `random` | 0.3% | no plan |
+| `devoted` | 0.0% | one route; correctly cannot reach it, and gets `out_end` ~18% instead |
+
+The ordering is the design working: skill beats spreading, spreading beats chance, and single-route devotion trades the balance ending for a reliable real relationship.
+
+`npm test -- balanceSim` prints the full report. **Every coefficient in this section is a starting value that belongs to this harness.** When a number here moves, the report is the evidence for whether it moved the right way - and the numbers above will shift again once gifts, chips and the dossier are wired in at M4, so re-run it then.
 
 ---
 
@@ -475,6 +513,18 @@ weekPlan: {
   members: { irene: [ { day, block, location, activity } ] } // solo careers
 }
 ```
+
+### Weekends are protected
+
+**No group activity, no solo activity, and no daily task on Saturday or Sunday.** Everyone is at the dorm, the cafe, or somewhere else that is not a workplace.
+
+This is load-bearing, not a nicety:
+
+- It is the only time the whole cast is simultaneously reachable and unscheduled, which makes the weekend the relationship engine's own playground.
+- Weekend blocks are where **event anchors** are placed, so a scripted beat can never collide with a comeback.
+- It gives the week a shape - five days of opportunity cost, two days of choice.
+
+`isWeekend(day)`, `workDays()` and `eventWindows()` in `systems/calendar.js`. Day 0 is Monday.
 
 Occupancy for any `(day, block, location)` is derived: company slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
 

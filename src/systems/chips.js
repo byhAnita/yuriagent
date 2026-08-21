@@ -1,2 +1,117 @@
-// chips - see CLAUDE.md. Implemented in a later milestone.
-export {};
+/**
+ * Stance chips. CLAUDE.md section 6.
+ *
+ * Three per turn, generated client-side from templates filtered by stage,
+ * strain band and jealousy band. Zero LLM cost, instant render, and they cover
+ * the latency of the previous stream - which is the real reason they exist.
+ *
+ * Chips are VERBS. The player picks a stance; the model writes the line.
+ */
+
+import { strainBand } from './relationship.js';
+import { jealousyBand, sceneModifiers } from './jealousy.js';
+import { makeRng, deriveSeed } from './rng.js';
+
+export const STANCES = [
+  'tease',
+  'reassure',
+  'deflect',
+  'press',
+  'confide',
+  'touch',
+  'retreat',
+  'joke',
+  'apologize',
+  'invite',
+];
+
+/** Always available - a player must never be left without a move. */
+const SAFE_STANCES = ['deflect', 'joke', 'retreat'];
+
+/** Minimum intimacy before a stance is even offered. */
+const INTIMACY_GATE = { touch: 50, confide: 30, invite: 20 };
+
+/** Stances that read as pushing, and are withdrawn once things are damaged. */
+const AGGRESSIVE = ['press', 'touch', 'confide'];
+
+/** Low energy narrows the palette rather than blocking play. */
+export const LOW_ENERGY = 25;
+
+/**
+ * Which stances are legal right now, and why the others are not.
+ * Returning the reasons lets the UI grey a chip with an explanation instead of
+ * silently hiding it, which is the difference between a rule and a mystery.
+ */
+export function availableStances(rel, { energy = 100 } = {}) {
+  const band = strainBand(rel.strain);
+  const jband = jealousyBand(rel.jealousy);
+  const { lockedStances } = sceneModifiers(rel);
+
+  const locked = {};
+  for (const stance of STANCES) {
+    if (band === 'rift' || band === 'critical') {
+      if (AGGRESSIVE.includes(stance)) {
+        locked[stance] = 'rift';
+        continue;
+      }
+    }
+    if (lockedStances.includes(stance)) {
+      locked[stance] = `jealousy:${jband}`;
+      continue;
+    }
+    const gate = INTIMACY_GATE[stance];
+    if (gate != null && rel.intimacy < gate) {
+      locked[stance] = `intimacy<${gate}`;
+      continue;
+    }
+    if (energy < LOW_ENERGY && !SAFE_STANCES.includes(stance)) {
+      locked[stance] = 'energy';
+    }
+  }
+
+  return {
+    available: STANCES.filter((s) => !locked[s]),
+    locked,
+  };
+}
+
+/**
+ * Which stances the situation is actively asking for. These get offered first,
+ * because the game is only legible if the right move is reachable.
+ */
+export function suggestedStances(rel) {
+  const out = [];
+  if (jealousyBand(rel.jealousy) === 'piqued') out.push('reassure', 'confide');
+  if (strainBand(rel.strain) === 'rift') out.push('apologize', 'retreat');
+  if (rel.stage === 'reckless') out.push('retreat', 'reassure');
+  if (rel.stage === 'confidante') out.push('press', 'invite');
+  return out;
+}
+
+/**
+ * Three chips for this turn.
+ *
+ * Deterministic given a seed and turn index so a re-render does not reshuffle
+ * the player's options mid-decision.
+ */
+export function generateChips(rel, { energy = 100, seed = 1, turn = 0, count = 3 } = {}) {
+  const { available } = availableStances(rel, { energy });
+  if (available.length === 0) return [...SAFE_STANCES].slice(0, count);
+
+  const suggested = suggestedStances(rel).filter((s) => available.includes(s));
+  const chosen = [];
+
+  for (const s of suggested) {
+    if (chosen.length >= count) break;
+    if (!chosen.includes(s)) chosen.push(s);
+  }
+
+  const rng = makeRng(deriveSeed(seed, `chips:${rel.stage}:${turn}`));
+  const rest = available.filter((s) => !chosen.includes(s)).sort(() => rng() - 0.5);
+  for (const s of rest) {
+    if (chosen.length >= count) break;
+    chosen.push(s);
+  }
+
+  return chosen.slice(0, count);
+}

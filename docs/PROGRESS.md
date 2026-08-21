@@ -5,62 +5,99 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0 complete, M1 next
+## Current: M1 complete, M2 next
 
 ### M0 - scaffold (done)
 
 | Item | State |
 |---|---|
-| git: `main` / `dev` / `feat/m0-scaffold` / `feat/assets` worktree | done |
+| git: `main` / `dev` / `feat/m*` / `feat/assets` worktree | done |
 | Tailwind 4 wired, `@theme inline` token mapping | done |
 | 4 themes: night / day / dusk / bloom | done |
 | `--font-scale` root rem, 4 steps | done |
 | Settings store (localStorage, defensive reads) | done |
 | i18n skeleton en / zh, dotted-key resolver with fallback | done |
 | PWA manifest + iOS meta | done, icons pending assets branch |
-| Folder skeleton per CLAUDE.md section 16 | done, modules stubbed |
+| Folder skeleton per CLAUDE.md section 16 | done |
 | Card loader + 8 library cards | done |
-| `data/locations.js`, `data/activities.js` | done |
-| Scaffold harness proving tokens work | done |
+| `data/locations.js`, `data/activities.js`, `data/gifts.js` | done |
 
-Verified: `npm run lint` and `npm run build` clean; all four theme blocks, all
-token utilities, the font-scale rule and the reduce-motion rule are present in
-the built CSS.
+### M1 - pure systems (done)
 
-### Known gaps leaving M0
+All of `systems/` is pure: no React, no network, no `Math.random`. 126 tests.
 
-- `public/portraits/*.svg` and `public/icons/*` do not exist yet - being built on
-  `feat/assets`. The harness falls back to the card `emoji` in a palette circle.
-- `src/App.jsx` is a **scaffold harness, not the game UI**. It is throwaway; the
-  real VN interface arrives in M3 with a proper design pass.
+| Module | Notes |
+|---|---|
+| `rng.js` | seeded mulberry32, injected everywhere so runs replay |
+| `relationship.js` | stage, strain bands, per-character endings, balance ending |
+| `jealousy.js` | bands, exclusivity curve, convert, scene modifiers |
+| `exposure.js` | location x block x phase x secrecy; presence resolution |
+| `rumor.js` | propagation, witnessing, the bedroom-approach beat |
+| `castBuilder.js` | any N cards to a coherent lineup |
+| `calendar.js` | two-layer deterministic schedules, weekends protected |
+| `tasks.js` `chips.js` `economy.js` | conflicts, stance gating, knowledge-gated gifts |
+| `balanceSim.js` | headless harness; `npm test -- balanceSim` prints the report |
+
+### What the simulator found
+
+Three real defects, none of which were visible on paper. This is the return on
+building M1 before M2.
+
+1. **The balance ending was unreachable.** A single 3-week cycle is 63 blocks -
+   about 12 scenes per member across five routes, which cannot lift anyone out
+   of `drift_end`. Every multi-route policy returned 100% drift on every seed.
+   Fix: `CYCLES_PER_CAMPAIGN = 3`.
+
+2. **Stage `nameless` had no ending.** The signature zone of the whole game fell
+   through to `drift_end`, so 58% of runs reported "it never started" at a mean
+   intimacy of 65. Fix: `unnamed_end`, plus `friends_end` and `reckless_end`.
+
+3. **Jealousy was inert.** `weight * intimacy/100 * exclusivity` tops out near
+   2.5, against bands at 25/50/75 and decay of 5 per attentive scene. Mean
+   jealousy across an entire campaign was 1.7. A competent spread player reached
+   the balance ending 31.8% of the time because the pressure system was doing
+   nothing at all. Fix: `JEALOUSY_GAIN_SCALE = 6`, found by sweeping 4/5/6/8/12.
+
+### Calibration, 400 runs per policy
+
+| Policy | Balance ending | Reads as |
+|---|---|---|
+| `balanced` | 2.8% | competent multi-route player |
+| `spread` | 1.5% | naive round-robin |
+| `random` | 0.3% | no plan |
+| `devoted` | 0.0% | one route; gets `out_end` about 18% instead |
+
+Re-run this at M4. Gifts, chips and the dossier will make a real player more
+efficient than the stand-in scene model, which will push these numbers up.
+
+### Known gaps leaving M1
+
+- `simulateScene` in `balanceSim.js` is a **stand-in** for the LLM turn loop. It
+  drives the same state transitions but makes no claim to model conversation.
+- `data/identities/*.json` is still empty. `generateDayTask` falls back to the
+  full `TASKS` table when no identity is supplied.
+- `applyRepair` exists but nothing calls it, and `flags.repairUsed` is unused
+  until the event system lands in M5.
 - Vite boilerplate `src/App.css` and `src/assets/{react,vite}.svg`, `hero.png`
   are unused and still tracked. Awaiting the go-ahead to delete.
-- No test runner yet. M1 needs one for the pure systems.
+- `public/portraits/*.svg` and `public/icons/*` pending on `feat/assets`.
 
 ---
 
-## Next: M1 - pure systems
+## Next: M2 - prompt pipeline
 
-No UI, no LLM. Everything in `systems/` is a pure function over state, which is
-what makes the relationship model testable before a single token is spent.
+`promptBuilder`, `llmTool`, `responseParser`, `memory`. Exit criterion: a scene
+runs in a console harness with the cache invariants and the roster rule
+asserted.
 
-Order:
+Two things to get right, both of which are tests rather than hopes:
 
-1. `relationship.js` - stage resolution, strain bands, per-character endings
-2. `jealousy.js` - bands, exclusivity curve, gain and decay
-3. `exposure.js` - location x block x secrecy, plus `presence`
-4. `rumor.js` - exposure to awareness; presence to witnessed events
-5. `castBuilder.js` - any five cards to a coherent X lineup
-6. `calendar.js` - deterministic seeded group + solo schedules
-7. `chips.js`, `economy.js`, `tasks.js`
-8. `balanceSim.js` - headless harness
-
-Exit criterion: the simulator runs N scripted playthroughs and reports an
-ending distribution with the balance ending under 10% of competent runs.
-
-The exclusivity coefficients in `config/constants.js` are guesses. They are the
-most load-bearing numbers in the design and they exist to be moved by the
-simulator, not defended.
+1. **The freeze rule** (CLAUDE.md section 8). Nothing above block 5 may change
+   while a scene is open. A test should open a scene, mutate live meters, and
+   assert the rendered prefix is byte-identical.
+2. **Roster enforcement.** The parser drops any beat whose speaker is not in the
+   current scene roster. That is the hard guarantee against member bleed, and
+   prompting alone will not hold it.
 
 ---
 
@@ -74,3 +111,6 @@ after being written down.
 | 2026-08-21 | Cast changed to group X: irene, nana, jisoo, hyewon, yeri. seulgi / wendy / joy retained as library cards. |
 | 2026-08-21 | Calendar returned to `PREP / COMEBACK / REST` once X became a real in-fiction group. |
 | 2026-08-21 | `focusId` became derived rather than stored, when all five became simultaneously romanceable. |
+| 2026-08-21 | Weekends carry no group slot, no solo slot and no task; they are the event-anchor window. |
+| 2026-08-21 | Campaign length raised from 1 cycle to 3, after balanceSim showed the balance ending was unreachable. |
+| 2026-08-21 | Balance ending bar lowered from `unspoken` to `nameless` - five unnameable relationships is the truer version of that ending. |
