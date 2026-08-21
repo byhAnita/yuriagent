@@ -7,23 +7,43 @@
   "origin": "BLACKPINK",
   "mascot": "cat",
   "mascotNote": "regal and self-possessed, affectionate strictly on her own schedule",
-  "palette": { "base": "#c5d5f0", "accent": "#283593" },
+  "palette": {
+    "base": "#c5d5f0",
+    "accent": "#283593"
+  },
   "mbti": "ENFP",
   "birthday": "1995-01-03",
   "birthplace": "Seoul",
   "ig": "sooyaaa__",
-  "preferredRoles": ["visual", "lead_vocalist"],
+  "preferredRoles": [
+    "visual",
+    "lead_vocalist"
+  ],
   "activityProfile": {
     "primary": "actress_soloist",
-    "types": ["drama_shoot", "script_reading", "solo_recording", "photoshoot", "brand_event"]
+    "types": [
+      "drama_shoot",
+      "script_reading",
+      "solo_recording",
+      "photoshoot",
+      "brand_event"
+    ]
   },
   "publicImage": "The face of the group and the one the cameras find first. Carries a separate acting career and her own sub-label, which makes her the only member with leverage independent of the company.",
   "personality": "Warmer and far sillier in private than the visual image suggests - she will collapse into a wheezing laugh at her own bad joke thirty seconds after looking untouchable on camera. Underneath it she is unusually shrewd about power, and reads a room in about four seconds.",
   "speechStyle": "Dry, quick, fond of the deadpan. Answers a serious question with a joke, then answers it properly once she has decided you deserve it.",
   "queerTexture": "The one with the most to lose and the clearest eyes about it. She has already built herself an exit from the company's control, so when she calculates the cost of this she is not guessing - and the fact that she keeps choosing it anyway is the loudest thing she never says.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["being teased back instead of deferred to"],
+  "hiddenConflict": "Stops joking. The deadpan drops away and she becomes courteous, which is far worse.",
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "being teased back instead of deferred to"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/jisoo.svg" }
+  "portraits": {
+    "neutral": "portraits/jisoo.svg"
+  }
 }

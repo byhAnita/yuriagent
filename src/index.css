@@ -1,113 +1,144 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design tokens. CLAUDE.md section 20.
+
+   Components must never contain a literal colour or font size. Every visual
+   constant lives here as a custom property, and every size is expressed in rem
+   so that --font-scale can move the whole interface at once.
+
+   Themes are selected by [data-theme] on <html>. `bloom` reads its hue from
+   --bloom-base / --bloom-accent, which App sets at runtime from the palette of
+   whichever member currently has the highest intimacy.
+--------------------------------------------------------------------------- */
 
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --font-scale: 1;
+  --radius: 0.75rem;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 8px 24px rgb(0 0 0 / 0.12);
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', 'Noto Sans SC', 'Noto Sans KR', sans-serif;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* meters keep their identity across all themes - they encode meaning */
+  --meter-guard: #6ea8d8;
+  --meter-fluster: #e08aa8;
+  --meter-exposure: #e0a94a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* night - default */
+:root,
+[data-theme='night'] {
+  --bg: #0e0b12;
+  --surface: #171320;
+  --surface-alt: #1f1a2b;
+  --text: #ece8f2;
+  --text-dim: #9a92ab;
+  --border: #2c2438;
+  --accent: #c9a0dc;
+  --accent-soft: #3a2c48;
+  --on-accent: #16101c;
+  --danger: #e05a6b;
+  --warn: #e0a94a;
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+[data-theme='day'] {
+  --bg: #faf7fb;
+  --surface: #ffffff;
+  --surface-alt: #f2edf5;
+  --text: #1c1722;
+  --text-dim: #6b6377;
+  --border: #e2dae8;
+  --accent: #7b4b96;
+  --accent-soft: #ece2f2;
+  --on-accent: #ffffff;
+  --danger: #c0392b;
+  --warn: #a76b12;
+}
+
+[data-theme='dusk'] {
+  --bg: #1a1512;
+  --surface: #241d19;
+  --surface-alt: #2e2621;
+  --text: #ede4da;
+  --text-dim: #a89684;
+  --border: #3a2f27;
+  --accent: #d8a06a;
+  --accent-soft: #40301f;
+  --on-accent: #1a1512;
+  --danger: #d2685c;
+  --warn: #d8a06a;
+}
+
+/* bloom - tinted from the focus member's card palette (section 20) */
+[data-theme='bloom'] {
+  --bloom-base: #c9a0dc;
+  --bloom-accent: #6a1b9a;
+  --bg: color-mix(in srgb, var(--bloom-accent) 12%, #0d0a10);
+  --surface: color-mix(in srgb, var(--bloom-accent) 16%, #151120);
+  --surface-alt: color-mix(in srgb, var(--bloom-accent) 22%, #1b1626);
+  --text: color-mix(in srgb, var(--bloom-base) 22%, #f2eef6);
+  --text-dim: color-mix(in srgb, var(--bloom-base) 40%, #8b8399);
+  --border: color-mix(in srgb, var(--bloom-accent) 34%, #241d30);
+  --accent: var(--bloom-base);
+  --accent-soft: color-mix(in srgb, var(--bloom-accent) 40%, #241d30);
+  --on-accent: #16101c;
+  --danger: #e05a6b;
+  --warn: #e0a94a;
+}
+
+/* expose tokens as Tailwind utilities: bg-bg, text-dim, border-border, ... */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-text: var(--text);
+  --color-dim: var(--text-dim);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-guard: var(--meter-guard);
+  --color-fluster: var(--meter-fluster);
+  --color-exposure: var(--meter-exposure);
+
+  --radius-token: var(--radius);
+  --font-ui: var(--font-ui);
+}
+
+/* --font-scale drives the root rem; every size in the app follows from it */
+html {
+  font-size: calc(16px * var(--font-scale));
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+/* settings.reduceMotion, plus the OS preference as the initial value */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
 }
