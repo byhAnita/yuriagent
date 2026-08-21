@@ -100,7 +100,12 @@ export const SCENE_TURN_LIMIT = 12;
 /** Every block spent costs this; Read her costs one on top. */
 export const ENERGY_PER_BLOCK = 6;
 export const ENERGY_PER_READ = 1;
-export const ENERGY_RESTORED_OVERNIGHT = 34;
+/**
+ * Overnight no longer covers a full day of blocks. Tuned so three scenes with
+ * Read her runs slightly negative, which is what makes spending a block in your
+ * own room a real decision rather than a formality.
+ */
+export const ENERGY_RESTORED_OVERNIGHT = 24;
 
 // --- persistence ------------------------------------------------------------
 export const SAVE_KEY = 'yuriagent_saves_v1';

@@ -28,11 +28,15 @@ import {
 } from './systems/tasks.js';
 import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from './systems/clock.js';
 import { purchase } from './systems/economy.js';
+import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
+import { appendLedger, addDossierEntry } from './agent/memory.js';
+import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
 import { MAX_INTERACTIVE_MEMBERS } from './config/constants.js';
 import VNStage from './ui/vn/VNStage.jsx';
 import Day from './ui/screens/Day.jsx';
 import GiftModal from './ui/modals/GiftModal.jsx';
+import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
 
 const IDENTITY = {
@@ -72,6 +76,7 @@ export default function App() {
   const [giftNote, setGiftNote] = useState(null);
   const [outcome, setOutcome] = useState(null);
   const [sceneNo, setSceneNo] = useState(0);
+  const [solo, setSolo] = useState(null);
 
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
 
@@ -170,10 +175,75 @@ export default function App() {
     [run, player, task, taskState, castIds],
   );
 
-  const onDoTask = () => {
-    if (!task || taskState.done) return;
-    setTaskState({ taskId: task.taskId, done: true, day: run.day });
-    advance({ playerDelta: completeTask(task), taskDone: true });
+  /**
+   * A block spent in an empty room. Not dead space: this is where the assistant
+   * does the job, and where you learn something about a member who is not in
+   * the room - the second path into known_facts and therefore into the gifts.
+   */
+  const onEnterSolo = (locationId) => {
+    setSolo({ locationId, result: null });
+  };
+
+  const onChooseSolo = (actionId) => {
+    // The daily objective is discharged at its own location, in place of a
+    // solo action - so it costs the block like everything else does.
+    if (actionId === TASK_ACTION) {
+      setTaskState({ taskId: task.taskId, done: true, day: run.day });
+      setSolo(null);
+      advance({ playerDelta: completeTask(task), taskDone: true });
+      return;
+    }
+
+    const rng = makeRng(deriveSeed(SEED, `solo:${run.week}:${run.day}:${run.block}`));
+    const present = Object.entries(occupancy)
+      .filter(([, w]) => w.locationId === solo.locationId)
+      .map(([id]) => id);
+
+    const result = resolveSoloAction({
+      locationId: solo.locationId,
+      actionId,
+      cards,
+      dossier: memory.dossier,
+      present,
+      rng,
+    });
+    if (!result) return;
+
+    setPlayer((p) => applySoloPlayerDelta(p, result.playerDelta));
+
+    setMemory((m) => {
+      let dossier = m.dossier;
+      for (const add of result.dossierAdd) {
+        dossier = addDossierEntry(dossier, add.memberId, add.category, add.text);
+      }
+      const text = soloLedgerText(result, {
+        locationLabel: t(`location.${solo.locationId}`),
+      });
+      return {
+        ledger: appendLedger(m.ledger, {
+          id: `w${run.week}d${run.day}${run.block}`,
+          week: run.week,
+          day: run.day,
+          block: run.block,
+          text,
+          summary: text,
+        }),
+        dossier,
+      };
+    });
+
+    if (result.goodwill) {
+      const ids = goodwillTargets(cards, occupancy, solo.locationId);
+      if (ids.length > 0) {
+        setRelations((rs) => {
+          const out = { ...rs };
+          for (const id of ids) out[id] = applySceneOutcome(out[id], { intimacy: 1, good: true });
+          return out;
+        });
+      }
+    }
+
+    setSolo((s) => ({ ...s, result }));
   };
 
   const onEnter = (locationId, present) => {
@@ -237,7 +307,7 @@ export default function App() {
 
   return (
     <>
-      {screen === 'day' ? (
+      {screen === 'day' && !solo ? (
         <Day
           run={run}
           player={player}
@@ -249,9 +319,23 @@ export default function App() {
           taskState={taskState}
           identity={IDENTITY}
           onEnter={onEnter}
-          onDoTask={onDoTask}
+          onEnterSolo={onEnterSolo}
           onSkipBlock={() => advance()}
           onOpenSettings={() => setShowSettings(true)}
+          t={t}
+        />
+      ) : null}
+
+      {solo ? (
+        <SoloAction
+          locationId={solo.locationId}
+          task={task && !taskState.done && task.location === solo.locationId ? task : null}
+          result={solo.result}
+          onChoose={onChooseSolo}
+          onDone={() => {
+            setSolo(null);
+            advance();
+          }}
           t={t}
         />
       ) : null}

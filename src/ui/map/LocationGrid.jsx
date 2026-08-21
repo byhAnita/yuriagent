@@ -10,20 +10,11 @@
  * outside exposure, and how many other people can see.
  */
 
-import { LOCATIONS } from '../../data/locations.js';
+import { DORM_OCCUPANCY } from '../../data/locations.js';
 import { sceneExposure, presenceCount } from '../../systems/exposure.js';
 
-const ORDER = [
-  'dorm_room',
-  'dorm_kitchen',
-  'dorm_living',
-  'wardrobe',
-  'practice_room',
-  'corridor',
-  'cafe',
-  'drama_set',
-  'broadcast_studio',
-];
+/** The dorm is one row here; it opens into its own map (DormMap). */
+const ORDER = ['wardrobe', 'practice_room', 'corridor', 'broadcast_studio', 'cafe', 'drama_set'];
 
 export default function LocationGrid({
   occupancy,
@@ -33,8 +24,10 @@ export default function LocationGrid({
   identity,
   taskLocation,
   onPick,
+  onOpenDorm,
   t,
 }) {
+  const homeCards = cards.filter((c) => DORM_OCCUPANCY.includes(occupancy[c.id]?.locationId));
   const byLocation = {};
   for (const [id, where] of Object.entries(occupancy)) {
     (byLocation[where.locationId] ??= []).push({ id, ...where });
@@ -53,13 +46,11 @@ export default function LocationGrid({
         });
         const witnesses = presenceCount(locId, run.phase, cards.length);
         const isTask = taskLocation === locId;
-        const empty = here.length === 0;
 
         return (
           <li key={locId}>
             <button
               type="button"
-              disabled={empty && !isTask}
               onClick={() => onPick(locId, here)}
               className={`flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border px-3 py-2.5 text-left transition-colors disabled:opacity-40 ${
                 isTask ? 'border-warn bg-surface-alt' : 'border-hairline hover:border-accent'
@@ -93,8 +84,8 @@ export default function LocationGrid({
                       );
                     })
                   ) : (
-                    <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-faint">
-                      {t('map.empty')}
+                    <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-dim">
+                      {t('solo.alone')}
                     </span>
                   )}
                 </span>
@@ -128,10 +119,33 @@ export default function LocationGrid({
         );
       })}
 
-      <li className="mt-1 flex items-baseline gap-2 px-1">
-        <span className="font-mono text-[0.5rem] uppercase tracking-[0.14em] text-faint">
-          {LOCATIONS.dorm_room.approachWitnessed ? t('map.dormNote') : ''}
-        </span>
+      {/* the dorm is a place, not a room - it opens into its own map */}
+      <li>
+        <button
+          type="button"
+          onClick={onOpenDorm}
+          className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-accent/60 px-3 py-2.5 text-left transition-colors hover:border-accent"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block font-body text-[0.9375rem] text-text">{t('map.dorm')}</span>
+            <span className="mt-0.5 block font-mono text-[0.5rem] uppercase tracking-[0.12em] text-faint">
+              {t('map.dormNote')}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            {homeCards.map((c) => (
+              <span
+                key={c.id}
+                title={c.name}
+                className="grid h-5 w-5 place-items-center rounded-full text-[0.625rem]"
+                style={{ background: c.palette.base, color: c.palette.accent }}
+              >
+                {c.emoji}
+              </span>
+            ))}
+          </span>
+          <span className="font-mono text-[0.75rem] text-accent">&#9656;</span>
+        </button>
       </li>
     </ul>
   );

@@ -9,8 +9,8 @@
 
 import { useState } from 'react';
 import LocationGrid from '../map/LocationGrid.jsx';
+import DormMap from '../map/DormMap.jsx';
 import WeekCalendar from '../map/WeekCalendar.jsx';
-import { canAttempt } from '../../systems/tasks.js';
 import { resolveStage } from '../../systems/relationship.js';
 import { jealousyBand } from '../../systems/jealousy.js';
 
@@ -36,12 +36,13 @@ export default function Day({
   taskState,
   identity,
   onEnter,
-  onDoTask,
+  onEnterSolo,
   onSkipBlock,
   onOpenSettings,
   t,
 }) {
   const [showWeek, setShowWeek] = useState(false);
+  const [inDorm, setInDorm] = useState(false);
   const taskDone = taskState?.done;
   const taskHere = task && !taskDone;
 
@@ -112,22 +113,31 @@ export default function Day({
         </div>
       ) : null}
 
-      <LocationGrid
-        occupancy={occupancy}
-        cards={cards}
-        run={run}
-        player={player}
-        identity={identity}
-        taskLocation={taskHere ? task.location : null}
-        onPick={(locationId, present) => {
-          if (taskHere && canAttempt(task, locationId) && present.length === 0) {
-            onDoTask();
-            return;
+      {inDorm ? (
+        <DormMap
+          cards={cards}
+          relations={relations}
+          occupancy={occupancy}
+          onBack={() => setInDorm(false)}
+          onEnterRoom={onEnter}
+          onEnterSolo={onEnterSolo}
+          t={t}
+        />
+      ) : (
+        <LocationGrid
+          occupancy={occupancy}
+          cards={cards}
+          run={run}
+          player={player}
+          identity={identity}
+          taskLocation={taskHere ? task.location : null}
+          onPick={(locationId, present) =>
+            present.length > 0 ? onEnter(locationId, present) : onEnterSolo(locationId)
           }
-          onEnter(locationId, present);
-        }}
-        t={t}
-      />
+          onOpenDorm={() => setInDorm(true)}
+          t={t}
+        />
+      )}
 
       <section className="mt-1">
         <ul className="flex flex-col gap-0.5">
@@ -159,15 +169,6 @@ export default function Day({
       </section>
 
       <div className="mt-auto flex gap-2 pt-2">
-        {taskHere ? (
-          <button
-            type="button"
-            onClick={onDoTask}
-            className="flex-1 rounded-[var(--radius)] border border-warn px-4 py-3 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-warn"
-          >
-            {t('game.doTask')}
-          </button>
-        ) : null}
         <button
           type="button"
           onClick={onSkipBlock}

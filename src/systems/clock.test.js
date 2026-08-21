@@ -10,7 +10,12 @@ import {
   isLastBlockOfDay,
   WEEKS_PER_CAMPAIGN,
 } from './clock.js';
-import { BLOCKS, DAYS_PER_WEEK } from '../config/constants.js';
+import {
+  BLOCKS,
+  DAYS_PER_WEEK,
+  ENERGY_PER_BLOCK,
+  ENERGY_RESTORED_OVERNIGHT,
+} from '../config/constants.js';
 import { isWeekend } from './calendar.js';
 
 describe('advanceBlock', () => {
@@ -99,8 +104,15 @@ describe('energy', () => {
   });
 
   it('is restored overnight but capped', () => {
-    expect(restOvernight({ energy: 40 }).energy).toBe(74);
+    expect(restOvernight({ energy: 40 }).energy).toBe(40 + ENERGY_RESTORED_OVERNIGHT);
     expect(restOvernight({ energy: 95 }).energy).toBe(100);
+  });
+
+  it('does not cover a full day, so resting has to compete for a block', () => {
+    // Three blocks plus a couple of Read her uses should outrun a night of
+    // sleep - otherwise the player never has a reason to spend a block resting.
+    const spentInADay = ENERGY_PER_BLOCK * BLOCKS.length + 2;
+    expect(spentInADay).toBeGreaterThan(ENERGY_RESTORED_OVERNIGHT - 5);
   });
 
   it('cannot survive a full day of blocks without sleeping', () => {
