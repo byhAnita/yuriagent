@@ -7,12 +7,20 @@
 
 import { SETTINGS_KEY } from '../config/constants.js';
 import { DEFAULT_THEME, DEFAULT_FONT_SCALE, THEMES, FONT_SCALES } from '../config/themes.js';
+import { MODELS, DEFAULT_MODEL } from '../config/modelConfigs.js';
 
 export const DEFAULT_SETTINGS = {
   theme: DEFAULT_THEME,
   fontScale: DEFAULT_FONT_SCALE,
   lang: 'en',
   reduceMotion: false,
+  /**
+   * Which router entry to call. Persisted, because a player who picked a model
+   * and pasted a key for it should not silently be talking to a different
+   * provider after a reload - the key would simply be rejected, and the game
+   * would fall back to the offline writer with no visible reason.
+   */
+  model: DEFAULT_MODEL,
 };
 
 export function loadSettings() {
@@ -27,6 +35,7 @@ export function loadSettings() {
         : DEFAULT_SETTINGS.fontScale,
       lang: typeof parsed.lang === 'string' ? parsed.lang : DEFAULT_SETTINGS.lang,
       reduceMotion: Boolean(parsed.reduceMotion),
+      model: Object.hasOwn(MODELS, parsed.model) ? parsed.model : DEFAULT_SETTINGS.model,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

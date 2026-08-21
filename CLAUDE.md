@@ -376,7 +376,7 @@ Five prompt blocks; four of them frozen while a scene is open.
 | 1 | **Static system** - rules, format contract, identity, all cast cards | whole run, byte-stable | ~2200 tok |
 | 2 | **Ledger** - append-only one-sentence scene summaries + macro state | whole run | ~1200 tok |
 | 3 | **Dossier** - learned facts, **only for members present in this scene** | rebuilt at scene start | ~60 tok / char |
-| 4 | **Scene header** - roster, time, location, exposure, stats, gift note | rebuilt at scene start | ~150 tok |
+| 4 | **Scene header** - roster, time, location, exposure, standing, gift note | rebuilt at scene start | ~150 tok |
 | 5 | **Scene buffer** - dialogue turns in the current room | **purged on exit** | grows |
 
 ### Dossier
@@ -422,7 +422,7 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 [ block 1  system       ]  byte-stable for the whole run
 [ block 2  ledger       ]  append-only; gains an entry at every scene boundary
 [ block 3  dossier      ]  present members only; rebuilt at every scene boundary
-[ block 4  scene header ]  roster, time, location, exposure, stats, gift note
+[ block 4  scene header ]  roster, time, location, exposure, standing, gift note
 [ block 5  turns        ]  the ONLY thing that grows during a scene
 ```
 
@@ -431,6 +431,29 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 The ledger gains an entry after *every* scene. So on the first turn of a new scene, everything after block 1 is a cache miss no matter how blocks 2-4 are arranged - moving the dossier earlier or later changes nothing.
 
 Ordering is therefore chosen for **salience, not cache**: the most decision-relevant material sits closest to the dialogue. Dossier facts about the woman in the room matter more to the next line than a summary of week 1, so the dossier goes after the ledger.
+
+### Standing: what block 4 says about closeness
+
+Block 4 names, for every present member, **where the two of you stand** - as a
+sentence, never as a number:
+
+```
+Irene: the two of you are close in a way neither of you has put a name to.
+Irene has been on edge about where your attention has been lately.
+```
+
+This is the input the model needs to make *any* reaction proportionate - a gift,
+a joke, a hand on a shoulder. Without it every scene is written at the same
+emotional distance, which is the single most obvious way a generated line reads
+as canned.
+
+Two rules:
+
+1. **Words, not numbers.** A stat block invites the model to narrate the stat,
+   and section 9 forbids numbers in prose. A sentence cannot be quoted back.
+2. **Standing is macro state, not a meter.** It is fixed for the whole scene, so
+   it belongs in the frozen header. `guard` and `fluster` move *during* a scene
+   and therefore stay client-side - putting them here would break invariant 2.
 
 ### Cache accounting
 
@@ -716,17 +739,42 @@ fact it is waiting on and clutters the list with things they cannot act on. When
 nothing is unlocked the modal says only that such gifts open when she tells you
 the right thing.
 
-**The scene note carries the tier**, not just the object:
+**The reaction is generated, never authored.** There is no thank-you table. The
+opening beat of a gift scene is a normal model call (section 9), which is what
+lets the same iced coffee read as polite at `colleague` and as something else
+entirely at `unspoken`. A fixed line cannot vary with affection, and a fixed
+line is instantly legible to the player as a fixed line.
+
+Three things have to reach the model for that reaction to land, and each one was
+missing at some point:
+
+**1. The tier**, not just the object:
 
 - generic - *"an ordinary, thoughtful gesture - kind, but nothing she could not
   have guessed at."*
 - knowledge - *"She has never told anyone she needed one. Only somebody who had
   been paying very close attention would have known to bring it."*
 
-Without that, an iced coffee and a hand warmer are the same sentence to the
-model, and the reaction cannot be proportionate - which is the entire payoff of
-the knowledge economy. The reaction itself is the scene's opening beat
-(section 9).
+Without it, an iced coffee and a hand warmer are the same sentence to the model.
+
+**2. The fact it was bought on.** `requires` is matched by substring against her
+dossier, so the code already knows *exactly which remembered line* unlocked this
+gift. That line is quoted into the note verbatim:
+
+> the player has just handed Hyewon a knee brace. She let this slip once: "an
+> old knee injury that flares up in the cold". She has never told anyone she
+> needed one - only somebody who had been paying very close attention would have
+> known to bring it.
+
+The fact is already in block 3, but block 3 is a list of everything known about
+her, and the step from `knee_brace` to that one line is an inference. At this
+model tier, an inference that can be stated should be stated. This is the whole
+distance between *"You were paying attention"* and *"How did you know about my
+knee?"*, and the second one is the product.
+
+**3. How close she already is.** See block 4 (section 7): the same gift from a
+colleague and from someone at `unspoken` is not the same event, and the model
+cannot know that unless the header says so.
 
 Gifts are chosen in a pre-scene modal before the first LLM call, then injected as the opening line of block 5:
 `System note: the player opened the scene by giving Irene a hand warmer.`

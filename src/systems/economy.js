@@ -9,13 +9,33 @@
 
 import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, getGift } from '../data/gifts.js';
 
+/**
+ * WHICH remembered line unlocks this gift, or null.
+ *
+ * Returning the fact rather than a boolean is the point. The note that opens the
+ * scene quotes it back (section 11), so the model does not have to infer for
+ * itself that a knee brace has anything to do with the injury sitting three
+ * blocks earlier in the dossier. At this model tier that inference is not
+ * reliable, and what it produces when it fails is a generic thank-you - the one
+ * thing the knowledge economy exists to avoid.
+ *
+ * Matched per entry, not against the concatenation of all of them, so a needle
+ * cannot be satisfied by the seam between two unrelated facts.
+ */
+export function matchedFact(gift, dossier) {
+  if (!gift.requires) return null;
+  const facts = [...(dossier?.known_facts ?? []), ...(dossier?.player_told_her ?? [])];
+  for (const fact of facts) {
+    const hay = String(fact).toLowerCase();
+    if (gift.requires.some((needle) => hay.includes(needle.toLowerCase()))) return fact;
+  }
+  return null;
+}
+
 /** Does anything she has told you match what this gift needs to know? */
 export function isUnlocked(gift, dossier) {
   if (!gift.requires) return true;
-  const facts = [...(dossier?.known_facts ?? []), ...(dossier?.player_told_her ?? [])]
-    .join(' ')
-    .toLowerCase();
-  return gift.requires.some((needle) => facts.includes(needle.toLowerCase()));
+  return matchedFact(gift, dossier) !== null;
 }
 
 /**
@@ -54,20 +74,27 @@ export function purchase(giftId, dossier, credits, memberName) {
   const gift = getGift(giftId);
   const name = giftId.replace(/_/g, ' ');
   const knowledge = Boolean(gift.requires);
+  const fact = matchedFact(gift, dossier);
 
   /**
-   * The note has to carry the TIER, not just the object. A hand warmer and an
-   * iced coffee are the same sentence otherwise, and the model has no way to
-   * know that one of them proves you were listening. Proportionate reactions
-   * are the entire payoff of the knowledge economy.
+   * The note carries the TIER and the FACT. The tier stops a hand warmer and an
+   * iced coffee reading as the same sentence; the fact stops the model having to
+   * work out for itself why this particular object proves you were listening.
+   *
+   * It deliberately does NOT script the reaction. Everything here is input - the
+   * line she actually says is generated, so it can also move with how close she
+   * already is (block 4 standing, section 8).
    */
   const sceneNote = knowledge
-    ? `the player has just handed ${memberName} a ${name}. She has never told anyone she needed one - only somebody who had been paying very close attention would have known to bring it. She was not expecting this.`
+    ? `the player has just handed ${memberName} a ${name}.${
+        fact ? ` She let this slip once: "${fact}".` : ''
+      } She has never told anyone she needed one - only somebody who had been paying very close attention would have known to bring it. She was not expecting this.`
     : `the player has just handed ${memberName} a ${name}. An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.`;
 
   return {
     giftId,
     tier: knowledge ? 'knowledge' : 'generic',
+    fact,
     credits: credits - gift.cost,
     intimacyDelta: gift.effect,
     sceneNote,

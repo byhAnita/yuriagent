@@ -66,23 +66,58 @@ const FALLBACK = ['neutral', -3, 4, '*She glances up from her phone.* "You came.
  * Opening beats. A gift is answered before anything else, and the size of the
  * answer is the whole point of the knowledge economy: an iced coffee is nice,
  * and a hand warmer she never told anyone she needed is not the same event.
+ *
+ * The real answer to "why does this reaction sound canned" is that a live model
+ * writes it (section 11). This is the offline stand-in and it cannot invent
+ * prose, so it does the two things a lookup table can do: name the actual
+ * object, and pick its register from how close she already is. That is enough
+ * that two different gifts at two different stages stop producing the same
+ * sentence, which is what made the seams visible in play.
+ *
+ * Templates take the gift name, which is always a safe noun phrase. Dossier
+ * facts are NOT spliced into her dialogue: they are written in the third person
+ * ("hates cold hands"), a live model rephrases them and a template cannot, and
+ * the result would read worse than the line it replaced.
  */
 const OPENING = {
-  knowledge: [
-    ['surprised', -16, 20, '*She turns it over once. Then she looks up at you completely differently.* "How did you..." *She stops, and starts again, quieter.* "Thank you."'],
-    ['blush', -14, 18, '*A long pause with the thing still in both hands.* "I never said that out loud." *Beat.* "To anyone."'],
-    ['shy', -15, 16, '"You were paying attention." *She says it like an accusation and does not let go of it.*'],
-  ],
-  generic: [
-    ['happy', -6, 8, '*She takes it, pleased and a little caught out.* "Oh - thank you. You did not have to."'],
-    ['neutral', -4, 6, '*She accepts it with both hands, the polite way.* "That is kind of you. Really."'],
-  ],
-  plain: [
-    ['neutral', -3, 4, '*She glances up from her phone.* "You came."'],
-    ['neutral', -2, 3, '*She does not look up straight away.* "Give me one second." *She does look up.*'],
-    ['happy', -5, 6, '*She sees you first, before you see her.* "There you are."'],
-  ],
+  knowledge: {
+    reserved: [
+      ['surprised', -16, 20, (it) => `*She turns the ${it} over once, and her face does something she does not let it do on camera.* "How did you know I needed this?"`],
+      ['blush', -14, 18, (it) => `*She does not take the ${it} straight away.* "I only said that out loud once." *Beat.* "I did not think anyone was listening."`],
+      ['shy', -15, 16, (it) => `"A ${it}." *She turns it over, then looks at you properly.* "You were paying attention."`],
+    ],
+    close: [
+      ['blush', -18, 24, (it) => `*She takes the ${it} with both hands and does not let go of your fingers straight away.* "You remembered." *Quieter.* "Of course you remembered."`],
+      ['happy', -17, 22, (it) => `*She laughs, once, and it comes out unsteady.* "A ${it}. You are so-" *She stops.* "Thank you. Really."`],
+      ['surprised', -16, 21, (it) => `*She looks at the ${it}, then at you, and something in her shoulders drops.* "Nobody else would have thought of this."`],
+    ],
+  },
+  generic: {
+    reserved: [
+      ['happy', -6, 8, (it) => `*She takes the ${it}, pleased and a little caught out.* "Oh - thank you. You did not have to."`],
+      ['neutral', -4, 6, (it) => `*She accepts the ${it} with both hands, the polite way.* "That is kind of you. Really."`],
+    ],
+    close: [
+      ['happy', -8, 11, (it) => `*She takes the ${it} without any of the polite performance.* "You always do this." *She is smiling.* "Thank you."`],
+      ['shy', -7, 10, (it) => `"A ${it}?" *She shakes her head at you, fond about it.* "You did not have to. I am glad you did."`],
+    ],
+  },
+  plain: {
+    reserved: [
+      ['neutral', -3, 4, () => '*She glances up from her phone.* "You came."'],
+      ['neutral', -2, 3, () => '*She does not look up straight away.* "Give me one second." *She does look up.*'],
+      ['happy', -5, 6, () => '*She sees you first, before you see her.* "There you are."'],
+    ],
+    close: [
+      ['happy', -7, 8, () => '*She was already watching the door, and does not pretend otherwise.* "You are late."'],
+      ['shy', -6, 7, () => '*She moves her bag off the seat next to her before you ask.* "Sit."'],
+      ['neutral', -5, 6, () => '*She keeps stretching, but the line of her shoulders changes.* "I wondered if you would come by."'],
+    ],
+  },
 };
+
+/** Which register: read off the standing sentence block 4 wrote (section 8). */
+const CLOSE_MARKERS = /put a name to|said it out loud|stopped hiding|privately, and both of them know/i;
 
 let counter = 0;
 
@@ -125,19 +160,25 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
     }
 
     // The opening beat is hers. If she was handed something, that comes first,
-    // and the tier of the note decides how much of a moment it is.
+    // the tier of the note decides how much of a moment it is, and how close she
+    // already is decides the register.
     let pool = null;
+    let item = 'thing';
 
     if (opening) {
       const conversation = messages.map((m) => m.content).join('\n');
       const knowledge = /paying very close attention/i.test(conversation);
       const generic = /an ordinary, thoughtful gesture/i.test(conversation);
-      pool = knowledge ? OPENING.knowledge : generic ? OPENING.generic : OPENING.plain;
+      const tier = knowledge ? OPENING.knowledge : generic ? OPENING.generic : OPENING.plain;
+
+      item = /just handed \S+ an? ([a-z][a-z ]*?)\./i.exec(conversation)?.[1]?.trim() ?? item;
+      pool = CLOSE_MARKERS.test(conversation) ? tier.close : tier.reserved;
     } else {
       pool = LINES[stance] ?? null;
     }
 
-    const [emotion, guard, fluster, prose] = pool ? pick(rng, pool) : FALLBACK;
+    const [emotion, guard, fluster, body] = pool ? pick(rng, pool) : FALLBACK;
+    const prose = typeof body === 'function' ? body(item) : body;
     const text = `@${id}|${emotion}|guard${guard >= 0 ? '+' : ''}${guard}|fluster${fluster >= 0 ? '+' : ''}${fluster}\n${prose}`;
 
     if (onChunk) {

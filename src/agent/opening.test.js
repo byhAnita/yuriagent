@@ -66,6 +66,50 @@ describe('the gift note carries its tier', () => {
       purchase('rose', newMemory(castIds).dossier.irene, 10, 'Irene').intimacyDelta,
     );
   });
+
+  /**
+   * The note has to say WHICH remembered line the gift was bought on. The fact
+   * is in block 3, but the step from `hand_warmer` to that one entry is an
+   * inference, and at this model tier an unreliable inference produces exactly
+   * the generic thank-you the knowledge economy exists to avoid.
+   */
+  it('quotes the fact the gift was bought on', () => {
+    const out = purchase('hand_warmer', knowsCold().dossier.irene, 10, 'Irene');
+    expect(out.fact).toBe('hates cold hands');
+    expect(out.sceneNote).toContain('"hates cold hands"');
+  });
+
+  it('finds the fact whichever way she let it slip', () => {
+    const told = newMemory(castIds);
+    told.dossier = addDossierEntry(
+      told.dossier,
+      'irene',
+      'player_told_her',
+      'her hands go cold in the practice room and she never says so',
+    );
+    const out = purchase('hand_warmer', told.dossier.irene, 10, 'Irene');
+    expect(out.fact).toContain('cold');
+    expect(out.sceneNote).toContain(out.fact);
+  });
+
+  it('a generic gift names no fact, because it was bought on none', () => {
+    const out = purchase('rose', knowsCold().dossier.irene, 10, 'Irene');
+    expect(out.fact).toBeNull();
+    expect(out.sceneNote).not.toContain('let this slip');
+  });
+
+  /**
+   * A needle must be satisfied by one remembered line, not by the seam between
+   * two unrelated ones - otherwise "cold" + "hands" in different entries would
+   * unlock a gift nobody earned.
+   */
+  it('does not unlock on the seam between two unrelated facts', () => {
+    const seam = newMemory(castIds);
+    // Neither entry contains "does her own face". Concatenated, they do.
+    seam.dossier = addDossierEntry(seam.dossier, 'irene', 'known_facts', 'she does her own');
+    seam.dossier = addDossierEntry(seam.dossier, 'irene', 'known_facts', 'face is her best feature');
+    expect(purchase('makeup_brush_set', seam.dossier.irene, 10, 'Irene')).toBeNull();
+  });
 });
 
 describe('the opening turn is an instruction, not a fake player action', () => {
@@ -107,7 +151,9 @@ describe('she actually reacts', () => {
 
     const text = session.beats.map((b) => b.text).join(' ');
     expect(text).not.toContain('You came');
-    expect(/thank|attention|never said|how did/i.test(text)).toBe(true);
+    // She names the thing she was handed. A reaction that could have been
+    // written before knowing what the gift was is the failure mode here.
+    expect(text.toLowerCase()).toContain('hand warmer');
     expect(session.meters.fluster).toBeGreaterThan(10);
   });
 
@@ -124,6 +170,44 @@ describe('she actually reacts', () => {
 
     expect(a.meters.fluster).toBeGreaterThan(0);
     expect(b.meters.fluster).toBeGreaterThan(a.meters.fluster);
+  });
+
+  /**
+   * The offline writer is a lookup table and always will be, but it must not
+   * read as one. Naming the object and moving register with how close she
+   * already is are the two things it can do without inventing prose.
+   */
+  it('names the object it was handed', async () => {
+    const args = setup(knowsCold());
+    const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+    let s = openWithGift(beginScene(args), bought.sceneNote);
+    s = await runTurn(s, { text: openingDirective(true), client });
+    expect(s.beats.map((b) => b.text).join(' ').toLowerCase()).toContain('hand warmer');
+  });
+
+  it('does not answer a colleague the way it answers someone at unspoken', async () => {
+    const run = async (intimacy, admissibility) => {
+      const args = setup(knowsCold());
+      args.relations.irene = {
+        ...args.relations.irene,
+        intimacy,
+        admissibility,
+        peakIntimacy: intimacy,
+        stage: intimacy > 70 ? 'unspoken' : 'colleague',
+      };
+      const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+      let s = openWithGift(beginScene(args), bought.sceneNote);
+      s = await runTurn(s, { text: openingDirective(true), client });
+      return s;
+    };
+
+    const early = await run(25, 5);
+    const late = await run(80, 50);
+
+    // The two registers have deliberately disjoint fluster ranges, so this
+    // asserts which pool was drawn from rather than that the RNG moved.
+    expect(early.meters.fluster).toBeLessThanOrEqual(20);
+    expect(late.meters.fluster).toBeGreaterThanOrEqual(21);
   });
 
   it('opens with a plain greeting when the player brought nothing', async () => {

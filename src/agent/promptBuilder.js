@@ -21,6 +21,7 @@ import { PROMPT_EXCLUDED_FIELDS } from '../data/cast.js';
 import { MAX_BEATS_PER_RESPONSE, READ_HER_USES_PER_SCENE } from '../config/constants.js';
 import { renderLedger, renderDossier } from './memory.js';
 import { jealousyBand, sceneModifiers } from '../systems/jealousy.js';
+import { resolveStage } from '../systems/relationship.js';
 
 const LANG_NAMES = {
   en: 'English',
@@ -30,6 +31,41 @@ const LANG_NAMES = {
 };
 
 export const EMOTIONS = ['neutral', 'happy', 'blush', 'shy', 'upset', 'surprised'];
+
+/**
+ * Where the two of you stand, as a sentence rather than a number (section 8).
+ *
+ * This is the input that makes any reaction proportionate - a gift, a joke, a
+ * hand on a shoulder. Without it the model writes every scene at the same
+ * emotional distance, which is the most obvious way a generated line reads as
+ * canned. Numbers are deliberately absent: a stat invites the model to narrate
+ * the stat, and section 9 forbids numbers in prose.
+ */
+export const STANDING = {
+  stranger: 'barely knows the player yet',
+  colleague: 'knows the player as a colleague, and not much more',
+  good_friends: 'is easy around the player, and calls it friendship',
+  nameless: 'is close to the player in a way neither of them has put a name to',
+  unspoken: 'knows exactly what this is. Neither of them has said it out loud',
+  ours: 'is with the player, privately, and both of them know it',
+  out: 'is with the player and has stopped hiding it',
+  confidante: 'trusts the player completely in private and keeps a careful distance in public',
+  reckless: 'is further out in the open with the player than the two of them are ready for',
+};
+
+/**
+ * Being at the bottom of the map means something different before and after.
+ * Same coordinates, different scene (section 5).
+ */
+export function standingLine(name, rel) {
+  const stage = rel.stage ?? resolveStage(rel.intimacy, rel.admissibility);
+  const base = STANDING[stage] ?? STANDING.colleague;
+  const aftermath =
+    rel.peakIntimacy >= 40 && rel.intimacy < rel.peakIntimacy - 15
+      ? ' It was closer than this once, and both of them remember that.'
+      : '';
+  return `${name} ${base}.${aftermath}`;
+}
 
 /**
  * A card as the model sees it.
@@ -146,6 +182,8 @@ export function buildSceneHeader({
     if (!rel) continue;
     const band = jealousyBand(rel.jealousy);
     const mods = sceneModifiers(rel);
+
+    lines.push(standingLine(r.name, rel));
 
     if (band !== 'calm') {
       lines.push(`${r.name} is ${band} about where your attention has been lately.`);
