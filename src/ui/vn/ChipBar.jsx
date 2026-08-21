@@ -16,12 +16,37 @@ export default function ChipBar({
   onStance,
   onFreeText,
   onReadHer,
+  onLeave,
   readHerLeft,
+  turnsLeft,
+  outOfTurns,
   disabled,
   t,
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+
+  /**
+   * When the block is spent the chips do not simply go dead - that reads as a
+   * frozen screen. The whole bar is replaced by the one move still available,
+   * and it says why.
+   */
+  if (outOfTurns) {
+    return (
+      <div className="px-5 pb-5 pt-3">
+        <p className="mb-2 text-center font-mono text-[0.625rem] uppercase tracking-[0.16em] text-warn">
+          {t('vn.outOfTurns')}
+        </p>
+        <button
+          type="button"
+          onClick={onLeave}
+          className="w-full rounded-[var(--radius)] border border-accent bg-accent px-4 py-3 font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-on-accent"
+        >
+          {t('vn.leave')}
+        </button>
+      </div>
+    );
+  }
 
   const submit = (e) => {
     e.preventDefault();
@@ -70,6 +95,17 @@ export default function ChipBar({
         </button>
 
         <span className="h-px flex-1 bg-hairline opacity-50" />
+
+        {/* how much of the block is left, said plainly rather than as a bare number */}
+        <span
+          className={`font-mono text-[0.625rem] uppercase tracking-[0.14em] ${
+            turnsLeft <= 3 ? 'text-warn' : 'text-dim'
+          }`}
+        >
+          {t('vn.turnsLeft')} {turnsLeft}
+        </span>
+
+        <span className="h-px w-3 bg-hairline opacity-50" />
 
         <button
           type="button"

@@ -182,6 +182,7 @@ export default {
     offlineNote: '无需 API Key。文本为占位内容。',
     sceneOver: '这一幕结束了',
     again: '再来一幕',
+    turnsLeft: '剩余',
     outOfTurns: '这个时段结束了。',
   },
 

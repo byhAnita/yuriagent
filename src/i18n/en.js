@@ -182,6 +182,7 @@ export default {
     offlineNote: 'Plays without an API key. The writing is placeholder.',
     sceneOver: 'Scene over',
     again: 'Another scene',
+    turnsLeft: 'left',
     outOfTurns: 'The block is over.',
   },
 

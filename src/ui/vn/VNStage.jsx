@@ -57,7 +57,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
   }, [focusCard.palette.base, emotion]);
 
   const send = useCallback(
-    async ({ stance, text }) => {
+    async ({ stance, text, opening = false }) => {
       if (busy.current) return;
       busy.current = true;
       setPending(true);
@@ -72,7 +72,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
           onBeat: (beat) => setQueue((q) => enqueue(q, [beat])),
         });
         setSession(next);
-        setTurn((n) => n + 1);
+        if (!opening) setTurn((n) => n + 1);
       } finally {
         setPending(false);
         busy.current = false;
@@ -116,7 +116,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
 
   // Opening beat, so the player walks into something rather than a blank room.
   useEffect(() => {
-    send({ text: '*enters*' });
+    send({ text: '*enters*', opening: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -154,8 +154,11 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
         onStance={(stance) => send({ stance })}
         onFreeText={(text) => send({ text })}
         onReadHer={onReadHer}
+        onLeave={leave}
         readHerLeft={readHerLeft}
-        disabled={pending || hasMore(queue) || outOfTurns}
+        turnsLeft={turnsLeft}
+        outOfTurns={outOfTurns}
+        disabled={pending || hasMore(queue)}
         t={t}
       />
     </div>

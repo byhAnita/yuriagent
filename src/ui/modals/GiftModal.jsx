@@ -53,6 +53,10 @@ function Row({ gift, onPick, t }) {
 export default function GiftModal({ card, dossier, credits, onPick, onSkip, t }) {
   const { generic, knowledge } = giftsFor(dossier, credits);
 
+  // Locked gifts are not shown. Naming a gift the player cannot buy spoils the
+  // fact it is waiting on, and clutters the list with things they cannot act on.
+  const unlocked = knowledge.filter((g) => g.unlocked);
+
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-bg/80 backdrop-blur-sm">
       <div className="thought-in max-h-[85dvh] w-full max-w-[26rem] overflow-y-auto rounded-t-[var(--radius)] border-t border-hairline bg-surface px-5 pb-6 pt-4">
@@ -73,18 +77,22 @@ export default function GiftModal({ card, dossier, credits, onPick, onSkip, t })
           ))}
         </div>
 
-        <h3 className="mb-1.5 mt-4 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
-          {t('gift.knowledge')}
-        </h3>
-        <div className="flex flex-col gap-1">
-          {knowledge.map((g) => (
-            <Row key={g.id} gift={g} onPick={onPick} t={t} />
-          ))}
-        </div>
-
-        <p className="mt-3 font-mono text-[0.5rem] uppercase leading-relaxed tracking-[0.1em] text-faint">
-          {t('gift.hint')}
-        </p>
+        {unlocked.length > 0 ? (
+          <>
+            <h3 className="mb-1.5 mt-4 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
+              {t('gift.knowledge')}
+            </h3>
+            <div className="flex flex-col gap-1">
+              {unlocked.map((g) => (
+                <Row key={g.id} gift={g} onPick={onPick} t={t} />
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="mt-3 font-mono text-[0.5rem] uppercase leading-relaxed tracking-[0.1em] text-faint">
+            {t('gift.hint')}
+          </p>
+        )}
 
         <button
           type="button"
