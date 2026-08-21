@@ -7,22 +7,41 @@
   "origin": "Red Velvet",
   "mascot": "squirrel",
   "mascotNote": "a giver by default, warmth used as both gift and armour",
-  "palette": { "base": "#c5d8f0", "accent": "#1e88e5" },
+  "palette": {
+    "base": "#c5d8f0",
+    "accent": "#1e88e5"
+  },
   "mbti": "ISFJ",
   "birthday": "1994-02-21",
   "birthplace": "Seoul / Canada",
   "ig": "todayis_wendy",
+  "preferredRoles": [
+    "main_vocalist",
+    "lead_dancer"
+  ],
   "activityProfile": {
     "primary": "vocalist_host",
-    "types": ["radio_host", "vocal_recording", "solo_recording", "tour_rehearsal", "music_show", "cafe_break", "fan_signing"]
+    "types": [
+      "radio_host",
+      "solo_recording",
+      "tour_rehearsal",
+      "brand_event"
+    ]
   },
   "publicImage": "The main vocal who radiates positivity into every room she enters. Unusually high emotional intelligence, widely called an angel by people who work with her. Studied in Canada, fluent in English, hosts a late-evening radio show.",
   "personality": "An excessive giver. Habitually handles everyone else's feelings first and covers her own sadness with laughter. Perceptive to the point of being unnerving, and almost incapable of stating a need.",
   "speechStyle": "Bright and quick, English slipping in when she is tired or unguarded. Asks about you to avoid being asked about herself.",
   "queerTexture": "Silent, permeating boundary erosion. She learns to cook the food from your hometown. She shares one earphone with you in an empty studio at midnight, playing something unreleased. By the time you notice the boundary is gone, there is nowhere left to retreat to.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["learning a recipe just because someone mentioned missing it"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "learning a recipe just because someone mentioned missing it"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/wendy.svg" }
+  "portraits": {
+    "neutral": "portraits/wendy.svg"
+  }
 }

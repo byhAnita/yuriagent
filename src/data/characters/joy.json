@@ -7,23 +7,42 @@
   "origin": "Red Velvet",
   "mascot": "canary",
   "mascotNote": "bright and open, with a temperature underneath that she never bothers to hide",
-  "palette": { "base": "#f0e8c5", "accent": "#e65100" },
+  "palette": {
+    "base": "#f0e8c5",
+    "accent": "#e65100"
+  },
   "mbti": "INFJ",
   "birthday": "1996-09-03",
   "birthplace": "Jeju Island",
   "ig": "_imyour_joy",
+  "preferredRoles": [
+    "lead_rapper",
+    "visual"
+  ],
   "activityProfile": {
     "primary": "actress_idol",
-    "types": ["drama_shoot", "script_reading", "variety_taping", "photoshoot", "group_practice", "brand_event", "cafe_break"]
+    "types": [
+      "drama_shoot",
+      "script_reading",
+      "photoshoot",
+      "brand_event"
+    ]
   },
   "publicImage": "Vivid, straightforward and cheerful, working under her own name when she acts. Splits her weeks between a drama set and the idol schedule, and is unusually good on variety.",
   "personality": "Passionate and possessive. Clingy when she is in love, with emotions that arrive at full volume - delight and jealousy both written plainly across her face within seconds of being felt. A complete romantic.",
   "speechStyle": "Direct, fast, teasing. Says the thing everyone else is being careful about, then watches your face to see what it did.",
   "queerTexture": "Extremely sensitive to reciprocity. She will say it out loud long before anyone else would - and if the answer does not come back for too long, the light in her goes out and she starts quietly building a case that you have stopped wanting her.",
   "hiddenConflict": "Prolonged lack of reciprocal response collapses into self-doubt rather than anger.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["being chosen visibly, in front of other people"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "being chosen visibly, in front of other people"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/joy.svg" }
+  "portraits": {
+    "neutral": "portraits/joy.svg"
+  }
 }

@@ -7,22 +7,41 @@
   "origin": "Red Velvet",
   "mascot": "bear",
   "mascotNote": "devastating on stage, adorably dorky the moment she steps off it",
-  "palette": { "base": "#f0d9b8", "accent": "#a1621a" },
+  "palette": {
+    "base": "#f0d9b8",
+    "accent": "#a1621a"
+  },
   "mbti": "ISFP",
   "birthday": "1994-02-10",
   "birthplace": "Ansan",
   "ig": "hi_sseulgi",
+  "preferredRoles": [
+    "main_dancer",
+    "lead_vocalist"
+  ],
   "activityProfile": {
     "primary": "performer",
-    "types": ["choreo_session", "dance_practice", "vocal_recording", "tour_rehearsal", "photoshoot", "group_practice", "music_show"]
+    "types": [
+      "solo_recording",
+      "tour_rehearsal",
+      "photoshoot",
+      "brand_event"
+    ]
   },
   "publicImage": "The all-rounder. Her eyes change completely the moment she starts dancing. Off stage she is the roster's designated harmless bear - gentle, easygoing, eyes curving into crescents when she smiles.",
   "personality": "A pure straight-shooter with no interest in mind games. When she likes someone it is simply visible. A perfectionist about her own work who buries pressure rather than voicing it.",
   "speechStyle": "Warm and a little scattered. Trails off, laughs at herself, then says the honest thing plainly when it matters.",
   "queerTexture": "Clumsy courage. She may not have language for what this is, but once she is certain about you she guards it like a bear over food - fever medicine and a handwritten note pressed into your hand in a corridor at 2am, no explanation offered.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["staying late to fix eight counts nobody else noticed"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "staying late to fix eight counts nobody else noticed"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/seulgi.svg" }
+  "portraits": {
+    "neutral": "portraits/seulgi.svg"
+  }
 }

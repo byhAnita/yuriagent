@@ -7,22 +7,42 @@
   "origin": "Red Velvet",
   "mascot": "rabbit",
   "mascotNote": "cool and stunning on the surface, fiercely protective underneath",
-  "palette": { "base": "#f0c8d8", "accent": "#c2185b" },
+  "palette": {
+    "base": "#f0c8d8",
+    "accent": "#c2185b"
+  },
   "mbti": "ISFJ",
   "birthday": "1991-03-29",
   "birthplace": "Daegu",
   "ig": "renebaebae",
+  "preferredRoles": [
+    "leader",
+    "lead_rapper"
+  ],
   "activityProfile": {
     "primary": "soloist",
-    "types": ["solo_recording", "tour_rehearsal", "photoshoot", "brand_event", "group_practice", "fitting", "showcase"]
+    "types": [
+      "solo_recording",
+      "tour_rehearsal",
+      "photoshoot",
+      "brand_event"
+    ]
   },
-  "publicImage": "Widely treated as the visual benchmark of the industry. Aloof and elegant on stage; as the senior of the roster she is the anchor everyone steadies against - restrained, composed, impeccable.",
+  "publicImage": "Leader of X and the oldest of the five. Aloof and elegant on stage; off it she is the anchor the other four steady themselves against - restrained, composed, impeccable, and carrying a solo career on top of all of it.",
   "personality": "Slow to warm, extremely attentive. Expresses affection through caretaking rather than words - laundry, food, straightening a hem. Says very little to people she does not know well, and is almost stubbornly protective of the few she does.",
   "speechStyle": "Measured and short. Understates everything. Corrects herself mid-sentence when a feeling starts to show, then changes the subject.",
   "queerTexture": "The forbearance of someone older who understands the cost of exposure better than anyone. The early push and pull is reason against feeling, played out in silence. She uses 'an older sister looking after a junior' as her strongest cover, so restrained it aches.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["quiet mornings", "handling other people's problems before her own"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "quiet mornings",
+    "handling other people's problems before her own"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/irene.svg" }
+  "portraits": {
+    "neutral": "portraits/irene.svg"
+  }
 }

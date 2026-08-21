@@ -25,6 +25,23 @@ Four pillars, in priority order:
 
 ---
 
+## 1b. Fictional Setting
+
+The cast are five members of the girl group **X**, under **X Entertainment**. They share a dorm. The player is staff at the agency - Artist Assistant in MVP, other identities later.
+
+**The cast is cross-group in source, single-group in fiction.** Cards are built from members of different real groups, but inside the game world all five debuted together in X, hold roles within X, and share one comeback cycle. Each also runs an individual career alongside it - soloist, actress, host - which is what scatters them across the map outside comeback weeks.
+
+Two consequences for the code:
+
+- A card's `origin` field (`"Red Velvet"`, `"BLACKPINK"`) is **library metadata for the card picker only. It is never injected into a prompt.** In fiction there is no Red Velvet; there is X. Leaking `origin` into the prompt makes the model narrate the wrong world.
+- Group roles are **not** fixed on the card, because any five cards must be able to form a coherent X. A card declares `preferredRoles`; `systems/castBuilder.js` resolves the lineup at run start - leader and maknae from birthdays unless a card prefers otherwise, remaining roles filled from preferences without duplicates.
+
+MVP cast: Irene (leader, lead rapper), Nana (main dancer, main rapper), Jisoo (visual, lead vocalist), Hyewon (lead dancer, sub vocalist), Yeri (maknae, sub rapper).
+
+`seulgi`, `wendy` and `joy` remain in `data/characters/` as library cards. They are not in the MVP cast.
+
+---
+
 ## 2. Scope
 
 | Milestone | Contents |
@@ -428,25 +445,25 @@ Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: di
 
 ## 10. Time, Calendar, Tasks
 
-3-week cycle: `PREP -> PEAK -> RECOVERY`. Each day has 3 time blocks: morning / afternoon / evening.
+3-week cycle: `PREP -> COMEBACK -> REST`. Each day has 3 time blocks: morning / afternoon / evening.
 
-### The cycle is company-level, not group-level
+### Two schedule layers, driven by the group cycle
 
-The cast is **cross-group by design**: a playthrough may mix Irene, a member of another group, and three more. In fiction they are labelmates at one agency, not groupmates, and the player is staff at that agency. There is therefore no shared comeback to build a calendar around, so the macro cycle is anchored to the company instead:
+X has real comebacks, and each member also has an individual career. The group layer and the solo layer trade dominance across the cycle, which is what gives each week a distinct feel:
 
-| Week | Phase | Members are | Exposure profile |
-|---|---|---|---|
-| 1 | **PREP** | recording, rehearsing, fitting - in the building | low everywhere |
-| 2 | **PEAK** | broadcasts, premieres, radio, events - scattered outward | high everywhere |
-| 3 | **RECOVERY** | light schedules, downtime, reachable | mid, many free blocks |
+| Week | Phase | Group layer | Solo layer | Co-presence | Outside exposure |
+|---|---|---|---|---|---|
+| 1 | **PREP** | rehearsal, recording, concept, MV shoot | continues - dramas shoot, solo tracks | medium | low |
+| 2 | **COMEBACK** | music shows, fansigns, promo, variety | largely suspended | **high** | high |
+| 3 | **REST** | none | resumes fully - everyone scatters | low | mixed |
 
-This works for any cast composition, and it drives the section 5b tension on a rhythm:
+The emotional rhythm this produces:
 
-- **PREP** - intimacy grows, admissibility cannot move, rumors are rare. Safe building.
-- **PEAK** - admissibility can finally rise, but rumors travel and jealousy spikes. Risk week.
-- **RECOVERY** - the repair week, where `piqued` jealousy gets converted before it hardens.
+- **PREP** - everyone is in the building, exposure is low. Intimacy grows, admissibility cannot move. Safe building.
+- **COMEBACK** - everyone is in the *same rooms* under maximum visibility. Admissibility can finally rise, and every gesture is witnessed by four other people. The pressure-cooker week.
+- **REST** - the cast scatters to individual work and the dorm empties out. The repair week, where `piqued` jealousy gets converted before it hardens.
 
-Build, risk, repair - a three-week emotional loop that falls out of the constraint rather than being imposed on it.
+Build, risk, repair. Note that COMEBACK raises **both** risks at once - outside scandal and internal jealousy - which is exactly why the dorm matters (below).
 
 **The calendar is deterministic.** Hand-authored slot templates per week-phase, filled by a seeded RNG. No LLM call. Reasons: replayable, testable, instant, and the player can be shown the whole week upfront - opportunity cost only bites when it is visible. The LLM may write a flavor label for a slot; it may never decide the slot.
 
@@ -454,14 +471,43 @@ Build, risk, repair - a three-week emotional loop that falls out of the constrai
 
 ```js
 weekPlan: {
-  group:   [ { day, block, location, label } ],          // all members
-  members: { irene: [ { day, block, location, label } ] } // solo work
+  group:   [ { day, block, location, activity } ],          // all of X at once
+  members: { irene: [ { day, block, location, activity } ] } // solo careers
 }
 ```
 
 Occupancy for any `(day, block, location)` is derived: company slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
 
 Solo slots are generated from each card's `activityProfile.types`, resolved through the shared table in `data/activities.js`, which maps an activity type to its location, its `exposureBase`, and the phases it can appear in. Cards therefore stay portable: a card from any group drops into any cast without touching the calendar code.
+
+### Locations: exposure and presence are independent
+
+`data/locations.js` gives every location two separate numbers:
+
+- **`exposureBase`** - visibility to the *outside* world. Drives scandal risk and admissibility gain.
+- **`presence`** - how many other cast members can witness what happens there. Drives jealousy.
+
+Most locations move these together. The **dorm is the one place that splits them**, and that split is the player's main strategic instrument:
+
+| Location | outside exposure | witnesses |
+|---|---|---|
+| `broadcast_studio` | 85 | whole cast in COMEBACK |
+| `drama_set` | 65 | only the member shooting |
+| `cafe` | 60 | 1-2 |
+| `corridor` | 45 | random - you run into people here, you do not seek them |
+| `practice_room` | 25 | whole cast in PREP / COMEBACK |
+| `wardrobe` | 20 | 1-2 - the assistant's own turf |
+| `dorm_living` | **15** | **all four others** |
+| `dorm_kitchen` | 12 | 1-2 |
+| `dorm_room` | **5** | 1 |
+
+So the dorm is safe from scandal and dangerous for jealousy, and every other location trades the two together. Going out raises admissibility and risks a leak; going home builds intimacy and gets you watched.
+
+### Private scene, public approach
+
+`dorm_room` carries `approachWitnessed: true`. Entering it generates a witnessed jealousy event for every cast member currently in `dorm_living`, even though nothing about the scene itself leaks outward.
+
+The others saw you go in. That is a complete otome beat produced by two numbers and one flag, with no authored content behind it.
 
 It also feeds the dossier: routines are learnable. `known_facts` may hold `"she practises alone on Wednesday nights"`, and knowing it is how a player engineers a low-`exposure` meeting - which is the safe-but-stagnant side of the section 5b tension.
 
@@ -522,6 +568,7 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "birthday": "1991-03-29",
   "birthplace": "Daegu",
   "ig": "renebaebae",
+  "preferredRoles": ["leader", "lead_rapper"],
   "activityProfile": {
     "primary": "soloist",
     "types": ["solo_recording", "tour_rehearsal", "photoshoot", "brand_event"]
@@ -539,7 +586,7 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
 }
 ```
 
-`origin` is flavour only - the in-fiction agency is shared by the whole cast regardless of where each member came from (section 10). `activityProfile.types` are keys into `data/activities.js` and are what drives her solo schedule. `hiddenConflict` is optional and names the specific way this character fails under neglect; it is injected only when jealousy reaches `piqued` or above.
+`origin` is **library metadata only and is never injected into a prompt** - in fiction every member is in X (section 1b). `preferredRoles` feeds `castBuilder.js`, which resolves a coherent X lineup from whichever five cards are chosen. `activityProfile.types` are keys into `data/activities.js` and drive her solo schedule. `hiddenConflict` is optional and names the specific way this character fails under neglect; it is injected only once jealousy reaches `piqued` or above.
 
 Localized display names live in `i18n/`, not on the card, so a card stays a single portable file.
 
@@ -646,7 +693,8 @@ src/
   systems/                   # PURE. no React, no network.
     relationship.js          # intimacy/admissibility/strain, stage, endings
     jealousy.js              # bands, gain/decay, exclusivity curve
-    rumor.js                 # exposure -> awareness propagation
+    rumor.js                 # exposure -> awareness; presence -> witnessed events
+    castBuilder.js           # any 5 cards -> a coherent X lineup
     calendar.js              # deterministic seeded group + member schedules
     tasks.js
     economy.js               # credits, knowledge-gated gifts
@@ -656,10 +704,11 @@ src/
   tools/
     llmTool.js               # multi-model router, streaming, retries
   data/
-    characters/*.json        # irene, seulgi, wendy, joy, yeri
+    characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri
+                             # library: seulgi, wendy, joy
     identities/*.json
-    activities.js            # activity type -> location, exposureBase, phases
-    locations.js
+    activities.js            # group / solo / idle activity tables
+    locations.js             # exposureBase + presence per location
     gifts.js
     events/                  # anchor nodes
   ui/
