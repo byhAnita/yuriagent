@@ -1,32 +1,48 @@
 /**
- * M3 shell.
+ * M4 shell.
  *
- * Setup -> scene -> aftermath, wired to the real engine. The map, calendar and
- * task layer arrive in M4; until then SceneSetup stands in for them so a scene
- * is reachable and the two romantically meaningful choices - who, and how
- * visible - are already the choices the player makes.
+ * day -> gift -> scene -> aftermath -> day, on a real clock. The map is driven
+ * by the deterministic calendar, blocks advance, tasks come due at day rollover
+ * and energy only comes back from sleeping.
  *
- * Runs against the offline mock client by default so the whole loop is playable
- * with no API key.
+ * Runs on the offline writer with no API key; a key in settings switches the
+ * same loop onto a real model.
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import { applyTheme, THEMES, FONT_SCALES } from './config/themes.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { applyTheme } from './config/themes.js';
 import { loadSettings, saveSettings } from './store/settings.js';
-import { makeT, LANGS, LANG_LABELS } from './i18n/index.js';
+import { loadApiKey, saveApiKey } from './store/apiKey.js';
+import { makeT } from './i18n/index.js';
 import { getCast } from './data/cast.js';
 import { buildLineup } from './systems/castBuilder.js';
-import { newRelation, resolveStage } from './systems/relationship.js';
+import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
-import { createMockClient } from './tools/mockClient.js';
+import { generateWeek, occupancyAt } from './systems/calendar.js';
+import {
+  generateDayTask,
+  completeTask,
+  failTask,
+  newTaskState,
+  applyPlayerDeltas,
+} from './systems/tasks.js';
+import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from './systems/clock.js';
+import { purchase } from './systems/economy.js';
+import { createClient } from './tools/client.js';
+import { MAX_INTERACTIVE_MEMBERS } from './config/constants.js';
 import VNStage from './ui/vn/VNStage.jsx';
-import SceneSetup from './ui/screens/SceneSetup.jsx';
+import Day from './ui/screens/Day.jsx';
+import GiftModal from './ui/modals/GiftModal.jsx';
+import SettingsModal from './ui/modals/SettingsModal.jsx';
 
 const IDENTITY = {
   id: 'assistant',
   promptRole: 'an artist assistant at the agency',
+  taskPool: ['prep_outfits', 'run_schedule', 'handle_press_kit', 'stage_check', 'restock_wardrobe'],
   exposureModifier: { wardrobe: -10, cafe: 10 },
 };
+
+const SEED = 20260821;
 
 export default function App() {
   const cards = useMemo(() => getCast(), []);
@@ -34,103 +50,279 @@ export default function App() {
   const castIds = useMemo(() => cards.map((c) => c.id), [cards]);
 
   const [settings, setSettings] = useState(loadSettings);
-  const [screen, setScreen] = useState('setup');
-  const [sceneNo, setSceneNo] = useState(0);
-  const [outcome, setOutcome] = useState(null);
+  const [apiKey, setApiKey] = useState(loadApiKey);
+  const [showSettings, setShowSettings] = useState(false);
 
-  const [player] = useState({ name: 'You', energy: 80, secrecy: 70, credits: 6, competence: 20 });
+  const [run, setRun] = useState(() => newRun({ seed: SEED }));
+  const [player, setPlayer] = useState({
+    name: 'You',
+    energy: 90,
+    secrecy: 70,
+    credits: 6,
+    competence: 20,
+  });
   const [relations, setRelations] = useState(() =>
     Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
   );
   const [memory, setMemory] = useState(() => newMemory(castIds));
+  const [taskState, setTaskState] = useState(newTaskState);
 
-  const [choice, setChoice] = useState({
-    memberId: 'irene',
-    locationId: 'practice_room',
-    block: 'evening',
-    phase: 'prep',
-  });
+  const [screen, setScreen] = useState('day');
+  const [pendingScene, setPendingScene] = useState(null);
+  const [giftNote, setGiftNote] = useState(null);
+  const [outcome, setOutcome] = useState(null);
+  const [sceneNo, setSceneNo] = useState(0);
 
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
-  const client = useMemo(() => createMockClient({ seed: 7 + sceneNo }), [sceneNo]);
 
-  const focusCard = cards.find((c) => c.id === choice.memberId);
+  const weekPlan = useMemo(
+    () => generateWeek({ phase: run.phase, cards, seed: SEED, week: run.week }),
+    [run.phase, run.week, cards],
+  );
+
+  const occupancy = useMemo(
+    () =>
+      occupancyAt(weekPlan, {
+        day: run.day,
+        block: run.block,
+        cards,
+        seed: SEED,
+        week: run.week,
+      }),
+    [weekPlan, run.day, run.block, run.week, cards],
+  );
+
+  const task = useMemo(
+    () =>
+      generateDayTask({
+        identity: IDENTITY,
+        day: run.day,
+        week: run.week,
+        phase: run.phase,
+        seed: SEED,
+      }),
+    [run.day, run.week, run.phase],
+  );
+
+  const focusId = useMemo(
+    () =>
+      castIds.reduce(
+        (best, id) => (relations[id].intimacy > relations[best].intimacy ? id : best),
+        castIds[0],
+      ),
+    [relations, castIds],
+  );
+  const focusCard = cards.find((c) => c.id === focusId);
+
+  const client = useMemo(
+    () => createClient({ apiKey, modelId: settings.model, seed: SEED + sceneNo }),
+    [apiKey, settings.model, sceneNo],
+  );
 
   useEffect(() => {
     applyTheme(settings, focusCard?.palette ?? null);
     saveSettings(settings);
   }, [settings, focusCard]);
 
-  const scene = useMemo(
-    () => ({
-      id: `s${sceneNo}`,
-      seed: 1000 + sceneNo,
-      rosterIds: [choice.memberId],
-      focusId: choice.memberId,
-      week: 0,
-      day: 1,
-      block: choice.block,
-      phase: choice.phase,
-      locationId: choice.locationId,
-      locationLabel: t(`location.${choice.locationId}`),
-    }),
-    [choice, sceneNo, t],
+  const onKeyChange = (value) => {
+    setApiKey(value);
+    saveApiKey(value);
+  };
+
+  /**
+   * Advance one block, rolling the day and charging an unfinished task.
+   *
+   * Takes the task result and any stat change as arguments rather than reading
+   * them back from state: a caller that just completed the task would otherwise
+   * be seen by this closure as still owing it, and would be charged for a
+   * failure it had just avoided.
+   */
+  const advance = useCallback(
+    ({ extraEnergy = 0, playerDelta = null, taskDone = null } = {}) => {
+      const { run: next, rolledDay } = advanceBlock(run);
+      const finished = taskDone ?? taskState.done;
+
+      let nextPlayer = playerDelta ? applyPlayerDeltas(player, playerDelta) : player;
+      nextPlayer = spendBlockEnergy(nextPlayer, extraEnergy);
+
+      if (rolledDay) {
+        if (task && !finished) {
+          const fail = failTask(task, castIds);
+          nextPlayer = applyPlayerDeltas(nextPlayer, fail);
+          if (Object.keys(fail.strain).length > 0) {
+            setRelations((rs) => {
+              const out = { ...rs };
+              for (const [id, strain] of Object.entries(fail.strain)) {
+                out[id] = applySceneOutcome(out[id], { strain });
+              }
+              return out;
+            });
+          }
+        }
+        nextPlayer = restOvernight(nextPlayer);
+        setTaskState(newTaskState());
+      }
+
+      setPlayer(nextPlayer);
+      setRun(next);
+      setScreen('day');
+    },
+    [run, player, task, taskState, castIds],
   );
 
+  const onDoTask = () => {
+    if (!task || taskState.done) return;
+    setTaskState({ taskId: task.taskId, done: true, day: run.day });
+    advance({ playerDelta: completeTask(task), taskDone: true });
+  };
+
+  const onEnter = (locationId, present) => {
+    if (present.length === 0) return;
+    setPendingScene({
+      locationId,
+      rosterIds: present.slice(0, MAX_INTERACTIVE_MEMBERS).map((p) => p.id),
+    });
+    setScreen('gift');
+  };
+
+  const scene = useMemo(() => {
+    if (!pendingScene) return null;
+    const dormWitnessIds = Object.entries(occupancy)
+      .filter(([id, w]) => w.locationId === 'dorm_living' && !pendingScene.rosterIds.includes(id))
+      .map(([id]) => id);
+
+    return {
+      id: `s${sceneNo}`,
+      seed: SEED + sceneNo,
+      rosterIds: pendingScene.rosterIds,
+      focusId: pendingScene.rosterIds[0],
+      week: run.week,
+      day: run.day,
+      block: run.block,
+      phase: run.phase,
+      locationId: pendingScene.locationId,
+      locationLabel: t(`location.${pendingScene.locationId}`),
+      dormWitnessIds,
+    };
+  }, [pendingScene, occupancy, run, sceneNo, t]);
+
   const setup = useMemo(
-    () => ({ cards, lineup, identity: IDENTITY, player, lang: settings.lang, memory, relations, scene }),
-    [cards, lineup, player, settings.lang, memory, relations, scene],
+    () =>
+      scene
+        ? {
+            cards,
+            lineup,
+            identity: IDENTITY,
+            player,
+            lang: settings.lang,
+            memory,
+            relations,
+            scene,
+          }
+        : null,
+    [scene, cards, lineup, player, settings.lang, memory, relations],
   );
 
   const onSceneEnd = (result) => {
     setMemory(result.memory);
     setRelations(result.relations);
     setOutcome(result);
-    setScreen('after');
     setSceneNo((n) => n + 1);
+    setPendingScene(null);
+    setGiftNote(null);
+    setScreen('after');
   };
 
-  if (screen === 'scene') {
-    return (
-      <VNStage
-        key={sceneNo}
-        setup={setup}
-        client={client}
-        onSceneEnd={onSceneEnd}
-        t={t}
-      />
-    );
-  }
-
-  if (screen === 'after') {
-    return (
-      <Aftermath
-        outcome={outcome}
-        cards={cards}
-        relations={relations}
-        memory={memory}
-        onAgain={() => setScreen('setup')}
-        t={t}
-      />
-    );
-  }
+  const giftTarget = pendingScene ? cards.find((c) => c.id === pendingScene.rosterIds[0]) : null;
 
   return (
     <>
-      <SceneSetup
-        cards={cards}
-        relations={relations}
-        choice={choice}
-        onChange={setChoice}
-        onBegin={() => setScreen('scene')}
-        t={t}
-      />
-      <SettingsStrip settings={settings} onChange={setSettings} t={t} />
+      {screen === 'day' ? (
+        <Day
+          run={run}
+          player={player}
+          cards={cards}
+          relations={relations}
+          occupancy={occupancy}
+          weekPlan={weekPlan}
+          task={task}
+          taskState={taskState}
+          identity={IDENTITY}
+          onEnter={onEnter}
+          onDoTask={onDoTask}
+          onSkipBlock={() => advance()}
+          onOpenSettings={() => setShowSettings(true)}
+          t={t}
+        />
+      ) : null}
+
+      {screen === 'gift' && giftTarget ? (
+        <GiftModal
+          card={giftTarget}
+          dossier={memory.dossier[giftTarget.id]}
+          credits={player.credits}
+          onPick={(giftId) => {
+            const bought = purchase(
+              giftId,
+              memory.dossier[giftTarget.id],
+              player.credits,
+              giftTarget.name,
+            );
+            if (bought) {
+              setPlayer((p) => ({ ...p, credits: bought.credits }));
+              setGiftNote(bought.sceneNote);
+              setRelations((rs) => ({
+                ...rs,
+                [giftTarget.id]: applySceneOutcome(rs[giftTarget.id], {
+                  intimacy: bought.intimacyDelta,
+                  good: true,
+                }),
+              }));
+            }
+            setScreen('scene');
+          }}
+          onSkip={() => setScreen('scene')}
+          t={t}
+        />
+      ) : null}
+
+      {screen === 'scene' && setup ? (
+        <VNStage
+          key={sceneNo}
+          setup={setup}
+          client={client}
+          giftNote={giftNote}
+          onSceneEnd={onSceneEnd}
+          t={t}
+        />
+      ) : null}
+
+      {screen === 'after' && outcome ? (
+        <Aftermath
+          outcome={outcome}
+          cards={cards}
+          relations={relations}
+          memory={memory}
+          onContinue={() => advance({ extraEnergy: 1 })}
+          t={t}
+        />
+      ) : null}
+
+      {showSettings ? (
+        <SettingsModal
+          settings={settings}
+          onChange={setSettings}
+          apiKey={apiKey}
+          onKeyChange={onKeyChange}
+          onClose={() => setShowSettings(false)}
+          t={t}
+        />
+      ) : null}
     </>
   );
 }
 
-function Aftermath({ outcome, cards, relations, memory, onAgain, t }) {
+function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
   const { delta, rumors } = outcome;
 
   return (
@@ -165,16 +357,13 @@ function Aftermath({ outcome, cards, relations, memory, onAgain, t }) {
       ) : null}
 
       <section>
-        <h3 className="mb-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-faint">
-          {t('dev.castLoaded')}
-        </h3>
         <ul className="flex flex-col gap-1">
           {cards.map((c) => {
             const rel = relations[c.id];
             return (
               <li key={c.id} className="flex items-baseline gap-2 font-mono text-[0.625rem]">
                 <span className="w-14 text-dim">{c.name}</span>
-                <span className="flex-1 text-faint">
+                <span className="flex-1 text-dim">
                   {t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}
                 </span>
                 <span className="tabular-nums text-dim">{Math.round(rel.intimacy)}</span>
@@ -186,76 +375,16 @@ function Aftermath({ outcome, cards, relations, memory, onAgain, t }) {
       </section>
 
       {memory.ledger.length > 0 ? (
-        <p className="font-body text-[0.875rem] italic text-dim">
-          {memory.ledger.at(-1).text}
-        </p>
+        <p className="font-body text-[0.875rem] italic text-dim">{memory.ledger.at(-1).text}</p>
       ) : null}
 
       <button
         type="button"
-        onClick={onAgain}
+        onClick={onContinue}
         className="mt-auto rounded-[var(--radius)] border border-accent px-4 py-3 font-mono text-[0.75rem] uppercase tracking-[0.2em] text-accent"
       >
-        {t('vn.again')}
+        {t('game.nextBlock')}
       </button>
-    </div>
-  );
-}
-
-function SettingsStrip({ settings, onChange, t }) {
-  const set = (patch) => onChange({ ...settings, ...patch });
-
-  return (
-    <div className="mx-auto w-full max-w-[26rem] px-5 pb-6">
-      <hr className="rule mb-3" />
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[0.5625rem] uppercase tracking-[0.14em]">
-        <span className="text-faint">{t('settings.theme')}</span>
-        {THEMES.map((th) => (
-          <button
-            key={th}
-            type="button"
-            onClick={() => set({ theme: th })}
-            className={settings.theme === th ? 'text-accent' : 'text-faint hover:text-dim'}
-          >
-            {t(`theme.${th}`)}
-          </button>
-        ))}
-
-        <span className="ml-2 text-faint">{t('settings.fontSize')}</span>
-        {FONT_SCALES.map((fs) => (
-          <button
-            key={fs}
-            type="button"
-            onClick={() => set({ fontScale: fs })}
-            className={settings.fontScale === fs ? 'text-accent' : 'text-faint hover:text-dim'}
-          >
-            {Math.round(fs * 100)}
-          </button>
-        ))}
-
-        <span className="ml-2 text-faint">{t('settings.language')}</span>
-        {LANGS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            onClick={() => set({ lang: l })}
-            className={settings.lang === l ? 'text-accent' : 'text-faint hover:text-dim'}
-          >
-            {LANG_LABELS[l]}
-          </button>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => set({ reduceMotion: !settings.reduceMotion })}
-          className={settings.reduceMotion ? 'ml-2 text-accent' : 'ml-2 text-faint hover:text-dim'}
-        >
-          {t('settings.reduceMotion')}
-        </button>
-      </div>
-      <p className="mt-2 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-faint">
-        {t('vn.offline')} &middot; {t('vn.offlineNote')}
-      </p>
     </div>
   );
 }

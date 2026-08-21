@@ -28,10 +28,10 @@ function Level({ label, value, colorVar, inverted = false, hint }) {
   return (
     <div className="flex-1">
       <div className="mb-1 flex items-baseline justify-between gap-1">
-        <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-faint">
+        <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
           {label}
         </span>
-        <span className="font-mono text-[0.5625rem] tabular-nums text-dim">
+        <span className="font-mono text-[0.5625rem] tabular-nums text-text">
           {Math.round(pct)}
         </span>
       </div>
@@ -49,7 +49,7 @@ function Level({ label, value, colorVar, inverted = false, hint }) {
       </div>
 
       {hint ? (
-        <span className="mt-0.5 block font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
+        <span className="mt-0.5 block font-mono text-[0.5rem] uppercase tracking-[0.1em] text-dim">
           {hint}
         </span>
       ) : null}

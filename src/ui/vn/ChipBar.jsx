@@ -63,7 +63,7 @@ export default function ChipBar({
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-faint transition-colors hover:text-dim disabled:opacity-35"
+          className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-35"
         >
           <span aria-hidden="true">&#9998;</span>
           {t('vn.sayIt')}
@@ -75,7 +75,7 @@ export default function ChipBar({
           type="button"
           disabled={disabled || readHerLeft <= 0}
           onClick={onReadHer}
-          className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-faint transition-colors hover:text-accent disabled:opacity-25"
+          className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-25"
           title={t('vn.readHer')}
         >
           <span aria-hidden="true">&#128065;</span>

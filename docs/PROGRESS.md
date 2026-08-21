@@ -5,7 +5,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M3 complete, M4 next
+## Current: M4 complete, M5 next
 
 ### M0 - scaffold (done)
 
@@ -180,14 +180,62 @@ with no key, which also makes M4 development possible without spending tokens.
 
 ---
 
-## Next: M4 - the shell
+## M4 - the shell (done)
 
-Map, time blocks, week calendar, daily tasks, gift modal, day rollover. Exit
-criterion: one full in-game day playable.
+232 tests. A full in-game day is playable: map, task, scene, rollover.
 
-Re-run `balanceSim` at the end of M4. Gifts and chips will make a real player
-more efficient than the stand-in scene model, and the calibration numbers will
-move.
+| Module | Notes |
+|---|---|
+| `systems/clock.js` | block / day / week / phase advance, energy, campaign end |
+| `ui/screens/Day.jsx` | the block screen: who is where, what work wants |
+| `ui/map/LocationGrid.jsx` | occupancy from the calendar, both risks per row |
+| `ui/map/WeekCalendar.jsx` | the whole week up front, weekends marked |
+| `ui/modals/GiftModal.jsx` | locked knowledge gifts shown, not hidden |
+| `ui/modals/SettingsModal.jsx` | theme, scale, language, model, API key |
+| `store/apiKey.js` | its own storage key so it can never be serialised with a save |
+| `tools/client.js` | real router with a mock fallback per call |
+
+### Contrast fix
+
+The chrome was drawn in `--text-faint`, which sat around 3:1 against the
+background and was reported as unreadable. `--text-dim` and `--text-faint` were
+both lifted across all four themes, and every label that carries meaning -
+meter names and values, Read her, Say something, the timecode strip - moved
+from faint to dim. `faint` is now reserved for genuinely tertiary decoration.
+
+### Time actually passes
+
+`SCENE_TURN_LIMIT = 8`. A scene occupies one block and cannot run forever;
+without a cap a player could grind one block indefinitely and the opportunity
+cost that makes three-blocks-a-day work would evaporate. The remaining count
+shows in the scene header and turns amber at two.
+
+Energy drains per block and only comes back from sleeping, so a day has a
+natural shape rather than being an unlimited menu.
+
+### Known gaps leaving M4
+
+- **`balanceSim` has not been re-run meaningfully.** Gifts are now in the UI but
+  `simulateScene` does not model them, so the numbers are unchanged rather than
+  re-validated. Modelling gift purchases and chip choice in the sim is real work
+  and belongs with M5.
+- No save/load yet. Closing the tab loses the run.
+- `ui/screens/SceneSetup.jsx` is now unused - superseded by `Day.jsx`. Kept
+  pending permission to delete.
+- Group scenes still render one portrait. `onEnter` already caps the roster at
+  `MAX_INTERACTIVE_MEMBERS` and the prompt handles two, but `VNStage` shows only
+  the focus member and the witnessed-gesture bonus is still not in
+  `computeDeltas`.
+- No endings screen; the campaign can run past its last week without resolving.
+- Repair events and event anchors are still unimplemented.
+
+---
+
+## Next: M5 - the run layer
+
+Full 3-week x 3-cycle campaign, event anchors on weekend blocks, endings screen
+reporting all five routes, save/load, PWA install. Exit criterion: a full
+playthrough reaches an ending.
 
 ---
 

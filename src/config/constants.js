@@ -89,6 +89,19 @@ export const READ_HER_USES_PER_SCENE = 2;
 export const MAX_BEATS_PER_RESPONSE = 3;
 export const MAX_INTERACTIVE_MEMBERS = 2;
 
+/**
+ * A scene occupies one time block, so it cannot run forever. Past this many
+ * turns the block ends on its own and the day moves. Without it a player could
+ * grind a single block indefinitely and the opportunity cost that makes the
+ * three-blocks-a-day structure work would evaporate.
+ */
+export const SCENE_TURN_LIMIT = 8;
+
+/** Every block spent costs this; Read her costs one on top. */
+export const ENERGY_PER_BLOCK = 6;
+export const ENERGY_PER_READ = 1;
+export const ENERGY_RESTORED_OVERNIGHT = 34;
+
 // --- persistence ------------------------------------------------------------
 export const SAVE_KEY = 'yuriagent_saves_v1';
 export const SETTINGS_KEY = 'yuriagent_settings_v1';

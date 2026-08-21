@@ -45,8 +45,8 @@
   --surface-alt: #1e1829;
   --surface-warm: #221a26;
   --text: #ece8f2;
-  --text-dim: #8d859e;
-  --text-faint: #5b5468;
+  --text-dim: #a79fb8;
+  --text-faint: #837b96;
   --border: #2a2237;
   --hairline: #3a3048;
   --accent: #c9a0dc;
@@ -63,8 +63,8 @@
   --surface-alt: #f0e9ef;
   --surface-warm: #fdf6f2;
   --text: #1c1722;
-  --text-dim: #675f73;
-  --text-faint: #9c93a8;
+  --text-dim: #574f63;
+  --text-faint: #6f6779;
   --border: #ddd3e0;
   --hairline: #cbbfd2;
   --accent: #7b4b96;
@@ -81,8 +81,8 @@
   --surface-alt: #2c231e;
   --surface-warm: #2f241c;
   --text: #ede2d6;
-  --text-dim: #a3907c;
-  --text-faint: #6e5f50;
+  --text-dim: #b8a794;
+  --text-faint: #8d7d6c;
   --border: #382c24;
   --hairline: #4a3a2e;
   --accent: #d8a06a;
@@ -102,8 +102,8 @@
   --surface-alt: color-mix(in srgb, var(--bloom-accent) 22%, #1a1526);
   --surface-warm: color-mix(in srgb, var(--bloom-base) 10%, #1d1626);
   --text: color-mix(in srgb, var(--bloom-base) 22%, #f2eef6);
-  --text-dim: color-mix(in srgb, var(--bloom-base) 40%, #8b8399);
-  --text-faint: color-mix(in srgb, var(--bloom-base) 30%, #595266);
+  --text-dim: color-mix(in srgb, var(--bloom-base) 34%, #a49bb5);
+  --text-faint: color-mix(in srgb, var(--bloom-base) 26%, #837a94);
   --border: color-mix(in srgb, var(--bloom-accent) 34%, #221b2e);
   --hairline: color-mix(in srgb, var(--bloom-accent) 46%, #2e2540);
   --accent: var(--bloom-base);

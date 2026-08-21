@@ -1,0 +1,138 @@
+/**
+ * The map. CLAUDE.md section 10.
+ *
+ * A search, not a menu. Occupancy is derived from the deterministic calendar,
+ * so she is at the radio station on Wednesday afternoon whether you go looking
+ * or not - and the only way to reliably find someone alone is to have learned
+ * her routine.
+ *
+ * Each row shows the two numbers the player is actually trading between:
+ * outside exposure, and how many other people can see.
+ */
+
+import { LOCATIONS } from '../../data/locations.js';
+import { sceneExposure, presenceCount } from '../../systems/exposure.js';
+
+const ORDER = [
+  'dorm_room',
+  'dorm_kitchen',
+  'dorm_living',
+  'wardrobe',
+  'practice_room',
+  'corridor',
+  'cafe',
+  'drama_set',
+  'broadcast_studio',
+];
+
+export default function LocationGrid({
+  occupancy,
+  cards,
+  run,
+  player,
+  identity,
+  taskLocation,
+  onPick,
+  t,
+}) {
+  const byLocation = {};
+  for (const [id, where] of Object.entries(occupancy)) {
+    (byLocation[where.locationId] ??= []).push({ id, ...where });
+  }
+
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {ORDER.map((locId) => {
+        const here = byLocation[locId] ?? [];
+        const exposure = sceneExposure({
+          locationId: locId,
+          block: run.block,
+          phase: run.phase,
+          secrecy: player.secrecy,
+          identity,
+        });
+        const witnesses = presenceCount(locId, run.phase, cards.length);
+        const isTask = taskLocation === locId;
+        const empty = here.length === 0;
+
+        return (
+          <li key={locId}>
+            <button
+              type="button"
+              disabled={empty && !isTask}
+              onClick={() => onPick(locId, here)}
+              className={`flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border px-3 py-2.5 text-left transition-colors disabled:opacity-40 ${
+                isTask ? 'border-warn bg-surface-alt' : 'border-hairline hover:border-accent'
+              }`}
+            >
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-2">
+                  <span className="truncate font-body text-[0.9375rem] text-text">
+                    {t(`location.${locId}`)}
+                  </span>
+                  {isTask ? (
+                    <span className="shrink-0 font-mono text-[0.5rem] uppercase tracking-[0.14em] text-warn">
+                      {t('map.task')}
+                    </span>
+                  ) : null}
+                </span>
+
+                <span className="mt-0.5 flex items-center gap-1">
+                  {here.length > 0 ? (
+                    here.map((m) => {
+                      const card = cards.find((c) => c.id === m.id);
+                      return (
+                        <span
+                          key={m.id}
+                          title={card.name}
+                          className="grid h-5 w-5 place-items-center rounded-full text-[0.625rem]"
+                          style={{ background: card.palette.base, color: card.palette.accent }}
+                        >
+                          {card.emoji}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-faint">
+                      {t('map.empty')}
+                    </span>
+                  )}
+                </span>
+              </span>
+
+              {/* the two independent risks, side by side */}
+              <span className="flex shrink-0 flex-col items-end gap-1">
+                <span className="flex items-center gap-1">
+                  <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
+                    {t('map.seen')}
+                  </span>
+                  <span
+                    className="h-1 w-7 rounded-full"
+                    style={{
+                      background: 'var(--meter-exposure)',
+                      opacity: 0.2 + (exposure / 100) * 0.8,
+                    }}
+                  />
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
+                    {t('map.witnesses')}
+                  </span>
+                  <span className="w-7 text-right font-mono text-[0.625rem] tabular-nums text-dim">
+                    {witnesses}
+                  </span>
+                </span>
+              </span>
+            </button>
+          </li>
+        );
+      })}
+
+      <li className="mt-1 flex items-baseline gap-2 px-1">
+        <span className="font-mono text-[0.5rem] uppercase tracking-[0.14em] text-faint">
+          {LOCATIONS.dorm_room.approachWitnessed ? t('map.dormNote') : ''}
+        </span>
+      </li>
+    </ul>
+  );
+}

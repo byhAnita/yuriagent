@@ -65,7 +65,7 @@ export default function DialogueBox({
       </div>
 
       {pending && !beat ? (
-        <p className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-faint">
+        <p className="font-mono text-[0.75rem] uppercase tracking-[0.18em] text-dim">
           {placeholder}
         </p>
       ) : (

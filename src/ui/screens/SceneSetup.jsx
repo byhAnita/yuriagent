@@ -34,7 +34,7 @@ export default function SceneSetup({ cards, relations, choice, onChange, onBegin
         <h1 className="font-display text-[1.75rem] leading-none tracking-wide">
           {t('app.title')}
         </h1>
-        <p className="mt-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-faint">
+        <p className="mt-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
           {t('vn.whoWhere')}
         </p>
       </header>
@@ -69,7 +69,7 @@ export default function SceneSetup({ cards, relations, choice, onChange, onBegin
           })}
         </div>
 
-        <p className="mt-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-faint">
+        <p className="mt-2 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim">
           {t(`stage.${stage}`)}
           <span className="mx-2 text-hairline">/</span>
           {t('meter.fluster')} {Math.round(rel.intimacy)}
@@ -96,7 +96,7 @@ export default function SceneSetup({ cards, relations, choice, onChange, onBegin
               }`}
             >
               <span className="flex-1 font-body text-[0.9375rem]">{t(`location.${id}`)}</span>
-              <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-faint">
+              <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-dim">
                 {LOCATIONS[id].presence === 'all'
                   ? t('exposureBand.public')
                   : t('exposureBand.private')}

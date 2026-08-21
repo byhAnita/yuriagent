@@ -14,13 +14,18 @@ import ChipBar from './ChipBar.jsx';
 import ThoughtBubble from './ThoughtBubble.jsx';
 import SceneHeader from './SceneHeader.jsx';
 import { newQueue, enqueue, advance, hasMore, reset } from './beatQueue.js';
-import { beginScene, runTurn, readHer, endScene } from '../../agent/sceneEngine.js';
+import { beginScene, runTurn, readHer, endScene, openWithGift } from '../../agent/sceneEngine.js';
 import { generateChips, suggestedStances } from '../../systems/chips.js';
-import { READ_HER_USES_PER_SCENE } from '../../config/constants.js';
+import { READ_HER_USES_PER_SCENE, SCENE_TURN_LIMIT } from '../../config/constants.js';
 import { makeRng } from '../../systems/rng.js';
 
-export default function VNStage({ setup, client, onSceneEnd, t }) {
-  const [session, setSession] = useState(() => beginScene(setup));
+export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
+  // A gift is injected at the head of block 5, before the first call, so the
+  // model opens the scene by reacting to it (CLAUDE.md section 11).
+  const [session, setSession] = useState(() => {
+    const opened = beginScene(setup);
+    return giftNote ? openWithGift(opened, giftNote) : opened;
+  });
   const [queue, setQueue] = useState(newQueue);
   const [pending, setPending] = useState(false);
   const [thought, setThought] = useState(null);
@@ -39,6 +44,10 @@ export default function VNStage({ setup, client, onSceneEnd, t }) {
   const suggested = useMemo(() => suggestedStances(rel), [rel]);
 
   const readHerLeft = READ_HER_USES_PER_SCENE - session.frame.readHerUsed;
+
+  /** A scene occupies one time block, so it cannot run forever. */
+  const turnsLeft = SCENE_TURN_LIMIT - turn;
+  const outOfTurns = turnsLeft <= 0;
 
   /** The stage light warms or cools with what she is feeling. */
   const stageGlow = useMemo(() => {
@@ -116,7 +125,7 @@ export default function VNStage({ setup, client, onSceneEnd, t }) {
       className="stage mx-auto flex h-dvh w-full max-w-[26rem] flex-col"
       style={{ '--stage-glow': stageGlow }}
     >
-      <SceneHeader {...setup.scene} onExit={leave} t={t} />
+      <SceneHeader {...setup.scene} turnsLeft={turnsLeft} onExit={leave} t={t} />
 
       <div className="relative min-h-0 flex-1">
         <ThoughtBubble text={thought} onDismiss={() => setThought(null)} label={t('vn.readHer')} />
@@ -135,7 +144,7 @@ export default function VNStage({ setup, client, onSceneEnd, t }) {
           hasMore={hasMore(queue)}
           onAdvance={() => setQueue(advance)}
           pending={pending}
-          placeholder={t('vn.thinking')}
+          placeholder={outOfTurns ? t('vn.outOfTurns') : t('vn.thinking')}
         />
       </div>
 
@@ -146,7 +155,7 @@ export default function VNStage({ setup, client, onSceneEnd, t }) {
         onFreeText={(text) => send({ text })}
         onReadHer={onReadHer}
         readHerLeft={readHerLeft}
-        disabled={pending || hasMore(queue)}
+        disabled={pending || hasMore(queue) || outOfTurns}
         t={t}
       />
     </div>
