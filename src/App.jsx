@@ -32,7 +32,6 @@ import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTarget
 import { appendLedger, addDossierEntry } from './agent/memory.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
-import { MAX_INTERACTIVE_MEMBERS } from './config/constants.js';
 import VNStage from './ui/vn/VNStage.jsx';
 import Day from './ui/screens/Day.jsx';
 import GiftModal from './ui/modals/GiftModal.jsx';
@@ -248,10 +247,11 @@ export default function App() {
 
   const onEnter = (locationId, present) => {
     if (present.length === 0) return;
-    setPendingScene({
-      locationId,
-      rosterIds: present.slice(0, MAX_INTERACTIVE_MEMBERS).map((p) => p.id),
-    });
+    // One member per scene for now. The prompt and parser already handle two
+    // (MAX_INTERACTIVE_MEMBERS), but VNStage renders a single portrait, so a
+    // second rostered speaker would talk with nobody on screen. Group scenes
+    // land with the two-portrait stage.
+    setPendingScene({ locationId, rosterIds: [present[0].id] });
     setScreen('gift');
   };
 

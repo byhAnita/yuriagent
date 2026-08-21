@@ -95,7 +95,7 @@ export const MAX_INTERACTIVE_MEMBERS = 2;
  * grind a single block indefinitely and the opportunity cost that makes the
  * three-blocks-a-day structure work would evaporate.
  */
-export const SCENE_TURN_LIMIT = 12;
+export const SCENE_TURN_LIMIT = 8;
 
 /** Every block spent costs this; Read her costs one on top. */
 export const ENERGY_PER_BLOCK = 6;

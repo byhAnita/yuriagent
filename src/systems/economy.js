@@ -52,11 +52,25 @@ export function canPurchase(giftId, dossier, credits) {
 export function purchase(giftId, dossier, credits, memberName) {
   if (!canPurchase(giftId, dossier, credits)) return null;
   const gift = getGift(giftId);
+  const name = giftId.replace(/_/g, ' ');
+  const knowledge = Boolean(gift.requires);
+
+  /**
+   * The note has to carry the TIER, not just the object. A hand warmer and an
+   * iced coffee are the same sentence otherwise, and the model has no way to
+   * know that one of them proves you were listening. Proportionate reactions
+   * are the entire payoff of the knowledge economy.
+   */
+  const sceneNote = knowledge
+    ? `the player has just handed ${memberName} a ${name}. She has never told anyone she needed one - only somebody who had been paying very close attention would have known to bring it. She was not expecting this.`
+    : `the player has just handed ${memberName} a ${name}. An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.`;
+
   return {
     giftId,
+    tier: knowledge ? 'knowledge' : 'generic',
     credits: credits - gift.cost,
     intimacyDelta: gift.effect,
-    sceneNote: `System note: the player opened the scene by giving ${memberName} a ${giftId.replace(/_/g, ' ')}.`,
+    sceneNote,
   };
 }
 

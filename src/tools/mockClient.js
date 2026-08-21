@@ -62,6 +62,28 @@ const THOUGHTS = [
 
 const FALLBACK = ['neutral', -3, 4, '*She glances up from her phone.* "You came."'];
 
+/**
+ * Opening beats. A gift is answered before anything else, and the size of the
+ * answer is the whole point of the knowledge economy: an iced coffee is nice,
+ * and a hand warmer she never told anyone she needed is not the same event.
+ */
+const OPENING = {
+  knowledge: [
+    ['surprised', -16, 20, '*She turns it over once. Then she looks up at you completely differently.* "How did you..." *She stops, and starts again, quieter.* "Thank you."'],
+    ['blush', -14, 18, '*A long pause with the thing still in both hands.* "I never said that out loud." *Beat.* "To anyone."'],
+    ['shy', -15, 16, '"You were paying attention." *She says it like an accusation and does not let go of it.*'],
+  ],
+  generic: [
+    ['happy', -6, 8, '*She takes it, pleased and a little caught out.* "Oh - thank you. You did not have to."'],
+    ['neutral', -4, 6, '*She accepts it with both hands, the polite way.* "That is kind of you. Really."'],
+  ],
+  plain: [
+    ['neutral', -3, 4, '*She glances up from her phone.* "You came."'],
+    ['neutral', -2, 3, '*She does not look up straight away.* "Give me one second." *She does look up.*'],
+    ['happy', -5, 6, '*She sees you first, before you see her.* "There you are."'],
+  ],
+};
+
 let counter = 0;
 
 /**
@@ -90,15 +112,31 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
     const rosterMatch = /Present: ([A-Za-z]+) \(([a-z0-9_]+)\)/.exec(messages[0]?.content ?? '');
     const id = rosterMatch?.[2] ?? speaker;
 
+    const opening = /write her opening beat/i.test(last);
+
     // Occasionally ignore the format contract entirely, the way a small model
-    // does. The parser must render it as prose and move nothing.
-    if (rng() < failureRate) {
+    // does. The parser must render it as prose and move nothing. Never on the
+    // opening beat - swallowing a gift reaction is the one failure that reads
+    // as the game being broken rather than the model being small.
+    if (!opening && rng() < failureRate) {
       const text = 'She does not answer straight away. The room is very quiet.';
       if (onChunk) for (let i = 0; i < text.length; i += 6) onChunk(text.slice(i, i + 6));
       return text;
     }
 
-    const pool = LINES[stance] ?? null;
+    // The opening beat is hers. If she was handed something, that comes first,
+    // and the tier of the note decides how much of a moment it is.
+    let pool = null;
+
+    if (opening) {
+      const conversation = messages.map((m) => m.content).join('\n');
+      const knowledge = /paying very close attention/i.test(conversation);
+      const generic = /an ordinary, thoughtful gesture/i.test(conversation);
+      pool = knowledge ? OPENING.knowledge : generic ? OPENING.generic : OPENING.plain;
+    } else {
+      pool = LINES[stance] ?? null;
+    }
+
     const [emotion, guard, fluster, prose] = pool ? pick(rng, pool) : FALLBACK;
     const text = `@${id}|${emotion}|guard${guard >= 0 ? '+' : ''}${guard}|fluster${fluster >= 0 ? '+' : ''}${fluster}\n${prose}`;
 

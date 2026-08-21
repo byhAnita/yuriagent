@@ -47,6 +47,62 @@ export default function LocationGrid({
         const witnesses = presenceCount(locId, run.phase, cards.length);
         const isTask = taskLocation === locId;
 
+        // With more than one person in the room the row stops being a single
+        // button: you choose who you walk up to, rather than the map choosing
+        // the first one for you.
+        if (here.length > 1) {
+          return (
+            <li
+              key={locId}
+              className="rounded-[var(--radius-sm)] border border-hairline px-3 py-2.5"
+            >
+              <span className="flex items-baseline gap-2">
+                <span className="flex-1 truncate font-body text-[0.9375rem] text-text">
+                  {t(`location.${locId}`)}
+                </span>
+                {isTask ? (
+                  <span className="font-mono text-[0.5rem] uppercase tracking-[0.14em] text-warn">
+                    {t('map.task')}
+                  </span>
+                ) : null}
+                <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
+                  {t('map.seen')}
+                </span>
+                <span
+                  className="h-1 w-7 rounded-full"
+                  style={{
+                    background: 'var(--meter-exposure)',
+                    opacity: 0.2 + (exposure / 100) * 0.8,
+                  }}
+                />
+              </span>
+              <span className="mt-1.5 flex flex-wrap gap-1.5">
+                {here.map((m) => {
+                  const card = cards.find((c) => c.id === m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => onPick(locId, [m])}
+                      className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-1 transition-colors hover:border-accent"
+                    >
+                      <span
+                        className="grid h-4 w-4 place-items-center rounded-full text-[0.5rem]"
+                        style={{ background: card.palette.base, color: card.palette.accent }}
+                      >
+                        {card.emoji}
+                      </span>
+                      <span className="font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-dim">
+                        {card.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </span>
+            </li>
+          );
+        }
+
         return (
           <li key={locId}>
             <button

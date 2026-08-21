@@ -14,7 +14,14 @@ import ChipBar from './ChipBar.jsx';
 import ThoughtBubble from './ThoughtBubble.jsx';
 import SceneHeader from './SceneHeader.jsx';
 import { newQueue, enqueue, advance, hasMore, reset } from './beatQueue.js';
-import { beginScene, runTurn, readHer, endScene, openWithGift } from '../../agent/sceneEngine.js';
+import {
+  beginScene,
+  runTurn,
+  readHer,
+  endScene,
+  openWithGift,
+  openingDirective,
+} from '../../agent/sceneEngine.js';
 import { generateChips, suggestedStances } from '../../systems/chips.js';
 import { READ_HER_USES_PER_SCENE, SCENE_TURN_LIMIT } from '../../config/constants.js';
 import { makeRng } from '../../systems/rng.js';
@@ -116,7 +123,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, t }) {
 
   // Opening beat, so the player walks into something rather than a blank room.
   useEffect(() => {
-    send({ text: '*enters*', opening: true });
+    send({ text: openingDirective(Boolean(giftNote)), opening: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

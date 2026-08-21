@@ -130,6 +130,23 @@ export function openWithGift(session, note) {
   return { ...session, frame: appendSystemNote(session.frame, note) };
 }
 
+/**
+ * How a scene starts.
+ *
+ * Not a fake player action. The first beat belongs to her - the player has done
+ * nothing yet except arrive, and if they arrived holding something, that is
+ * what she responds to before anything else.
+ */
+export const OPENING_WITH_GIFT =
+  'System note: write her opening beat. It is her reaction to what she has just been handed, and to the person holding it. Nothing else has been said yet.';
+
+export const OPENING_PLAIN =
+  'System note: write her opening beat - what she does in the moment she notices the player has walked in. Nothing has been said yet.';
+
+export function openingDirective(hasGift) {
+  return hasGift ? OPENING_WITH_GIFT : OPENING_PLAIN;
+}
+
 /** Mark that the player deliberately took a risk while visible. */
 export function markRisk(session) {
   return { ...session, meters: { ...session.meters, riskTaken: true } };
