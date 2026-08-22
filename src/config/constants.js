@@ -215,6 +215,51 @@ export const ENERGY_RESTORED_OVERNIGHT = 24;
  */
 export const SECRECY_RECOVERED_OVERNIGHT = 1;
 
+/**
+ * Being nosy in front of witnesses costs more than being nosy alone.
+ *
+ * Every action is now offered in every room, occupied or not - being locked out
+ * of a snoop because somebody walked in is agency lost for no design gain. But
+ * without a price for company, the occupied room would be strictly better than
+ * the empty one (a scene AND a snoop for one block), which only inverts the
+ * dead-space problem section 10b exists to solve.
+ *
+ * The other half of the balance was already there and needs no code: you never
+ * learn about somebody standing in the room, so the more members present, the
+ * smaller the pool.
+ */
+export const SNOOP_WITNESS_PENALTY = 0.5;
+export const SNOOP_COST_MAX_MULTIPLIER = 2.5;
+
+// --- group scenes (CLAUDE.md section 10c) -----------------------------------
+/**
+ * What it takes for somebody who is not being addressed to cut in.
+ *
+ * A threshold rather than a probability, because the failure mode is prose and
+ * not a distribution: an interjection every turn is a scene where nobody
+ * finishes a sentence. Something has to have HAPPENED.
+ *
+ * UNMEASURED. This is the one number in the group-scene design that cannot be
+ * reasoned to, and it needs a live pass rather than a harness one - the same
+ * status RISK_PAYOFF_SCALE had before it was measured. Expect it to move.
+ */
+export const INTERJECT_THRESHOLD = 1.0;
+
+/**
+ * What makes a bystander want to speak.
+ *
+ * Four sources, not one. She cuts in because she is invested, because she is
+ * unsettled, because she was just talked about, or because she has been
+ * standing there saying nothing - and the last matters most for how a scene
+ * reads, since a member who never speaks stops being in the room at all.
+ */
+export const INTERJECT_STAKE = {
+  intimacy: 0.6,
+  jealousy: { calm: 0, piqued: 0.5, sharp: 1.0, corrosive: 1.6 },
+  mentioned: 0.7,
+  perSilentTurn: 0.15,
+};
+
 // --- openers (section 11) ---------------------------------------------------
 /**
  * A knowledge fact can be spent two ways: on an object, or on saying something.

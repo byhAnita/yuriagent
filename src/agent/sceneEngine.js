@@ -19,6 +19,7 @@ import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedS
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
 import { isRiskStance } from '../systems/chips.js';
+import { openingAddressee, setAddressee } from '../systems/speaker.js';
 import {
   RISK_EXPOSURE_THRESHOLD,
   GUARD_DROP_TO_PAY,
@@ -120,8 +121,42 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
     riskExposure,
     witnessIds,
     focusId,
+    /**
+     * Who the player is talking to. Section 10c.
+     *
+     * In a one-member room this is just the member and nothing about the turn
+     * loop changes. It exists here now, before there is any UI for it, because
+     * the addressee is also what proposal 11's interaction control targets -
+     * building the room screen without it means building it twice.
+     */
+    addresseeId: openingAddressee(scene.rosterIds ?? [], { relations }, focusId),
+    silentTurns: {},
     meters: newMeters(relations[focusId]),
     beats: [],
+  };
+}
+
+/**
+ * Turn to somebody else in the room.
+ *
+ * Her meters come with her: `guard` and `fluster` are per-member readings and
+ * carrying Irene's guard over to Nana would hand the player a number they never
+ * earned. Anything already accumulated for the member being left is kept, so
+ * turning back to her resumes where the conversation actually stood.
+ */
+export function turnTo(session, nextId, relations) {
+  const rosterIds = session.frame?.rosterIds ?? [];
+  const addresseeId = setAddressee(session.addresseeId, nextId, rosterIds);
+  if (addresseeId === session.addresseeId) return session;
+
+  const kept = { ...(session.metersByMember ?? {}), [session.addresseeId]: session.meters };
+
+  return {
+    ...session,
+    addresseeId,
+    focusId: addresseeId,
+    metersByMember: kept,
+    meters: kept[addresseeId] ?? newMeters(relations[addresseeId]),
   };
 }
 

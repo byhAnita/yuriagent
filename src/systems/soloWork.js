@@ -12,7 +12,11 @@
  */
 
 import { getSoloAction } from '../data/soloActions.js';
-import { DOSSIER_CAPS } from '../config/constants.js';
+import {
+  DOSSIER_CAPS,
+  SNOOP_WITNESS_PENALTY,
+  SNOOP_COST_MAX_MULTIPLIER,
+} from '../config/constants.js';
 import { clamp } from './rng.js';
 import { phraseDiscovered } from './rumor.js';
 
@@ -81,6 +85,22 @@ export function availableFinds({ cards, dossier, present = [], foundRumors = [] 
   return finds;
 }
 
+/**
+ * What a snoop costs in secrecy, once you count who is watching.
+ *
+ * `base` is negative, so this makes it more negative. Rounded away from zero so
+ * a witness always costs something: a -1 corridor snoop with one other person
+ * in it must not round back to -1 and make company free.
+ */
+export function snoopCost(base, witnesses = 0) {
+  if (!base || witnesses <= 0) return base ?? 0;
+  const multiplier = Math.min(
+    SNOOP_COST_MAX_MULTIPLIER,
+    1 + SNOOP_WITNESS_PENALTY * witnesses,
+  );
+  return -Math.ceil(Math.abs(base) * multiplier);
+}
+
 /** Weighted pick, so facts outnumber rumors without ever excluding them. */
 export function pickFind(rng, finds) {
   const total = finds.reduce((sum, f) => sum + f.weight, 0);
@@ -115,7 +135,10 @@ export function resolveSoloAction({
     credits: action.credits ?? 0,
     competence: action.competence ?? 0,
     energy: action.energy ?? 0,
-    secrecy: action.secrecy ?? 0,
+    // Only the snoop is priced by company. Restocking a wardrobe in front of
+    // somebody is not indiscreet; reading her fitting notes in front of her
+    // bandmates is.
+    secrecy: action.learns ? snoopCost(action.secrecy ?? 0, present.length) : (action.secrecy ?? 0),
   };
 
   let learned = null;
