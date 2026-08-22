@@ -71,17 +71,23 @@ describe('the chip bar comes back to life', () => {
     });
   });
 
+  /**
+   * The timeouts are generous because this asserts BEHAVIOUR, not latency: a
+   * chip click advances the turn. Four seconds flaked when the 25-second
+   * campaign harness was running in the same suite - a wall-clock assertion
+   * competing for a core is a test that fails for the wrong reason.
+   */
   it('takes a stance click and starts the next turn', async () => {
     const user = userEvent.setup();
     mount({ client: createMockClient({ seed: 3, delay: 0 }) });
 
     await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
-      timeout: 4000,
+      timeout: 10000,
     });
 
     const before = dialogueBox()?.textContent;
     await user.click(chipButtons().find((b) => !b.disabled));
-    await waitFor(() => expect(dialogueBox()?.textContent).not.toBe(before), { timeout: 4000 });
+    await waitFor(() => expect(dialogueBox()?.textContent).not.toBe(before), { timeout: 10000 });
   });
 
   /**

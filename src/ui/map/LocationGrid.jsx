@@ -55,16 +55,30 @@ export default function LocationGrid({
         const witnesses = presenceCount(locId, run.phase, cards.length);
         const isTask = taskLocation === locId;
 
-        // With more than one person in the room the row stops being a single
-        // button: you choose who you walk up to, rather than the map choosing
-        // the first one for you.
+        /**
+         * With more than one person in the room the row grows a second layer:
+         * the header walks you into the ROOM, and the chips under it walk you
+         * straight up to one person.
+         *
+         * The header has to be a button. Section 10b says every action is
+         * offered in every room, occupied or not - and while the row was only
+         * chips, the room screen was unreachable whenever two members were
+         * standing in it, so the task, the snoop and the work were all locked
+         * out by company. That is the dead-space problem 10b exists to solve,
+         * inverted. It bit hardest on an event day, where all five are present
+         * and the row offered nothing but five faces.
+         */
         if (here.length > 1) {
           return (
             <li
               key={locId}
               className="rounded-[var(--radius-sm)] border border-hairline px-3 py-2.5"
             >
-              <span className="flex items-baseline gap-2">
+              <button
+                type="button"
+                onClick={() => onPick(locId, here)}
+                className="flex w-full items-baseline gap-2 text-left"
+              >
                 <span className="flex-1 truncate font-body text-[0.9375rem] text-text">
                   {t(`location.${locId}`)}
                 </span>
@@ -83,7 +97,7 @@ export default function LocationGrid({
                     opacity: 0.2 + (exposure / 100) * 0.8,
                   }}
                 />
-              </span>
+              </button>
               <span className="mt-1.5 flex flex-wrap gap-1.5">
                 {here.map((m) => {
                   const card = cards.find((c) => c.id === m.id);

@@ -65,6 +65,25 @@ export default {
     slow_eater: '吃饭比同桌任何人都慢得多',
   },
 
+  /**
+   * 特别事件。只有标题与简介需要本地化；模型读到的场景框架是英文，
+   * 写在 `data/events/` 里，永远不翻译（第 19 节）。
+   */
+  event: {
+    today: '今天是',
+    wholeDay: '这会花掉一整天。',
+    concept_meeting: '概念会议',
+    concept_meetingBlurb: '一个下午，一间会议室，回归的概念就此定下。',
+    music_bank: '音乐银行',
+    music_bankBlurb: '十四个小时，换台上三分钟。',
+    fan_meeting: '粉丝见面会',
+    fan_meetingBlurb: '四个小时，对九百个陌生人保持温柔。',
+    company_cruise: '公司游船晚宴',
+    company_cruiseBlurb: '和上司们一起，进行一场规定动作般的联欢。',
+    island_trip: '离岛的一天',
+    island_tripBlurb: '九周以来第一个什么都没安排的日子。',
+  },
+
   settings: {
     title: '设置',
     theme: '主题',

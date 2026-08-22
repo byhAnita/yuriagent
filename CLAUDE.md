@@ -973,6 +973,43 @@ player, which is what this section wanted them for in the first place.
 
 `isWeekend(day)`, `workDays()` and `eventWindows()` in `systems/calendar.js`. Day 0 is Monday.
 
+### Anchor events: five in a campaign, not five per cycle
+
+`data/events/` holds one authored event per event slot on the three phase maps
+- concept meeting, Music Bank, fan meeting, company cruise, island day. Each
+takes a weekday and the whole of it, and each **fires exactly once in the
+campaign**: `flags.firedEvents` holds `phase:slot` keys, `generateWeek` filters
+on it, and the site leaves the map at the same moment. A phase that has spent
+both of its events goes back to ordinary working days.
+
+An event is **not** a branching node. It is the ordinary scene engine given the
+three things a date already gets - a frame, the literary register, and sixteen
+turns instead of eight - so nothing about it is a second code path. What makes
+it different from a date is who is in the room: **the whole cast is present and
+one of them speaks.** Section 9's two-member cap is about who may SPEAK, and
+`presentIds` already drives witnessed jealousy and `riskExposure`, so choosing
+one member in front of the other four at an event is the loudest single act
+available to the player and it needed no new mechanic.
+
+**The way in is walking to the site**, listed on the map like any other room -
+no banner, no separate screen. Same argument as the daily task: privileging a
+thing visually turns a choice back into an errand. The day screen says what
+today is and that it takes all of it, and stops there.
+
+Two joins that were missing and are worth remembering, because they are the
+`markRisk` shape again - both halves correct, nothing calling them:
+
+- `eventDays()` had been placing event days since M1 and `overworldFor` had
+  been hiding event sites since the phase maps landed, and **nothing passed the
+  live slot between them.** So on an event day the entire cast stood at a
+  location the player could not reach, and the day read as everybody having
+  vanished.
+- A crowded map row offered only per-member chips, with no way to open the
+  room itself - so section 10b's "every action in every room" was silently
+  false whenever two members were standing in it, and the task, the snoop and
+  the work were all locked out by company. Worst on an event day, where all
+  five are present and the row offered nothing but five faces.
+
 Occupancy for any `(day, block, location)` is derived: company slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
 
 Solo slots are generated from each card's `activityProfile.types`, resolved through the shared table in `data/activities.js`, which maps an activity type to its location, its `exposureBase`, and the phases it can appear in. Cards therefore stay portable: a card from any group drops into any cast without touching the calendar code.

@@ -28,6 +28,25 @@ export default {
     idol: 'You are one of them. Every hour of your day is theirs too.',
   },
 
+  /**
+   * Anchor events. Titles and blurbs only - the frame the model reads is
+   * model-facing English in `data/events/` and never localized (section 19).
+   */
+  event: {
+    today: 'Today is',
+    wholeDay: 'It takes the whole day.',
+    concept_meeting: 'Concept Meeting',
+    concept_meetingBlurb: 'The comeback gets decided in one room, in one afternoon.',
+    music_bank: 'Music Bank',
+    music_bankBlurb: 'Fourteen hours for three minutes of stage.',
+    fan_meeting: 'Fan Meeting',
+    fan_meetingBlurb: 'Four hours of being warm to nine hundred strangers.',
+    company_cruise: 'Company Cruise',
+    company_cruiseBlurb: 'Compulsory fun with the people you work for.',
+    island_trip: 'Island Day',
+    island_tripBlurb: 'The first day in nine weeks with nothing scheduled on it.',
+  },
+
   settings: {
     title: 'Settings',
     theme: 'Theme',

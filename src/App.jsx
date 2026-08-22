@@ -44,6 +44,7 @@ import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
 import { dateFrame, REGISTERS } from './data/sceneFrames.js';
+import { eventFor, eventKey } from './data/events/index.js';
 
 const SEED = 20260821;
 
@@ -119,6 +120,16 @@ export default function App() {
    * holds her answer so the modal can show it: a refusal is not a failure, it
    * is the first time a hidden number becomes a visible yes or no.
    */
+  /**
+   * Which anchor events have already happened, as `phase:slot` keys.
+   *
+   * Section 15 puts this on `flags.firedEvents`, and it persists across the
+   * whole campaign rather than resetting with the cycle: there are five events
+   * in the game, not five per cycle. `generateWeek` filters on it, so a fired
+   * event stops being scheduled and its site leaves the map at the same moment.
+   */
+  const [firedEvents, setFiredEvents] = useState([]);
+
   const [showDates, setShowDates] = useState(false);
   const [askedToday, setAskedToday] = useState(null);
   const [refusal, setRefusal] = useState(null);
@@ -126,9 +137,27 @@ export default function App() {
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
 
   const weekPlan = useMemo(
-    () => generateWeek({ phase: run.phase, cards, seed: SEED, week: run.week }),
-    [run.phase, run.week, cards],
+    () => generateWeek({ phase: run.phase, cards, seed: SEED, week: run.week, fired: firedEvents }),
+    [run.phase, run.week, cards, firedEvents],
   );
+
+  /**
+   * The anchor event on today, if there is one, with its authored content
+   * attached.
+   *
+   * The calendar has always placed the day and named the site; what it could
+   * not do is say what the day IS. Without this the whole cast stood at a
+   * location `overworldFor` hides, so an event day looked like a day when
+   * everybody had simply vanished.
+   *
+   * `content` may be null - a phase map is allowed to carry a slot nobody has
+   * written for yet - and the day then plays as an ordinary one.
+   */
+  const todayEvent = useMemo(() => {
+    const placed = (weekPlan.events ?? []).find((e) => e.day === run.day);
+    if (!placed) return null;
+    return { ...placed, content: eventFor(placed.phase, placed.slot) };
+  }, [weekPlan, run.day]);
 
   const occupancy = useMemo(
     () =>
@@ -380,10 +409,23 @@ export default function App() {
      * gesture; nobody has to speak for the rest of them to have seen it.
      */
     const speaker = addresseeId ?? present[0].id;
+
+    /**
+     * Walking into the event site on the event day IS the event.
+     *
+     * No separate entry point and no banner: section 10 makes the same
+     * argument about tasks, that privileging a thing visually turns a choice
+     * back into an errand. The day is on the map, the cast is standing in it,
+     * and going there is how it happens.
+     */
+    const here = todayEvent?.content && todayEvent.location === locationId ? todayEvent : null;
+
     setPendingScene({
       locationId,
       rosterIds: [speaker],
       presentIds: present.map((m) => m.id),
+      event: here?.content ?? null,
+      eventKey: here ? eventKey(here.phase, here.slot) : null,
     });
     setScreen('gift');
   };
@@ -419,10 +461,23 @@ export default function App() {
        * makes a date feel like one (proposal 13).
        */
       date: pendingScene.date ?? null,
+
+      /**
+       * An anchor event borrows the whole mechanism a date already uses: a
+       * frame, a register and sixteen turns. It differs in who is there - a
+       * date is the two of you, an event is the two of you in front of the
+       * other three - and that difference needs no code, because
+       * `presentIds` already drives witnessed jealousy and `riskExposure`.
+       */
+      event: pendingScene.event ?? null,
       sceneFrame: pendingScene.date
         ? dateFrame(pendingScene.date, pendingScene.locationId)
-        : null,
-      register: pendingScene.date ? REGISTERS.date : REGISTERS.ordinary,
+        : (pendingScene.event?.frame ?? null),
+      register: pendingScene.date
+        ? REGISTERS.date
+        : pendingScene.event
+          ? REGISTERS.event
+          : REGISTERS.ordinary,
 
       /**
        * What she is here for, and what the player still owes today.
@@ -458,7 +513,15 @@ export default function App() {
   const onSceneEnd = (result) => {
     setMemory(result.memory);
     setRelations(result.relations);
-    setOutcome({ ...result, date: scene?.date ?? null });
+    /**
+     * An event fires once, and it is marked on the way OUT rather than on the
+     * way in. Marking it on entry would delete the day out from under a player
+     * who backed out of the gift modal.
+     */
+    if (pendingScene?.eventKey) {
+      setFiredEvents((f) => (f.includes(pendingScene.eventKey) ? f : [...f, pendingScene.eventKey]));
+    }
+    setOutcome({ ...result, date: scene?.date ?? null, event: scene?.event ?? null });
     setSceneNo((n) => n + 1);
     setPendingScene(null);
     setGiftNote(null);
@@ -505,6 +568,7 @@ export default function App() {
           task={task}
           taskState={taskState}
           identity={identity}
+          event={todayEvent}
           onEnter={onEnter}
           onEnterSolo={onEnterSolo}
           onSkipBlock={() => advance()}
@@ -613,7 +677,13 @@ export default function App() {
           giftNote={giftNote}
           onSceneEnd={onSceneEnd}
           writtenChips={settings.writtenChips}
-          turnLimit={scene?.date ? SCENE_TURN_LIMITS.date : SCENE_TURN_LIMITS.ordinary}
+          turnLimit={
+            scene?.date
+              ? SCENE_TURN_LIMITS.date
+              : scene?.event
+                ? SCENE_TURN_LIMITS.event
+                : SCENE_TURN_LIMITS.ordinary
+          }
           offline={offline}
           t={t}
         />
@@ -626,7 +696,7 @@ export default function App() {
           relations={relations}
           memory={memory}
           /**
-           * A date eats the day.
+           * A date, and an anchor event, eat the day.
            *
            * That is what makes it depth and a free weekend breadth - the
            * multi-route tension of section 5b expressed as a decision the
@@ -636,7 +706,10 @@ export default function App() {
           onContinue={() =>
             advance({
               extraEnergy: 1,
-              blocks: outcome?.date ? BLOCKS.length - BLOCKS.indexOf(run.block) : 1,
+              blocks:
+                outcome?.date || outcome?.event
+                  ? BLOCKS.length - BLOCKS.indexOf(run.block)
+                  : 1,
             })
           }
           t={t}

@@ -35,6 +35,16 @@ export default function Day({
   task,
   taskState,
   identity,
+  /**
+   * The anchor event on today, or null. `{ day, slot, location, content }`.
+   *
+   * Two jobs, and the second is the one that was broken: it names the day, and
+   * it un-hides the event site on the map. `overworldFor` filters event slots
+   * out of the overworld until their day, so without this the whole cast stood
+   * somewhere the player could not reach and the day read as everyone having
+   * vanished.
+   */
+  event = null,
   onEnter,
   onEnterSolo,
   onSkipBlock,
@@ -95,6 +105,34 @@ export default function Day({
         </div>
       ) : null}
 
+      {/*
+        A day the calendar already decided, said out loud.
+
+        Above the task rather than below it, because it outranks one: an event
+        replaces the day rather than competing for a block in it. It is a
+        statement and not a control - the way in is walking to the site on the
+        map, the same as anywhere else (section 10's argument about tasks:
+        privileging a thing visually turns a choice back into an errand).
+      */}
+      {event?.content ? (
+        <div className="rounded-[var(--radius-sm)] border border-accent bg-accent-soft/20 px-3 py-2.5">
+          <span className="flex items-baseline gap-2">
+            <span className="font-mono text-[0.5rem] uppercase tracking-[0.16em] text-accent">
+              {t('event.today')}
+            </span>
+            <span className="flex-1 truncate font-display text-[1rem] tracking-wide text-text">
+              {t(`event.${event.content.id}`)}
+            </span>
+            <span className="font-mono text-[0.5rem] uppercase tracking-[0.12em] text-dim">
+              {t(`location.${event.location}`)}
+            </span>
+          </span>
+          <p className="mt-1 font-body text-[0.8125rem] leading-snug text-dim">
+            {t(`event.${event.content.id}Blurb`)} {t('event.wholeDay')}
+          </p>
+        </div>
+      ) : null}
+
       {task ? (
         <div
           className={`flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-2 ${
@@ -133,6 +171,7 @@ export default function Day({
           player={player}
           identity={identity}
           taskLocation={taskHere ? task.location : null}
+          eventSlot={event?.slot ?? null}
           /**
            * Every row opens the ROOM, not a scene.
            *

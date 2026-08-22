@@ -31,6 +31,7 @@ import {
   GOOD_ENDINGS,
 } from '../systems/relationship.js';
 import { generateWeek, occupancyAt } from '../systems/calendar.js';
+import { eventFor, eventKey } from '../data/events/index.js';
 import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from '../systems/clock.js';
 import { generateDayTask, completeTask, failTask, newTaskState, applyPlayerDeltas } from '../systems/tasks.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta } from '../systems/soloWork.js';
@@ -39,15 +40,15 @@ import { LOCATIONS } from '../data/locations.js';
 import { giftsFor, purchase, spendGesture } from '../systems/economy.js';
 import { availableStances, isRiskStance } from '../systems/chips.js';
 import { makeRng, deriveSeed, pick } from '../systems/rng.js';
-import { BLOCKS, DAYS_PER_WEEK } from '../config/constants.js';
+import { BLOCKS, DAYS_PER_WEEK, SCENE_TURN_LIMITS } from '../config/constants.js';
+import { REGISTERS } from '../data/sceneFrames.js';
 import { WEEKS_PER_CAMPAIGN } from '../systems/clock.js';
+import { getIdentity } from '../data/identities.js';
 
-const IDENTITY = {
-  id: 'assistant',
-  promptRole: 'an artist assistant at the agency',
-  taskPool: ['prep_outfits', 'run_schedule', 'handle_press_kit', 'stage_check', 'restock_wardrobe'],
-  exposureModifier: { wardrobe: -10, cafe: 10 },
-};
+// The shipped identity, not a copy of it. A harness with its own copy of a
+// table drifts from the game silently, which is the whole failure mode this
+// file exists to catch.
+const IDENTITY = getIdentity();
 
 const REPORT = Boolean(process.env.HARNESS_REPORT);
 // Straight to stdout rather than console.log: vitest buffers console output
@@ -184,9 +185,27 @@ async function playCampaign({
 
   const policyRng = makeRng(deriveSeed(seed, `policy:${policy}`));
 
+  /**
+   * Anchor events, tracked here for the same reason App tracks them: five in
+   * the campaign, not five per cycle.
+   *
+   * Without it `generateWeek` places one every single week, so the harness
+   * would report a campaign with three times as many all-cast, high-exposure
+   * days as the game actually has - and a harness that models a layer wrongly
+   * is worse than one that skips it, because its numbers look trustworthy.
+   */
+  let firedEvents = [];
+
   for (let n = 0; n < weeks * DAYS_PER_WEEK * BLOCKS.length; n += 1) {
     stats.blocks += 1;
-    const weekPlan = generateWeek({ phase: run.phase, cards, seed, week: run.week });
+    const weekPlan = generateWeek({
+      phase: run.phase,
+      cards,
+      seed,
+      week: run.week,
+      fired: firedEvents,
+    });
+    const placedEvent = (weekPlan.events ?? []).find((e) => e.day === run.day) ?? null;
     const occupancy = occupancyAt(weekPlan, {
       day: run.day,
       block: run.block,
@@ -251,10 +270,29 @@ async function playCampaign({
         .filter(([id, w]) => w.locationId === 'dorm_living' && id !== targetId)
         .map(([id]) => id);
 
+      /**
+       * Is this the anchor event, and is the player standing in it?
+       *
+       * An event scene differs from an ordinary one in three ways that all
+       * matter to the numbers: the whole cast is present, so every gesture is
+       * witnessed and `riskExposure` floors at 80; the register and frame are
+       * the date ones; and it runs sixteen turns instead of eight.
+       *
+       * `presentIds` is set ONLY here. Everywhere else the harness still plays
+       * one member alone, which is not faithful either - but changing both at
+       * once would make every number in the report unattributable. See
+       * docs/PROGRESS.md.
+       */
+      const eventHere =
+        placedEvent && placedEvent.location === locationId
+          ? eventFor(placedEvent.phase, placedEvent.slot)
+          : null;
+
       const scene = {
         id: `s${sceneNo}`,
         seed: seed + sceneNo,
         rosterIds: [targetId],
+        presentIds: eventHere ? cards.map((c) => c.id) : [targetId],
         focusId: targetId,
         week: run.week,
         day: run.day,
@@ -263,6 +301,9 @@ async function playCampaign({
         locationId,
         locationLabel: locationId,
         dormWitnessIds,
+        event: eventHere,
+        sceneFrame: eventHere?.frame ?? null,
+        register: eventHere ? REGISTERS.event : REGISTERS.ordinary,
       };
 
       const client = createMockClient({ seed: seed + sceneNo, delay: 0 });
@@ -322,7 +363,8 @@ async function playCampaign({
 
       session = await runTurn(session, { text: openingDirective(Boolean(note)), client });
 
-      for (let t = 0; t < turnsPerScene; t += 1) {
+      const turns = eventHere ? SCENE_TURN_LIMITS.event : turnsPerScene;
+      for (let t = 0; t < turns; t += 1) {
         const { available } = availableStances(relations[targetId], { energy: player.energy });
         // A bold player takes the overt move whenever the room allows it; that
         // is the whole bet, and it is the only thing that moves admissibility.
@@ -345,6 +387,12 @@ async function playCampaign({
       relations = result.relations;
       stats.rumors += result.rumors.length;
       stats.scenes += 1;
+
+      if (eventHere) {
+        const key = eventKey(placedEvent.phase, placedEvent.slot);
+        if (!firedEvents.includes(key)) firedEvents = [...firedEvents, key];
+        stats.eventsPlayed = (stats.eventsPlayed ?? 0) + 1;
+      }
 
       /**
        * What did the scene actually pay?
@@ -500,6 +548,7 @@ function report(label, out) {
     `openers ${stats.openersUsed} (${stats.objectsBought} bought, ${stats.gesturesUsed} said)  rumors ${stats.rumors}`,
   );
   log(`tasks ${stats.tasksDone} done / ${stats.tasksFailed} failed`);
+  log(`anchor events played ${stats.eventsPlayed ?? 0} of 5`);
   log(
     `scenes that paid nothing ${stats.scenesThatPaidNothing}/${stats.scenes}  ` +
       `intimacy from scenes ${stats.intimacyFromScenes} (${(
