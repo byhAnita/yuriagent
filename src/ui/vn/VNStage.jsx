@@ -191,6 +191,10 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
       });
       onSceneEnd(result);
     } finally {
+      // Usually this unmounts, so clearing pending is moot - but if the exit
+      // fails, leaving it set would strand the player on a scene whose chips
+      // and Leave button are both dead. Nothing may end a turn stuck busy.
+      setPending(false);
       busy.current = false;
     }
   }, [session, client, setup, onSceneEnd]);

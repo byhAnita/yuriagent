@@ -125,6 +125,25 @@ export const ENERGY_PER_READ = 1;
  */
 export const ENERGY_RESTORED_OVERNIGHT = 24;
 
+// --- model requests ---------------------------------------------------------
+/**
+ * Nothing may hang forever.
+ *
+ * A stalled request used to freeze a scene permanently: the turn never
+ * resolves, so `pending` stays true and the chips stay disabled, `busy` stays
+ * true so even Leave is blocked, `withRetry` never fires because nothing ever
+ * rejects, and the offline fallback in client.js never gets its chance. A dead
+ * socket looked exactly like a dead game.
+ */
+export const REQUEST_TIMEOUT_MS = 45000;
+
+/**
+ * A stream is allowed to be slow, but not silent. Measured beat calls finish in
+ * 1.4-2.8s, so twelve seconds without a single token means the connection is
+ * gone rather than the model thinking.
+ */
+export const STREAM_STALL_MS = 12000;
+
 // --- persistence ------------------------------------------------------------
 export const SAVE_KEY = 'yuriagent_saves_v1';
 export const SETTINGS_KEY = 'yuriagent_settings_v1';

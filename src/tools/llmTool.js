@@ -8,6 +8,7 @@
  */
 
 import { getModel, CALL_PRESETS, DEFAULT_MODEL } from '../config/modelConfigs.js';
+import { REQUEST_TIMEOUT_MS, STREAM_STALL_MS } from '../config/constants.js';
 
 export class LlmError extends Error {
   constructor(message, { status, retryable } = {}) {
@@ -25,6 +26,48 @@ function safeMessage(status, body) {
   const text = String(body ?? '').slice(0, 200);
   const scrubbed = text.replace(/sk-[A-Za-z0-9_-]+/g, 'sk-***').replace(/AI[A-Za-z0-9_-]{20,}/g, 'AI***');
   return `model request failed (${status}): ${scrubbed}`;
+}
+
+/**
+ * A deadline every request runs under.
+ *
+ * `deadline()` returns a signal that aborts on its own, plus a `bump` that
+ * pushes the deadline out again - which is how a stream stays alive as long as
+ * tokens keep arriving but dies if they stop. `done()` must always be called,
+ * or a pending timer keeps the process alive in node.
+ */
+function deadline(ms, outerSignal) {
+  const controller = new AbortController();
+  let timer = setTimeout(() => controller.abort(), ms);
+
+  const onOuter = () => controller.abort();
+  outerSignal?.addEventListener('abort', onOuter);
+
+  return {
+    signal: controller.signal,
+    bump(next = ms) {
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), next);
+    },
+    done() {
+      clearTimeout(timer);
+      outerSignal?.removeEventListener('abort', onOuter);
+    },
+    aborted: () => controller.signal.aborted,
+  };
+}
+
+/**
+ * An aborted request is retryable: it means the connection stalled, not that
+ * the request was wrong. Retryable is also what lets client.js fall back to the
+ * offline writer instead of leaving the scene frozen.
+ */
+function asLlmError(err, timedOut) {
+  if (err instanceof LlmError) return err;
+  if (timedOut || err?.name === 'AbortError') {
+    return new LlmError('model request timed out', { retryable: true });
+  }
+  return new LlmError(`model request failed: ${err?.name ?? 'network error'}`, { retryable: true });
 }
 
 function buildBody(messages, preset, model) {
@@ -53,30 +96,37 @@ export async function complete({
 }) {
   const model = getModel(modelId);
   const shape = { ...CALL_PRESETS[preset], stream: false };
+  const clock = deadline(REQUEST_TIMEOUT_MS, signal);
 
-  const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: buildBody(messages, shape, model),
-    signal,
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new LlmError(safeMessage(res.status, body), {
-      status: res.status,
-      retryable: RETRYABLE_STATUS.has(res.status),
+  try {
+    const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: buildBody(messages, shape, model),
+      signal: clock.signal,
     });
-  }
 
-  const json = await res.json();
-  return {
-    text: json.choices?.[0]?.message?.content ?? '',
-    usage: json.usage ?? null,
-  };
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new LlmError(safeMessage(res.status, body), {
+        status: res.status,
+        retryable: RETRYABLE_STATUS.has(res.status),
+      });
+    }
+
+    const json = await res.json();
+    return {
+      text: json.choices?.[0]?.message?.content ?? '',
+      usage: json.usage ?? null,
+    };
+  } catch (err) {
+    throw asLlmError(err, clock.aborted());
+  } finally {
+    clock.done();
+  }
 }
 
 /**
@@ -97,59 +147,70 @@ export async function stream({
   const model = getModel(modelId);
   const shape = { ...CALL_PRESETS[preset], stream: true };
 
-  const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: buildBody(messages, shape, model),
-    signal,
-  });
+  // A stream may legitimately run for a while, so the deadline is on SILENCE
+  // rather than on total duration: every token pushes it back out.
+  const clock = deadline(REQUEST_TIMEOUT_MS, signal);
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new LlmError(safeMessage(res.status, body), {
-      status: res.status,
-      retryable: RETRYABLE_STATUS.has(res.status),
+  try {
+    const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: buildBody(messages, shape, model),
+      signal: clock.signal,
     });
-  }
 
-  const reader = res.body?.getReader();
-  if (!reader) throw new LlmError('model returned no stream body', { retryable: true });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new LlmError(safeMessage(res.status, body), {
+        status: res.status,
+        retryable: RETRYABLE_STATUS.has(res.status),
+      });
+    }
 
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let full = '';
+    const reader = res.body?.getReader();
+    if (!reader) throw new LlmError('model returned no stream body', { retryable: true });
 
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let full = '';
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      clock.bump(STREAM_STALL_MS);
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const payload = trimmed.slice(5).trim();
-      if (payload === '[DONE]') continue;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
 
-      try {
-        const delta = JSON.parse(payload).choices?.[0]?.delta?.content;
-        if (delta) {
-          full += delta;
-          onChunk(delta);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (payload === '[DONE]') continue;
+
+        try {
+          const delta = JSON.parse(payload).choices?.[0]?.delta?.content;
+          if (delta) {
+            full += delta;
+            onChunk(delta);
+          }
+        } catch {
+          // A partial SSE frame. The next chunk completes it; dropping one
+          // malformed frame is always better than aborting a live scene.
         }
-      } catch {
-        // A partial SSE frame. The next chunk completes it; dropping one
-        // malformed frame is always better than aborting a live scene.
       }
     }
-  }
 
-  return { text: full };
+    return { text: full };
+  } catch (err) {
+    throw asLlmError(err, clock.aborted());
+  } finally {
+    clock.done();
+  }
 }
 
 /** Retry with backoff. Only for calls that are safe to repeat. */
