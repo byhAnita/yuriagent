@@ -354,9 +354,9 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 ### Micro -> macro mapping (computed client-side at scene exit)
 
 ```
-guard dropped >= 15 over the scene         -> intimacy      += 2..4
-fluster peaked >= 60                       -> intimacy      += 1..3
-risk action at exposure >= 60, survived    -> admissibility += 3..6
+guard dropped >= 12 over the scene         -> intimacy      += 2..4
+fluster peaked >= 30                       -> intimacy      += 1..3
+risk action at exposure >= 60, survived    -> admissibility += (3..6) x (1 + I/100 x 1.2)
 risk action at exposure >= 60, failed      -> strain        += 10..20
 stage == 'reckless'                        -> strain        += 5 / scene
 daily task failed and it affected her      -> strain        += 8
@@ -388,6 +388,60 @@ four good endings plus the balance ending were unreachable in the shipped game.
 Both halves were correct; only the join was missing. No unit test could see it,
 and a headless campaign found it on the first run
 (`src/agent/playthrough.test.js`).
+
+### A turn is the unit, and it is the mean of its beats
+
+The model reports per-beat movement and writes **one to three beats per reply**
+as a stylistic choice. It does not shrink the numbers when it writes more of
+them, so summing made a chatty reply worth three times a terse one for identical
+player input. Measured across six live scenes with the same seven turns and the
+same stances: every seven-beat scene paid nothing, every twenty-one-beat scene
+paid the maximum. Verbosity was progress.
+
+So `turnDeltas` **averages** within a reply. Three beats in one reply are one
+exchange described in three moments, and the mean is the truer reading of where
+her guard now is. Re-measured afterwards, beat count no longer predicts payout -
+a seven-beat scene dropped guard by 19 and a nineteen-beat scene by 6.
+
+The cost is accepted and real: genuine progression *within* a reply is
+flattened. That is the smaller error, because the model has no way to budget a
+total across however many beats it is about to write.
+
+The thresholds above moved with the unit. They were 15 and 60 against a summed
+meter; a mean is smaller by construction, and 60 fluster had become literally
+unreachable, which killed the entire "you landed even though her guard held"
+branch. `GUARD_DROP_TO_PAY = 12` and `FLUSTER_PEAK_TO_PAY = 30` are calibrated
+against live guard drops of 0/6/6/-2/15/19 and fluster peaks of 8/14/22/24/30/34.
+
+**The offline writer is two to three times more generous per turn than
+DeepSeek**, so harness payout numbers are an upper bound, not a forecast.
+
+### A public risk is worth more the closer you already are
+
+`admissibility += (3..6) x (1 + intimacy/100 x RISK_PAYOFF_SCALE)`, and the
+failure branch is deliberately flat.
+
+A fixed 3-6 inverted the game's incentive at the worst possible moment.
+`STAGE_A_MIN` steps the requirement up in 20-point jumps as intimacy crosses
+each tier, so escaping the `confidante` plateau costs 10 admissibility at
+intimacy 60, 30 at 75 and 50 at 90 - while the payout stayed the same size. Two
+measured campaigns on one seed:
+
+| intimacy | admissibility | endings |
+|---|---|---|
+| 54-69 | 0-12 | two good |
+| 71-77 | 12-23 | none |
+
+The run that got **closer to her did worse**, because the same admissibility
+that clears the `nameless` bar is eighteen short of the `unspoken` one. Getting
+closer was buying a worse ending, which is the opposite of what this game is
+about.
+
+Scaling the payout is also the truer sentence: being seen with someone you are
+obviously close to says more than being seen with a colleague, so it moves the
+needle further. The punishment is not scaled, because a failed public risk
+already costs 10-20 strain and doubling that at high intimacy would hand the
+problem straight back the other way.
 
 ### The scale is stated per beat, never per scene
 

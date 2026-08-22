@@ -97,6 +97,28 @@ export const MAX_INTERACTIVE_MEMBERS = 2;
  */
 export const SCENE_TURN_LIMIT = 8;
 
+/**
+ * What a scene has to achieve before it pays any intimacy (section 6).
+ *
+ * These moved when the unit of measurement did. They were 15 and 60 against a
+ * meter that SUMMED every beat, so a reply carrying three beats moved it three
+ * times as far as one carrying a single beat - and measured live, every
+ * seven-beat scene paid nothing while every twenty-one-beat scene paid the
+ * maximum, for identical player input. A turn is now the unit and its movement
+ * is the mean of its beats, which is a smaller number by construction.
+ *
+ * Recalibrated against six live scenes on DeepSeek. Guard drops came in at
+ * 0, 6, 6, -2, 15, 19 and fluster peaks at 8, 14, 22, 24, 30, 34 - so the old
+ * fluster bar of 60 had become literally unreachable and that whole branch, the
+ * one that pays for "you landed even though her guard held", was dead.
+ *
+ * NOTE the offline writer is roughly two to three times more generous per turn
+ * than DeepSeek, so harness payout figures are an upper bound rather than a
+ * forecast. See docs/PROPOSALS.md.
+ */
+export const GUARD_DROP_TO_PAY = 12;
+export const FLUSTER_PEAK_TO_PAY = 30;
+
 // --- written chips (section 6) ----------------------------------------------
 export const CHIPS_PER_TURN = 3;
 

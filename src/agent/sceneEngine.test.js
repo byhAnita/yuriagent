@@ -7,7 +7,17 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runTurn, readHer, endScene, openWithGift, markRisk, computeDeltas, newMeters } from './sceneEngine.js';
+import {
+  beginScene,
+  runTurn,
+  readHer,
+  endScene,
+  openWithGift,
+  markRisk,
+  computeDeltas,
+  newMeters,
+  riskPayoff,
+} from './sceneEngine.js';
 import { prefixOf, buildMessages } from './promptBuilder.js';
 import { newMemory, addDossierEntry } from './memory.js';
 import { getCast } from '../data/cast.js';
@@ -392,5 +402,54 @@ describe('rumor propagation at scene exit', () => {
     });
 
     expect(out.rumors).toHaveLength(0);
+  });
+});
+
+/**
+ * Getting closer to her must not make it harder to ever name it.
+ *
+ * `STAGE_A_MIN` steps the admissibility requirement up in 20-point jumps as
+ * intimacy crosses each tier, so escaping the `confidante` plateau costs 10 at
+ * intimacy 60 and 50 at intimacy 90 - while a flat 3-6 payout stayed the same
+ * size. Measured, the campaign with LOWER intimacy got the better endings.
+ */
+describe('a public risk is worth more the more there is between you', () => {
+  const spread = (intimacy) => {
+    const seen = new Set();
+    for (let i = 0; i < 40; i += 1) seen.add(riskPayoff(intimacy, makeRng(i + 1)));
+    return { min: Math.min(...seen), max: Math.max(...seen) };
+  };
+
+  it('pays more at unspoken than at colleague', () => {
+    expect(spread(90).min).toBeGreaterThan(spread(20).min);
+    expect(spread(90).max).toBeGreaterThan(spread(20).max);
+  });
+
+  it('still pays something at the very bottom of the map', () => {
+    expect(spread(0).min).toBeGreaterThanOrEqual(3);
+  });
+
+  it('rises smoothly rather than in steps', () => {
+    const at = (i) => spread(i).max;
+    expect(at(30)).toBeLessThanOrEqual(at(60));
+    expect(at(60)).toBeLessThanOrEqual(at(90));
+  });
+
+  /**
+   * The failure branch is deliberately NOT scaled. A public risk gone wrong
+   * already costs 10-20 strain, and doubling that at high intimacy would hand
+   * the problem straight back in the other direction.
+   */
+  it('does not scale the punishment with it', () => {
+    const rel = (intimacy) => ({ ...newRelation(intimacy), stage: 'unspoken' });
+    const failed = (intimacy) => {
+      const session = {
+        exposure: 80,
+        meters: { ...newMeters(rel(intimacy)), riskTaken: true },
+      };
+      // a seed that fails the survival roll at both ends of the map
+      return computeDeltas(session, rel(intimacy), () => 0.99);
+    };
+    expect(failed(20).strain).toBe(failed(90).strain);
   });
 });

@@ -141,6 +141,39 @@ export function totalDeltas(beats) {
 }
 
 /**
+ * What one TURN moved, which is not the sum of its beats.
+ *
+ * A reply carries one to three beats and the model picks how many as a
+ * stylistic choice, not as a measure of how far the conversation got. It does
+ * not shrink its per-beat numbers when it writes more of them - measured, the
+ * per-beat magnitude is much the same either way - so summing made a chatty
+ * reply worth three times a terse one for identical player input.
+ *
+ * Six live scenes with the same seven turns and the same stances:
+ *
+ *   7 beats  -> guard drop  9, fluster peak 23  -> paid nothing
+ *   7 beats  -> guard drop  0, fluster peak 23  -> paid nothing
+ *   21 beats -> guard drop 25, fluster peak 80  -> paid the maximum
+ *
+ * Averaging makes a turn a turn. Three beats in one reply are one exchange
+ * described in three moments, so the mean is the truer reading of where her
+ * guard now is - and the scene's payout tracks what the player did rather than
+ * how many paragraphs came back.
+ *
+ * The cost is real and accepted: genuine progression WITHIN a reply is
+ * flattened. That is the smaller error, because the model has no notion of
+ * budgeting a total across however many beats it is about to write.
+ */
+export function turnDeltas(beats) {
+  if (!beats || beats.length === 0) return { guard: 0, fluster: 0 };
+  const { guard, fluster } = totalDeltas(beats);
+  return {
+    guard: Math.round(guard / beats.length),
+    fluster: Math.round(fluster / beats.length),
+  };
+}
+
+/**
  * Incremental parser for streaming.
  *
  * Emits a beat as soon as its blank-line terminator arrives, so the portrait

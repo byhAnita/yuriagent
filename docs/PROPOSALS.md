@@ -18,7 +18,17 @@ number should move again. Everything else is still only an argument.
 
 ## 1. A scene's payout depends on how many beats the model felt like writing
 
-**Priority: high.** This is the one I would do first.
+**DONE 2026-08-22 - option 1.** `turnDeltas` averages within a reply.
+Re-measured live: beat count no longer predicts payout - a 7-beat scene dropped
+guard 19 and a 19-beat scene dropped 6. The thresholds moved with the unit,
+because a mean is smaller than a sum by construction and the old fluster bar of
+60 had become unreachable: `GUARD_DROP_TO_PAY = 12`, `FLUSTER_PEAK_TO_PAY = 30`.
+
+It also surfaced a measurement problem worth keeping in view: **the offline
+writer is 2-3x more generous per turn than DeepSeek**, so every payout figure
+the campaign harness reports is an upper bound. Aligning the mock's magnitudes
+with the live model would make the harness numbers trustworthy, and would mean
+re-baselining a lot of existing test expectations.
 
 ### Measured
 
@@ -259,8 +269,14 @@ play. Everything behind it is built and tested.
 
 ## 9. The plateau gets harder to escape the closer you get
 
-**Priority: high, and it interacts with #1.** Observed while A/B-testing the
-secrecy change; not yet acted on.
+**DONE 2026-08-22 - option 2.** A survived public risk now pays
+`(3..6) x (1 + intimacy/100 x 1.2)`; the failure branch stays flat, because a
+failed risk already costs 10-20 strain. Measured across 5 policies x 5 seeds,
+good endings went **spread 40 -> 24%, balanced 52 -> 52%, bold 28 -> 84%,
+expert 28 -> 88%, devoted 12 -> 20%** - and `devoted` now reaches `out_end`, the
+hardest true ending, for the route it actually commits to. The ordering finally
+says the right thing: reading the map beats spreading yourself thin, and
+spreading thin beats nothing.
 
 ### Measured
 
@@ -310,3 +326,123 @@ moving, not the opportunities disappearing, is what did it.
 **Recommendation: option 2.** It fixes the incentive without touching the map,
 and "the more there is between you, the more a public gesture costs and means"
 is the game's own thesis rather than a balance patch.
+
+---
+
+## 10. The map should change with the phase, and some scenes should be authored
+
+**Priority: high. This is the next big content decision, and it is M5-shaped.**
+Proposed by Yuhan, 2026-08-22. Not implemented - written down for confirmation
+before any code moves.
+
+### The idea
+
+The map is currently one fixed set of ten locations for all nine weeks. It
+should instead change with the company phase, so that a cycle *looks* like a
+cycle:
+
+| Week | Phase | Map |
+|---|---|---|
+| 1 | PREP | **X Entertainment** as a two-step menu like the dorm: practice room (dance), recording studio (vocals), wardrobe (fitting), **meeting room** (comeback planning), **tea room** (replacing the corridor - where you overhear things). Plus X Dorm, cafe, filming location. |
+| 2 | COMEBACK | **Music Bank** (performing), **fan meeting hall**, **variety taping stage**. Plus the dorm and a bistro. |
+| 3 | REST | Dating and holiday places: **Han River bridge**, **Jeju**, a **cruise**. |
+
+And alongside it: **authored event scenes** injected once at specific moments -
+a comeback planning meeting, a fansign - mixed in with the ordinary generated
+ones.
+
+### Why it is right
+
+Three arguments, and the third is the strongest:
+
+1. **It makes the phase legible in the place the player spends most of their
+   time.** Section 10 already claims each week has a distinct feel - build,
+   risk, repair - and right now the only evidence for that is a word in the
+   header and a different activity label. A player who never reads the calendar
+   would not notice the cycle turning.
+2. **It answers "why is this scene different from the last one" at the level
+   above the one just fixed.** Block 4 now says what she is doing; this says the
+   world has moved on. A REST week that opens onto Jeju is a different game from
+   a PREP week in a rehearsal room, and that is free variety for the model.
+3. **It fixes an asymmetry the harness measured.** Only three locations
+   (`cafe` 60, `drama_set` 65, `broadcast_studio` 85) sit above the risk
+   threshold, and members are rarely at them - measured, only 35-40 of ~107
+   scenes in a campaign were public at all. The whole second axis runs through
+   that narrow gate. Week 2 and week 3 as proposed are *full* of public places,
+   which would let COMEBACK be the week admissibility actually moves and REST
+   be the week you can be seen together off duty. That turns the phase cycle
+   into the game's pacing rather than set dressing.
+
+### What it costs
+
+Honest accounting, because this is the largest change on this list:
+
+- **`data/locations.js` roughly triples.** Every new location needs
+  `exposureBase`, `presence`, `zone`, an English label and a note, plus en/zh
+  strings, plus `soloActions` entries or it is dead space for the block the
+  player spends alone.
+- **`data/activities.js` needs new activity types** and their `doingLine`.
+- **`calendar.js` needs a phase-scoped location pool** for the idle layer -
+  `WEEKDAY_IDLE` / `WEEKEND_IDLE` are currently flat arrays.
+- **The map UI needs a second two-step zone.** The dorm already does this, so it
+  is a pattern to copy rather than invent.
+- **`exposure.js` needs nothing.** The numbers already do the work.
+
+I would do it in that order and ship it behind the existing `zone` field, which
+already exists precisely for this.
+
+### Two things I would push back on
+
+**Jeju and a cruise are not day trips.** The clock is three blocks a day and a
+member's schedule is generated per block; an island is a *day*, not a morning.
+Either they become whole-day events that consume all three blocks (which the
+clock does not model), or they are quietly just "a location with high exposure
+and no witnesses", which wastes the idea. My suggestion: keep Han River and a
+few local outings on the block clock, and make Jeju/cruise the **authored
+event** kind below, where consuming a whole day is the point.
+
+**Do not let the location list outgrow the cast.** Five members across three
+blocks means at most five occupied locations at any moment. A map of twenty
+rooms in week 2 is mostly empty rooms, and empty rooms are solo work - which is
+good, but it dilutes the chance of finding anyone. Roughly eight to ten
+reachable locations per phase is the ceiling before the map becomes a search
+problem rather than a choice.
+
+### Authored events: what they are, and the one rule
+
+An event scene is a prompt fragment injected **once**, at a specific
+(week, day, block), that replaces the generated opening with an authored
+situation - the comeback planning meeting, the fansign, the last night of the
+cruise.
+
+`eventWindows()` already returns the six weekend blocks per week and
+`data/events/` is empty; this is the M5 line item that was always coming.
+
+The one rule that matters: **an event may set the situation, never the
+outcome.** It says "the five of you are in a meeting room and the label has
+just moved the comeback forward two weeks"; it does not say how she reacts to
+you. Everything the engine already does - standing, dossier, her voice, the
+meters - still writes the scene. An event that scripts her reply is a branching
+text adventure, which section 1's non-goals rule out explicitly.
+
+Two consequences worth stating now:
+
+- Events are the natural home for **group scenes** (2+ members), which section 9
+  restricts to "scripted event nodes, where the prompt is tight". That is still
+  blocked on the two-portrait stage.
+- Events are the only place a **whole-day** cost makes sense (Jeju, the cruise),
+  so the clock would need an "event consumes the day" concept. That is small,
+  but it is new.
+
+### Recommendation
+
+Do it, in two separable pieces, and not at the same time:
+
+1. **Phase maps first** (data + calendar + one UI zone). Pure content and
+   deterministic systems, no LLM, testable, and it delivers most of the variety.
+2. **Authored events second**, as the M5 event-anchor line item, starting with
+   one per phase - a comeback meeting in PREP, a fansign in COMEBACK, one
+   outing in REST - to prove the shape before writing nine.
+
+Piece 1 is a good session on its own. Piece 2 wants the two-portrait stage
+first, or its best material (a group scene) is unavailable.

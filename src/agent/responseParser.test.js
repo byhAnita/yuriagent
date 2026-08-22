@@ -3,6 +3,7 @@ import {
   parseMetaLine,
   parseResponse,
   totalDeltas,
+  turnDeltas,
   createStreamParser,
 } from './responseParser.js';
 
@@ -239,5 +240,48 @@ describe('beat segmentation', () => {
 
     expect(beats).toHaveLength(1);
     expect(beats[0].text).toContain("You're here.");
+  });
+});
+
+/**
+ * A turn is the unit, not a beat.
+ *
+ * The model writes one to three beats per reply as a stylistic choice and does
+ * not shrink its per-beat numbers when it writes more of them, so summing made
+ * a chatty reply worth three times a terse one for identical player input. Six
+ * live scenes with the same seven turns: every 7-beat scene paid nothing and
+ * every 21-beat scene paid the maximum.
+ */
+describe('turnDeltas', () => {
+  const beat = (guard, fluster) => ({ guard, fluster });
+
+  it('averages within a reply rather than summing', () => {
+    expect(turnDeltas([beat(-5, 5), beat(-5, 5), beat(-5, 5)])).toEqual({ guard: -5, fluster: 5 });
+  });
+
+  it('makes a verbose reply worth the same as a terse one', () => {
+    const terse = turnDeltas([beat(-6, 8)]);
+    const chatty = turnDeltas([beat(-6, 8), beat(-6, 8), beat(-6, 8)]);
+    expect(chatty).toEqual(terse);
+  });
+
+  it('still lets a genuinely bigger beat move further', () => {
+    expect(turnDeltas([beat(-14, 18)]).guard).toBeLessThan(turnDeltas([beat(-3, 2)]).guard);
+  });
+
+  it('keeps direction when beats disagree', () => {
+    // She bristles, then softens: the reply nets out open. -5.5 rounds to -5,
+    // because Math.round goes toward +Infinity on a tie - a half-point of bias
+    // toward keeping her guard up, which is the harmless direction.
+    expect(turnDeltas([beat(3, 0), beat(-14, 18)])).toEqual({ guard: -5, fluster: 9 });
+  });
+
+  it('treats a missing delta as zero, not as a hole', () => {
+    expect(turnDeltas([beat(-4, 4), { emotion: 'shy' }])).toEqual({ guard: -2, fluster: 2 });
+  });
+
+  it('survives an empty turn', () => {
+    expect(turnDeltas([])).toEqual({ guard: 0, fluster: 0 });
+    expect(turnDeltas(undefined)).toEqual({ guard: 0, fluster: 0 });
   });
 });

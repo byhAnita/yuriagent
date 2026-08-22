@@ -11,7 +11,7 @@
  */
 
 import { openScene, appendTurn, appendSystemNote, requestThought, buildMessages } from './promptBuilder.js';
-import { createStreamParser, parseResponse, totalDeltas } from './responseParser.js';
+import { createStreamParser, parseResponse, turnDeltas } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
 import { commitSummary } from './memory.js';
 import { sceneExposure } from '../systems/exposure.js';
@@ -19,7 +19,11 @@ import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedS
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
 import { isRiskStance } from '../systems/chips.js';
-import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
+import {
+  RISK_EXPOSURE_THRESHOLD,
+  GUARD_DROP_TO_PAY,
+  FLUSTER_PEAK_TO_PAY,
+} from '../config/constants.js';
 import { clamp } from '../systems/rng.js';
 
 /**
@@ -38,7 +42,7 @@ export function newMeters(rel) {
 }
 
 export function applyBeatToMeters(meters, beats) {
-  const { guard, fluster } = totalDeltas(beats);
+  const { guard, fluster } = turnDeltas(beats);
   const next = {
     ...meters,
     guard: clamp(meters.guard + guard),
@@ -164,6 +168,36 @@ export function markRisk(session) {
 }
 
 /**
+ * What one survived public risk is worth, and why it grows.
+ *
+ * A flat 3-6 inverted the incentive at the worst possible moment.
+ * `STAGE_A_MIN` raises the admissibility requirement in 20-point steps as
+ * intimacy crosses each tier, so the bar to get off the `confidante` plateau is
+ * 10 at intimacy 60, 30 at 75 and 50 at 90 - while the payout stayed the same
+ * size. Two campaigns on one seed, differing only in how far intimacy ran:
+ *
+ *   intimacy 54-69, admissibility 0-12  -> two good endings
+ *   intimacy 71-77, admissibility 12-23 -> none
+ *
+ * The run that got CLOSER to her did worse, because the same admissibility that
+ * clears the `nameless` bar is eighteen short of the `unspoken` one. Getting
+ * closer was buying a worse ending.
+ *
+ * Scaling the payout with intimacy is the fix that is also the truer statement:
+ * being seen with someone you are obviously close to says more than being seen
+ * with a colleague, so it moves the needle further. The failure branch is
+ * deliberately NOT scaled - the punishment for a public risk gone wrong is
+ * already 10-20 strain, and doubling it at high intimacy would hand back the
+ * problem in the other direction.
+ */
+export const RISK_PAYOFF_SCALE = 1.2;
+
+export function riskPayoff(intimacy, rng) {
+  const base = 3 + Math.floor(rng() * 4);
+  return Math.round(base * (1 + (intimacy / 100) * RISK_PAYOFF_SCALE));
+}
+
+/**
  * Micro to macro. CLAUDE.md section 6.
  *
  * Computed HERE from accumulated meter movement, never reported by the model.
@@ -173,12 +207,12 @@ export function computeDeltas(session, rel, rng) {
   const delta = { intimacy: 0, admissibility: 0, strain: 0, good: false };
 
   const guardDrop = meters.guardStart - meters.guard;
-  if (guardDrop >= 15) delta.intimacy += 2 + Math.floor(rng() * 3);
-  if (meters.flusterPeak >= 60) delta.intimacy += 1 + Math.floor(rng() * 3);
+  if (guardDrop >= GUARD_DROP_TO_PAY) delta.intimacy += 2 + Math.floor(rng() * 3);
+  if (meters.flusterPeak >= FLUSTER_PEAK_TO_PAY) delta.intimacy += 1 + Math.floor(rng() * 3);
 
   if (meters.riskTaken && exposure >= RISK_EXPOSURE_THRESHOLD) {
     const survives = rng() < 0.35 + (rel.intimacy / 100) * 0.4;
-    if (survives) delta.admissibility += 3 + Math.floor(rng() * 4);
+    if (survives) delta.admissibility += riskPayoff(rel.intimacy, rng);
     else delta.strain += 10 + Math.floor(rng() * 11);
   }
 

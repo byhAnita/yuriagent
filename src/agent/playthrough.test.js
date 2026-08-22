@@ -657,7 +657,7 @@ describe.skipIf(!process.env.HARNESS_BALANCE)('balance ending reachability', () 
     async () => {
       const seeds = Array.from({ length: 20 }, (_, i) => 100 + i * 7);
 
-      for (const policy of ['balanced', 'expert']) {
+      for (const policy of ['balanced', 'expert', 'bold']) {
         let balance = 0;
         let allGood = 0;
         const shortfall = {};
