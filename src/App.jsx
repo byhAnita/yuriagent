@@ -264,13 +264,25 @@ export default function App() {
     setSolo((s) => ({ ...s, result }));
   };
 
-  const onEnter = (locationId, present) => {
+  const onEnter = (locationId, present, addresseeId = null) => {
     if (present.length === 0) return;
-    // One member per scene for now. The prompt and parser already handle two
-    // (MAX_INTERACTIVE_MEMBERS), but VNStage renders a single portrait, so a
-    // second rostered speaker would talk with nobody on screen. Group scenes
-    // land with the two-portrait stage.
-    setPendingScene({ locationId, rosterIds: [present[0].id] });
+
+    /**
+     * One member SPEAKS; everybody in the room WATCHES.
+     *
+     * `rosterIds` stays at one until group scenes ship, because VNStage renders
+     * a single portrait and a second rostered speaker would talk to nobody on
+     * screen. `presentIds` is the whole room, and it is what section 5b's
+     * witnessed rule and `riskExposure` run on - neither of which needs anyone
+     * to have lines. Turning to one member in front of the others is the
+     * gesture; nobody has to speak for the rest of them to have seen it.
+     */
+    const speaker = addresseeId ?? present[0].id;
+    setPendingScene({
+      locationId,
+      rosterIds: [speaker],
+      presentIds: present.map((m) => m.id),
+    });
     setScreen('gift');
   };
 
@@ -284,6 +296,7 @@ export default function App() {
       id: `s${sceneNo}`,
       seed: SEED + sceneNo,
       rosterIds: pendingScene.rosterIds,
+      presentIds: pendingScene.presentIds ?? pendingScene.rosterIds,
       focusId: pendingScene.rosterIds[0],
       week: run.week,
       day: run.day,

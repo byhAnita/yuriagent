@@ -168,6 +168,23 @@ export function locationsForRole(phase, role) {
   return [...new Set(out)];
 }
 
+/**
+ * The rows the top-level map shows this phase, in order.
+ *
+ * The dorm is deliberately absent: it is a second step in the UI, because it
+ * holds four rooms with very different meanings plus five closed doors.
+ *
+ * An event site is hidden until the day it fires. Showing a room the player
+ * cannot enter for four days is clutter, and unlike a locked bedroom door it
+ * teaches them nothing - the door is a goal with a number on it, the meeting
+ * room is just a date in the calendar they can already read.
+ */
+export function overworldFor(phase, { eventSlot = null } = {}) {
+  return Object.entries(PHASE_MAP[phase] ?? {})
+    .filter(([slot]) => !slot.startsWith('event_') || slot === eventSlot)
+    .map(([, id]) => id);
+}
+
 /** The event sites this phase, in firing order. */
 export function eventSlots(phase) {
   return ['event_a', 'event_b'].filter((slot) => PHASE_MAP[phase]?.[slot]);

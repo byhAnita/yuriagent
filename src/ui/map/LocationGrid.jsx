@@ -11,10 +11,8 @@
  */
 
 import { DORM_OCCUPANCY } from '../../data/locations.js';
+import { overworldFor } from '../../data/phaseMaps.js';
 import { sceneExposure, presenceCount } from '../../systems/exposure.js';
-
-/** The dorm is one row here; it opens into its own map (DormMap). */
-const ORDER = ['wardrobe', 'practice_room', 'corridor', 'broadcast_studio', 'cafe', 'drama_set'];
 
 export default function LocationGrid({
   occupancy,
@@ -23,10 +21,20 @@ export default function LocationGrid({
   player,
   identity,
   taskLocation,
+  eventSlot = null,
   onPick,
   onOpenDorm,
   t,
 }) {
+  /**
+   * The rows come from the phase map, never from a list in here.
+   *
+   * They used to be a hardcoded six, which is how the map stayed identical for
+   * all nine weeks while the calendar underneath it changed every three. The
+   * dorm is not among them: it is a second step, because it holds four rooms
+   * with very different meanings plus five closed doors.
+   */
+  const rows = overworldFor(run.phase, { eventSlot });
   const homeCards = cards.filter((c) => DORM_OCCUPANCY.includes(occupancy[c.id]?.locationId));
   const byLocation = {};
   for (const [id, where] of Object.entries(occupancy)) {
@@ -35,7 +43,7 @@ export default function LocationGrid({
 
   return (
     <ul className="flex flex-col gap-1.5">
-      {ORDER.map((locId) => {
+      {rows.map((locId) => {
         const here = byLocation[locId] ?? [];
         const exposure = sceneExposure({
           locationId: locId,
@@ -83,7 +91,7 @@ export default function LocationGrid({
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => onPick(locId, [m])}
+                      onClick={() => onPick(locId, here, m.id)}
                       className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-1 transition-colors hover:border-accent"
                     >
                       <span

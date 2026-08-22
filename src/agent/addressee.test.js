@@ -10,7 +10,7 @@ const relations = Object.fromEntries(
 
 const memory = { ledger: [], dossier: {} };
 
-function open(rosterIds, focusId) {
+function open(rosterIds, focusId, presentIds = null) {
   return beginScene({
     cards,
     lineup: {},
@@ -24,11 +24,57 @@ function open(rosterIds, focusId) {
       block: 'evening',
       phase: 'prep',
       rosterIds,
+      presentIds: presentIds ?? rosterIds,
       focusId,
       locationLabel: 'X Practice Room',
     },
   });
 }
+
+/**
+ * `rosterIds` is who may SPEAK. `presentIds` is who is in the ROOM. Standing
+ * there watching requires no lines, so section 9's two-member cap on
+ * interactive speakers has nothing to do with how many people can see.
+ *
+ * Taking witnesses from the roster - which is what the first version of this
+ * did - made the whole witnessed mechanic wait on group scenes for no reason.
+ */
+describe('who speaks and who watches are different lists', () => {
+  it('counts a silent bystander as a witness', () => {
+    const s = open(['irene'], 'irene', ['irene', 'nana', 'jisoo']);
+    expect(s.witnessIds).toEqual(['nana', 'jisoo']);
+    expect(s.frame.rosterIds).toEqual(['irene']);
+  });
+
+  it('makes a private room public without adding a single speaker', () => {
+    const alone = open(['irene'], 'irene', ['irene']);
+    const watched = open(['irene'], 'irene', ['irene', 'nana']);
+
+    expect(watched.frame.rosterIds).toEqual(alone.frame.rosterIds);
+    expect(watched.riskExposure).toBeGreaterThan(alone.riskExposure);
+  });
+
+  it('falls back to the roster when the caller gives no room', () => {
+    const s = beginScene({
+      cards,
+      lineup: {},
+      identity: {},
+      player: { name: 'Yuhan', secrecy: 70, energy: 80 },
+      lang: 'en',
+      memory,
+      relations,
+      scene: {
+        locationId: 'practice_room',
+        block: 'evening',
+        phase: 'prep',
+        rosterIds: ['irene'],
+        focusId: 'irene',
+        locationLabel: 'X Practice Room',
+      },
+    });
+    expect(s.witnessIds).toEqual([]);
+  });
+});
 
 describe('a scene knows who the player is talking to', () => {
   it('opens on the member the player came to see', () => {

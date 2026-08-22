@@ -14,6 +14,7 @@ import { GENERIC_GIFTS, BUYABLE_GIFTS, KNOWLEDGE_GIFTS } from '../data/gifts.js'
 import { STANCES } from '../systems/chips.js';
 import { SOLO_ACTIONS } from '../data/soloActions.js';
 import { EMOTIONS } from '../agent/promptBuilder.js';
+import { PHASES, mapFor } from '../data/phaseMaps.js';
 
 const LOCALES = { en, zh };
 
@@ -63,6 +64,21 @@ describe('i18n coverage', () => {
           expect(dict.settings?.[key], `settings.${key}`).toBeTruthy();
         }
         expect(dict.settings.title).not.toBe(dict.gift.title);
+      });
+
+      /**
+       * Every room the player can reach needs a name.
+       *
+       * This assertion was missing, and the phase-map work added twelve rooms
+       * at once. A missing key renders as `location.hair_salon` on the map -
+       * it does not throw, and nothing fails anywhere near the mistake.
+       */
+      it('names every location on every phase map', () => {
+        for (const phase of PHASES) {
+          for (const id of mapFor(phase)) {
+            expect(dict.location?.[id], `location.${id} (${phase})`).toBeTruthy();
+          }
+        }
       });
 
       /** Every solo action needs a button label AND the line it prints after. */

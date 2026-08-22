@@ -112,7 +112,21 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
    * propagation; `riskExposure` is what the room can see, and decides whether
    * an overt move counts as one.
    */
-  const witnessIds = (scene.rosterIds ?? []).filter((id) => id !== focusId);
+  /**
+   * `presentIds` is not `rosterIds`, and conflating them is a mistake I made
+   * writing this the first time.
+   *
+   * `rosterIds` is who may SPEAK - the parser accepts them, block 3 carries
+   * their dossiers, and section 9 caps it at two until group scenes ship.
+   * `presentIds` is who is in the ROOM. Standing there watching requires no
+   * lines, so a member can witness without being interactive, and the cap on
+   * one has nothing to do with the other.
+   *
+   * Taking witnesses from the roster made this whole mechanic wait on group
+   * scenes for no reason. It does not have to.
+   */
+  const presentIds = scene.presentIds ?? scene.rosterIds ?? [];
+  const witnessIds = presentIds.filter((id) => id !== focusId);
   const riskExposure = witnessedExposure(exposure, witnessIds.length);
 
   return {
@@ -359,7 +373,7 @@ export async function endScene(session, { client, memory, relations, cards, scen
       phase: scene.phase,
       locationId: scene.locationId,
       locationLabel: scene.locationLabel,
-      presentIds: rosterIds,
+      presentIds: scene.presentIds ?? rosterIds,
       dormWitnessIds: scene.dormWitnessIds ?? [],
     },
     subject: { id: subject.id, name: subject.name },
