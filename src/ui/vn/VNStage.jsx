@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Portrait from './Portrait.jsx';
+import PortraitRow from './PortraitRow.jsx';
 import MeterBar from './MeterBar.jsx';
 import DialogueBox from './DialogueBox.jsx';
 import ChipBar from './ChipBar.jsx';
@@ -21,6 +22,10 @@ import {
   endScene,
   openWithGift,
   openingDirective,
+  interject,
+  isGroupScene,
+  turnTo,
+  speakerOnPass,
 } from '../../agent/sceneEngine.js';
 import { generateChips, suggestedStances, availableStances } from '../../systems/chips.js';
 import { relanguage } from '../../agent/promptBuilder.js';
@@ -32,6 +37,15 @@ import {
   CHIP_COOLDOWN_TURNS,
 } from '../../config/constants.js';
 import { makeRng } from '../../systems/rng.js';
+
+/**
+ * What the player's turn says when they choose to say nothing.
+ *
+ * A model handed an empty turn writes the player a line, which breaks pillar
+ * 3 - the player never writes her side and never has words put in their mouth.
+ * Naming the silence instead keeps it the player's move.
+ */
+const PASS_DIRECTIVE = '(says nothing, and lets the room carry it)';
 
 export default function VNStage({
   setup,
@@ -80,6 +94,12 @@ export default function VNStage({
 
   const focusCard = setup.cards.find((c) => c.id === session.focusId);
   const rel = setup.relations[session.focusId];
+
+  /**
+   * More than one member may answer, so the stage grows a row and the bar
+   * grows a pass. A one-member scene is byte-for-byte what it was.
+   */
+  const group = isGroupScene(session);
 
   const emotion = queue.current?.emotion ?? 'neutral';
 
@@ -176,7 +196,7 @@ export default function VNStage({
   );
 
   const send = useCallback(
-    async ({ stance, text, opening = false }) => {
+    async ({ stance, text, opening = false, speakerId = null }) => {
       if (busy.current) return;
       busy.current = true;
       setPending(true);
@@ -186,14 +206,41 @@ export default function VNStage({
       const token = (turnToken.current += 1);
 
       try {
-        const next = await runTurn(session, {
+        let next = await runTurn(session, {
           stance,
           text,
           client,
+          speakerId,
+          cast: setup.cards,
           onBeat: (beat) => setQueue((q) => enqueue(q, [beat])),
         });
         setSession(next);
         if (!opening) setTurn((n) => n + 1);
+
+        /**
+         * Somebody else may take it upon herself.
+         *
+         * `pending` is cleared FIRST, so her beats are readable while the
+         * second call streams - the player is reading either way, and making
+         * them wait on a call whose whole purpose is to feel spontaneous is
+         * the wrong trade. `busy` stays set, so no new turn can start on top
+         * of it.
+         *
+         * Nobody clears the bar on most turns, and that is the design: an
+         * interjection every turn is a scene where nobody finishes a
+         * sentence (INTERJECT_THRESHOLD).
+         */
+        if (isGroupScene(next)) {
+          setPending(false);
+          const { session: after } = await interject(next, {
+            client,
+            relations: setup.relations,
+            cards: setup.cards,
+            onBeat: (beat) => setQueue((q) => enqueue(q, [beat])),
+          });
+          next = after;
+          setSession(after);
+        }
 
         if (chipCooldown.current > 0) chipCooldown.current -= 1;
         else if (writtenChips) {
@@ -205,8 +252,36 @@ export default function VNStage({
         busy.current = false;
       }
     },
-    [session, client, writtenChips, requestWrittenChips],
+    [session, client, writtenChips, requestWrittenChips, setup.cards, setup.relations],
   );
+
+  /**
+   * Turn to somebody else in the room.
+   *
+   * Costs no turn and makes no call. It changes who answers next, which is the
+   * point: the addressee is sticky, so choosing is only paid for when the
+   * player actually wants to change it.
+   */
+  const onTurnTo = useCallback(
+    (id) => {
+      if (busy.current) return;
+      setSession((sn) => turnTo(sn, id, setup.relations));
+      setWritten(null);
+    },
+    [setup.relations],
+  );
+
+  /**
+   * Let the room breathe.
+   *
+   * Not a skip button. The player says nothing, and whoever has most at stake
+   * fills the silence whether or not she clears the interjection bar - which
+   * is how a group scene keeps moving without the player having to drive every
+   * line of it.
+   */
+  const onPass = useCallback(() => {
+    send({ text: PASS_DIRECTIVE, speakerId: speakerOnPass(session, setup.relations) });
+  }, [send, session, setup.relations]);
 
   const onReadHer = useCallback(async () => {
     if (busy.current || readHerLeft <= 0) return;
@@ -270,7 +345,20 @@ export default function VNStage({
       <div className="relative min-h-0 flex-1">
         <ThoughtBubble text={thought} onDismiss={() => setThought(null)} label={t('vn.readHer')} />
         <div className="h-full pb-2 pt-2">
-          <Portrait card={focusCard} emotion={emotion} pulseKey={queue.shown} />
+          {group ? (
+            <PortraitRow
+              cards={setup.cards}
+              rosterIds={session.frame.rosterIds}
+              addresseeId={session.addresseeId}
+              emotion={emotion}
+              pulseKey={queue.shown}
+              onTurnTo={onTurnTo}
+              disabled={pending}
+              t={t}
+            />
+          ) : (
+            <Portrait card={focusCard} emotion={emotion} pulseKey={queue.shown} />
+          )}
         </div>
         <div className="grain" />
       </div>
@@ -315,6 +403,7 @@ export default function VNStage({
         turnsLeft={turnsLeft}
         outOfTurns={outOfTurns}
         awaitingRead={awaitingRead}
+        onPass={group ? onPass : null}
         onAdvance={() => setQueue(advance)}
         disabled={barDisabled}
         t={t}

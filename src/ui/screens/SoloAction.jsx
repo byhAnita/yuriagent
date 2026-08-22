@@ -29,6 +29,8 @@ export default function SoloAction({
   present = [],
   cards = [],
   onTalk,
+  /** Talk to all of them at once. Group scenes, proposal 12. */
+  onJoin = null,
   onChoose,
   onDone,
   /**
@@ -91,6 +93,45 @@ export default function SoloAction({
               </button>
             </li>
           ))}
+
+          {/*
+            All of them at once.
+
+            Offered under the individual choices rather than above them,
+            because a 1v1 is still the commonest thing a player wants and the
+            group scene is the deliberate one. It only exists with two or more
+            in the room - "join them" with one person in it is just talking to
+            her.
+          */}
+          {here.length > 1 && onJoin ? (
+            <li>
+              <button
+                type="button"
+                onClick={onJoin}
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-accent px-3 py-3 text-left transition-colors"
+              >
+                <span className="flex -space-x-2">
+                  {here.map((card) => (
+                    <span
+                      key={card.id}
+                      className="grid h-6 w-6 place-items-center rounded-full text-[0.75rem]"
+                      style={{ background: card.palette.base, color: card.palette.accent }}
+                    >
+                      {card.emoji}
+                    </span>
+                  ))}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-body text-[0.9375rem] text-text">
+                    {t('solo.joinThem')}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-warn">
+                    {t('solo.joinNote')}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ) : null}
 
           {/* The day's objective is discharged HERE, at its own location -
               never from a menu, because it has to cost the block. */}

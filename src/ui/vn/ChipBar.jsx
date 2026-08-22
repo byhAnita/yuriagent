@@ -24,6 +24,12 @@ export default function ChipBar({
   turnsLeft,
   outOfTurns,
   awaitingRead = false,
+  /**
+   * Group scenes only, null otherwise. Letting the room carry it is a real
+   * move rather than a skip, so it sits beside Read her - two rationed ways of
+   * spending a turn on something other than talking.
+   */
+  onPass = null,
   onAdvance,
   disabled,
   t,
@@ -168,6 +174,21 @@ export default function ChipBar({
         >
           {t('vn.turnsLeft')} {turnsLeft}
         </span>
+
+        {onPass ? (
+          <>
+            <span className="h-px w-3 bg-hairline opacity-50" />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={onPass}
+              className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-25"
+              title={t('vn.pass')}
+            >
+              {t('vn.pass')}
+            </button>
+          </>
+        ) : null}
 
         <span className="h-px w-3 bg-hairline opacity-50" />
 

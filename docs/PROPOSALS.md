@@ -658,8 +658,10 @@ turn loop, and a forced next-speaker value. No prompt-block changes at all.
 
 ## 12. A group scene is a room, not a queue
 
-**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** Supersedes the
-round-robin sketch in section 10c.
+**Status: IMPLEMENTED 2026-08-23.** Supersedes the round-robin sketch that was
+in section 10c; that section now describes what was built. `INTERJECT_THRESHOLD`
+is still unmeasured and still wants a live pass - it is the only part of this
+proposal that shipped on reasoning alone.
 
 ### The problem with rotation
 

@@ -907,15 +907,22 @@ Three layers, cheapest first:
 2. Block 4 lists the roster explicitly and names absent members as absent.
 3. The parser enforces the roster (rule 3 above).
 
-Interactive scenes cap at **2 present members**. Three or more only inside scripted event nodes, where the prompt is tight and one retry is acceptable.
+**The cap was a constraint on the single-call architecture, and the client-side
+addressee has retired it.** It existed because one call writing three people is
+unreliable at this model tier - not because three people in a room is wrong.
 
-**The cap is a constraint on the single-call architecture, and client-side
-rotation retires it.** It exists because one call writing three people is
-unreliable at this model tier - not because three people in a room is wrong. In
-a rotating group scene the client picks who speaks and asks for **one member's
-beat per call**, so the roster rule above holds at one speaker per call and
-member bleed stays structurally prevented rather than prompted against. The cap
-stands until that rotation ships and has been measured; see section 10c.
+The client now picks who speaks and asks for **one member's beat per call**, so
+the roster rule above holds at one speaker per call and member bleed stays
+structurally prevented rather than prompted against. A group scene is therefore
+as safe as a 1v1 by construction, at this model tier or any other.
+
+What replaces the cap is a rule about calls rather than about people:
+
+> **One call, one speaker.** Never ask the model to write two members in one
+> response. The roster may be the whole room; the answer may not.
+
+Two calls a player turn at most - the addressee, and at most one interjection.
+Section 10c has the shape.
 
 Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: direct parse -> strip markdown -> regex field extraction -> safe defaults. Never crash.
 
@@ -1347,40 +1354,87 @@ unreachable; there is a test that asserts this.
 
 ## 10c. Group Scenes: the client owns the turn order
 
-**Planned, not built.** Sequenced after phase maps and authored events.
+**Built. The rota in the first draft was wrong and never shipped; proposal 12
+replaced it with an addressee.**
 
 Any room with members in it offers three things: talk to one of them, join the
 group, or work the room (knowledge / rumor / part-time). The group option is the
-one that needs new machinery.
+one that needed new machinery.
 
-The shape: the client picks who speaks, asks the model for **that member's beat
-alone**, reveals it, lets the player answer or pass, and rotates.
+The rota did not survive one question from Yuhan: A speaks, the player
+responds, and then it is B's turn - **who was the player talking to?** A turn
+order has no answer, because a conversation is not a queue. It also generated
+four calls a round the scene never asked for.
 
-This is not a convenience - it is what makes group scenes safe at this model
-tier. One call means one speaker, so section 9's roster rule applies unchanged
-and member bleed is prevented by construction instead of by instruction. Asking
-a Flash-tier model to write five distinct women in a single response is the
-hardest thing this game could ask of it, and rotation means never asking.
+### The primitive is an addressee
 
-Three rules, all found by reasoning about it rather than measuring, so all three
-need checking against a real run:
+> The player always has a current **addressee**. Whoever the player addresses
+> speaks next. It defaults to whoever last spoke, and one tap changes it.
 
-1. **Latency is additive.** Each member must see what the last one said, so the
-   calls cannot run in parallel. A five-member round is roughly 8-14s of model
-   time. Beat reveal hides some of it. Measure before trusting it.
-2. **Do not prompt the player every line.** Five "say something or pass?" prompts
-   per round is a lot of decisions for very little content. The rotation runs;
-   the player interjects.
-3. **Do not pick the speaker at random** - it reads as arbitrary. Weight by who
-   has a stake: jealousy, intimacy, whether the last line was about her. Pure
-   function in `systems/`, deterministic and testable, no model call.
+That answers who is being talked to, who answers, and whether the player
+chooses - and because the addressee is **sticky**, the common case costs no
+extra taps. A gift is one way of addressing someone and a chip is another: one
+verb, two surfaces.
+
+In a group scene the player's turn carries it into block 5 as `(to Nana)`,
+because that is what the player actually did rather than a hint for the model.
+A one-member turn writes nothing extra, so ordinary scenes are byte-for-byte
+unchanged and section 8's prefix argument needs no re-measuring.
+
+### The interjection is the whole feature
+
+The addressee alone collapses a group scene into a 1v1 with spectators. So the
+un-addressed need a way in, and it must not be a rota:
+
+```
+1. the addressee speaks
+2. the client MAY add ONE interjection from another member,
+   if her stake clears INTERJECT_THRESHOLD
+3. the player acts: chip / free text / gift / turn to someone / pass
+```
+
+Stake has four sources and none of them is a die roll: how invested she is
+(intimacy), how unsettled (jealousy band), whether she was just named, and how
+long she has said nothing. The room writes itself out of state the game already
+tracks, which is what a rota structurally cannot do.
+
+The directive names who speaks and who she is cutting into, and **deliberately
+does not say why**. Handing the model "you are jealous" makes it narrate the
+jealousy - the same mistake section 8 forbids for relationship stats. The state
+is already in blocks 3 and 4, and her card decides how somebody like her
+interrupts.
+
+`pass` stops being a skip button: it is the player letting the room breathe, and
+the highest stake fills the silence whether or not she clears the bar. The turn
+sent is still the player's own move, never a line put in their mouth.
+
+### What it costs
+
+One or two calls a player turn, not five. The interjection fires **after**
+`pending` clears, so her beat streams while the player is already reading the
+addressee's - it hides behind reading time the way the chip call does.
+
+Her beat moves **her** meters and not the addressee's. `guard` and `fluster` are
+per-member readings, and letting an interjection drop somebody else's guard
+would hand the player a number they never earned.
+
+### Still unmeasured
+
+`INTERJECT_THRESHOLD = 1.0` is the one number here that cannot be reasoned to,
+and it needs a **live** pass rather than a harness one, because the failure mode
+is prose quality and not a distribution. Too low and nobody finishes a sentence;
+too high and the room is furniture.
 
 Block 3 carries every present member's dossier in a group scene - about 300
 tokens rather than 60. That sits inside the per-scene rebuild and costs nothing
 in cache terms.
 
-The multi-portrait stage (section 14) comes **after** this works. It is
-presentation for something that does not exist yet.
+The multi-portrait stage is section 14's treatment, unchanged: the speaker at
+full opacity and scale, the others dimmed to 0.55 and 0.95. What this adds is
+that the dimmed ones are **buttons** - tapping one is how the player turns to
+her. So the row is not decoration: it is the only place in the game where the
+player's attention is a visible, continuously priced state. Everybody in the
+room can see where it points, and moving it is witnessed.
 
 ---
 

@@ -20,7 +20,14 @@ import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedS
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
 import { isRiskStance } from '../systems/chips.js';
-import { openingAddressee, setAddressee } from '../systems/speaker.js';
+import {
+  openingAddressee,
+  setAddressee,
+  pickInterjector,
+  pickOnPass,
+  trackSilence,
+  mentionedIn,
+} from '../systems/speaker.js';
 import {
   RISK_EXPOSURE_THRESHOLD,
   GUARD_DROP_TO_PAY,
@@ -146,6 +153,8 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
      */
     addresseeId: openingAddressee(scene.rosterIds ?? [], { relations }, focusId),
     silentTurns: {},
+    /** Who was named in the last thing said, for the interjection stake. */
+    mentioned: [],
     meters: newMeters(relations[focusId]),
     beats: [],
   };
@@ -159,6 +168,18 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
  * earned. Anything already accumulated for the member being left is kept, so
  * turning back to her resumes where the conversation actually stood.
  */
+/**
+ * Is this a group scene?
+ *
+ * The test is the SPEAKING roster and not the room. Two members standing
+ * somewhere while the player talks to one of them is an ordinary witnessed
+ * scene (section 5b); a group scene is one where more than one of them may
+ * answer, which is what changes the prompt and adds the second call.
+ */
+export function isGroupScene(session) {
+  return (session.frame?.rosterIds ?? []).length > 1;
+}
+
 export function turnTo(session, nextId, relations) {
   const rosterIds = session.frame?.rosterIds ?? [];
   const addresseeId = setAddressee(session.addresseeId, nextId, rosterIds);
@@ -181,8 +202,25 @@ export function turnTo(session, nextId, relations) {
  * @param {object} session
  * @param {object} args - { stance, text, client, onBeat }
  */
-export async function runTurn(session, { stance, text, client, onBeat = () => {} }) {
-  const content = stance ? `[${stance}] ${text ?? ''}`.trim() : (text ?? '');
+export async function runTurn(session, { stance, text, client, onBeat = () => {}, speakerId = null, cast = [] }) {
+  const said = stance ? `[${stance}] ${text ?? ''}`.trim() : (text ?? '');
+
+  /**
+   * In a group scene the player's turn says WHO it is aimed at.
+   *
+   * Without it the model picks a speaker out of a roster of five, and the
+   * parser cannot help - every one of them is rostered, so every one of them
+   * is accepted. The addressee is not a hint to the model, it is what the
+   * player actually did (proposal 12: turning to someone IS the act), so it
+   * belongs in block 5 as part of the turn rather than in a system note.
+   *
+   * A one-member scene writes nothing extra, so nothing about an ordinary
+   * turn - or its cache behaviour - changes.
+   */
+  const answers = speakerId ?? session.addresseeId;
+  const to = isGroupScene(session) ? nameOf(cast, answers) : null;
+  const content = to ? `(to ${to}) ${said}`.trim() : said;
+
   let frame = appendTurn(session.frame, { role: 'user', content });
 
   /**
@@ -193,7 +231,7 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
    */
   const risked = isRiskStance(stance, session.riskExposure ?? session.exposure);
 
-  const ctx = { rosterIds: frame.rosterIds, focusId: session.focusId };
+  const ctx = { rosterIds: frame.rosterIds, focusId: answers ?? session.focusId };
   const parser = createStreamParser(ctx);
 
   const raw = await client({
@@ -210,13 +248,131 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
   frame = appendTurn(frame, { role: 'assistant', content: raw });
 
   const meters = applyBeatToMeters(session.meters, beats);
+  const spoke = beats.at(-1)?.speaker ?? answers;
 
   return {
     ...session,
     frame,
     beats: [...session.beats, ...beats],
     meters: risked ? { ...meters, riskTaken: true } : meters,
+    /**
+     * Two inputs the interjection stake runs on, both updated here because
+     * this is the only place that knows what was just said.
+     */
+    silentTurns: trackSilence(session.silentTurns, frame.rosterIds ?? [], spoke),
+    mentioned: mentionedIn(beats.map((b) => b.text).join(' '), cast),
   };
+}
+
+/**
+ * Her display name, for a line the model reads.
+ *
+ * Falls back to the id, which is wrong-looking on purpose: a lowercase machine
+ * token appearing in prose is section 9's rule being broken visibly rather
+ * than a caller silently forgetting to pass the cast.
+ */
+function nameOf(cast, id) {
+  return cast.find((c) => c.id === id)?.name ?? id;
+}
+
+/**
+ * The prompt shape that lets somebody who was not asked speak up.
+ *
+ * Deliberately says what she is cutting into and does NOT say why she is
+ * doing it. Handing the model a reason ("you are jealous") makes it narrate
+ * the reason, which is the same mistake section 8 forbids for relationship
+ * stats - the state is already in blocks 3 and 4, and her own card is what
+ * decides how somebody like her interrupts.
+ */
+export function interjectionDirective(name, addresseeName) {
+  return (
+    `write one beat for ${name} only. ${addresseeName} and the player were ` +
+    'talking and she cuts in - she has been standing right there. Her metadata ' +
+    `line must name ${name}. Do not write anyone else.`
+  );
+}
+
+/**
+ * A second, optional call: somebody in the room takes it upon herself.
+ *
+ * This is the whole feature. Without it the addressee always answers and a
+ * group scene is a 1v1 with spectators; with a rota instead of it, nobody is
+ * talking to anybody. Who cuts in is `systems/speaker.js` reading state the
+ * game already tracks - jealousy band, intimacy, whether she was just named,
+ * how long she has said nothing - so the room writes itself.
+ *
+ * Returns the session unchanged when nobody clears the bar, which is most
+ * turns and is the point: an interjection every turn is a scene where nobody
+ * finishes a sentence.
+ */
+export async function interject(session, { client, relations, cards = [], onBeat = () => {} }) {
+  if (!isGroupScene(session)) return { session, interjectorId: null };
+
+  const presentIds = session.frame.rosterIds ?? [];
+  const context = {
+    relations,
+    mentioned: session.mentioned ?? [],
+    silentTurns: session.silentTurns ?? {},
+  };
+  const interjectorId = pickInterjector(session.addresseeId, presentIds, context);
+  if (!interjectorId) return { session, interjectorId: null };
+
+  const name = cards.find((c) => c.id === interjectorId)?.name ?? interjectorId;
+  const addresseeName = cards.find((c) => c.id === session.addresseeId)?.name ?? session.addresseeId;
+
+  let frame = appendSystemNote(session.frame, interjectionDirective(name, addresseeName));
+
+  const parser = createStreamParser({ rosterIds: frame.rosterIds, focusId: interjectorId });
+  const raw = await client({
+    messages: buildMessages(frame),
+    preset: 'turn',
+    onChunk: (chunk) => {
+      for (const beat of parser.push(chunk)) onBeat(beat);
+    },
+  });
+  const { tail, beats } = parser.end();
+  for (const beat of tail) onBeat(beat);
+
+  frame = appendTurn(frame, { role: 'assistant', content: raw });
+
+  /**
+   * Her beat does NOT move the addressee's meters.
+   *
+   * `guard` and `fluster` are per-member readings, and letting Nana's beat
+   * move Irene's guard would hand the player a number they never earned - the
+   * same reason `turnTo` carries meters per member.
+   */
+  const kept = { ...(session.metersByMember ?? {}) };
+  kept[interjectorId] = applyBeatToMeters(
+    kept[interjectorId] ?? newMeters(relations[interjectorId]),
+    beats,
+  );
+
+  return {
+    session: {
+      ...session,
+      frame,
+      beats: [...session.beats, ...beats],
+      metersByMember: kept,
+      silentTurns: trackSilence(session.silentTurns, presentIds, interjectorId),
+      mentioned: mentionedIn(beats.map((b) => b.text).join(' '), cards),
+    },
+    interjectorId,
+  };
+}
+
+/**
+ * Who fills the silence when the player passes.
+ *
+ * `pass` is not a skip button - it is the player letting the room breathe, so
+ * the highest stake speaks whether or not she clears the interjection bar.
+ */
+export function speakerOnPass(session, relations) {
+  return pickOnPass(session.addresseeId, session.frame?.rosterIds ?? [], {
+    relations,
+    mentioned: session.mentioned ?? [],
+    silentTurns: session.silentTurns ?? {},
+  });
 }
 
 /** Read her. Costs a use, returns a thought only, never moves state. */

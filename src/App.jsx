@@ -395,20 +395,25 @@ export default function App() {
     setScreen('gift');
   };
 
-  const onEnter = (locationId, present, addresseeId = null) => {
+  const onEnter = (locationId, present, addresseeId = null, { group = false } = {}) => {
     if (present.length === 0) return;
 
     /**
-     * One member SPEAKS; everybody in the room WATCHES.
+     * One member SPEAKS, or all of them may.
      *
-     * `rosterIds` stays at one until group scenes ship, because VNStage renders
-     * a single portrait and a second rostered speaker would talk to nobody on
-     * screen. `presentIds` is the whole room, and it is what section 5b's
-     * witnessed rule and `riskExposure` run on - neither of which needs anyone
-     * to have lines. Turning to one member in front of the others is the
-     * gesture; nobody has to speak for the rest of them to have seen it.
+     * `rosterIds` is who the parser will accept and whose dossiers block 3
+     * carries; `presentIds` is who is in the room. In a 1v1 the roster is one
+     * and everybody else is a witness - standing there requires no lines, and
+     * turning to one member in front of the others is itself the gesture.
+     *
+     * A group scene widens the roster to the room. Section 9's two-member cap
+     * is a constraint on ONE CALL writing several people, and proposal 12's
+     * client-side addressee retires it: the client picks who answers and asks
+     * for one member's beat per call, so the roster rule still holds at one
+     * speaker per call and member bleed stays structurally impossible.
      */
     const speaker = addresseeId ?? present[0].id;
+    const ids = present.map((m) => m.id);
 
     /**
      * Walking into the event site on the event day IS the event.
@@ -422,8 +427,8 @@ export default function App() {
 
     setPendingScene({
       locationId,
-      rosterIds: [speaker],
-      presentIds: present.map((m) => m.id),
+      rosterIds: group ? ids : [speaker],
+      presentIds: ids,
       event: here?.content ?? null,
       eventKey: here ? eventKey(here.phase, here.slot) : null,
     });
@@ -607,6 +612,11 @@ export default function App() {
             const room = (solo.present ?? []).map((id) => ({ id }));
             setSolo(null);
             onEnter(solo.locationId, room, memberId);
+          }}
+          onJoin={() => {
+            const room = (solo.present ?? []).map((id) => ({ id }));
+            setSolo(null);
+            onEnter(solo.locationId, room, null, { group: true });
           }}
           onChoose={onChooseSolo}
           onDone={() => {

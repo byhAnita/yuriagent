@@ -115,6 +115,28 @@ export function openingAddressee(presentIds = [], context = {}, preferredId = nu
     .sort((a, b) => b.stake - a.stake || (a.id < b.id ? -1 : 1))[0].id;
 }
 
+/**
+ * Who got named in what was just said.
+ *
+ * The cheapest of the four stake sources and the one that makes a room feel
+ * like a room: being talked about is a reason to speak up. Matched on the
+ * display name because that is what the model writes - it never sees an id.
+ *
+ * Word-boundary matched rather than `includes`, or "Yeri" would fire on any
+ * word containing it and a member whose name is a substring of another's would
+ * be permanently mentioned.
+ */
+export function mentionedIn(text, cast = []) {
+  const haystack = String(text ?? '');
+  return cast
+    .filter(({ name }) => name && new RegExp(`\\b${escapeRe(name)}\\b`, 'i').test(haystack))
+    .map(({ id }) => id);
+}
+
+function escapeRe(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, (ch) => `\\${ch}`);
+}
+
 /** Bump the silence counter for everyone who did not speak this turn. */
 export function trackSilence(silentTurns = {}, presentIds = [], spokeId) {
   const next = {};
