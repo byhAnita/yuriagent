@@ -15,6 +15,14 @@
  */
 
 import { LEDGER_FULL_MAX, DOSSIER_CAPS } from '../config/constants.js';
+import { toEntry, entryText } from '../systems/dossierEntry.js';
+
+/**
+ * Re-exported so that "how is a dossier entry shaped" has one obvious answer
+ * next to the rest of memory. The definition lives in `systems/` because
+ * `economy.js` reads entries too and section 4 forbids systems -> agent.
+ */
+export { toEntry, entryText };
 
 export const DOSSIER_CATEGORIES = Object.keys(DOSSIER_CAPS);
 
@@ -90,17 +98,26 @@ function capped(list, category) {
  * LRU categories move a repeated fact to the end rather than storing it twice,
  * which matters because the summarizer will paraphrase the same fact often.
  */
-export function addDossierEntry(dossier, memberId, category, text) {
+export function addDossierEntry(dossier, memberId, category, entry) {
   if (!DOSSIER_CAPS[category]) throw new Error(`Unknown dossier category: ${category}`);
-  const clean = String(text ?? '').trim();
+  const clean = toEntry(entry);
   if (!clean) return dossier;
 
   const member = dossier[memberId] ?? newDossier();
   const existing = member[category] ?? [];
 
+  /**
+   * Deduped on the English, not on the id.
+   *
+   * A fact can arrive twice by two different routes - snooped, with an id, and
+   * then mentioned in a scene, where the summarizer paraphrases it and has no
+   * id to offer. Matching on text catches both; matching on id would let the
+   * paraphrase in as a second copy of something she already told you.
+   */
+  const key = clean.text.toLowerCase();
   const deduped = FIFO_CATEGORIES.has(category)
     ? existing
-    : existing.filter((e) => e.toLowerCase() !== clean.toLowerCase());
+    : existing.filter((e) => entryText(e).toLowerCase() !== key);
 
   return {
     ...dossier,
@@ -121,9 +138,10 @@ export function resolveThread(dossier, memberId, text) {
     ...dossier,
     [memberId]: {
       ...member,
-      open_threads: member.open_threads.filter(
-        (t) => !t.toLowerCase().includes(needle) && !needle.includes(t.toLowerCase()),
-      ),
+      open_threads: member.open_threads.filter((t) => {
+        const text = entryText(t).toLowerCase();
+        return !text.includes(needle) && !needle.includes(text);
+      }),
     },
   };
 }
@@ -146,7 +164,9 @@ export function renderDossier(dossier, rosterIds, nameOf = (id) => id) {
     for (const category of DOSSIER_CATEGORIES) {
       const items = member[category] ?? [];
       if (items.length === 0) continue;
-      lines.push(`  ${category}: ${items.map((i) => `"${i}"`).join('; ')}`);
+      // Block 3 sees the English and only the English. The display half of an
+      // entry never reaches a prompt - that is the whole point of splitting it.
+      lines.push(`  ${category}: ${items.map((i) => `"${entryText(i)}"`).join('; ')}`);
     }
     if (lines.length === 0) continue;
 
@@ -167,7 +187,16 @@ export function commitSummary(memory, { entry, dossierAdd = [], dossierResolve =
 
   for (const add of dossierAdd) {
     if (!add?.memberId || !add?.category) continue;
-    dossier = addDossierEntry(dossier, add.memberId, add.category, add.text);
+    /**
+     * The whole instruction becomes the entry, minus its routing.
+     *
+     * Passing `add.text` alone silently dropped everything else on it - the
+     * `factId` a snoop awarded, the shape of a rumor - so the split that
+     * PROPOSALS 14 is about died one line before it landed. The two fields
+     * that say WHERE the entry goes are the only ones removed.
+     */
+    const { memberId, category, ...entry } = add;
+    dossier = addDossierEntry(dossier, memberId, category, entry);
   }
   for (const res of dossierResolve) {
     if (!res?.memberId) continue;

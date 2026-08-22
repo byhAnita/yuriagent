@@ -13,7 +13,8 @@
 import { openScene, appendTurn, appendSystemNote, requestThought, buildMessages } from './promptBuilder.js';
 import { createStreamParser, parseResponse } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
-import { commitSummary } from './memory.js';
+import { commitSummary, entryText } from './memory.js';
+import { cardFacts } from '../data/facts.js';
 import { sceneExposure, witnessedExposure } from '../systems/exposure.js';
 import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedStrain } from '../systems/jealousy.js';
 import { applySceneOutcome } from '../systems/relationship.js';
@@ -333,8 +334,14 @@ export async function endScene(session, { client, memory, relations, cards, scen
   const learnable = rosterIds
     .map((id) => {
       const card = cards.find((c) => c.id === id);
-      const known = new Set((memory.dossier[id]?.known_facts ?? []).map((f) => f.toLowerCase()));
-      const facts = (card?.learnableFacts ?? []).filter((f) => !known.has(f.toLowerCase()));
+      const known = new Set(
+        (memory.dossier[id]?.known_facts ?? []).map((f) => entryText(f).toLowerCase()),
+      );
+      // The card's own English, which is what the checklist asks the model to
+      // reuse verbatim. The player's language never enters block 5.
+      const facts = cardFacts(card)
+        .map((f) => f.en)
+        .filter((f) => !known.has(f.toLowerCase()));
       return { name: card?.name ?? id, facts };
     })
     .filter((x) => x.facts.length > 0);
@@ -390,7 +397,16 @@ export async function endScene(session, { client, memory, relations, cards, scen
   for (const rumor of rumors) {
     finalMemory = commitSummary(finalMemory, {
       entry: null,
-      dossierAdd: [{ memberId: rumor.memberId, category: 'heard_about', text: rumor.text }],
+      /**
+       * The whole rumor, not just its sentence.
+       *
+       * `rumor.js` produces `kind`, `subjectName` and `locationId` and the
+       * aftermath screen already renders from them - but the dossier kept only
+       * the English, so the one other screen that shows a rumor (the snoop
+       * find, section 10b) had nothing to print but English. Carrying the
+       * shape costs nothing and localizes both.
+       */
+      dossierAdd: [{ ...rumor, memberId: rumor.memberId, category: 'heard_about', text: rumor.text }],
     });
   }
 

@@ -16,6 +16,10 @@ import { LOCATIONS } from '../data/locations.js';
 import { KNOWLEDGE_GIFTS } from '../data/gifts.js';
 import { isUnlocked } from './economy.js';
 import { makeRng } from './rng.js';
+import { factCanonical } from '../data/facts.js';
+
+/** A dossier entry shaped the way a snoop writes one: English plus the id. */
+const snooped = (id) => ({ text: factCanonical(id), factId: id });
 
 const cards = getCast();
 const castIds = cards.map((c) => c.id);
@@ -52,7 +56,7 @@ describe('learnableTargets', () => {
     let d = fresh();
     const irene = cards.find((c) => c.id === 'irene');
     for (const fact of irene.learnableFacts) {
-      d = addDossierEntry(d, 'irene', 'known_facts', fact);
+      d = addDossierEntry(d, 'irene', 'known_facts', snooped(fact));
     }
     expect(learnableTargets(cards, d).map((t) => t.card.id)).not.toContain('irene');
   });
@@ -100,7 +104,7 @@ describe('resolveSoloAction', () => {
     let d = fresh();
     for (const c of cards) {
       for (const fact of c.learnableFacts ?? []) {
-        d = addDossierEntry(d, c.id, 'known_facts', fact);
+        d = addDossierEntry(d, c.id, 'known_facts', snooped(fact));
       }
     }
     const out = resolveSoloAction({
@@ -319,7 +323,20 @@ describe('knowledge is not a fixed lookup', () => {
  */
 describe('every fact buys its own gift', () => {
   const withFacts = cards.filter((c) => (c.learnableFacts ?? []).length > 0);
-  const giftsFor = (fact) => KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [fact] }));
+  /**
+   * Both routes into the dossier, tested as one.
+   *
+   * `snooped` carries the id, so it matches `factIds` exactly. `paraphrased`
+   * is a bare string with no id, which is all the summarizer can ever produce,
+   * so it has to be caught by the substring needles. An opener that unlocks one
+   * way and not the other is half broken, and it was the id-less half that
+   * kept regressing (section 12).
+   */
+  const snoopedGifts = (id) =>
+    KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [snooped(id)] }));
+  const paraphrasedGifts = (id) =>
+    KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [factCanonical(id)] }));
+  const giftsFor = snoopedGifts;
 
   it('gives every member five facts', () => {
     for (const card of withFacts) {
@@ -330,8 +347,9 @@ describe('every fact buys its own gift', () => {
   it('unlocks exactly one gift per fact - never none, never two', () => {
     for (const card of withFacts) {
       for (const fact of card.learnableFacts) {
-        const hits = giftsFor(fact);
-        expect(hits.length, `"${fact}" -> [${hits.map((h) => h.id).join(', ')}]`).toBe(1);
+        for (const hits of [snoopedGifts(fact), paraphrasedGifts(fact)]) {
+          expect(hits.length, `"${fact}" -> [${hits.map((h) => h.id).join(', ')}]`).toBe(1);
+        }
       }
     }
   });
@@ -339,7 +357,7 @@ describe('every fact buys its own gift', () => {
   it('leaves no knowledge gift unreachable', () => {
     for (const gift of KNOWLEDGE_GIFTS) {
       const owners = withFacts.filter((c) =>
-        c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [f] })),
+        c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [snooped(f)] })),
       );
       expect(owners.length, `${gift.id} is unreachable`).toBeGreaterThan(0);
     }
@@ -352,7 +370,7 @@ describe('every fact buys its own gift', () => {
   it('does not hand the same gift to two members', () => {
     for (const gift of KNOWLEDGE_GIFTS) {
       const owners = withFacts
-        .filter((c) => c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [f] })))
+        .filter((c) => c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [snooped(f)] })))
         .map((c) => c.id);
       expect(owners.length, `${gift.id} <- ${owners.join(', ')}`).toBe(1);
     }
@@ -362,7 +380,9 @@ describe('every fact buys its own gift', () => {
     const seen = new Map();
     for (const card of withFacts) {
       for (const fact of card.learnableFacts) {
-        const key = fact.toLowerCase();
+        // The English, not the id. Ids cannot collide inside an object
+        // literal; two members with the same habit is the real hazard.
+        const key = factCanonical(fact).toLowerCase();
         expect(seen.has(key), `"${fact}" on ${card.id} and ${seen.get(key)}`).toBe(false);
         seen.set(key, card.id);
       }
@@ -430,11 +450,17 @@ describe('an empty room can also tell you what she has heard', () => {
       dossier: withRumor,
       rng: () => 0.5,
     });
-    expect(result.heard).toEqual({
+    expect(result.heard).toMatchObject({
       memberId: 'irene',
       name: 'Irene',
       text: 'you heard the player was at Cafe with Nana',
     });
+    /**
+     * And the shape it needs to be RENDERED, not just echoed. The dossier line
+     * is English on purpose (section 19), so the screen has to rebuild the
+     * sentence from `rumorKind` and the ids rather than print the entry.
+     */
+    expect(result.heard.rumorKind).toBeTruthy();
     expect(result.dossierAdd).toEqual([]);
     expect(result.playerDelta.secrecy).toBe(-5);
   });

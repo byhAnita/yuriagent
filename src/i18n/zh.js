@@ -28,6 +28,43 @@ export default {
     idol: '你是她们中的一个。你的每一个小时也都属于她们。',
   },
 
+  /**
+   * What she lets slip. The canonical English lives in `data/facts.js` and is
+   * what memory and the gift needles use; these are what the PLAYER reads
+   * after a snoop. Section 19 keeps the two apart on purpose.
+   */
+  fact: {
+    no_chicken: '不吃鸡肉，是小时候留下的心结',
+    cold_hands: '手总是很凉，习惯用艾草暖包捂着',
+    loves_laundry: '喜欢洗衣服，也喜欢柔顺剂的味道',
+    gym_between_practice: '会在练习的间隙挤出十分钟健身',
+    drinks_sikhye: '一年四季都喝甜米露，不碰咖啡',
+
+    licensed_makeup_artist: '持证的专业化妆师',
+    magical_girl_figures: '还留着从小收集的魔法少女手办，也真信里面那套「守护和平」',
+    five_litres_of_water: '为了皮肤，一天能喝掉五升水',
+    talks_too_fast: '语速快得惊人，一激动就说岔',
+    vitamin_pouch: '随身带着一小袋维生素和保健品',
+
+    balances_things: '会面无表情地把东西顶在头上',
+    hardcore_gamer: '硬核玩家，守望先锋和冒险岛，认真的那种',
+    tasted_paper: '小时候纯粹出于好奇尝过纸和纸巾',
+    speed_shopper: '讨厌逛太久，买东西全靠速战速决',
+    ramen_before_bed: '故意在睡前吃泡面，为了脸颊那点肉感',
+
+    takoyaki_rounds: '会溜进别的团的休息室发章鱼烧',
+    one_piece_fan: '资深动漫迷，《海贼王》排在第一位',
+    innocent_rapper: '选秀时的「清纯 rapper」名号，到现在都没摘掉',
+    skinship_monster: '贴贴怪，抱人挂人全是下意识的',
+    kang_photo: '给朋友拍照是一绝，大家叫她「姜摄影」',
+
+    ariana_fan: '铁杆 Ariana Grande 粉，而且追星追得格外成功',
+    social_butterfly: '社交蝴蝶，名人朋友多到令人咋舌',
+    fearless_of_ghosts: '完全不怕鬼，进鬼屋永远走第一个',
+    pink_and_kitty: '对粉色着迷，尤其是 Hello Kitty',
+    slow_eater: '吃饭比同桌任何人都慢得多',
+  },
+
   settings: {
     title: '设置',
     theme: '主题',
@@ -258,6 +295,7 @@ export default {
     learned: '你知道了一件事',
     heard: '她听说了',
     learnedNothing: '没有你还不知道的事。',
+    learnedLine: '{name}{fact}。',
     prep_fittings: '把明天提前准备好',
     prep_fittings_result: '熨好、贴标、挂回衣架，整排衣服提前了一天。会有人注意到，但大概不是今天。',
     read_fitting_notes: '翻看试装记录',

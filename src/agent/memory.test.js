@@ -10,8 +10,12 @@ import {
   renderDossier,
   countOpenThreads,
   commitSummary,
+  entryText,
 } from './memory.js';
 import { LEDGER_FULL_MAX, DOSSIER_CAPS } from '../config/constants.js';
+
+/** Dossier entries are objects now; the tests below care about the English. */
+const texts = (list) => list.map(entryText);
 
 const entry = (n) => ({ id: `s${n}`, week: 0, day: n, block: 'morning', text: `full text ${n}`, summary: `sum ${n}` });
 
@@ -85,8 +89,8 @@ describe('dossier', () => {
       d = addDossierEntry(d, 'irene', 'known_facts', `fact ${i}`);
     }
     expect(d.irene.known_facts).toHaveLength(DOSSIER_CAPS.known_facts);
-    expect(d.irene.known_facts).not.toContain('fact 0');
-    expect(d.irene.known_facts.at(-1)).toBe(`fact ${DOSSIER_CAPS.known_facts + 2}`);
+    expect(texts(d.irene.known_facts)).not.toContain('fact 0');
+    expect(entryText(d.irene.known_facts.at(-1))).toBe(`fact ${DOSSIER_CAPS.known_facts + 2}`);
   });
 
   it('moves a repeated fact to the end rather than storing it twice', () => {
@@ -95,7 +99,7 @@ describe('dossier', () => {
     d = addDossierEntry(d, 'irene', 'known_facts', 'reads before sleep');
     d = addDossierEntry(d, 'irene', 'known_facts', 'Hates Cold Hands');
 
-    expect(d.irene.known_facts).toEqual(['reads before sleep', 'Hates Cold Hands']);
+    expect(texts(d.irene.known_facts)).toEqual(['reads before sleep', 'Hates Cold Hands']);
   });
 
   it('keeps rumors FIFO because repetition is meaningful there', () => {
@@ -162,7 +166,7 @@ describe('commitSummary', () => {
     });
 
     expect(next.ledger).toHaveLength(1);
-    expect(next.dossier.irene.known_facts).toContain('hates cold hands');
+    expect(texts(next.dossier.irene.known_facts)).toContain('hates cold hands');
     expect(next.dossier.irene.open_threads).toHaveLength(0);
   });
 

@@ -8,6 +8,7 @@
  */
 
 import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, BUYABLE_GIFTS, getGift } from '../data/gifts.js';
+import { entryText } from './dossierEntry.js';
 import { GESTURE_EFFECT } from '../config/constants.js';
 
 /**
@@ -27,11 +28,24 @@ export function matchedFact(gift, dossier) {
   // A null gift means an id that no longer exists - a save written against an
   // older catalogue, say. That must read as "not unlocked", never as a crash
   // that takes the gift modal down with it.
-  if (!gift?.requires) return null;
+  if (!gift?.requires && !gift?.factIds) return null;
   const facts = [...(dossier?.known_facts ?? []), ...(dossier?.player_told_her ?? [])];
+
   for (const fact of facts) {
-    const hay = String(fact).toLowerCase();
-    if (gift.requires.some((needle) => hay.includes(needle.toLowerCase()))) return fact;
+    /**
+     * The id first, because it cannot be reworded.
+     *
+     * A snooped fact arrives with the id it was awarded under, so the match is
+     * exact and survives any rewrite of either the card or the needle list -
+     * the regression section 12 records having happened twice. Only a fact the
+     * summarizer wrote in its own words has no id, and that is what the
+     * substring pass below is for.
+     */
+    const id = typeof fact === 'object' ? fact.factId : null;
+    if (id && gift.factIds?.includes(id)) return entryText(fact);
+
+    const hay = entryText(fact).toLowerCase();
+    if (gift.requires?.some((needle) => hay.includes(needle.toLowerCase()))) return entryText(fact);
   }
   return null;
 }
@@ -39,7 +53,7 @@ export function matchedFact(gift, dossier) {
 /** Does anything she has told you match what this gift needs to know? */
 export function isUnlocked(gift, dossier) {
   if (!gift) return false;
-  if (!gift.requires) return true;
+  if (!gift.requires && !gift.factIds) return true;
   return matchedFact(gift, dossier) !== null;
 }
 

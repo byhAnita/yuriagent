@@ -3,6 +3,7 @@ import { snoopCost, resolveSoloAction } from './soloWork.js';
 import { actionsFor, SOLO_ACTIONS } from '../data/soloActions.js';
 import { SNOOP_COST_MAX_MULTIPLIER } from '../config/constants.js';
 import { getCast } from '../data/cast.js';
+import { cardFacts } from '../data/facts.js';
 
 const cards = getCast();
 const emptyDossier = Object.fromEntries(
@@ -105,7 +106,7 @@ describe('every action is offered in every room', () => {
 
   it('still charges nothing for a search that found nothing', () => {
     const known = Object.fromEntries(
-      cards.map((c) => [c.id, { known_facts: [...(c.learnableFacts ?? [])], heard_about: [] }]),
+      cards.map((c) => [c.id, { known_facts: cardFacts(c).map((f) => f.en), heard_about: [] }]),
     );
     const out = resolveSoloAction({
       locationId: 'wardrobe',

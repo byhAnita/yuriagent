@@ -29,6 +29,23 @@ export const LANG_LABELS = {
  * Falls back to English, then to the key itself, so a missing string shows up
  * as a visible key in the UI rather than as `undefined` or a blank space.
  */
+/**
+ * A key, or null if that locale has nothing for it.
+ *
+ * `makeT` cannot answer this: it falls back to English and then to the key
+ * itself, so a caller cannot tell a real translation from a miss. That
+ * distinction matters for content whose English is NOT a UI string - a fact's
+ * canonical text lives in `data/facts.js` and has to win over an English
+ * bundle entry that deliberately does not exist. See the note at the top of
+ * that file.
+ */
+export function localized(lang, path) {
+  const bundle = BUNDLES[lang];
+  if (!bundle) return null;
+  const hit = path.split('.').reduce((acc, k) => (acc == null ? acc : acc[k]), bundle);
+  return typeof hit === 'string' ? hit : null;
+}
+
 export function makeT(lang) {
   const bundle = BUNDLES[lang] ?? BUNDLES.en;
   return function t(path) {

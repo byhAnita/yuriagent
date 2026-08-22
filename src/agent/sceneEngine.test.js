@@ -20,7 +20,7 @@ import {
   riskPayoff,
 } from './sceneEngine.js';
 import { prefixOf, buildMessages } from './promptBuilder.js';
-import { newMemory, addDossierEntry } from './memory.js';
+import { entryText, newMemory, addDossierEntry } from './memory.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { newRelation } from '../systems/relationship.js';
@@ -113,7 +113,7 @@ describe('a scene, end to end', () => {
 
     expect(out.memory.ledger).toHaveLength(1);
     expect(out.memory.ledger[0].text).toContain('stayed late');
-    expect(out.memory.dossier.irene.known_facts).toContain('hates cold hands');
+    expect(out.memory.dossier.irene.known_facts.map(entryText)).toContain('hates cold hands');
     expect(out.relations.irene.intimacy).toBeGreaterThan(5);
   });
 
@@ -379,7 +379,10 @@ describe('rumor propagation at scene exit', () => {
 
     expect(out.rumors.length).toBeGreaterThan(0);
     const heard = out.memory.dossier[out.rumors[0].memberId].heard_about;
-    expect(heard[0]).toContain('Irene');
+    expect(entryText(heard[0])).toContain('Irene');
+    // The shape travels with it, so the snoop screen can localize it later.
+    expect(heard[0].kind).toBeTruthy();
+    expect(heard[0].subjectName).toBe('Irene');
     expect(out.relations[out.rumors[0].memberId].jealousy).toBeGreaterThan(0);
   });
 

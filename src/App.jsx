@@ -282,7 +282,8 @@ export default function App() {
     setMemory((m) => {
       let dossier = m.dossier;
       for (const add of result.dossierAdd) {
-        dossier = addDossierEntry(dossier, add.memberId, add.category, add.text);
+        const { memberId, category, ...entry } = add;
+        dossier = addDossierEntry(dossier, memberId, category, entry);
       }
       const text = soloLedgerText(result, {
         locationLabel: t(`location.${solo.locationId}`),
@@ -548,6 +549,7 @@ export default function App() {
             setSolo(null);
             advance();
           }}
+          lang={settings.lang}
           t={t}
         />
       ) : null}

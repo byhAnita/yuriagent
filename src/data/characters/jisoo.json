@@ -42,11 +42,11 @@
     "being teased back instead of deferred to"
   ],
   "learnableFacts": [
-    "balances objects on her head at random, with a completely blank face",
-    "a hardcore gamer, Overwatch and MapleStory, and not casually",
-    "tasted paper and tissues as a child, purely out of curiosity",
-    "hates a long shopping trip and buys everything at speed",
-    "eats ramen before bed on purpose, for the cheeks"
+    "balances_things",
+    "hardcore_gamer",
+    "tasted_paper",
+    "speed_shopper",
+    "ramen_before_bed"
   ],
   "startIntimacy": 5,
   "portraitMode": "mascot",

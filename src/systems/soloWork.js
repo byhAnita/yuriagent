@@ -9,6 +9,11 @@
  * Learned facts are written to `known_facts` in ENGLISH like everything else in
  * memory (CLAUDE.md section 19), and they are the same strings the knowledge
  * gifts match against, so snooping genuinely unlocks a gift.
+ *
+ * The find ALSO carries what the player needs to read it - a `factId`, or the
+ * shape of the rumor behind it. The English is for the model and the structure
+ * is for the screen; a find that carried only the English guaranteed English
+ * on a Chinese snoop screen (PROPOSALS 14).
  */
 
 import { getSoloAction } from '../data/soloActions.js';
@@ -19,6 +24,8 @@ import {
 } from '../config/constants.js';
 import { clamp } from './rng.js';
 import { phraseDiscovered } from './rumor.js';
+import { cardFacts } from '../data/facts.js';
+import { entryText } from './dossierEntry.js';
 
 /**
  * Who might you learn something about here, and what?
@@ -27,12 +34,23 @@ import { phraseDiscovered } from './rumor.js';
  * learnable about someone, snooping stops offering her up - which quietly
  * pushes the player toward the members they have been neglecting.
  */
+/**
+ * What she has already told you, as lowercased English.
+ *
+ * Matched on text rather than on id because a fact can arrive by either route:
+ * snooped, carrying an id, or mentioned in a scene, where the summarizer
+ * paraphrases it and has no id to give. Only the English is common to both.
+ */
+function knownTexts(memberDossier) {
+  return new Set((memberDossier?.known_facts ?? []).map((f) => entryText(f).toLowerCase()));
+}
+
 export function learnableTargets(cards, dossier, excludeIds = []) {
   const out = [];
   for (const card of cards) {
     if (excludeIds.includes(card.id)) continue;
-    const known = new Set((dossier[card.id]?.known_facts ?? []).map((f) => f.toLowerCase()));
-    const fresh = (card.learnableFacts ?? []).filter((f) => !known.has(f.toLowerCase()));
+    const known = knownTexts(dossier[card.id]);
+    const fresh = cardFacts(card).filter((f) => !known.has(f.en.toLowerCase()));
     if (fresh.length > 0) out.push({ card, facts: fresh });
   }
   return out;
@@ -70,15 +88,50 @@ export function availableFinds({ cards, dossier, present = [], foundRumors = [] 
   for (const card of cards) {
     if (present.includes(card.id)) continue;
 
-    const known = new Set((dossier[card.id]?.known_facts ?? []).map((f) => f.toLowerCase()));
-    for (const fact of card.learnableFacts ?? []) {
-      if (known.has(fact.toLowerCase())) continue;
-      finds.push({ kind: 'fact', memberId: card.id, name: card.name, text: fact, weight: FACT_WEIGHT });
+    const known = knownTexts(dossier[card.id]);
+    for (const fact of cardFacts(card)) {
+      if (known.has(fact.en.toLowerCase())) continue;
+      finds.push({
+        kind: 'fact',
+        memberId: card.id,
+        name: card.name,
+        factId: fact.id,
+        text: fact.en,
+        weight: FACT_WEIGHT,
+      });
     }
 
     for (const heard of dossier[card.id]?.heard_about ?? []) {
-      if (seen.has(heard)) continue;
-      finds.push({ kind: 'rumor', memberId: card.id, name: card.name, text: heard, weight: RUMOR_WEIGHT });
+      const text = entryText(heard);
+      if (seen.has(text)) continue;
+      /**
+       * The rumor's own shape travels with it.
+       *
+       * `rumor.js` already produces `kind`, `subjectName` and `locationId`,
+       * and the aftermath screen already renders from them rather than from
+       * the English - this is the same data reaching the other screen that
+       * needed it. Spreading the entry keeps whatever it carries.
+       */
+      const shape = typeof heard === 'object' ? heard : {};
+      finds.push({
+        ...shape,
+        /**
+         * TWO fields called `kind` meet here and they mean different things.
+         *
+         * A find's kind is fact-or-rumor; a rumor's own kind is
+         * heard/witnessed/approach and picks the sentence template. Spreading
+         * the entry over the find silently overwrote the first with the
+         * second, which sent every rumor find down the "nothing here" branch -
+         * so the whole rumor half of snooping switched itself off. Renaming it
+         * on the way in is the fix; `kind` below is the authoritative one.
+         */
+        rumorKind: shape.kind ?? 'heard',
+        kind: 'rumor',
+        memberId: card.id,
+        name: card.name,
+        text,
+        weight: RUMOR_WEIGHT,
+      });
     }
   }
 
@@ -149,8 +202,15 @@ export function resolveSoloAction({
     const find = pickFind(rng, availableFinds({ cards, dossier, present, foundRumors }));
 
     if (find?.kind === 'fact') {
-      learned = { memberId: find.memberId, name: find.name, fact: find.text };
-      dossierAdd.push({ memberId: find.memberId, category: 'known_facts', text: find.text });
+      learned = { memberId: find.memberId, name: find.name, factId: find.factId, fact: find.text };
+      // The id goes into the dossier with the text, which is what lets the
+      // opener match exactly and the snoop screen print the right language.
+      dossierAdd.push({
+        memberId: find.memberId,
+        category: 'known_facts',
+        factId: find.factId,
+        text: find.text,
+      });
     } else if (find?.kind === 'rumor') {
       /**
        * What she has already heard. No dossier write: this does not change
@@ -158,7 +218,10 @@ export function resolveSoloAction({
        * whole point, because jealousy was previously invisible until it had
        * already turned into strain.
        */
-      heard = { memberId: find.memberId, name: find.name, text: find.text };
+      // Everything the find carried, so the screen can render the sentence
+      // rather than echo the English one memory keeps (PROPOSALS 14).
+      const { weight: _weight, ...shape } = find;
+      heard = { ...shape, memberId: find.memberId, name: find.name, text: find.text };
     } else {
       // Nothing left to find. The secrecy cost is not charged for a search that
       // turned up nothing - the player should not be punished for having

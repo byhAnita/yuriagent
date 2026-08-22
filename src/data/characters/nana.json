@@ -42,11 +42,11 @@
     "doing someone's makeup as a way of getting close without saying so"
   ],
   "learnableFacts": [
-    "a certified and licensed professional makeup artist",
-    "still keeps the magical-girl figures she grew up on, and means it about keeping the peace",
-    "drinks up to five litres of water a day, for her skin",
-    "talks incredibly fast and trips over her words when excited",
-    "carries a pouch of vitamins and supplements everywhere she goes"
+    "licensed_makeup_artist",
+    "magical_girl_figures",
+    "five_litres_of_water",
+    "talks_too_fast",
+    "vitamin_pouch"
   ],
   "startIntimacy": 5,
   "portraitMode": "mascot",

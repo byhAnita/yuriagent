@@ -854,9 +854,28 @@ the registers with dating; the event frames with the events.
 
 ## 14. A fact is one string doing three jobs
 
-**Status: PROPOSED 2026-08-22, not implemented.** Found by Yuhan in a `zh`
-session: a learned fact shows in English. The other three bugs from that session
-were fixed directly; this one is a schema question and wants deciding first.
+**Status: IMPLEMENTED 2026-08-23.** Found by Yuhan in a `zh` session: a learned
+fact shows in English. The other three bugs from that session were fixed
+directly; this one was a schema question and was decided first. CLAUDE.md
+section 12 now carries the rule; what follows is the argument that got there,
+kept because the reasoning is the part worth re-reading.
+
+**Two things the implementation changed from what is written below.**
+
+1. The canonical English lives in `data/facts.js`, **not** in `i18n/en.js` as
+   proposed. The proposal had it in the bundle for symmetry, and symmetry is
+   the wrong thing to optimise here: canonical text is what gift needles match
+   by substring, and `i18n/en.js` is a file whose purpose is being reworded for
+   how it reads on screen. Putting them together would invite the exact
+   regression this proposal exists to end. English has no `fact.*` keys; every
+   other locale must have all of them; both are asserted.
+2. The English-a-custom-card-has-no-way-to-produce question resolved to **3
+   (single-locale card) as the default and 1 (translate at import) as v2
+   polish**, rather than the reverse. The custom-card live probe settled it:
+   memory came back 0% Han from a fully Chinese card, because the summarizer
+   keeps memory English on instruction regardless of what the card says. So
+   translate-at-import buys portability, not correctness, and the card editor
+   it belongs to is v2 anyway.
 
 ### The diagnosis
 

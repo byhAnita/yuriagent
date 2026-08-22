@@ -42,11 +42,11 @@
     "handling other people's problems before her own"
   ],
   "learnableFacts": [
-    "cannot eat chicken, going back to something in childhood",
-    "has extremely cold hands and warms them with mugwort packs",
-    "loves doing the laundry and the smell of fabric softener",
-    "squeezes ten-minute gym sets into the breaks between practices",
-    "drinks sikhye instead of coffee, all year round"
+    "no_chicken",
+    "cold_hands",
+    "loves_laundry",
+    "gym_between_practice",
+    "drinks_sikhye"
   ],
   "startIntimacy": 5,
   "portraitMode": "mascot",

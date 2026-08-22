@@ -1494,7 +1494,7 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "hiddenConflict": null,
   "styleHints": { "zh": null, "ko": null },
   "likesSeed": ["quiet mornings"],
-  "learnableFacts": ["hates cold hands", "cannot sleep the week before a comeback"],
+  "learnableFacts": ["cold_hands", "no_sleep_before_comeback"],
   "startIntimacy": 5,
   "portraitMode": "mascot",
   "portraits": { "neutral": "portraits/irene.svg" }
@@ -1508,6 +1508,49 @@ Localized display names live in `i18n/`, not on the card, so a card stays a sing
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
 
 `learnableFacts` is the pool solo-work snooping draws from (section 10b).
+
+### A fact is an id, and it has two texts
+
+One string was doing three incompatible jobs: the line the model reads in block
+3 (must be English, section 19 rule 2), the needle a gift `requires` matches
+(must be stable and comparable), and the sentence a snoop puts on screen (must
+be the player's language). It only looked correct because the third job is
+invisible in an English run - a `zh` player learned that Irene "has extremely
+cold hands", in English, on an otherwise Chinese screen.
+
+So a card names **ids**, and `data/facts.js` resolves them:
+
+| | where | why there |
+|---|---|---|
+| **canonical** English | `data/facts.js` | it is memory and it is what needles match. Not `i18n/en.js`, whose whole purpose is being reworded for how it reads on screen - a polish pass there would silently unhook an opener |
+| **display** per locale | `i18n/<lang>.js`, `fact.<id>` | section 21 keeps non-ASCII source out of everywhere else |
+
+English therefore has **no `fact.*` keys at all** and falls back to canonical,
+while every other locale must translate every fact. Both halves are asserted:
+one stops somebody duplicating the English to make the bundles symmetric, the
+other stops a new fact shipping untranslated.
+
+An id also fixes something this section already complains about below. Gift
+matching now has two paths, because there are two ways a fact arrives:
+
+- **snooped** - drawn from `learnableFacts`, so the id is known when it is
+  awarded. Matched against `factIds`, exactly. Cannot be broken by a reword.
+- **from dialogue** - written by the summarizer in its own words, so there is
+  no id and never can be. Matched by `requires` substring, which is why those
+  needles carry paraphrases.
+
+A **custom card** cannot ship `i18n/` files, so its facts may carry their own
+text inline instead: `{ "id": "hates_cold", "en": "...", "zh": "..." }`. The
+resolver takes either shape and nothing outside it reads `learnableFacts`
+directly. A card authored offline with no English simply stays single-locale -
+the game must never require a model call to make a card (section 3).
+
+**The dossier entry is an object**, `{ text, factId }`, and `text` stays the
+English the prompt sees, so blocks 3 and 5 and the cache behaviour do not
+change. `heard_about` carries the rumor's shape the same way, which is what
+lets the snoop screen render the sentence instead of echoing the English one.
+A bare string is still accepted everywhere and normalised on the way in,
+because that is all the summarizer can produce.
 
 **Five per card, twenty-five in all, and the opener is written to the habit
 rather than the habit to the opener.** An earlier catalogue did the reverse -

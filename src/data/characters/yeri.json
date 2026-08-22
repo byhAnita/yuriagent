@@ -41,11 +41,11 @@
     "testing whether you will flinch"
   ],
   "learnableFacts": [
-    "a devoted Ariana Grande fan, and a conspicuously successful one",
-    "a social butterfly with an alarming number of famous friends",
-    "has no fear of ghosts at all and walks into haunted houses first",
-    "obsessed with the colour pink, and with Hello Kitty in particular",
-    "eats far more slowly than anyone else at the table"
+    "ariana_fan",
+    "social_butterfly",
+    "fearless_of_ghosts",
+    "pink_and_kitty",
+    "slow_eater"
   ],
   "startIntimacy": 5,
   "portraitMode": "mascot",

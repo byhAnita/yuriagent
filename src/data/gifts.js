@@ -18,10 +18,22 @@
  * the scene note either way, because the payoff is identical: she hears that
  * you remembered.
  *
- * `requires` is matched against dossier.known_facts by substring, so a fact the
- * summarizer wrote in its own words still unlocks the right opener. Needles are
- * unique across the whole cast - one that matched two members' facts would hand
- * over a second opener free, and there is a test that asserts it cannot happen.
+ * TWO WAYS AN OPENER UNLOCKS, because there are two ways a fact arrives.
+ *
+ * `factIds` is the exact one. A snooped fact is drawn from the card's
+ * `learnableFacts` and reaches the dossier carrying the id it was awarded
+ * under, so the match survives any rewording of either side - the regression
+ * section 12 records having happened twice during content rewrites.
+ *
+ * `requires` is the tolerant one, matched against the entry text by substring.
+ * A fact that came up in DIALOGUE is written by the summarizer in its own
+ * words and has no id, and never can have one, so needles carry paraphrases:
+ * a single tight needle means the opener silently never unlocks for a player
+ * whose model said "her hands are always cold" instead.
+ *
+ * Both lists stay. Needles are unique across the whole cast - one that matched
+ * two members' facts would hand over a second opener free - and there is a
+ * test that asserts it cannot happen.
  */
 
 export const GENERIC_GIFTS = [
@@ -33,54 +45,51 @@ export const GENERIC_GIFTS = [
 
 export const KNOWLEDGE_GIFTS = [
   // --- Irene ----------------------------------------------------------------
-  { id: 'chicken_free_dinner', cost: 4, effect: 5, requires: ['chicken'] },
-  /**
-   * Needles carry paraphrases. The summarizer writes dossier entries in its own
-   * words, so a single tight needle means the opener silently never unlocks for
-   * a player whose model said "her hands are always cold" instead.
-   */
+  { id: 'chicken_free_dinner', factIds: ['no_chicken'], cost: 4, effect: 5, requires: ['chicken'] },
   {
     id: 'mugwort_pack',
+    factIds: ['cold_hands'],
     cost: 3,
     effect: 5,
     requires: ['mugwort', 'cold hand', 'hands are cold', 'hands are always cold', 'hands go cold'],
   },
-  { id: 'ask_about_softener', effect: 5, object: false, requires: ['fabric softener', 'laundry'] },
-  { id: 'squats_together', effect: 5, object: false, requires: ['gym', 'workout'] },
-  { id: 'cold_sikhye', cost: 3, effect: 5, requires: ['sikhye'] },
+  { id: 'ask_about_softener', factIds: ['loves_laundry'], effect: 5, object: false, requires: ['fabric softener', 'laundry'] },
+  { id: 'squats_together', factIds: ['gym_between_practice'], effect: 5, object: false, requires: ['gym', 'workout'] },
+  { id: 'cold_sikhye', factIds: ['drinks_sikhye'], cost: 3, effect: 5, requires: ['sikhye'] },
 
   // --- Yeri -----------------------------------------------------------------
-  { id: 'sing_the_duet', effect: 5, object: false, requires: ['ariana'] },
+  { id: 'sing_the_duet', factIds: ['ariana_fan'], effect: 5, object: false, requires: ['ariana'] },
   {
     id: 'invite_her_friends',
+    factIds: ['social_butterfly'],
     effect: 5,
     object: false,
     requires: ['famous friends', 'social butterfly'],
   },
-  { id: 'haunted_house', effect: 5, object: false, requires: ['ghost', 'haunted'] },
-  { id: 'pink_plushie', cost: 4, effect: 5, requires: ['hello kitty', 'pink'] },
-  { id: 'wait_at_the_table', effect: 5, object: false, requires: ['more slowly', 'eats slowly', 'slow eater'] },
+  { id: 'haunted_house', factIds: ['fearless_of_ghosts'], effect: 5, object: false, requires: ['ghost', 'haunted'] },
+  { id: 'pink_plushie', factIds: ['pink_and_kitty'], cost: 4, effect: 5, requires: ['hello kitty', 'pink'] },
+  { id: 'wait_at_the_table', factIds: ['slow_eater'], effect: 5, object: false, requires: ['more slowly', 'eats slowly', 'slow eater'] },
 
   // --- Jisoo ----------------------------------------------------------------
-  { id: 'balance_the_bottle', effect: 5, object: false, requires: ['balanc'] },
-  { id: 'all_nighter_co_op', effect: 5, object: false, requires: ['gamer', 'overwatch', 'maplestory'] },
-  { id: 'hide_the_newspapers', effect: 5, object: false, requires: ['tissues', 'tasted paper'] },
-  { id: 'speed_shopping_race', effect: 5, object: false, requires: ['shopping', 'shops'] },
-  { id: 'late_night_ramen', cost: 3, effect: 5, requires: ['ramen'] },
+  { id: 'balance_the_bottle', factIds: ['balances_things'], effect: 5, object: false, requires: ['balanc'] },
+  { id: 'all_nighter_co_op', factIds: ['hardcore_gamer'], effect: 5, object: false, requires: ['gamer', 'overwatch', 'maplestory'] },
+  { id: 'hide_the_newspapers', factIds: ['tasted_paper'], effect: 5, object: false, requires: ['tissues', 'tasted paper'] },
+  { id: 'speed_shopping_race', factIds: ['speed_shopper'], effect: 5, object: false, requires: ['shopping', 'shops'] },
+  { id: 'late_night_ramen', factIds: ['ramen_before_bed'], cost: 3, effect: 5, requires: ['ramen'] },
 
   // --- Nana -----------------------------------------------------------------
-  { id: 'ask_her_to_do_yours', effect: 5, object: false, requires: ['makeup artist', 'licensed'] },
-  { id: 'magical_girl_figure', cost: 4, effect: 5, requires: ['magical-girl', 'magical girl'] },
-  { id: 'insulated_water_jug', cost: 4, effect: 5, requires: ['litres of water', 'liters of water', 'five litres'] },
-  { id: 'get_her_talking', effect: 5, object: false, requires: ['talks incredibly fast', 'talks fast', 'trips over her words'] },
-  { id: 'ask_for_a_vitamin', effect: 5, object: false, requires: ['vitamin', 'supplement'] },
+  { id: 'ask_her_to_do_yours', factIds: ['licensed_makeup_artist'], effect: 5, object: false, requires: ['makeup artist', 'licensed'] },
+  { id: 'magical_girl_figure', factIds: ['magical_girl_figures'], cost: 4, effect: 5, requires: ['magical-girl', 'magical girl'] },
+  { id: 'insulated_water_jug', factIds: ['five_litres_of_water'], cost: 4, effect: 5, requires: ['litres of water', 'liters of water', 'five litres'] },
+  { id: 'get_her_talking', factIds: ['talks_too_fast'], effect: 5, object: false, requires: ['talks incredibly fast', 'talks fast', 'trips over her words'] },
+  { id: 'ask_for_a_vitamin', factIds: ['vitamin_pouch'], effect: 5, object: false, requires: ['vitamin', 'supplement'] },
 
   // --- Hyewon ---------------------------------------------------------------
-  { id: 'hot_takoyaki_box', cost: 4, effect: 5, requires: ['takoyaki'] },
-  { id: 'gear_second_pose', effect: 5, object: false, requires: ['one piece', 'anime'] },
-  { id: 'ask_for_the_flow', effect: 5, object: false, requires: ['innocent rapper'] },
-  { id: 'a_long_hug', effect: 5, object: false, requires: ['skinship', 'hugs and clings'] },
-  { id: 'ask_her_to_shoot_you', effect: 5, object: false, requires: ['kang-photo', 'legendary photos'] },
+  { id: 'hot_takoyaki_box', factIds: ['takoyaki_rounds'], cost: 4, effect: 5, requires: ['takoyaki'] },
+  { id: 'gear_second_pose', factIds: ['one_piece_fan'], effect: 5, object: false, requires: ['one piece', 'anime'] },
+  { id: 'ask_for_the_flow', factIds: ['innocent_rapper'], effect: 5, object: false, requires: ['innocent rapper'] },
+  { id: 'a_long_hug', factIds: ['skinship_monster'], effect: 5, object: false, requires: ['skinship', 'hugs and clings'] },
+  { id: 'ask_her_to_shoot_you', factIds: ['kang_photo'], effect: 5, object: false, requires: ['kang-photo', 'legendary photos'] },
 ];
 
 /**

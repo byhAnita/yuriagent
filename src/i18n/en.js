@@ -258,6 +258,7 @@ export default {
     learned: 'You learned something',
     heard: 'She has heard',
     learnedNothing: 'Nothing you did not already know.',
+    learnedLine: '{name} {fact}.',
     prep_fittings: 'Get tomorrow to ready itself',
     prep_fittings_result: 'You steam, tag and hang until the rail is a day ahead of the schedule. Someone will notice. Probably not today.',
     read_fitting_notes: 'Read the fitting notes',

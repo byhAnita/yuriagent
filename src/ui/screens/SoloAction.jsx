@@ -8,7 +8,7 @@
  */
 
 import { actionsFor } from '../../data/soloActions.js';
-import { phraseDiscovered } from '../../systems/rumor.js';
+import { factDisplay } from '../../data/facts.js';
 
 export const TASK_ACTION = '__task';
 
@@ -31,6 +31,14 @@ export default function SoloAction({
   onTalk,
   onChoose,
   onDone,
+  /**
+   * The run language, for content that is not a UI string.
+   *
+   * `t` cannot answer for a fact: its canonical English lives in
+   * `data/facts.js` rather than in a bundle, precisely so a UI reword cannot
+   * unhook a gift. `factDisplay` needs the locale itself.
+   */
+  lang = 'en',
   t,
 }) {
   const actions = actionsFor(locationId);
@@ -142,8 +150,20 @@ export default function SoloAction({
               <span className="mb-1 block font-mono text-[0.5rem] uppercase tracking-[0.18em] text-warn">
                 {t('solo.learned')}
               </span>
+              {/*
+                The player's language, not memory's.
+
+                `result.learned.fact` is the canonical English - it is what
+                went into her dossier and what the gift needles match, and
+                section 19 keeps it that way so a language switch cannot
+                corrupt history. It is exactly the wrong thing to print, and
+                printing it is how a Chinese run ended up saying "has extremely
+                cold hands" (PROPOSALS 14). The id is what carries across.
+              */}
               <p className="font-display text-[1rem] italic leading-snug text-text">
-                {result.learned.name} {result.learned.fact}.
+                {t('solo.learnedLine')
+                  .replace('{name}', result.learned.name)
+                  .replace('{fact}', factDisplay(result.learned.factId, lang) || result.learned.fact)}
               </p>
             </div>
           ) : result.heard ? (
@@ -157,12 +177,16 @@ export default function SoloAction({
                 {t('solo.heard')}
               </span>
               {/*
-                English, like the fact above it and like the ledger line in the
-                aftermath - memory is English whatever the UI language
-                (section 19, rule 2).
+                Rendered from the rumor's SHAPE, the way the aftermath screen
+                already does it. `heard.text` is the dossier line and it is
+                English on purpose; `kind`, `subjectName` and `locationId` are
+                what the sentence is actually made of.
               */}
               <p className="font-display text-[1rem] italic leading-snug text-text">
-                {phraseDiscovered(result.heard.name, result.heard.text)}.
+                {t(`rumorLine.${result.heard.rumorKind ?? 'heard'}`)
+                  .replace('{name}', result.heard.name)
+                  .replace('{subject}', result.heard.subjectName ?? '')
+                  .replace('{where}', result.heard.locationId ? t(`location.${result.heard.locationId}`) : '')}
               </p>
             </div>
           ) : result.action.learns ? (

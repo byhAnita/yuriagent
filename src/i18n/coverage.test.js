@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import en from './en.js';
 import zh from './zh.js';
+import { FACT_IDS } from '../data/facts.js';
 import { GENERIC_GIFTS, BUYABLE_GIFTS, KNOWLEDGE_GIFTS } from '../data/gifts.js';
 import { STANCES } from '../systems/chips.js';
 import { SOLO_ACTIONS } from '../data/soloActions.js';
@@ -112,8 +113,37 @@ describe('i18n coverage', () => {
     const inEn = new Set(flatten(en));
     const inZh = new Set(flatten(zh));
 
+    // `fact.*` is the one deliberate asymmetry; see the rule below it.
+    const chrome = (k) => !k.startsWith('fact.');
+
     expect([...inEn].filter((k) => !inZh.has(k))).toEqual([]);
-    expect([...inZh].filter((k) => !inEn.has(k))).toEqual([]);
+    expect([...inZh].filter(chrome).filter((k) => !inEn.has(k))).toEqual([]);
+  });
+
+  /**
+   * Facts are the exception, and it is a rule rather than an oversight.
+   *
+   * A fact's English is its CANONICAL form: it goes into memory, into block 3,
+   * and it is what gift needles are matched against by substring. There is
+   * exactly one of it and it lives in `data/facts.js`, because `i18n/en.js`
+   * exists to be reworded for how things read on screen and a reword there
+   * would silently unhook an opener - the regression section 12 records having
+   * happened twice.
+   *
+   * So English has no `fact.*` keys at all and falls back to canonical, while
+   * every other locale must translate every fact. Both halves are asserted:
+   * the first stops somebody "fixing" the asymmetry by duplicating the
+   * English, the second stops a new fact shipping untranslated.
+   */
+  it('keeps fact text canonical in English and translated everywhere else', () => {
+    expect(en.fact).toBeUndefined();
+
+    for (const [lang, dict] of Object.entries(LOCALES)) {
+      if (lang === 'en') continue;
+      for (const id of FACT_IDS) {
+        expect(dict.fact?.[id], `${lang} is missing fact.${id}`).toBeTruthy();
+      }
+    }
   });
 
   /** Emotion names are machine tokens and must never be localized (section 19). */
