@@ -16,6 +16,7 @@ import {
   markRisk,
   computeDeltas,
   newMeters,
+  applyBeatToMeters,
   riskPayoff,
 } from './sceneEngine.js';
 import { prefixOf, buildMessages } from './promptBuilder.js';
@@ -451,5 +452,89 @@ describe('a public risk is worth more the more there is between you', () => {
       return computeDeltas(session, rel(intimacy), () => 0.99);
     };
     expect(failed(20).strain).toBe(failed(90).strain);
+  });
+});
+
+/**
+ * The meter reading is WHERE SHE IS, and that is what finally makes beat count
+ * irrelevant. Three earlier schemes all failed the same way, because the client
+ * was reassembling a quantity from however many pieces the model chose to write:
+ * summing made a chatty reply worth three times a terse one, averaging flipped
+ * the bias, and a per-reply budget in the prompt did not take either.
+ */
+describe('an absolute reading says where she is', () => {
+  const at = (guard, fluster) => ({
+    guard,
+    guardIsAbsolute: true,
+    fluster,
+    flusterIsAbsolute: true,
+  });
+  const start = { guard: 60, guardStart: 60, fluster: 0, flusterPeak: 0, riskTaken: false };
+
+  it('replaces the meter rather than moving it', () => {
+    expect(applyBeatToMeters(start, [at(42, 18)])).toMatchObject({ guard: 42, fluster: 18 });
+  });
+
+  it('lets the last beat of a reply win', () => {
+    const out = applyBeatToMeters(start, [at(55, 5), at(48, 12), at(40, 22)]);
+    expect(out.guard).toBe(40);
+    expect(out.fluster).toBe(22);
+  });
+
+  /** The whole reason for the change. */
+  it('makes a three-beat reply worth exactly what a one-beat reply is worth', () => {
+    const chatty = applyBeatToMeters(start, [at(55, 8), at(48, 15), at(40, 22)]);
+    const terse = applyBeatToMeters(start, [at(40, 22)]);
+    expect(chatty.guard).toBe(terse.guard);
+    expect(chatty.fluster).toBe(terse.fluster);
+  });
+
+  it('still keeps fluster as a high-water mark', () => {
+    // She is flustered and recovers inside the same reply. It still landed.
+    const out = applyBeatToMeters(start, [at(50, 65), at(52, 20)]);
+    expect(out.fluster).toBe(20);
+    expect(out.flusterPeak).toBe(65);
+  });
+
+  it('reads a signed value as movement, in the same reply', () => {
+    // A model that mixes the two must not be punished for it.
+    const out = applyBeatToMeters(start, [
+      at(50, 10),
+      { guard: -6, guardIsAbsolute: false, fluster: 4, flusterIsAbsolute: false },
+    ]);
+    expect(out.guard).toBe(44);
+    expect(out.fluster).toBe(14);
+  });
+
+  it('clamps to the meter range', () => {
+    expect(applyBeatToMeters(start, [at(0, 100)])).toMatchObject({ guard: 0, fluster: 100 });
+  });
+
+  it('leaves the meters alone when a reply carries no beats at all', () => {
+    expect(applyBeatToMeters(start, [])).toMatchObject({ guard: 60, fluster: 0 });
+    expect(applyBeatToMeters(start, undefined)).toMatchObject({ guard: 60, fluster: 0 });
+  });
+
+  it('does not move anything for a beat that carried no metadata', () => {
+    // parseResponse gives prose-only beats guard 0 / fluster 0 as deltas, and
+    // rule 1 says a beat with no metadata moves nothing.
+    const out = applyBeatToMeters(start, [
+      { guard: 0, guardIsAbsolute: false, fluster: 0, flusterIsAbsolute: false },
+    ]);
+    expect(out).toMatchObject({ guard: 60, fluster: 0 });
+  });
+});
+
+/**
+ * And block 4 has to give it a scale to be absolute against.
+ */
+describe('the header states her opening reading', () => {
+  it('seeds guard from intimacy, the same way the client does', async () => {
+    const args = setup({
+      relations: Object.fromEntries(castIds.map((id) => [id, newRelation(35)])),
+    });
+    const session = beginScene(args);
+    expect(prefixOf(session.frame)).toContain('starts this scene at guard65, fluster0');
+    expect(session.meters.guardStart).toBe(65);
   });
 });

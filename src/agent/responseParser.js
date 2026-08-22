@@ -22,10 +22,45 @@ const FLUSTER = /fluster\s*([+-]?\d+)/i;
 
 const DELTA_LIMIT = 40;
 
-function clampDelta(raw) {
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(-DELTA_LIMIT, Math.min(DELTA_LIMIT, n));
+/**
+ * A meter reading is either **where she is** or **how far she moved**, and the
+ * sign is what tells them apart.
+ *
+ *   guard42   -> she is at 42
+ *   guard-8   -> she moved 8 the other way
+ *
+ * Absolute is the contract (section 9) and the reason is beat count. While the
+ * line carried a delta, the client had to reassemble a quantity out of however
+ * many pieces the model felt like writing, and there is no arithmetic that
+ * survives that: summing made a chatty reply worth three times a terse one,
+ * averaging flipped the bias, and a per-reply budget in the prompt did not take
+ * either. An absolute has no such problem - the last beat of a reply IS the
+ * state, and three beats say exactly what one does.
+ *
+ * The signed form stays supported rather than rejected, because section 9's
+ * whole posture is that format failures are guaranteed and every rule is a
+ * fallback. A model that slips back into deltas still moves the meter sensibly
+ * instead of slamming it to zero, and the offline writer deliberately still
+ * speaks that dialect so both paths are exercised in every test run.
+ */
+function readMeter(raw) {
+  if (raw == null) return null;
+  const text = String(raw).trim();
+  const n = Number.parseInt(text, 10);
+  if (!Number.isFinite(n)) return null;
+
+  if (text.startsWith('+') || text.startsWith('-')) {
+    return { value: Math.max(-DELTA_LIMIT, Math.min(DELTA_LIMIT, n)), absolute: false };
+  }
+  return { value: Math.max(0, Math.min(100, n)), absolute: true };
+}
+
+/** Flatten a reading into the beat shape the rest of the pipeline expects. */
+function meterFields(prefix, reading) {
+  return {
+    [prefix]: reading?.value ?? 0,
+    [`${prefix}IsAbsolute`]: reading?.absolute ?? false,
+  };
 }
 
 function normalizeEmotion(raw) {
@@ -46,8 +81,8 @@ export function parseMetaLine(line) {
     return {
       speaker: strict[1].toLowerCase(),
       emotion: normalizeEmotion(strict[2]),
-      guard: clampDelta(strict[3]),
-      fluster: clampDelta(strict[4]),
+      ...meterFields('guard', readMeter(strict[3])),
+      ...meterFields('fluster', readMeter(strict[4])),
     };
   }
 
@@ -60,8 +95,8 @@ export function parseMetaLine(line) {
   return {
     speaker: loose[1].toLowerCase(),
     emotion: normalizeEmotion(emotionGuess),
-    guard: clampDelta(GUARD.exec(trimmed)?.[1]),
-    fluster: clampDelta(FLUSTER.exec(trimmed)?.[1]),
+    ...meterFields('guard', readMeter(GUARD.exec(trimmed)?.[1])),
+    ...meterFields('fluster', readMeter(FLUSTER.exec(trimmed)?.[1])),
   };
 }
 

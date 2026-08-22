@@ -345,8 +345,8 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 
 | Meter | Direction | Source |
 |---|---|---|
-| `guard` | down = good | seeded from `100 - intimacy`, moved by the LLM per turn |
-| `fluster` | up = you landed | starts at 0, moved by the LLM per turn |
+| `guard` | down = good | opens at `100 - intimacy`, and the LLM reports where it is on every beat |
+| `fluster` | up = you landed | opens at 0, and the LLM reports where it is on every beat |
 | `exposure` | up = risky | **derived from location + time block + secrecy, not from the LLM**; also drives rumor propagation (section 5b) |
 
 `exposure` being deterministic is what makes map choice matter romantically instead of only logistically: practice room at night is low, cafeteria at noon is high.
@@ -389,55 +389,67 @@ Both halves were correct; only the join was missing. No unit test could see it,
 and a headless campaign found it on the first run
 (`src/agent/playthrough.test.js`).
 
-### A turn is one reply, and the model apportions it
+### The metadata line reports where she is, not how far she moved
 
-The model writes **one to three beats per reply** and picks how many as a
-stylistic choice, not as a measure of how far the conversation got. That single
-fact broke the micro-to-macro mapping twice, and the record is worth keeping:
+`guard58` is a reading. `guard-8` is a movement. The contract is the reading.
 
-| what the prompt asked for | what the client did | measured over 12 live scenes |
+The model writes **one to three beats per reply** and picks how many for prose
+reasons, not as a measure of how far the conversation got. While the line
+carried a delta, the client had to reassemble a quantity out of however many
+pieces the model chose to write, and **no arithmetic survives that.** Three
+settings were measured at twelve live scenes each before the shape of the
+problem was clear:
+
+| what the prompt asked for | what the client did | result |
 |---|---|---|
-| a scale per BEAT | sum | verbose pays: every 21-beat scene, no 7-beat scene |
-| a scale per BEAT | mean | the bias **flipped**: 5 of 6 terse paid, 1 of 5 verbose |
-| **a budget per REPLY** | **sum** | verbose pays again: 6 of 7 verbose, 0 of 5 terse |
+| a scale per BEAT | sum | verbose paid: every 21-beat scene, no 7-beat one |
+| a scale per BEAT | mean | the bias **flipped**: 5/6 terse paid, 1/5 verbose |
+| a budget per REPLY | sum | verbose paid again: 6/7 verbose, 0/5 terse |
+| **a reading, 0-100** | **take the last** | guard fell in **12 of 12** scenes |
 
-The middle row is the interesting failure. Averaging looks like the obvious fix
+The middle row is the instructive failure. Averaging looks like the obvious fix
 and is not, because the problem is upstream of the arithmetic: handed a per-beat
 range, the model uses the small end of it when it writes three beats and a big
 number when it writes one, so a verbose reply moves her *less* in its own
 numbers however the client adds them up.
 
-So the budget moved into the prompt, where the problem is: **the deltas in one
-reply must add up to what that exchange moved her.** Splitting is the model's
-job, and it is one it can do - a reply is a single exchange and its length is
-known as it writes. The client simply adds them up.
+An absolute has no such problem. **The last beat of a reply is the state**, so
+three beats say precisely what one says, and the client stops doing arithmetic
+it has no basis for. It also needs no budget instruction at all, which removes
+the thing the model kept failing to do.
 
-That setting still shows a bias toward verbose replies. It ships anyway, because
-it is the only one of the three that is **correct if the model obeys** -
-averaging an already-apportioned total would get worse as the model improved,
-and a rule that is wrong in the limit is the wrong rule to ship.
+What it bought, on the same twelve-scene script: guard drops went from
+`10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20` - fluctuating, half of them
+negative, the branch effectively dead - to `17, 4, 8, 10, 13, 10, 7, 11, 10, 11,
+9, 17`. **Every scene now moves her the right way**, the spread is tight, and
+guard behaves like something that trends across a scene instead of jittering
+inside one.
+
+Two things this requires, both deliberate:
+
+1. **Block 4 states her opening reading** (`Irene starts this scene at guard55,
+   fluster0`), because an absolute needs a scale to sit on. This does not break
+   section 8's invariant 2, which forbids re-injecting a *refreshed* stat block
+   mid-scene: the opening value is stated once, in the frozen header, and never
+   updated. It is also not the thing section 8's "words, not numbers" rule
+   forbids - that exists so the model does not narrate a relationship stat, and
+   this is the opening value of a reading it is already required to emit.
+2. **A signed value is still read as movement.** Section 9 assumes format
+   failures rather than forbidding them, and a model slipping back into deltas
+   must move the meter sensibly rather than have `-8` read as an absolute and
+   slam guard to zero.
+
+The offline writer emits readings too, converting its own delta tables against a
+running state that resets on each opening beat. It has to: the game is playable
+with no key and that is a supported mode, so a mock speaking a dialect the live
+model no longer speaks would make offline play diverge from online play in the
+one system the whole relationship model runs on. Its magnitudes are still
+roughly twice DeepSeek's, so **harness payout numbers remain an upper bound.**
 
 A per-SCENE budget was tried first and is the one thing that must not be
-repeated: it overshot to a 55-point guard drop with fluster pegged at 100 by
-turn four, because a scene is many replies and the model cannot see how many are
+repeated: it overshot to a 55-point drop with fluster pegged at 100 by turn
+four, because a scene is many replies and the model cannot see how many are
 left.
-
-Thresholds were recalibrated on the way. They were 15 and 60 against beats that
-were larger and fewer; 60 fluster had become literally unreachable, which killed
-the entire "you landed even though her guard held" branch.
-
-**Known and unfixed: the guard branch does not fire.** Over twelve live scenes
-not one cleared `GUARD_DROP_TO_PAY = 12` - drops were 10, 8, -7, 11, 0, -3, -10,
--23, 9, 9, 9, -20 - and all six paying scenes paid on fluster alone. Guard is
-behaving as something that fluctuates inside a scene rather than something that
-trends down across one. Lowering the bar to 8 would take the pay rate to 10 of
-12, which is too generous, so it stays until there is a bigger sample. The
-durable fix is probably to have the metadata line report **where she is** rather
-than **how far she moved**; that is a section 9 contract change and wants its
-own session. See `docs/PROPOSALS.md`.
-
-**The offline writer is two to three times more generous per turn than
-DeepSeek**, so harness payout numbers are an upper bound, not a forecast.
 
 ### A public risk is worth more the closer you already are
 
@@ -815,12 +827,24 @@ Result: turn 1 of a scene is a cache miss; every subsequent turn is a near-total
 Metadata on the **first line**, machine-readable, then prose. Metadata first means the portrait reacts before the text arrives.
 
 ```
-@irene|blush|guard-8|fluster+12
+@irene|blush|guard47|fluster18
 *I take the water bottle with a slight blush.* "Thanks... you really saved me back there."
 ```
 
-Grammar: `@<speaker_id>|<emotion>|guard<signed_int>|fluster<signed_int>`
+Grammar: `@<speaker_id>|<emotion>|guard<0-100>|fluster<0-100>`
 Emotions (MVP set): `neutral, happy, blush, shy, upset, surprised`.
+
+The two numbers are **readings, not movements** - where she is at the end of
+that beat. Section 6 has the argument and the measurements; the short version is
+that the model chooses how many beats to write for prose reasons, and no
+client-side arithmetic can turn an unknown number of deltas into a quantity.
+With a reading, the last beat of a reply is the state.
+
+**A signed value is still accepted and read as movement.** `guard-8` means she
+moved eight, not that she is at minus eight. Format failures are guaranteed at
+this tier (see the parser rules below), and a model slipping back into deltas
+must move the meter sensibly instead of slamming guard to zero. The offline
+writer emits readings, so both paths run in every test.
 
 **All machine-readable tokens stay ASCII English in every language.** Speaker ids, emotion names, and field names are never localized. Only the prose after the metadata line is written in the player's language. A localized emotion name kills the parser.
 
@@ -871,7 +895,7 @@ Streaming state machine. Format failures are guaranteed at this model tier, so:
 2. Unknown emotion -> fall back to `neutral`.
 3. **Speaker id not in the current scene roster -> drop the beat entirely.** This is the hard guarantee against member bleed; prompting alone will not hold it.
 4. Unknown but rostered speaker id -> fall back to the focus character.
-5. Malformed delta -> treat as 0.
+5. Malformed meter -> treat as no movement. An unsigned number is a reading and replaces the meter; a signed one is a movement and is added to it; an out-of-range reading is clamped to 0-100 rather than trusted.
 6. **Never** show a raw metadata line to the player.
 
 ### Member separation

@@ -10,13 +10,43 @@ import {
 const ctx = { rosterIds: ['irene', 'nana'], focusId: 'irene' };
 
 describe('parseMetaLine', () => {
-  it('parses the contract form', () => {
+  it('parses the contract form: an unsigned number is where she IS', () => {
+    expect(parseMetaLine('@irene|blush|guard42|fluster60')).toEqual({
+      speaker: 'irene',
+      emotion: 'blush',
+      guard: 42,
+      guardIsAbsolute: true,
+      fluster: 60,
+      flusterIsAbsolute: true,
+    });
+  });
+
+  /**
+   * The signed form is still read as movement rather than rejected. Section 9
+   * assumes format failures, and a model slipping back into deltas must move
+   * the meter sensibly instead of slamming guard to zero - which is exactly
+   * what reading "-8" as an absolute would do.
+   */
+  it('still reads a signed number as movement', () => {
     expect(parseMetaLine('@irene|blush|guard-8|fluster+12')).toEqual({
       speaker: 'irene',
       emotion: 'blush',
       guard: -8,
+      guardIsAbsolute: false,
       fluster: 12,
+      flusterIsAbsolute: false,
     });
+  });
+
+  it('reads the two independently, because a model may mix them', () => {
+    const out = parseMetaLine('@irene|shy|guard40|fluster+6');
+    expect(out.guardIsAbsolute).toBe(true);
+    expect(out.flusterIsAbsolute).toBe(false);
+  });
+
+  it('clamps an absolute to the meter range rather than trusting it', () => {
+    expect(parseMetaLine('@irene|happy|guard250|fluster999').guard).toBe(100);
+    expect(parseMetaLine('@irene|happy|guard250|fluster999').fluster).toBe(100);
   });
 
   it('returns null for prose', () => {

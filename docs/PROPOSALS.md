@@ -18,139 +18,57 @@ number should move again. Everything else is still only an argument.
 
 ## 1. A scene's payout depends on how many beats the model felt like writing
 
-**DONE 2026-08-22 - none of the three listed options; the budget moved into the
-prompt instead.** The deltas in one reply must now ADD UP to what that exchange
-moved her, and the client sums them. Thresholds were recalibrated on the way:
-`GUARD_DROP_TO_PAY = 12`, `FLUSTER_PEAK_TO_PAY = 30` - the old fluster bar of 60
-had become unreachable and that whole branch was dead. See "where it landed"
-below for what each setting actually measured, and for what is still wrong.
+**DONE 2026-08-22 - by changing the contract, not the arithmetic.** The metadata
+line now reports **where she is** (`guard58`) instead of how far she moved
+(`guard-8`), so the last beat of a reply is the state and beat count stops
+mattering. Section 9 carries the contract; section 6 carries the argument.
 
-It also surfaced a measurement problem worth keeping in view: **the offline
-writer is 2-3x more generous per turn than DeepSeek**, so every payout figure
-the campaign harness reports is an upper bound. Aligning the mock's magnitudes
-with the live model would make the harness numbers trustworthy, and would mean
-re-baselining a lot of existing test expectations.
+Four settings were measured at twelve live scenes each:
 
-### Where it landed, after three settings
-
-| setting | aggregation | result over 12 live scenes |
+| prompt asks for | client does | result |
 |---|---|---|
-| per-beat scale | sum | verbose pays: 21-beat scenes always, 7-beat never |
-| per-beat scale | mean | **flipped** - 5 of 6 terse paid, 1 of 5 verbose |
-| **per-reply budget** | **sum** | verbose pays again: 6 of 7 verbose, 0 of 5 terse |
+| a scale per BEAT | sum | verbose paid: every 21-beat scene, no 7-beat one |
+| a scale per BEAT | mean | the bias **flipped**: 5/6 terse paid, 1/5 verbose |
+| a budget per REPLY | sum | verbose paid again: 6/7 verbose, 0/5 terse |
+| **a reading, 0-100** | **take the last** | guard fell in **12 of 12** scenes |
 
-Shipped: the third. Not because it removed the bias - it did not - but because
-**it is the only one that is correct if the model obeys.** The prompt now says
-the deltas in one reply must add up to what that exchange moved, so summing is
-the matching arithmetic; averaging would divide an already-apportioned total and
-would get *worse* as the model improved. A setting that is wrong in the limit is
-the wrong thing to ship, even when it happens to score the same today.
+The first three all failed the same way and it took all three to see why: the
+client was reassembling a quantity from an unknown number of pieces, and the
+model was choosing that number for prose reasons. Averaging looks like the
+obvious fix and is not - handed a per-beat range, the model uses the small end
+when it writes three beats and a big number when it writes one, so a verbose
+reply moves her *less* in its own numbers however you add them up.
 
-Pay rate is 6 of 12 either way, which is a reasonable share of scenes moving the
-relationship.
-
-**The guard branch is currently dead.** Over those twelve scenes, guard drops
-were 10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20 - not one cleared
-`GUARD_DROP_TO_PAY = 12`, and all six paying scenes paid on fluster alone. So
-"she opened up over the course of the scene" earns nothing right now and only
-"you flustered her" does. Guard is behaving as something that fluctuates within
-a scene rather than something that trends down across one.
-
-I deliberately did **not** lower the threshold to fix that. On this sample a bar
-of 8 would take the pay rate to 10 of 12, which is too generous, and one noisy
-sample is not enough to move a coefficient that the whole first axis runs
-through - two consecutive six-scene samples on an unchanged build averaged +7.8
-and -3.3 guard drop.
-
-### The durable fix, not yet attempted: report state, not deltas
-
-Every setting above fights the same thing - the client has to reassemble a
-quantity from an unknown number of pieces. That goes away if the metadata line
-carries **where she is now** rather than how far she just moved:
+What the change bought, same script:
 
 ```
-@irene|shy|guard42|fluster60
+before   guard drops  10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20
+after    guard drops  17, 4,  8, 10, 13, 10,   7,  11, 10, 11, 9, 17
 ```
 
-Beat count then stops mattering entirely: the last beat of a reply is the state,
-and a reply with three beats says the same thing as a reply with one. It also
-removes a class of drift, since an absolute cannot accumulate rounding.
+Before, half the drops were negative and not one cleared the threshold - the
+guard branch was dead and every paying scene paid on fluster. After, **every
+scene moves her the right way** and the spread is tight. Guard now behaves like
+something that trends across a scene rather than jitters inside one.
 
-The costs are real: it is a **section 9 contract change**, so the parser, the
-offline writer, `applyBeatToMeters` and a good number of tests all move, and
-small models may anchor less well on an absolute than on a nudge. Worth trying
-behind a flag and measuring against the same twelve-scene script before
-committing to it.
+Pay rate is 4 of 12 on a deliberately clumsy script (the test player `press`es
+twice at intimacy 45), against 6 of 12 before. Thresholds were NOT touched again
+to chase that number: the distributions are healthy and one twelve-scene sample
+on a fixed script is not enough to move a coefficient the whole first axis runs
+through.
 
-Twelve live scenes after the change, 6 of 12 paid - but the correlation with
-beat count did not disappear, it **flipped**:
+Two consequences worth knowing:
 
-| beats per scene | scenes | paid |
-|---|---|---|
-| 7 (one per turn) | 6 | 5 |
-| 20-21 (three per turn) | 5 | 1 |
-
-The cause is not the aggregation. It is that the model, given the per-beat scale
-guidance, uses the *small* end of the range ("1-3, keeping the conversation
-alive") when it writes three beats and a big number when it writes one. So a
-verbose reply moves less in the model's own numbers, whichever way the client
-adds them up - summing those same scenes would have paid one or two of five.
-
-Neither summing nor averaging can fix that, because the problem is upstream of
-the arithmetic. The next thing to try is prompt-side and bounded: **tell the
-model that the deltas across one reply should add up to how far that exchange
-moved her**, and go back to summing. A per-*reply* budget is not the per-*scene*
-budget that overshot badly earlier - a reply is one exchange, and its length is
-known to the model as it writes.
-
-Do not tune the thresholds again before that experiment. The sample-to-sample
-variance is large (two consecutive six-scene samples averaged +7.8 and -3.3
-guard drop on the same script), and the current script also has the player
-`press`ing twice at intimacy 45, so these numbers describe an indifferent
-player rather than a good one.
-
-### Measured
-
-Six identical seven-turn scenes against DeepSeek, same setup, same stances:
-
-| beats | guard drop | fluster peak | paid? |
-|---|---|---|---|
-| 7 | 9 | 23 | no |
-| 7 | 0 | 23 | no |
-| 21 | -1 | 67 | yes |
-| 13 | 25 | 63 | yes |
-| 21 | 25 | 80 | yes |
-| 21 | -4 | 85 | yes |
-
-Every seven-beat scene paid nothing. Every twenty-one-beat scene paid. The
-model writes one to three beats per turn as a stylistic choice, deltas are
-per-beat and the client sums them, so **a scene is worth roughly three times
-more when the model is feeling verbose.** The player did the same things in all
-six.
-
-### Why it matters
-
-Section 6's whole claim is that the player reads hidden state and bets on it. If
-the payout is driven by the model's paragraph count, the bet is partly a
-coin-flip on prose length, and the feedback the player gets is noise on top of
-signal. It also makes every threshold in section 6 untunable: whatever value is
-chosen is right for one beat count and wrong for the other.
-
-### Options
-
-1. **Average within a turn.** A turn's movement is the mean of its beats rather
-   than the sum. Three beats in one reply are one exchange described in three
-   moments, so a mean is arguably the truer reading of "where her guard is now".
-   One line in `applyBeatToMeters`.
-2. **Cap per-turn movement** at, say, ±10 guard. Cheap, but measured per-turn
-   movement was already near 10 in the verbose runs, so it compresses the spread
-   without removing it.
-3. **Ask for exactly one metadata line per turn** and let the prose carry the
-   beats. Cleanest signal, but it throws away the per-beat emotion track that
-   drives the portrait, which is a real loss.
-
-**Recommendation: option 1**, and re-run the six-scene sample to confirm the
-spread narrows before touching any threshold.
+- **Block 4 states her opening reading** (`Irene starts this scene at guard55,
+  fluster0`), because an absolute needs a scale. It does not violate section 8's
+  invariant 2 - that forbids re-injecting a *refreshed* stat block mid-scene,
+  and this is stated once in the frozen header and never updated.
+- **The offline writer emits readings too**, converting its own delta tables
+  against a running state that resets on each opening beat. Offline play is a
+  supported mode, so the mock must not speak a dialect the live model has
+  stopped speaking. Its magnitudes are still about twice DeepSeek's, so
+  **harness payout figures remain an upper bound**, and aligning them would mean
+  re-baselining a good many test expectations.
 
 ---
 

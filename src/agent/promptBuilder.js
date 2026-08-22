@@ -151,7 +151,7 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '## Format contract',
     'Every beat begins with a metadata line, then the prose on the next line:',
     '',
-    '@<speaker_id>|<emotion>|guard<signed int>|fluster<signed int>',
+    '@<speaker_id>|<emotion>|guard<0-100>|fluster<0-100>',
     '*action* "speech"',
     '',
     /**
@@ -165,56 +165,44 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
      */
     'EVERY beat needs its own metadata line, including the second and third:',
     '',
-    '@irene|neutral|guard+3|fluster+0',
+    '@irene|neutral|guard58|fluster4',
     '*She does not look up from the notes.* "You are early."',
     '',
-    // The two beats add up to guard -8, fluster +14: one exchange that got
-    // through, shared out across the two moments it took.
-    '@irene|shy|guard-11|fluster+14',
+    '@irene|shy|guard47|fluster18',
     '*A pause, and then she does look up.* "That was not a complaint."',
     '',
     `Valid emotions: ${EMOTIONS.join(', ')}.`,
-    'guard is her defensiveness, fluster is how much you landed. Both are per-beat',
-    'deltas from -20 to +20.',
+    '',
     /**
-     * The magnitudes are not decoration.
+     * State, not movement. This is the fourth setting and the only structural
+     * one; the first three all failed the same way.
      *
-     * Section 6 pays intimacy for a guard drop of 15 or more across a scene and
-     * for a fluster peak of 60, and those thresholds were calibrated against
-     * the offline writer. A live scene that clearly went well - she opened up,
-     * teased back, and ended it blushing - moved guard by a net 1 and peaked
-     * fluster at 16, because the model anchored on the two example beats rather
-     * than on the stated range and reported +1 and +2 all the way through. It
-     * paid nothing.
+     * The line used to carry a DELTA, and the client had to reassemble a
+     * quantity out of however many beats the model felt like writing - one to
+     * three, chosen for prose reasons. No arithmetic survives that. Measured at
+     * twelve live scenes each:
      *
-     * The budget is per REPLY. That is the third setting tried and the only one
-     * that holds:
+     *   per-beat scale + sum   verbose paid: every 21-beat scene, no 7-beat one
+     *   per-beat scale + mean  the bias FLIPPED: 5/6 terse paid, 1/5 verbose
+     *   per-reply budget + sum verbose paid again: 6/7 verbose, 0/5 terse
      *
-     * - per SCENE ("her guard should fall 15-30 in total") overshot to a
-     *   55-point drop with fluster pegged at 100 by turn four, because a scene
-     *   is many replies and the model cannot see how many are left.
-     * - per BEAT ("a beat that gets through moves guard 5-10") made the payout
-     *   depend on verbosity. Measured over twelve live scenes, the model used
-     *   the small end of the range when it wrote three beats and a big number
-     *   when it wrote one, so a chatty reply moved her LESS: five of six terse
-     *   scenes paid and one of five verbose ones did, whichever way the client
-     *   added the numbers up. No client-side aggregation can fix that, because
-     *   it happens before the arithmetic.
-     * - per REPLY is bounded in the way the scene budget was not. One reply is
-     *   one exchange, and the model knows how many beats it is writing as it
-     *   writes them, so "split this across them" is a request it can actually
-     *   satisfy.
+     * An absolute has no such problem, because the last beat of a reply IS the
+     * state: three beats say precisely what one says. It also needs no budget
+     * instruction at all, which removes the thing the model kept failing to do.
      *
-     * Section 6 holds throughout: these are micro numbers, and the client alone
-     * decides what a scene was worth.
+     * Telling her opening values in block 4 is deliberate and does not break
+     * section 8's invariant 2. That forbids re-injecting a REFRESHED stat block
+     * mid-scene; this states the opening reading once, in the frozen header,
+     * and never updates it. Without it the model has no scale to be absolute
+     * on, and would anchor somewhere arbitrary.
      */
-    'The numbers belong to the REPLY, not to each beat. Whatever this exchange',
-    'moved her, split it across however many beats you write: the deltas in one',
-    'reply should ADD UP to it, never repeat it in each beat.',
-    'An exchange that only keeps the conversation alive adds up to 1-3. One that',
-    'actually gets through moves guard by 5-10 and fluster by a similar amount.',
-    'Save anything past 12 for a real breakthrough. One that lands badly moves',
-    'them back the other way.',
+    'guard is how defensive she is right now, from 0 to 100. fluster is how much',
+    'you have got to her right now, from 0 to 100.',
+    'These are WHERE SHE IS, not how far she moved. Report the current reading on',
+    'every beat, including when it has not changed. Her opening values are in',
+    '"This scene" below; move them by a point or two when a line barely registers,',
+    'and by ten or more when something really lands.',
+    'Never mention either number in the prose.',
     'Report only these. Never report anything else.',
     '',
     '## Language',
@@ -332,6 +320,27 @@ export function buildSceneHeader({
     if (r.speechStyle) lines.push(`${r.name} speaks like this: ${r.speechStyle}`);
 
     lines.push(standingLine(r.name, rel));
+
+    /**
+     * Where her meters start, so an absolute reading has a scale to sit on.
+     *
+     * This is the one number block 4 carries, and it is deliberate. Section 8's
+     * "words, not numbers" rule exists because a relationship STAT invites the
+     * model to narrate the stat; this is not that. It is the opening value of a
+     * reading the model is already required to emit on every beat, and section
+     * 9 separately forbids either number appearing in prose.
+     *
+     * Nor does it break invariant 2. That forbids re-injecting a REFRESHED stat
+     * block mid-scene; this states the opening reading exactly once, in the
+     * frozen header, and never updates it - live values stay client-side, as
+     * they always have.
+     *
+     * Without it the model has nothing to be absolute against and anchors
+     * somewhere arbitrary, which was the whole reason the line carried deltas
+     * in the first place.
+     */
+    const openingGuard = Math.max(0, Math.min(100, 100 - rel.intimacy + mods.guardBonus));
+    lines.push(`${r.name} starts this scene at guard${openingGuard}, fluster0.`);
 
     if (band !== 'calm') {
       lines.push(`${r.name} is ${band} about where your attention has been lately.`);

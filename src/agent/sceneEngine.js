@@ -11,7 +11,7 @@
  */
 
 import { openScene, appendTurn, appendSystemNote, requestThought, buildMessages } from './promptBuilder.js';
-import { createStreamParser, parseResponse, turnDeltas } from './responseParser.js';
+import { createStreamParser, parseResponse } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
 import { commitSummary } from './memory.js';
 import { sceneExposure } from '../systems/exposure.js';
@@ -41,15 +41,37 @@ export function newMeters(rel) {
   };
 }
 
+/**
+ * Walk the beats of one reply in order, and let each one say where she is.
+ *
+ * This is what makes beat count stop mattering. An absolute reading REPLACES
+ * the meter, so the last beat of a reply is the state and a reply written in
+ * three moments says exactly what one written in a single moment says. Every
+ * previous scheme had the client reassembling a quantity from an unknown number
+ * of pieces, and none of them survived contact with a real model: summing made
+ * a chatty reply worth three times a terse one, averaging flipped that bias,
+ * and asking the model to budget across its own beats did not take either.
+ *
+ * A signed reading still moves the meter the old way, because section 9 assumes
+ * format failures rather than forbidding them - and because the offline writer
+ * still speaks deltas, so both paths run in every test.
+ *
+ * `flusterPeak` is still a high-water mark. It has to be: the pillar is that
+ * you landed, and a reply that flusters her and then lets her recover inside
+ * the same turn still landed.
+ */
 export function applyBeatToMeters(meters, beats) {
-  const { guard, fluster } = turnDeltas(beats);
-  const next = {
-    ...meters,
-    guard: clamp(meters.guard + guard),
-    fluster: clamp(meters.fluster + fluster),
-  };
-  next.flusterPeak = Math.max(next.flusterPeak, next.fluster);
-  return next;
+  let guard = meters.guard;
+  let fluster = meters.fluster;
+  let peak = meters.flusterPeak;
+
+  for (const beat of beats ?? []) {
+    guard = clamp(beat.guardIsAbsolute ? beat.guard : guard + (beat.guard ?? 0));
+    fluster = clamp(beat.flusterIsAbsolute ? beat.fluster : fluster + (beat.fluster ?? 0));
+    peak = Math.max(peak, fluster);
+  }
+
+  return { ...meters, guard, fluster, flusterPeak: peak };
 }
 
 /**

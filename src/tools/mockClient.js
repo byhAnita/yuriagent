@@ -8,7 +8,7 @@
  * the tolerant parser gets exercised in real use rather than only in tests.
  */
 
-import { makeRng, deriveSeed, pick } from '../systems/rng.js';
+import { makeRng, deriveSeed, pick, clamp as clampMeter } from '../systems/rng.js';
 
 const LINES = {
   tease: [
@@ -172,6 +172,13 @@ export function createMockClient({
   delay = 260,
   chunkDelay = delay > 0 ? 12 : 0,
 } = {}) {
+  /**
+   * One client instance is one scene (App memoises it on the scene number),
+   * so the running meter reading lives here. It is reset by a new scene simply
+   * getting a new client.
+   */
+  const state = {};
+
   return async function mockClient({ messages, preset, onChunk }) {
     const rng = makeRng(deriveSeed(seed, `mock:${counter++}`));
     await new Promise((r) => setTimeout(r, delay));
@@ -227,9 +234,9 @@ export function createMockClient({
     // already is decides the register.
     let pool = null;
     let item = 'thing';
+    const conversation = messages.map((m) => m.content).join('\n');
 
     if (opening) {
-      const conversation = messages.map((m) => m.content).join('\n');
       const knowledge = /paying very close attention/i.test(conversation);
       const generic = /an ordinary, thoughtful gesture/i.test(conversation);
       const gesture = /no gift and no object/i.test(conversation);
@@ -249,7 +256,42 @@ export function createMockClient({
 
     const [emotion, guard, fluster, body] = pool ? pick(rng, pool) : FALLBACK;
     const prose = typeof body === 'function' ? body(item) : body;
-    const text = `@${id}|${emotion}|guard${guard >= 0 ? '+' : ''}${guard}|fluster${fluster >= 0 ? '+' : ''}${fluster}\n${prose}`;
+
+    /**
+     * The tables are written as movement; the contract wants state.
+     *
+     * Section 9's metadata line reports where she IS (0-100), so the offline
+     * writer keeps a running reading and applies its own deltas to it. It has
+     * to: the game is playable with no key and that is a supported mode, not a
+     * degraded one, so the mock emitting a dialect the live model no longer
+     * speaks would make offline play diverge from online play in the one system
+     * the whole relationship model runs on.
+     *
+     * The opening value comes out of block 4, which now states it - the same
+     * number the client seeds `newMeters` with. Falling back to a mid-scale
+     * guess only matters for a caller that hands the mock no header at all,
+     * which in practice means a unit test.
+     */
+    const stated = Number.parseInt(
+      /starts this scene at guard(\d+)/.exec(conversation)?.[1] ?? '60',
+      10,
+    );
+    // The opening beat IS the scene boundary, so reset there rather than
+    // trusting one client to be one scene - a caller that reuses an instance
+    // across scenes would otherwise carry her fluster from the last one into
+    // the next, and a test that reuses one did exactly that.
+    if (opening) {
+      state.guard = stated;
+      state.fluster = 0;
+    } else {
+      state.guard ??= stated;
+      state.fluster ??= 0;
+    }
+
+    state.guard = clampMeter(state.guard + guard);
+    state.fluster = clampMeter(state.fluster + fluster);
+
+    const text = `@${id}|${emotion}|guard${state.guard}|fluster${state.fluster}\n${prose}`;
 
     if (onChunk) {
       for (let i = 0; i < text.length; i += 5) {
