@@ -12,6 +12,7 @@ import en from './en.js';
 import zh from './zh.js';
 import { GENERIC_GIFTS, BUYABLE_GIFTS, KNOWLEDGE_GIFTS } from '../data/gifts.js';
 import { STANCES } from '../systems/chips.js';
+import { SOLO_ACTIONS } from '../data/soloActions.js';
 import { EMOTIONS } from '../agent/promptBuilder.js';
 
 const LOCALES = { en, zh };
@@ -62,6 +63,16 @@ describe('i18n coverage', () => {
           expect(dict.settings?.[key], `settings.${key}`).toBeTruthy();
         }
         expect(dict.settings.title).not.toBe(dict.gift.title);
+      });
+
+      /** Every solo action needs a button label AND the line it prints after. */
+      it('labels every solo action and its outcome', () => {
+        for (const [room, actions] of Object.entries(SOLO_ACTIONS)) {
+          for (const a of actions) {
+            expect(dict.solo?.[a.id], `solo.${a.id} (${room})`).toBeTruthy();
+            expect(dict.solo?.[`${a.id}_result`], `solo.${a.id}_result (${room})`).toBeTruthy();
+          }
+        }
       });
 
       it('carries the scene chrome', () => {

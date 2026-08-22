@@ -58,7 +58,7 @@ describe('the gift note carries its tier', () => {
   });
 
   it('a knowledge gift says why it lands', () => {
-    const out = purchase('hand_warmer', knowsCold().dossier.irene, 10, 'Irene');
+    const out = purchase('mugwort_pack', knowsCold().dossier.irene, 10, 'Irene');
     expect(out.tier).toBe('knowledge');
     expect(out.sceneNote).toContain('paying very close attention');
     expect(out.sceneNote).toContain('never told anyone');
@@ -69,12 +69,12 @@ describe('the gift note carries its tier', () => {
 
   /**
    * The note has to say WHICH remembered line the gift was bought on. The fact
-   * is in block 3, but the step from `hand_warmer` to that one entry is an
+   * is in block 3, but the step from `mugwort_pack` to that one entry is an
    * inference, and at this model tier an unreliable inference produces exactly
    * the generic thank-you the knowledge economy exists to avoid.
    */
   it('quotes the fact the gift was bought on', () => {
-    const out = purchase('hand_warmer', knowsCold().dossier.irene, 10, 'Irene');
+    const out = purchase('mugwort_pack', knowsCold().dossier.irene, 10, 'Irene');
     expect(out.fact).toBe('hates cold hands');
     expect(out.sceneNote).toContain('"hates cold hands"');
   });
@@ -87,7 +87,7 @@ describe('the gift note carries its tier', () => {
       'player_told_her',
       'her hands go cold in the practice room and she never says so',
     );
-    const out = purchase('hand_warmer', told.dossier.irene, 10, 'Irene');
+    const out = purchase('mugwort_pack', told.dossier.irene, 10, 'Irene');
     expect(out.fact).toContain('cold');
     expect(out.sceneNote).toContain(out.fact);
   });
@@ -124,14 +124,14 @@ describe('the opening turn is an instruction, not a fake player action', () => {
 
   it('puts the gift note in the messages, ahead of the opening instruction', async () => {
     const args = setup(knowsCold());
-    const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+    const bought = purchase('mugwort_pack', args.memory.dossier.irene, 10, 'Irene');
 
     let session = openWithGift(beginScene(args), bought.sceneNote);
     const client = createMockClient({ seed: 1, delay: 0 });
     session = await runTurn(session, { text: openingDirective(true), client });
 
     const contents = buildMessages(session.frame).map((m) => m.content);
-    const giftAt = contents.findIndex((c) => c.includes('hand warmer'));
+    const giftAt = contents.findIndex((c) => c.includes('mugwort pack'));
     const openAt = contents.findIndex((c) => c.includes('opening beat'));
 
     expect(giftAt).toBeGreaterThan(-1);
@@ -144,7 +144,7 @@ describe('she actually reacts', () => {
 
   it('answers a knowledge gift with something that is not a greeting', async () => {
     const args = setup(knowsCold());
-    const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+    const bought = purchase('mugwort_pack', args.memory.dossier.irene, 10, 'Irene');
 
     let session = openWithGift(beginScene(args), bought.sceneNote);
     session = await runTurn(session, { text: openingDirective(true), client });
@@ -153,7 +153,7 @@ describe('she actually reacts', () => {
     expect(text).not.toContain('You came');
     // She names the thing she was handed. A reaction that could have been
     // written before knowing what the gift was is the failure mode here.
-    expect(text.toLowerCase()).toContain('hand warmer');
+    expect(text.toLowerCase()).toContain('mugwort pack');
     expect(session.meters.fluster).toBeGreaterThan(10);
   });
 
@@ -164,7 +164,7 @@ describe('she actually reacts', () => {
     a = await runTurn(a, { text: openingDirective(true), client });
 
     const knowArgs = setup(knowsCold());
-    const known = purchase('hand_warmer', knowArgs.memory.dossier.irene, 10, 'Irene');
+    const known = purchase('mugwort_pack', knowArgs.memory.dossier.irene, 10, 'Irene');
     let b = openWithGift(beginScene(knowArgs), known.sceneNote);
     b = await runTurn(b, { text: openingDirective(true), client });
 
@@ -179,10 +179,10 @@ describe('she actually reacts', () => {
    */
   it('names the object it was handed', async () => {
     const args = setup(knowsCold());
-    const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+    const bought = purchase('mugwort_pack', args.memory.dossier.irene, 10, 'Irene');
     let s = openWithGift(beginScene(args), bought.sceneNote);
     s = await runTurn(s, { text: openingDirective(true), client });
-    expect(s.beats.map((b) => b.text).join(' ').toLowerCase()).toContain('hand warmer');
+    expect(s.beats.map((b) => b.text).join(' ').toLowerCase()).toContain('mugwort pack');
   });
 
   it('does not answer a colleague the way it answers someone at unspoken', async () => {
@@ -195,7 +195,7 @@ describe('she actually reacts', () => {
         peakIntimacy: intimacy,
         stage: intimacy > 70 ? 'unspoken' : 'colleague',
       };
-      const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+      const bought = purchase('mugwort_pack', args.memory.dossier.irene, 10, 'Irene');
       let s = openWithGift(beginScene(args), bought.sceneNote);
       s = await runTurn(s, { text: openingDirective(true), client });
       return s;
@@ -222,7 +222,7 @@ describe('she actually reacts', () => {
   it('never drops the opening beat to a format failure', async () => {
     const noisy = createMockClient({ seed: 9, failureRate: 1, delay: 0 });
     const args = setup(knowsCold());
-    const bought = purchase('hand_warmer', args.memory.dossier.irene, 10, 'Irene');
+    const bought = purchase('mugwort_pack', args.memory.dossier.irene, 10, 'Irene');
 
     let session = openWithGift(beginScene(args), bought.sceneNote);
     session = await runTurn(session, { text: openingDirective(true), client: noisy });

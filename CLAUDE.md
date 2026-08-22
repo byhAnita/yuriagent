@@ -860,15 +860,31 @@ an empty room is how you learn something about a member who is not in it, which
 is the second path into `known_facts` and therefore into the knowledge-gated
 gifts. That is what makes an empty wardrobe worth entering.
 
-| Room | Work | Snoop |
-|---|---|---|
-| `wardrobe` | prep the fittings | **read the fitting notes** |
-| `corridor` | chase the schedule | **take your time getting through** |
-| `practice_room` | run the setlist / tidy up | - |
-| `cafe` | buy the table coffee | - |
-| `dorm_kitchen` | cook for whoever comes in | - |
-| `dorm_living` | - | **wait up** |
-| `dorm_player_room` | sleep / lie awake | - |
+**Almost every room can teach you something**, and what changes is the price.
+Only three could at first, which quietly funnelled the whole knowledge economy
+through the wardrobe and left the rest of the map as credit dispensers you
+visited when the wardrobe was busy. Anywhere the player is alone, a block and
+some energy can buy a fact.
+
+| Room | Work | Snoop | secrecy |
+|---|---|---|---|
+| `broadcast_studio` | help the crew | **take the long way past the green room** | **-7** |
+| `wardrobe` | prep the fittings | **read the fitting notes** | -5 |
+| `drama_set` | wait it out | **read the call sheet properly** | -4 |
+| `practice_room` | run the setlist / tidy up | **watch the playback back** | -4 |
+| `corridor` | chase the schedule | **take your time getting through** | -3 |
+| `cafe` | buy the table coffee | **stay for another cup** | -2 |
+| `dorm_kitchen` | cook for whoever comes in | **read what is stuck to the fridge** | -2 |
+| `dorm_living` | - | **wait up** | -1 |
+| `dorm_player_room` | sleep / lie awake | - | - |
+
+The spread is the point. Loitering in a corridor is nearly free; being nosy in a
+live studio green room, where everyone present is paid to watch, is the most
+expensive thing on the map. So *where* you go to learn something is a decision
+with a price attached, rather than a fixed errand at the wardrobe.
+
+Your own room stays the exception. There is nothing to find out about anyone
+else in it.
 
 Snooping trades **`secrecy`** for a fact. Low secrecy amplifies scene exposure
 and feeds `exposure_end`, so the cost is real and it lands later - which is the

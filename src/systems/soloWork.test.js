@@ -229,6 +229,46 @@ describe('goodwillTargets', () => {
  * random - but every card carried exactly two facts, so each knowledge gift had
  * exactly one possible owner and the whole economy was a fixed lookup.
  */
+/**
+ * An empty room is worth entering almost anywhere.
+ *
+ * Only three rooms could teach you anything at first, which quietly funnelled
+ * the whole knowledge economy through the wardrobe and turned the rest of the
+ * map into credit dispensers. What varies room to room is the secrecy price,
+ * not whether there is anything to find.
+ */
+describe('most of the map can teach you something', () => {
+  const rooms = Object.entries(SOLO_ACTIONS);
+
+  it('offers a way to learn in all but one room', () => {
+    const without = rooms.filter(([, as]) => !as.some((a) => a.learns)).map(([id]) => id);
+    expect(without).toEqual(['dorm_player_room']);
+  });
+
+  it('charges secrecy for every one of them', () => {
+    for (const [room, actions] of rooms) {
+      for (const a of actions.filter((x) => x.learns)) {
+        expect(a.secrecy, `${room}/${a.id}`).toBeLessThan(0);
+        expect(a.energy, `${room}/${a.id}`).toBeLessThan(0);
+      }
+    }
+  });
+
+  /** Where you snoop is a real choice only if the rooms cost different amounts. */
+  it('prices the rooms differently', () => {
+    const prices = rooms
+      .flatMap(([, as]) => as.filter((a) => a.learns).map((a) => a.secrecy));
+    expect(new Set(prices).size).toBeGreaterThan(3);
+  });
+
+  it('makes the most public room the most expensive to be nosy in', () => {
+    const priceOf = (room) =>
+      SOLO_ACTIONS[room].find((a) => a.learns).secrecy;
+    expect(priceOf('broadcast_studio')).toBeLessThan(priceOf('corridor'));
+    expect(priceOf('broadcast_studio')).toBeLessThan(priceOf('dorm_living'));
+  });
+});
+
 describe('knowledge is not a fixed lookup', () => {
   it('learns different things about the same member on different seeds', () => {
     const learnedFor = (seed) => {
