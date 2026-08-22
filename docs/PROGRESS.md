@@ -7,15 +7,16 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M4 complete, M5 underway
 
-**568 tests, lint and build clean.** `dev` holds everything; the M2-M4 work was
+**672 tests, lint and build clean.** `dev` holds everything; the M2-M4 work was
 merged 2026-08-22 and the M5 map work sits on top of it.
 
-The game is playable end to end for a day - map -> empty room or scene ->
-opener -> dialogue -> exit -> rumor -> rollover, with no API key required - but
-**that is still the OLD map.** The phase maps, dating, scene frames and the
-witnessed rule are built and tested and none of them is reachable in play yet.
-See "M5 in progress" below, which lists exactly what is wired to nothing and
-why that list is the thing to watch.
+The game is playable end to end for a day - map -> room -> scene or solo work ->
+opener -> dialogue -> exit -> rumor -> rollover - **on the new phase map**, in
+English or Chinese, with or without an API key. Dating, witnessed 1v1, the room
+action list and the date register are all live.
+
+**Start at "M5 in progress" below.** It has what is done, what is built but not
+reachable, and a numbered order to pick up from.
 
 ### The balance pass, 2026-08-22
 
@@ -276,90 +277,118 @@ with several people lets you choose who you walk up to.
 
 ---
 
-## M5 in progress: the phase map, dating, and what is wired to nothing yet
+## M5 in progress
 
-**568 tests, lint and build clean.** `dev` is at the M2-M4 merge plus the M5
-map work. Everything below is on `dev`.
+**672 tests, lint and build clean.** Everything is on `dev`; `main` is 41+
+commits behind and should stay there until a full loop has been played by hand.
 
-### Done
+### Done and reachable in play
 
 | | |
 |---|---|
-| `data/phaseMaps.js` | slots, roles, three phase maps, coverage assertions |
-| `data/locations.js` | 12 new rooms; `drama_set` broadened to all filming |
-| `systems/tasks.js` | a task names a **slot**, resolved per phase |
-| `data/activities.js` | every activity names a slot too |
-| `systems/calendar.js` | event day first, phase-scoped group density, free evenings, her-room routine |
-| `systems/dating.js` | public/private gates, the roll, the bill, who finds out |
-| `store/playerName.js` | collection-ready, sanitised at the prompt boundary |
-| `agent/promptBuilder.js` | the pronoun rule; the player name in block 1 |
-| `data/sceneFrames.js` | settings and movements for every date venue, 16 turns |
-| `systems/exposure.js` | `witnessedExposure` - the room counts, not just the street |
+| phase maps | `data/phaseMaps.js` - slots, roles, three maps, coverage asserted |
+| 12 new locations | `drama_set` broadened to cover all filming |
+| tasks bind to a slot | resolved per phase, never a location id |
+| activities bind to a slot | same rule; two were scheduling members into unreachable rooms |
+| calendar | event day first, phase-scoped group density, free evenings, her-room routine |
+| the map on screen | `LocationGrid` reads `overworldFor(phase)`; event sites hidden until their day |
+| the room screen | every action in every room; people first, task competing in the same list |
+| witnessed 1v1 | others in the room take jealousy with no roll, and lift `riskExposure` |
+| snoop pricing | secrecy cost scales with how many people are watching |
+| dating | weekend invitation, refusal, credit bill, whole-day cost |
+| scene registers | a date runs 16 turns with a literary register and a venue spine |
+| the pronoun rule | narration is "you"; only dialogue uses the player's name |
+| player name | sanitised at the prompt boundary; **no field to type it in yet** |
+| addressee | `systems/speaker.js` + `addresseeId`; inert until group scenes |
+| zh offline writer | `mockLines.zh.js`; the fallback no longer answers in English |
+| model-failure notice | a failed live call says so instead of pretending |
 
-### Three defects the new assertions caught, all the same shape
+### Built, tested, NOT reachable
 
-None of them were visible before the map could rotate, and all three are the
-`markRisk` shape: two halves that are each correct, with nothing joining them.
+Kept as its own list because this is the shape of the worst bug this project
+has had - `markRisk` was implemented and tested for two milestones while
+nothing called it, and every good ending was unreachable in the shipped game.
 
-1. **A slot pointed at `filming_set`, which does not exist.** Caught by the
-   coverage test on its first run, before anything was wired to it.
-2. **`occupancyAt` needed a `phase` the caller had to remember to pass**, and
-   returned `undefined` when it did not - dropping a member off the map. The
-   plan now carries its own phase, and idle has a fallback. A member is always
-   somewhere.
-3. **Activities hardcoded locations.** `concept_meeting` scheduled a member into
-   the `corridor`, which is on no phase map, and `group_practice` did the same
-   in COMEBACK. Both were unreachable rooms - the player would simply never find
-   her.
+- **`relanguage`** - switching language mid-scene rebuilds the prefix. Correct
+  and tested, and unreachable because settings are only on the day screen.
+  Insurance for when settings move into the scene.
+- **`turnTo` / speaker weighting** - no UI addresses anybody yet.
+- **Authored events** - `eventDays()` places the day and names the site;
+  `data/events/` is empty, so the day resolves as an ordinary one.
 
-### Built, tested, and NOT REACHABLE IN PLAY
+### The language bug, and what it cost to find
 
-This is the important half of this section. Each of these is correct and has
-tests, and none of it does anything in the running game yet. **This is exactly
-the shape of the largest bug the project has had** - `markRisk` was implemented
-and tested for two milestones while nothing ever called it, and the cost was
-every good ending being unreachable in the shipped game.
+Four symptoms were reported from one `zh` session. Three were UI printing
+memory, and are fixed: rumors render from `kind` + `subjectName` rather than
+`r.text`, and the summarizer returns `display` beside `summary`. Memory itself
+stays English - section 19 rule 2 - so a language switch cannot corrupt a save.
 
-- **Witnessed 1v1.** `propagate` still receives only the member being addressed
-  as `presentIds`, so the witnessed branch cannot fire. Needs `App.jsx` to pass
-  the full room roster.
-- **`riskExposure`.** `beginScene` computes it from `scene.rosterIds`, which
-  today holds one id. Correct the moment the roster is real.
-- **Dating.** Nothing calls `dateOffers` or `askOut`; there is no weekend
-  invitation UI and no whole-day scene.
-- **Scene frames and the 16-turn register.** `sceneFrames.js` is not read by
-  `promptBuilder` yet.
-- **The player name.** Sanitised and injected, but there is no field to type it
-  into - every run is still "the player".
-- **The phase map itself.** `LocationGrid` does not consult `mapFor(phase)`, so
-  the map on screen is still the old flat one.
+The fourth - "some members answer in English" - took **eight live probes and
+two wrong hypotheses**, and is worth recording because both wrong answers
+looked extremely plausible:
 
-### Next, in this order
+1. *The directive is too far from the dialogue.* Repeated it at the bottom of
+   block 4. Measured with it disabled: **7/7 turns still Chinese.** Not the
+   cause. The line stays because it is cheap, but it was a guess.
+2. *Accumulated English memory drags it.* Measured with 6 and then 24 English
+   ledger lines, three English dossier facts, a neglected member in the same
+   run, an English gift note, an English date frame, and Read her mid-scene.
+   **All 100% Han, every turn.**
 
-1. **`soloWork.js`** - offer every action in every room, and scale the snoop
-   secrecy cost by `presence`. Pure, small.
-2. **`systems/speaker.js` and `addresseeId`** - the *pure* half of proposal 12.
-   Deliberately before the UI: the addressee is also what proposal 11's
-   interaction control targets, so building the room screen without it means
-   building it twice.
-3. **The UI** - company zone, room action list with the task in it, weekend
-   date invitation, name entry. This is where everything above becomes
-   reachable, including the two wiring gaps named as such.
-4. **The interjection call and its directive** - the half of proposal 12 that
-   needs a live measurement, which needs a playable loop first.
-5. **Authored events**, then endings, save/load, PWA.
+The actual cause was `tools/client.js`: a failed live call falls back to the
+offline writer, silently, and that writer had one English table. Every probe
+missed it because they call the router directly and never take that path.
 
-### Why group scenes are not next
+Two lessons worth keeping:
 
-Proposal 12 is agreed and unimplemented. It is not the next thing to build, for
-one reason that outranks the rest: **there are already two features sitting in
-the tree that are tested and unreachable.** Opening a third front while those
-are outstanding is how a project ends up with two `markRisk` bugs instead of
-one. The interjection threshold also cannot be tuned without a playable loop,
-and there is not one for the new map yet.
+- **A harness that bypasses a layer cannot find bugs in that layer.** Eight
+  probes of the prompt could never have found a bug in the client.
+- The probes were not wasted: they establish that the prompt is fine under
+  every condition tried, which is why no coefficient was touched.
 
-The pure half - speaker weighting and the addressee - *is* next, because the UI
-has to be built around it either way.
+`src/agent/zhSmoke.test.js` (`ZH_SMOKE=1`) is the harness. It measures the Han
+ratio **per turn** - the existing `zh` check in `liveQuality` plays two turns,
+and a flicker is invisible at that length.
+
+### The custom-card probe
+
+A card with every semantic field in Chinese played four clean turns, the parser
+held, emotions stayed ASCII - and **memory came back 0% Han.** That settles the
+open question in PROPOSALS 14: the summarizer keeps memory English because its
+instruction says so, regardless of the card's language. Translate-at-import is
+therefore a preference, not a requirement.
+
+### Pick up here, in this order
+
+1. **Start screen** - name field, then the identity picker (assistant enabled,
+   others disabled) and the cast picker (hardcoded to five, custom stubbed).
+   Sections 12 and 13 already specify both as stubs. Build it once, with empty
+   sections for the pickers, rather than twice.
+2. **PROPOSALS 14** - fact ids and the display/canonical split. Two decisions
+   are open and stated there; the dossier-entry shape change should happen
+   **before** `save.js` exists, which is now.
+3. **Authored events** - `data/events/`, the whole-day clock, five sites. Write
+   the first as a 2-member scene to prove the injection shape.
+4. **Group scenes** - PROPOSALS 12. The pure half is done; what remains is the
+   interjection call, its directive, and a live pass on
+   `INTERJECT_THRESHOLD`, which cannot be reasoned to.
+5. **Dorm shared activities** - PROPOSALS 15 (cook together, watch a film).
+   Blocked on 4.
+6. **Endings, save/load, PWA** - the rest of M5.
+
+### Loose ends, none blocking
+
+- **`corridor` is orphaned.** Off every phase map, still has solo actions and
+  an i18n entry. `identity.locations` is worse: it names `backstage`, `van` and
+  `cafeteria`, none of which have ever existed. Identity should name slots.
+- **`npm test` spends money** while `.env.local` exists - `tools/live.test.js`
+  gates on a key alone, unlike `liveQuality` and `zhSmoke` which also need a
+  flag. Align it.
+- **`balanceSim` is superseded** and still maintained. See below.
+- **The block-4 language reminder is unjustified** rather than wrong. It was
+  added for a cause that turned out not to be the cause. Harmless, cheap, and
+  should be deleted if anything ever needs the space.
+
 ---
 
 ## Still open

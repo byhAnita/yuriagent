@@ -987,3 +987,77 @@ Small, and mostly mechanical:
 - one test that a `zh` run puts no ASCII sentence on the snoop screen
 
 The card-editor half is v2 and only needs the resolver to exist now.
+
+---
+
+## 15. The dorm needs something to do together
+
+**Status: AGREED 2026-08-22 with Yuhan. Blocked on PROPOSALS 12 (group scenes).**
+
+### The gap
+
+The shared dorm rooms used to walk the player straight into a 1v1 with whoever
+was listed first. That is fixed - both open the room screen now - but it exposed
+something the design had not noticed.
+
+Section 10 makes the dorm safe from scandal and dangerous for jealousy: nearly
+invisible outside, watched by everyone who lives there. That is a good tension
+and it is **currently all cost.** There is nothing in the dorm that spends time
+with the whole cast at once, so every dorm visit is a choice of one member in
+front of four, priced accordingly. The place the cast actually lives is the
+place it is most expensive to be.
+
+### The fix
+
+Two authored group activities, one per shared room:
+
+| Room | Solo | Together |
+|---|---|---|
+| `dorm_kitchen` | cook for yourself - produces a dish that can be given later as an ordinary gift | **cook together** - a group scene about food, with whoever is in |
+| `dorm_living` | wait up | **watch a film together** - a group scene about a randomly chosen film |
+
+**No 1v1 option is offered in either room.** That is the rule, not a limitation:
+the dorm is where an unchosen 1v1 costs the most, and removing the option is
+what turns the dorm from a trap into the place the pressure comes off.
+
+### Why these two specifically
+
+They are concrete, and concrete is what makes them read differently from a work
+scene. "What is in the fridge" and "this film is terrible" are topics a group of
+five can actually have, and neither is available anywhere else on the map -
+every other location produces conversation about the job. Section 8's whole
+argument for `ACTIVITY_DOING` is that a scene needs a reason to exist; a shared
+meal and a bad film are two reasons the workplace cannot supply.
+
+They also give the evening its own texture. Section 10 already made evenings
+work-free and put the cast at the dorm; this is what they do when they get
+there.
+
+### The dish is a small, good loop
+
+Cooking alone produces an object the player can hand to someone later. It is a
+generic-tier gift (section 11), not a knowledge one - anybody can cook - so it
+costs a block instead of credits and stays weaker than an opener bought on a
+fact. What it adds is a use for a dorm evening that is neither a snoop nor a
+scene, and a gift that is not a purchase.
+
+### What it needs first
+
+The group scene machinery in PROPOSALS 12: the addressee, the interjection, and
+the speaker weighting. All three exist as pure functions already; what is
+missing is the interjection call and its directive.
+
+Until then both rooms behave as ordinary room screens, which is correct and not
+broken - just quieter than they should be.
+
+### One thing to decide when it is built
+
+Whether a shared activity generates **witnessed** jealousy at all. The argument
+for no: nobody is being singled out, which is the whole point, and charging for
+it would put the cost straight back. The argument for yes at a reduced rate: the
+player is still choosing to spend an evening with the group rather than with
+her, and section 5b's `jealousy` is pressure about where attention goes.
+
+Recommended: **no jealousy, and a small intimacy gain for everyone present.**
+The dorm needs one thing that is unambiguously restorative, or the tension it
+carries has no release valve.
