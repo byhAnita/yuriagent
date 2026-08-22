@@ -273,6 +273,30 @@ export default {
     read_the_fridge_result: '便条、一张没人遵守的值日表，还有一句写给某个特定的人的话。你看了两遍。',
   },
 
+  date: {
+    title: '约人出去',
+    note: '这会花掉一整天，而且别人会发现你不在。',
+    skip: '今天算了',
+    public: '带 {name} 出去',
+    private: '在 {name} 房间里待一天',
+    heading: { public: '会被人看见的地方', private: '没人看得见的地方' },
+    chance: { sure: '她会答应', likely: '她多半会答应', maybe: '她也许会答应' },
+    no: {
+      too_soon: '还太早',
+      strain: '现在这样不行',
+      jealousy: '她几乎不跟你说话了',
+      credits: '你付不起',
+      declined: '今天不行',
+    },
+    refused: {
+      declined: '{name} 想了想，说这次就算了。',
+      too_soon: '{name} 看着你，像是你问错了问题。',
+      strain: '你还没说完，{name} 就拒绝了。',
+      jealousy: '{name} 连头都没抬。',
+      credits: '你算了算手里的钱，把这个念头收了回去。',
+    },
+  },
+
   vn: {
     sayIt: '说点什么',
     send: '发送',

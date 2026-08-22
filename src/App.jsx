@@ -14,6 +14,7 @@ import { applyTheme } from './config/themes.js';
 import { loadSettings, saveSettings } from './store/settings.js';
 import { loadApiKey, saveApiKey } from './store/apiKey.js';
 import { makeT } from './i18n/index.js';
+import { BLOCKS, SCENE_TURN_LIMITS } from './config/constants.js';
 import { getCast } from './data/cast.js';
 import { buildLineup } from './systems/castBuilder.js';
 import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
@@ -37,6 +38,10 @@ import Day from './ui/screens/Day.jsx';
 import GiftModal from './ui/modals/GiftModal.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
+import DateModal from './ui/modals/DateModal.jsx';
+import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
+import { isWeekend } from './systems/calendar.js';
+import { dateFrame, REGISTERS } from './data/sceneFrames.js';
 
 const IDENTITY = {
   id: 'assistant',
@@ -93,6 +98,18 @@ export default function App() {
   const [outcome, setOutcome] = useState(null);
   const [sceneNo, setSceneNo] = useState(0);
   const [solo, setSolo] = useState(null);
+
+  /**
+   * The weekend invitation.
+   *
+   * `askedToday` is keyed by week and day rather than being a boolean, so it
+   * clears itself on rollover and cannot leak into next Saturday. `refusal`
+   * holds her answer so the modal can show it: a refusal is not a failure, it
+   * is the first time a hidden number becomes a visible yes or no.
+   */
+  const [showDates, setShowDates] = useState(false);
+  const [askedToday, setAskedToday] = useState(null);
+  const [refusal, setRefusal] = useState(null);
 
   const t = useMemo(() => makeT(settings.lang), [settings.lang]);
 
@@ -159,8 +176,23 @@ export default function App() {
    * failure it had just avoided.
    */
   const advance = useCallback(
-    ({ extraEnergy = 0, playerDelta = null, taskDone = null } = {}) => {
-      const { run: next, rolledDay } = advanceBlock(run);
+    ({ extraEnergy = 0, playerDelta = null, taskDone = null, blocks = 1 } = {}) => {
+      /**
+       * `blocks` is looped HERE and not by the caller.
+       *
+       * This closure captures `run`, so calling advance() three times in a row
+       * would compute the same next block three times and the day would move
+       * once. A whole-day scene needs the rest of the day gone, so the loop has
+       * to live where the running value does.
+       */
+      let cursor = run;
+      let rolledDay = false;
+      for (let i = 0; i < Math.max(1, blocks); i++) {
+        const step = advanceBlock(cursor);
+        cursor = step.run;
+        rolledDay = rolledDay || step.rolledDay;
+      }
+      const next = cursor;
       const finished = taskDone ?? taskState.done;
 
       let nextPlayer = playerDelta ? applyPlayerDeltas(player, playerDelta) : player;
@@ -264,6 +296,57 @@ export default function App() {
     setSolo((s) => ({ ...s, result }));
   };
 
+  const dayKey = `${run.week}:${run.day}`;
+  const canAskOut = isWeekend(run.day) && askedToday !== dayKey;
+
+  const offers = useMemo(
+    () => (canAskOut ? dateOffers({ phase: run.phase, cast: cards, relations, player }) : []),
+    [canAskOut, run.phase, cards, relations, player],
+  );
+
+  /**
+   * Put the question, and spend the day on the answer.
+   *
+   * One ask per day: `askOut` is seeded on the moment, so without this the
+   * player could close the modal and reopen it forever and it would say the
+   * same thing - which is not a bet, it is a locked door with a visible key.
+   * Asking is what costs the attempt, not being told yes.
+   */
+  const onAskOut = (offer) => {
+    const answer = askOut({
+      rel: relations[offer.memberId],
+      kind: offer.kind,
+      player,
+      seed: SEED,
+      week: run.week,
+      day: run.day,
+      memberId: offer.memberId,
+    });
+
+    setAskedToday(dayKey);
+
+    if (!answer.accepted) {
+      const card = cards.find((c) => c.id === offer.memberId);
+      setRefusal({ reason: answer.reason, name: card.name });
+      return;
+    }
+
+    // She said yes. The bill lands on acceptance and never on the asking -
+    // she turned you down, you did not buy her dinner.
+    const cost = dateCost(offer.kind);
+    if (cost > 0) setPlayer((p) => ({ ...p, credits: Math.max(0, p.credits - cost) }));
+
+    setShowDates(false);
+    setRefusal(null);
+    setPendingScene({
+      locationId: dateLocation(run.phase, offer.kind),
+      rosterIds: [offer.memberId],
+      presentIds: [offer.memberId],
+      date: offer.kind,
+    });
+    setScreen('gift');
+  };
+
   const onEnter = (locationId, present, addresseeId = null) => {
     if (present.length === 0) return;
 
@@ -307,6 +390,20 @@ export default function App() {
       dormWitnessIds,
 
       /**
+       * A date is a whole day, so it gets the longer register and a spine.
+       *
+       * The spine is what stops sixteen turns becoming drift: two to four
+       * situations the day MAY pass through, offered and never ordered. Keeping
+       * the ordinary scene terse is the other half of it - the contrast is what
+       * makes a date feel like one (proposal 13).
+       */
+      date: pendingScene.date ?? null,
+      sceneFrame: pendingScene.date
+        ? dateFrame(pendingScene.date, pendingScene.locationId)
+        : null,
+      register: pendingScene.date ? REGISTERS.date : REGISTERS.ordinary,
+
+      /**
        * What she is here for, and what the player still owes today.
        *
        * Both already existed and neither reached the model: block 4 said only
@@ -340,7 +437,7 @@ export default function App() {
   const onSceneEnd = (result) => {
     setMemory(result.memory);
     setRelations(result.relations);
-    setOutcome(result);
+    setOutcome({ ...result, date: scene?.date ?? null });
     setSceneNo((n) => n + 1);
     setPendingScene(null);
     setGiftNote(null);
@@ -366,6 +463,25 @@ export default function App() {
           onEnterSolo={onEnterSolo}
           onSkipBlock={() => advance()}
           onOpenSettings={() => setShowSettings(true)}
+          canAskOut={canAskOut}
+          onAskOut={() => {
+            setRefusal(null);
+            setShowDates(true);
+          }}
+          t={t}
+        />
+      ) : null}
+
+      {showDates ? (
+        <DateModal
+          offers={offers}
+          cards={cards}
+          refusal={refusal}
+          onAsk={onAskOut}
+          onClose={() => {
+            setShowDates(false);
+            setRefusal(null);
+          }}
           t={t}
         />
       ) : null}
@@ -450,6 +566,7 @@ export default function App() {
           giftNote={giftNote}
           onSceneEnd={onSceneEnd}
           writtenChips={settings.writtenChips}
+          turnLimit={scene?.date ? SCENE_TURN_LIMITS.date : SCENE_TURN_LIMITS.ordinary}
           t={t}
         />
       ) : null}
@@ -460,7 +577,20 @@ export default function App() {
           cards={cards}
           relations={relations}
           memory={memory}
-          onContinue={() => advance({ extraEnergy: 1 })}
+          /**
+           * A date eats the day.
+           *
+           * That is what makes it depth and a free weekend breadth - the
+           * multi-route tension of section 5b expressed as a decision the
+           * player makes every week. Advancing block by block is how the rest
+           * of the day gets consumed, so nothing else has to know about dates.
+           */
+          onContinue={() =>
+            advance({
+              extraEnergy: 1,
+              blocks: outcome?.date ? BLOCKS.length - BLOCKS.indexOf(run.block) : 1,
+            })
+          }
           t={t}
         />
       ) : null}

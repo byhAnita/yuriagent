@@ -24,6 +24,7 @@ import { jealousyBand, sceneModifiers } from '../systems/jealousy.js';
 import { resolveStage } from '../systems/relationship.js';
 import { doingLine } from '../data/activities.js';
 import { displayName } from '../store/playerName.js';
+import { renderFrame } from '../data/sceneFrames.js';
 
 const LANG_NAMES = {
   en: 'English',
@@ -273,6 +274,8 @@ export function buildSceneHeader({
   relations,
   player,
   giftNote,
+  sceneFrame = null,
+  register = null,
   crossAwareness = [],
   occupancy = {},
   task = null,
@@ -396,6 +399,21 @@ export function buildSceneHeader({
   }
 
   if (giftNote) lines.push(giftNote);
+
+  /**
+   * A whole-day scene: the spine, then how to write it.
+   *
+   * Both live in block 4, which is rebuilt at every scene start anyway, so
+   * neither costs anything in cache terms. The register cannot go in block 1's
+   * "How to write" - that block is byte-stable for the whole run, and this
+   * changes per scene.
+   *
+   * Last, because it is the most immediate instruction there is: everything
+   * above describes the situation, and this says how to put it into words.
+   */
+  const frameText = renderFrame(sceneFrame);
+  if (frameText) lines.push('', '## The day', frameText);
+  if (register) lines.push('', '## How to write this one', register);
 
   // `PHASE_WEATHER` and the activity lines can legitimately be absent.
   return lines.filter(Boolean).join('\n');

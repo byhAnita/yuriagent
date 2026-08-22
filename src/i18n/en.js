@@ -273,6 +273,30 @@ export default {
     read_the_fridge_result: 'Notes, a rota nobody follows, and one thing written to somebody in particular. You read it twice.',
   },
 
+  date: {
+    title: 'Ask someone out',
+    note: 'It takes the whole day, and the others will notice you were gone.',
+    skip: 'Not today',
+    public: 'Take {name} out',
+    private: "Spend the day in {name}'s room",
+    heading: { public: 'Somewhere people can see', private: 'Somewhere nobody can' },
+    chance: { sure: 'she would say yes', likely: 'she probably would', maybe: 'she might' },
+    no: {
+      too_soon: 'not yet',
+      strain: 'not while things are like this',
+      jealousy: 'she is barely speaking to you',
+      credits: 'you cannot cover it',
+      declined: 'not today',
+    },
+    refused: {
+      declined: '{name} thought about it, and said not this time.',
+      too_soon: '{name} looked at you as though you had asked the wrong question.',
+      strain: '{name} said no before you had finished asking.',
+      jealousy: '{name} did not even look up.',
+      credits: 'You checked what you had, and put the idea away.',
+    },
+  },
+
   vn: {
     sayIt: 'Say something',
     send: 'Send',

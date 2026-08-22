@@ -32,7 +32,20 @@ import {
 } from '../../config/constants.js';
 import { makeRng } from '../../systems/rng.js';
 
-export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenChips = true, t }) {
+export default function VNStage({
+  setup,
+  client,
+  giftNote,
+  onSceneEnd,
+  writtenChips = true,
+  /**
+   * A whole-day scene gets a longer budget and a different register
+   * (proposal 13). Ordinary blocks stay terse on purpose - pillar 1 is 30-50
+   * word bursts, and the contrast is what makes a date feel like one.
+   */
+  turnLimit = SCENE_TURN_LIMIT,
+  t,
+}) {
   // A gift is injected at the head of block 5, before the first call, so the
   // model opens the scene by reacting to it (CLAUDE.md section 11).
   const [session, setSession] = useState(() => {
@@ -94,7 +107,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
   const readHerLeft = READ_HER_USES_PER_SCENE - session.frame.readHerUsed;
 
   /** A scene occupies one time block, so it cannot run forever. */
-  const turnsLeft = SCENE_TURN_LIMIT - turn;
+  const turnsLeft = turnLimit - turn;
   const outOfTurns = turnsLeft <= 0;
 
   /** The stage light warms or cools with what she is feeling. */

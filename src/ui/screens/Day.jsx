@@ -39,6 +39,8 @@ export default function Day({
   onEnterSolo,
   onSkipBlock,
   onOpenSettings,
+  canAskOut = false,
+  onAskOut,
   t,
 }) {
   const [showWeek, setShowWeek] = useState(false);
@@ -196,6 +198,24 @@ export default function Day({
       </section>
 
       <div className="mt-auto flex gap-2 pt-2">
+        {/*
+          Only at the weekend, and only once a day.
+
+          It sits beside "move on" rather than above the map, because it is an
+          alternative to the whole day rather than to one block: taking it means
+          giving up all three, which is the trade that makes a date depth and a
+          free weekend breadth.
+        */}
+        {canAskOut ? (
+          <button
+            type="button"
+            onClick={onAskOut}
+            className="flex-1 rounded-[var(--radius)] border border-accent px-4 py-3 font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-accent"
+          >
+            {t('date.title')}
+          </button>
+        ) : null}
+
         <button
           type="button"
           onClick={onSkipBlock}
