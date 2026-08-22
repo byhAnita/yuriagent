@@ -9,6 +9,14 @@
  */
 
 import { makeRng, deriveSeed, pick, clamp as clampMeter } from '../systems/rng.js';
+import {
+  LINES_ZH,
+  PLAYER_LINES_ZH,
+  THOUGHTS_ZH,
+  FALLBACK_ZH,
+  OPENING_ZH,
+  SUMMARY_ZH,
+} from './mockLines.zh.js';
 
 const LINES = {
   tease: [
@@ -183,15 +191,36 @@ export function createMockClient({
     const rng = makeRng(deriveSeed(seed, `mock:${counter++}`));
     await new Promise((r) => setTimeout(r, delay));
 
+    /**
+     * Which language the game is being played in, read off the prompt.
+     *
+     * Detected rather than passed, because this writer is also the fallback
+     * for a failed live call (tools/client.js) and that path has no plumbing
+     * to hand it settings. Block 1 always states the language, so the prompt
+     * is the one thing guaranteed to be in scope.
+     *
+     * This mattered more than "offline play is English": a Chinese player
+     * WITH a key saw an occasional English reply whenever a live call failed
+     * and silently fell through to here.
+     */
+    const prompt = messages.map((m) => m.content).join(String.fromCharCode(10));
+    const zh = /Simplified Chinese/.test(prompt);
+    const lines = zh ? { ...LINES, ...LINES_ZH } : LINES;
+    const playerLines = zh ? { ...PLAYER_LINES, ...PLAYER_LINES_ZH } : PLAYER_LINES;
+    const thoughts = zh ? THOUGHTS_ZH : THOUGHTS;
+    const fallbackLine = zh ? FALLBACK_ZH : FALLBACK;
+    const openings = zh ? OPENING_ZH : OPENING;
+
     if (preset === 'summarize') {
       return JSON.stringify({
         summary: 'They talked, and neither of them said the thing.',
+        display: zh ? SUMMARY_ZH : 'They talked, and neither of them said the thing.',
         dossier_add: [],
       });
     }
 
     if (preset === 'thought') {
-      return pick(rng, THOUGHTS);
+      return pick(rng, thoughts);
     }
 
     const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
@@ -204,11 +233,11 @@ export function createMockClient({
       const stances = asked
         .split(',')
         .map((s) => s.trim())
-        .filter((s) => PLAYER_LINES[s]);
+        .filter((s) => playerLines[s]);
 
       return stances
         .slice(0, 3)
-        .map((s) => `${s}|${pick(rng, PLAYER_LINES[s])}`)
+        .map((s) => `${s}|${pick(rng, playerLines[s])}`)
         .join('\n');
     }
 
@@ -224,7 +253,9 @@ export function createMockClient({
     // opening beat - swallowing a gift reaction is the one failure that reads
     // as the game being broken rather than the model being small.
     if (!opening && rng() < failureRate) {
-      const text = 'She does not answer straight away. The room is very quiet.';
+      const text = zh
+        ? '她没有马上回答。房间里很安静。'
+        : 'She does not answer straight away. The room is very quiet.';
       if (onChunk) for (let i = 0; i < text.length; i += 6) onChunk(text.slice(i, i + 6));
       return text;
     }
@@ -241,20 +272,20 @@ export function createMockClient({
       const generic = /an ordinary, thoughtful gesture/i.test(conversation);
       const gesture = /no gift and no object/i.test(conversation);
       const tier = gesture
-        ? OPENING.gesture
+        ? openings.gesture
         : knowledge
-          ? OPENING.knowledge
+          ? openings.knowledge
           : generic
-            ? OPENING.generic
-            : OPENING.plain;
+            ? openings.generic
+            : openings.plain;
 
       item = /just handed \S+ an? ([a-z][a-z ]*?)\./i.exec(conversation)?.[1]?.trim() ?? item;
       pool = CLOSE_MARKERS.test(conversation) ? tier.close : tier.reserved;
     } else {
-      pool = LINES[stance] ?? null;
+      pool = lines[stance] ?? null;
     }
 
-    const [emotion, guard, fluster, body] = pool ? pick(rng, pool) : FALLBACK;
+    const [emotion, guard, fluster, body] = pool ? pick(rng, pool) : fallbackLine;
     const prose = typeof body === 'function' ? body(item) : body;
 
     /**

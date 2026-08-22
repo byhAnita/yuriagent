@@ -21,8 +21,8 @@
 import { describe, it, expect } from 'vitest';
 import { stream, complete } from '../tools/llmTool.js';
 import { liveConfig } from '../tools/liveEnv.js';
-import { beginScene, runTurn, endScene, openingDirective } from './sceneEngine.js';
-import { newMemory } from './memory.js';
+import { beginScene, runTurn, endScene, openingDirective, readHer } from './sceneEngine.js';
+import { newMemory, appendLedger, addDossierEntry } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
@@ -51,7 +51,7 @@ function hanRatio(text) {
   return han + latin === 0 ? 1 : han / (han + latin);
 }
 
-function setup({ cast = cards, memberId = 'irene', intimacy = 45, date = null } = {}) {
+function setup({ cast = cards, memberId = 'irene', intimacy = 45, date = null, memory = null } = {}) {
   const ids = cast.map((c) => c.id);
   return {
     cards: cast,
@@ -59,7 +59,7 @@ function setup({ cast = cards, memberId = 'irene', intimacy = 45, date = null } 
     identity: { promptRole: 'an artist assistant', exposureModifier: {} },
     player: { name: '雨涵', energy: 80, secrecy: 70, credits: 20 },
     lang: 'zh',
-    memory: newMemory(ids),
+    memory: memory ?? newMemory(ids),
     relations: Object.fromEntries(ids.map((id) => [id, newRelation(intimacy)])),
     scene: {
       id: 'zh',
@@ -79,6 +79,68 @@ function setup({ cast = cards, memberId = 'irene', intimacy = 45, date = null } 
       register: date ? REGISTERS.date : REGISTERS.ordinary,
     },
   };
+}
+
+/**
+ * A run that has already been played in English.
+ *
+ * THIS is the variable every earlier probe was missing. Yuhan's actual sequence
+ * was: play several scenes in English, switch to Chinese OUTSIDE a scene, then
+ * play on - and some members answered in English while others answered in
+ * Chinese. New scenes are built with the new language, so the frozen-prefix
+ * explanation does not cover it.
+ *
+ * What survives a scene boundary is MEMORY, and section 19 rule 2 keeps it
+ * English on purpose so a language switch cannot corrupt history. So by the
+ * time the model reaches the dialogue it has read a ledger of English summaries
+ * and a dossier of English facts, with one sentence in block 1 asking for
+ * Chinese.
+ *
+ * And block 3 is ROSTER-SCOPED, which is what makes it look like a per-member
+ * problem: a member the player has spent time with carries several English
+ * facts immediately above her line, and one they have neglected carries none.
+ */
+function playedInEnglish(ids, { entries = 6, factsFor = 'irene' } = {}) {
+  let memory = newMemory(ids);
+
+  const lines = [
+    'Irene took the water bottle and said nothing about the schedule slipping.',
+    'The player prepped the stage outfits alone while the others rehearsed.',
+    'Nana noticed the player watching the run-through and made a joke about it.',
+    'Irene stayed late in the practice room and did not explain why.',
+    'The player ran the day schedule down and got the press kit out on time.',
+    'Irene mentioned, without being asked, that she sleeps badly before a comeback.',
+    'Jisoo balanced a bottle on her head until somebody laughed.',
+    'The player waited at the table while Hyewon finished eating.',
+  ];
+
+  for (let i = 0; i < entries; i++) {
+    const text = lines[i % lines.length];
+    memory = {
+      ...memory,
+      ledger: appendLedger(memory.ledger, {
+        id: `w0d${i}`,
+        week: 0,
+        day: i,
+        block: 'evening',
+        text,
+        summary: text,
+      }),
+    };
+  }
+
+  for (const fact of [
+    'cannot sleep the week before a comeback',
+    'hates cold hands',
+    'carries a pouch of vitamins everywhere',
+  ]) {
+    memory = {
+      ...memory,
+      dossier: addDossierEntry(memory.dossier, factsFor, 'known_facts', fact),
+    };
+  }
+
+  return memory;
 }
 
 /** Play n turns and report the Han ratio of each one separately. */
@@ -179,6 +241,107 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     }
 
     const { english } = report('opened on an English gift note', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /**
+   * The reported sequence, reproduced.
+   *
+   * Several scenes in English, switch to Chinese from the day screen, keep
+   * playing. The new scene is built with lang 'zh', so nothing is frozen wrong
+   * - but blocks 2 and 3 are now a wall of English that the model reads on its
+   * way to the dialogue.
+   */
+  it('holds Chinese for a member the player has a long English history with', async () => {
+    const ids = cards.map((c) => c.id);
+    const memory = playedInEnglish(ids, { entries: 6, factsFor: 'irene' });
+
+    const { perTurn } = await playAndMeasure(setup({ memberId: 'irene', memory }), [
+      'tease',
+      'reassure',
+      'confide',
+      'press',
+    ]);
+
+    const { english } = report('irene, 6 English ledger lines + 3 English facts', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /**
+   * The same run, a member with no dossier of her own.
+   *
+   * Block 3 is roster-scoped, so she carries none of those English facts - only
+   * the shared ledger. If the two differ, the amount of English immediately
+   * above her line is what decides it, which is what "some members English,
+   * some Chinese" would mean.
+   */
+  it('holds Chinese for a neglected member in the same run', async () => {
+    const ids = cards.map((c) => c.id);
+    const memory = playedInEnglish(ids, { entries: 6, factsFor: 'irene' });
+
+    const { perTurn } = await playAndMeasure(setup({ memberId: 'yeri', memory }), [
+      'tease',
+      'reassure',
+      'confide',
+      'press',
+    ]);
+
+    const { english } = report('yeri, same ledger, no dossier of her own', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /** A long run. The ledger compacts but it never stops being English. */
+  it('holds Chinese deep into a run', async () => {
+    const ids = cards.map((c) => c.id);
+    const memory = playedInEnglish(ids, { entries: 24, factsFor: 'irene' });
+
+    const { perTurn } = await playAndMeasure(setup({ memberId: 'irene', memory }), [
+      'tease',
+      'confide',
+      'press',
+    ]);
+
+    const { english } = report('irene, 24 English ledger lines', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /**
+   * Read her, which the harness had never called.
+   *
+   * It appends an English system note at the tail AND commits the model's
+   * answer back into block 5. So if the thought comes back in English, every
+   * later beat in that scene is written after a block of English assistant text
+   * sitting immediately above it - which is a far stronger pull than anything
+   * in blocks 1 to 4, because it is the model's own voice.
+   *
+   * The reported screenshot had the Read her control in it, and the reported
+   * shape was "Chinese for a while, then English again".
+   */
+  it('holds Chinese after Read her', async () => {
+    const args = setup({ intimacy: 45 });
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { stance: 'tease', text: '', client });
+
+    const before = session.beats.map((b) => b.text).join(' ');
+
+    const read = await readHer(session, { client });
+    session = read.session;
+    log(`\n[zh] --- read her ---\n  ${read.thought}`);
+    log(`[zh] thought han ratio ${(hanRatio(read.thought ?? '') * 100).toFixed(0)}%`);
+
+    const perTurn = [before];
+    let seen = session.beats.length;
+    for (const stance of ['reassure', 'confide', 'press']) {
+      session = await runTurn(session, { stance, text: '', client });
+      perTurn.push(session.beats.slice(seen).map((b) => b.text).join(' '));
+      seen = session.beats.length;
+    }
+
+    const { english } = report('after Read her', perTurn);
+
+    // The thought is prose the player reads, so it is subject to section 19 too.
+    expect(hanRatio(read.thought ?? '')).toBeGreaterThan(0.5);
     expect(english).toBe(0);
   }, 300000);
 
