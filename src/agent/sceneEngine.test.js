@@ -14,6 +14,8 @@ import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { newRelation } from '../systems/relationship.js';
 import { makeRng } from '../systems/rng.js';
+import { createMockClient } from '../tools/mockClient.js';
+import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 
 const cards = getCast();
 const lineup = buildLineup(cards);
@@ -275,6 +277,65 @@ describe('computeDeltas', () => {
   it('is marked by markRisk rather than inferred', () => {
     const session = markRisk({ exposure: 80, meters: newMeters(rel) });
     expect(session.meters.riskTaken).toBe(true);
+  });
+});
+
+/**
+ * The second axis has to be reachable BY PLAYING.
+ *
+ * `computeDeltas` and `markRisk` were both correct and tested, and nothing
+ * called `markRisk` - so `riskTaken` was false in every scene that has ever
+ * run, admissibility never left 0, every route plateaued at `confidante`, and
+ * all four good endings plus the balance ending were unreachable in the
+ * shipped game. Each half passed its own unit test. These assert the join.
+ */
+describe('taking a risk is something the player can actually do', () => {
+  const client = createMockClient({ seed: 3, delay: 0 });
+
+  const sceneAt = (locationId, block) =>
+    setup({
+      relations: Object.fromEntries(castIds.map((id) => [id, newRelation(60)])),
+      scene: { ...setup().scene, locationId, block, locationLabel: locationId },
+    });
+
+  it('an overt stance in a visible place is a bet', async () => {
+    let session = beginScene(sceneAt('cafe', 'afternoon'));
+    expect(session.exposure).toBeGreaterThanOrEqual(RISK_EXPOSURE_THRESHOLD);
+
+    session = await runTurn(session, { stance: 'touch', text: '', client });
+    expect(session.meters.riskTaken).toBe(true);
+  });
+
+  it('the same stance in private is not', async () => {
+    let session = beginScene(sceneAt('practice_room', 'evening'));
+    expect(session.exposure).toBeLessThan(RISK_EXPOSURE_THRESHOLD);
+
+    session = await runTurn(session, { stance: 'touch', text: '', client });
+    expect(session.meters.riskTaken).toBe(false);
+  });
+
+  it('a deniable stance in public is not, however loud it is', async () => {
+    let session = beginScene(sceneAt('cafe', 'afternoon'));
+    session = await runTurn(session, { stance: 'tease', text: '', client });
+    expect(session.meters.riskTaken).toBe(false);
+  });
+
+  it('once taken, it stays taken for the rest of the scene', async () => {
+    let session = beginScene(sceneAt('cafe', 'afternoon'));
+    session = await runTurn(session, { stance: 'invite', text: '', client });
+    session = await runTurn(session, { stance: 'joke', text: '', client });
+    expect(session.meters.riskTaken).toBe(true);
+  });
+
+  it('and it is what puts admissibility on the board', async () => {
+    let session = beginScene(sceneAt('cafe', 'afternoon'));
+    session = await runTurn(session, { stance: 'touch', text: '', client });
+
+    const rel60 = newRelation(60);
+    // Survival is a roll, so assert the outcome is one of the two priced ones
+    // rather than a particular side of it.
+    const d = computeDeltas(session, rel60, makeRng(4));
+    expect(d.admissibility > 0 || d.strain > 0).toBe(true);
   });
 });
 

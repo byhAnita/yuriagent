@@ -98,6 +98,60 @@ describe('applySceneOutcome', () => {
   });
 });
 
+/**
+ * The plateau. Section 5 calls `confidante` "intimacy outran admissibility and
+ * stalled", and for a long time nothing stalled - a campaign ended with every
+ * member at intimacy 100, admissibility near zero and `confidante_end` for all
+ * five, with no good ending reachable by any policy. The stage was computed
+ * correctly and the outcome was applied correctly; only the join was missing.
+ */
+describe('the plateau stalls', () => {
+  const onPlateau = () => {
+    const rel = applySceneOutcome({ ...newRelation(60), admissibility: 2 }, {});
+    expect(rel.stage).toBe('confidante');
+    return rel;
+  };
+
+  it('refuses further closeness while she is on it', () => {
+    const rel = onPlateau();
+    const after = applySceneOutcome(rel, { intimacy: 5, good: true });
+    expect(after.intimacy).toBe(rel.intimacy);
+  });
+
+  it('but never takes any away - a stall is not a punishment', () => {
+    const rel = onPlateau();
+    expect(applySceneOutcome(rel, { intimacy: -8 }).intimacy).toBe(rel.intimacy - 8);
+  });
+
+  it('still lets the way out move', () => {
+    const rel = onPlateau();
+    const after = applySceneOutcome(rel, { admissibility: 9 });
+    expect(after.admissibility).toBe(rel.admissibility + 9);
+  });
+
+  it('and releases as soon as admissibility catches up', () => {
+    let rel = onPlateau();
+    rel = applySceneOutcome(rel, { admissibility: 20 });
+    expect(rel.stage).not.toBe('confidante');
+    expect(applySceneOutcome(rel, { intimacy: 4 }).intimacy).toBe(rel.intimacy + 4);
+  });
+
+  it('lets the scene that walks her onto it count', () => {
+    // Below the plateau, a gain that lands her on it is still paid. A wall you
+    // can watch yourself hit is a rule; one that catches you mid-step is a bug.
+    const below = applySceneOutcome({ ...newRelation(48), admissibility: 2 }, {});
+    expect(below.stage).toBe('good_friends');
+    const after = applySceneOutcome(below, { intimacy: 6 });
+    expect(after.intimacy).toBe(54);
+    expect(after.stage).toBe('confidante');
+  });
+
+  it('strain still decays on the plateau, so a stall is not a death spiral', () => {
+    const rel = { ...onPlateau(), strain: 30 };
+    expect(applySceneOutcome(rel, { intimacy: 3, good: true }).strain).toBe(27);
+  });
+});
+
 describe('applyRepair', () => {
   it('only works inside the rift band', () => {
     expect(applyRepair({ ...newRelation(50), strain: 70 }).strain).toBe(40);

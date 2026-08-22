@@ -272,6 +272,7 @@ export default {
     again: 'Another scene',
     turnsLeft: 'left',
     outOfTurns: 'The block is over.',
+    risk: 'seen',
     continue: 'She is still speaking',
   },
 

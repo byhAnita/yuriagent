@@ -10,10 +10,12 @@
  */
 
 import { useState } from 'react';
+import { isRiskStance } from '../../systems/chips.js';
 
 export default function ChipBar({
   chips,
   suggested = [],
+  exposure = 0,
   onStance,
   onFreeText,
   onReadHer,
@@ -75,6 +77,15 @@ export default function ChipBar({
       <div className="flex flex-col gap-1.5">
         {chips.map(({ stance, label }) => {
           const isSuggested = suggested.includes(stance);
+          /**
+           * An overt move made where people can see is the only thing that
+           * raises admissibility, and the only thing that can cost 10-20 strain
+           * for failing. The player is meant to read the exposure meter and
+           * take that bet knowingly - so the chip says it is one. Without the
+           * marker the second axis moves for reasons the player cannot connect
+           * to anything they did.
+           */
+          const isRisk = isRiskStance(stance, exposure);
           return (
             <button
               key={stance}
@@ -104,6 +115,9 @@ export default function ChipBar({
                 }`}
               >
                 {t(`stance.${stance}`)}
+                {isRisk ? (
+                  <span className="ml-1.5 text-meter-exposure">{t('vn.risk')}</span>
+                ) : null}
               </span>
               {label ? (
                 <span className="mt-0.5 block line-clamp-2 font-body text-[0.875rem] leading-snug text-text">

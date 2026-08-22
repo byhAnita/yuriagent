@@ -11,6 +11,7 @@
 import { strainBand } from './relationship.js';
 import { jealousyBand, sceneModifiers } from './jealousy.js';
 import { makeRng, deriveSeed } from './rng.js';
+import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 
 export const STANCES = [
   'tease',
@@ -73,6 +74,36 @@ export function availableStances(rel, { energy = 100 } = {}) {
     available: STANCES.filter((s) => !locked[s]),
     locked,
   };
+}
+
+/**
+ * The overt moves - the ones somebody watching could put a name to.
+ *
+ * CLAUDE.md section 5 says admissibility rises from "surviving deliberate risk
+ * at high Exposure", and section 6 prices it: risk at exposure >= 60 pays
+ * `admissibility += 3..6` on a survival and `strain += 10..20` on a failure.
+ * Nothing ever set the flag, so `riskTaken` was false in every scene ever
+ * played, admissibility never left 0, and every route plateaued at
+ * `confidante` - which made all four good endings and the balance ending
+ * unreachable in the shipped game. A headless campaign found it; no unit test
+ * could, because each half was correct on its own.
+ *
+ * These three and not the others: reaching for her, asking her somewhere, and
+ * saying the unsayable where you can be overheard are the gestures that a
+ * witness could describe. `tease` and `press` are loud but deniable, and
+ * deniable is exactly what does not move admissibility.
+ */
+export const RISK_STANCES = ['touch', 'invite', 'confide'];
+
+/**
+ * Is this stance a bet, here?
+ *
+ * The player is not told in so many words - the exposure meter is on screen and
+ * reading it is the game. But the chip carries a marker, because a bet nobody
+ * knew they were placing is not a bet.
+ */
+export function isRiskStance(stance, exposure) {
+  return RISK_STANCES.includes(stance) && exposure >= RISK_EXPOSURE_THRESHOLD;
 }
 
 /**

@@ -157,10 +157,21 @@ const CLOSE_MARKERS = /put a name to|said it out loud|stopped hiding|privately, 
 let counter = 0;
 
 /**
- * @param {object} opts - { seed, failureRate } failureRate emits an unformatted
- *   reply, so the parser tolerance in section 9 is exercised in real play.
+ * @param {object} opts - { seed, failureRate, delay, chunkDelay }
+ *   `failureRate` emits an unformatted reply, so the parser tolerance in
+ *   section 9 is exercised in real play.
+ *
+ *   `delay: 0` means no pacing at all, including between stream chunks. It used
+ *   to mean only "no think time" and the per-chunk 12ms stayed, so a headless
+ *   campaign of ~950 turns spent seven minutes inside setTimeout pretending to
+ *   type. A caller that wants the typing effect asks for it.
  */
-export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } = {}) {
+export function createMockClient({
+  seed = 7,
+  failureRate = 0.08,
+  delay = 260,
+  chunkDelay = delay > 0 ? 12 : 0,
+} = {}) {
   return async function mockClient({ messages, preset, onChunk }) {
     const rng = makeRng(deriveSeed(seed, `mock:${counter++}`));
     await new Promise((r) => setTimeout(r, delay));
@@ -243,7 +254,7 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
     if (onChunk) {
       for (let i = 0; i < text.length; i += 5) {
         onChunk(text.slice(i, i + 5));
-        await new Promise((r) => setTimeout(r, 12));
+        if (chunkDelay > 0) await new Promise((r) => setTimeout(r, chunkDelay));
       }
     }
     return text;

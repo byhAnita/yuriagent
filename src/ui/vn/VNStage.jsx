@@ -258,6 +258,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
       <ChipBar
         chips={chips}
         suggested={suggested}
+        exposure={session?.exposure ?? 0}
         onStance={(stance) => send({ stance })}
         onFreeText={(text) => send({ text })}
         onReadHer={onReadHer}

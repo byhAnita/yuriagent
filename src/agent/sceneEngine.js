@@ -18,6 +18,7 @@ import { sceneExposure } from '../systems/exposure.js';
 import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedStrain } from '../systems/jealousy.js';
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
+import { isRiskStance } from '../systems/chips.js';
 import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 import { clamp } from '../systems/rng.js';
 
@@ -90,6 +91,14 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
   const content = stance ? `[${stance}] ${text ?? ''}`.trim() : (text ?? '');
   let frame = appendTurn(session.frame, { role: 'user', content });
 
+  /**
+   * An overt move made while visible is the bet the whole second axis runs on.
+   * This is the only thing that sets `riskTaken`, and until it existed the flag
+   * was never true in play: admissibility stayed at 0 for entire campaigns and
+   * every route plateaued at `confidante`.
+   */
+  const risked = isRiskStance(stance, session.exposure);
+
   const ctx = { rosterIds: frame.rosterIds, focusId: session.focusId };
   const parser = createStreamParser(ctx);
 
@@ -106,11 +115,13 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
 
   frame = appendTurn(frame, { role: 'assistant', content: raw });
 
+  const meters = applyBeatToMeters(session.meters, beats);
+
   return {
     ...session,
     frame,
     beats: [...session.beats, ...beats],
-    meters: applyBeatToMeters(session.meters, beats),
+    meters: risked ? { ...meters, riskTaken: true } : meters,
   };
 }
 

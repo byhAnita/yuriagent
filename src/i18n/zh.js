@@ -272,6 +272,7 @@ export default {
     again: '再来一幕',
     turnsLeft: '剩余',
     outOfTurns: '这个时段结束了。',
+    risk: '会被看见',
     continue: '她还没说完',
   },
 

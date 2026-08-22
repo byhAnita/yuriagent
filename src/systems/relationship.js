@@ -101,7 +101,33 @@ export function isAftermath(rel) {
 export function applySceneOutcome(rel, delta = {}) {
   const next = { ...rel };
 
-  next.intimacy = clamp(next.intimacy + (delta.intimacy ?? 0));
+  /**
+   * The plateau has to actually plateau.
+   *
+   * `confidante` is described as "intimacy outran admissibility and stalled"
+   * in section 5 and as a plateau everywhere else, but nothing stalled: a
+   * relationship on the plateau went on gaining intimacy scene after scene, so
+   * a full campaign ended with all five members at intimacy 100, admissibility
+   * near zero, and `confidante_end` for everybody. Not one good ending was
+   * reachable by any policy, including one that took a public risk in every
+   * scene it could - the headless campaign harness found this immediately and
+   * no unit test could, because `resolveStage` was right and this function was
+   * right and only the join between them was wrong.
+   *
+   * So: while she is on the plateau, getting closer is not on offer. Nothing
+   * is taken away - admissibility still moves, strain still decays, the
+   * openers still land as scenes - but the number that measures how close you
+   * are stops until the thing that is holding it back is dealt with. That is
+   * the game's own thesis in one line: privacy is safe, and stagnant.
+   *
+   * Walking ONTO the plateau is still allowed - the gain that takes her there
+   * lands, and the stall starts on the next scene. A wall you can see yourself
+   * hit reads as a rule; one that catches you mid-step reads as a bug.
+   */
+  const stalled = rel.stage === 'confidante';
+  const intimacyGain = delta.intimacy ?? 0;
+
+  next.intimacy = clamp(next.intimacy + (stalled && intimacyGain > 0 ? 0 : intimacyGain));
   next.admissibility = clamp(next.admissibility + (delta.admissibility ?? 0));
   next.strain = clamp(next.strain + (delta.strain ?? 0));
 
