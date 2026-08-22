@@ -12,6 +12,7 @@
  */
 
 import { LOCATIONS } from '../data/locations.js';
+import { WITNESS_EXPOSURE_FLOOR } from '../config/constants.js';
 import { clamp } from './rng.js';
 
 /** Evening hides you; the middle of the day does not. */
@@ -85,6 +86,30 @@ export function approachIsWitnessed(locationId) {
 }
 
 /** A deliberate risk only counts as one where it could actually cost something. */
+/**
+ * Exposure once you account for who else is standing there.
+ *
+ * Section 5b: a gesture in a group scene is WITNESSED at
+ * `WITNESS_EXPOSURE_FLOOR` - direct observation, no probability roll - and
+ * "witnessed gestures give a larger admissibility gain and a larger jealousy
+ * hit than rumors. High-risk, high-reward is the mechanical identity of a group
+ * scene."
+ *
+ * That was written for scenes with two members interactive, but it is true of
+ * ANY room with somebody else in it. Turning to one member in front of the
+ * others is itself the gesture: nobody has to touch anyone for four people to
+ * have watched the player choose. So a practice room at exposure 25 with three
+ * bandmates in it is not a private place, and reaching for her hand there is a
+ * public act whatever the outside world can see.
+ *
+ * This is what makes a crowded room the cheapest admissibility in the game and
+ * the most expensive jealousy - the same choice, two bills.
+ */
+export function witnessedExposure(exposure, othersPresent = 0) {
+  if (othersPresent <= 0) return exposure;
+  return Math.max(exposure, WITNESS_EXPOSURE_FLOOR);
+}
+
 export function isRiskyEnough(exposure, threshold) {
   return exposure >= threshold;
 }

@@ -14,7 +14,7 @@ import { openScene, appendTurn, appendSystemNote, requestThought, buildMessages 
 import { createStreamParser, parseResponse } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
 import { commitSummary } from './memory.js';
-import { sceneExposure } from '../systems/exposure.js';
+import { sceneExposure, witnessedExposure } from '../systems/exposure.js';
 import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedStrain } from '../systems/jealousy.js';
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
@@ -98,9 +98,27 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
     scene: { ...scene, exposure },
   });
 
+  /**
+   * Who else is standing there.
+   *
+   * `witnessIds` is anybody in the room the player is NOT addressing. Turning
+   * to one member in front of the others is itself the gesture - nobody has to
+   * touch anyone for the rest of them to have watched the player choose - so
+   * their presence lifts the exposure a risk is judged at, per section 5b.
+   *
+   * Kept separate from `exposure` because the two answer different questions:
+   * `exposure` is what the outside world can see, and drives scandal and rumor
+   * propagation; `riskExposure` is what the room can see, and decides whether
+   * an overt move counts as one.
+   */
+  const witnessIds = (scene.rosterIds ?? []).filter((id) => id !== focusId);
+  const riskExposure = witnessedExposure(exposure, witnessIds.length);
+
   return {
     frame,
     exposure,
+    riskExposure,
+    witnessIds,
     focusId,
     meters: newMeters(relations[focusId]),
     beats: [],
@@ -123,7 +141,7 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
    * was never true in play: admissibility stayed at 0 for entire campaigns and
    * every route plateaued at `confidante`.
    */
-  const risked = isRiskStance(stance, session.exposure);
+  const risked = isRiskStance(stance, session.riskExposure ?? session.exposure);
 
   const ctx = { rosterIds: frame.rosterIds, focusId: session.focusId };
   const parser = createStreamParser(ctx);
@@ -232,7 +250,7 @@ export function computeDeltas(session, rel, rng) {
   if (guardDrop >= GUARD_DROP_TO_PAY) delta.intimacy += 2 + Math.floor(rng() * 3);
   if (meters.flusterPeak >= FLUSTER_PEAK_TO_PAY) delta.intimacy += 1 + Math.floor(rng() * 3);
 
-  if (meters.riskTaken && exposure >= RISK_EXPOSURE_THRESHOLD) {
+  if (meters.riskTaken && (session.riskExposure ?? exposure) >= RISK_EXPOSURE_THRESHOLD) {
     const survives = rng() < 0.35 + (rel.intimacy / 100) * 0.4;
     if (survives) delta.admissibility += riskPayoff(rel.intimacy, rng);
     else delta.strain += 10 + Math.floor(rng() * 11);
