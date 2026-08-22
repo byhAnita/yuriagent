@@ -65,6 +65,8 @@ function setup({
   intimacy = 45,
   lang = 'en',
   locationId = 'practice_room',
+  activity = null,
+  task = null,
 } = {}) {
   return {
     cards,
@@ -87,6 +89,8 @@ function setup({
       locationId,
       locationLabel: locationId,
       seed: 1,
+      occupancy: activity ? { [memberId]: { activity } } : {},
+      task,
     },
   };
 }
@@ -343,6 +347,49 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     log(`  (the card wording is: "${gym}")`);
 
     expect(Array.isArray(facts)).toBe(true);
+  }, 240000);
+
+
+  /**
+   * The same woman, the same room, a different reason to be in it.
+   *
+   * Every scene in the practice room used to open the same way, because block 4
+   * named the location and nothing else - the model had to invent why she was
+   * standing there. The calendar knew all along.
+   */
+  it('gives the same room a different scene when the schedule changes', async () => {
+    const opens = {};
+    for (const activity of ['group_practice', 'late_practice', 'solo_recording']) {
+      let s = beginScene(setup({ activity }));
+      s = await runTurn(s, { text: openingDirective(false), client });
+      opens[activity] = s.beats.map((b) => b.text).join(' ');
+    }
+
+    log('\n[quality] --- same room, three schedules ---');
+    for (const [a, text] of Object.entries(opens)) log(`  ${a.padEnd(15)} ${text}`);
+
+    for (const text of Object.values(opens)) expect(text.length).toBeGreaterThan(0);
+  }, 240000);
+
+  /**
+   * The player's own job is the other half of "why is this conversation
+   * happening now". A still-unfinished one is visible pressure she can name.
+   */
+  it('lets her notice the job the player has not done', async () => {
+    let s = beginScene(
+      setup({
+        locationId: 'wardrobe',
+        activity: 'fitting',
+        task: { taskId: 'prep_outfits', done: false },
+      }),
+    );
+    s = await runTurn(s, { text: openingDirective(false), client });
+    s = await runTurn(s, { stance: 'deflect', text: '', client });
+
+    log('\n[quality] --- wardrobe, outfits not prepped ---');
+    for (const b of s.beats) log(`  @${b.speaker}|${b.emotion}  ${b.text}`);
+
+    expect(s.beats.length).toBeGreaterThan(0);
   }, 240000);
 
 });

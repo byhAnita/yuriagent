@@ -13,6 +13,7 @@
 
 import { RUMOR_FLOOR, WITNESS_EXPOSURE_FLOOR } from '../config/constants.js';
 import { approachIsWitnessed } from './exposure.js';
+import { LOCATIONS } from '../data/locations.js';
 import { jealousyGain } from './jealousy.js';
 import { clamp } from './rng.js';
 
@@ -39,8 +40,37 @@ export function rumorProbability(exposure, prox) {
  * From her point of view, never as a transcript.
  * Written in English regardless of UI language (section 19).
  */
-export function phraseRumor(subjectName, locationLabel) {
-  return `you heard the player was at ${locationLabel} with ${subjectName}`;
+export function phraseRumor(subjectName, locationId) {
+  /**
+   * The English name, looked up here rather than taken from the caller.
+   *
+   * `scene.locationLabel` is what the PLAYER sees, and `App` builds it with
+   * `t()` - so on a `zh` run the rumor read "you heard the player was at 练习室
+   * with Irene" and that sentence went straight into `heard_about`, into block
+   * 3, and into the save. Section 19's second rule is that memory is always
+   * English precisely so the player can switch language mid-run without
+   * corrupting history. Resolving the name from the table instead of trusting a
+   * label makes that structural rather than a thing every caller must remember.
+   */
+  const name = LOCATIONS[locationId]?.label ?? locationId;
+  return `you heard the player was at ${name} with ${subjectName}`;
+}
+
+/**
+ * The same rumor, turned round to face the player.
+ *
+ * Everything in `heard_about` is written from HER side, because that is the
+ * form it takes in her prompt - "you heard the player was at the cafe with
+ * Nana". When the player is the one who finds out that she has heard it, the
+ * sentence has to be re-pointed, or the ledger fills with second-person lines
+ * addressed to nobody.
+ */
+export function phraseDiscovered(name, text) {
+  const turned = String(text ?? '')
+    .replace(/^you heard\b/, 'has heard')
+    .replace(/^you saw\b/, 'saw')
+    .replace(/^you watched\b/, 'watched');
+  return `${name} ${turned}`;
 }
 
 export function phraseWitnessed(subjectName) {
@@ -105,7 +135,7 @@ export function propagate({ scene, subject, cast, relations, rng }) {
     if (p > 0 && rng() < p) {
       rumors.push({
         memberId: member.id,
-        text: phraseRumor(subject.name, scene.locationLabel),
+        text: phraseRumor(subject.name, scene.locationId),
         witnessed: false,
         exposure: scene.exposure,
       });

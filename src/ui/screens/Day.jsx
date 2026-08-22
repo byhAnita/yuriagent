@@ -144,11 +144,24 @@ export default function Day({
           {cards.map((c) => {
             const rel = relations[c.id];
             const band = jealousyBand(rel.jealousy);
+            const stage = resolveStage(rel.intimacy, rel.admissibility);
+            /**
+             * The plateau is the one state that demands a specific answer -
+             * take her somewhere visible and make an overt move - and it is
+             * the one the player cannot infer, because all it does is stop a
+             * number they were not watching. It says so, in the same row.
+             */
+            const stalled = stage === 'confidante';
             return (
               <li key={c.id} className="flex items-baseline gap-2 font-mono text-[0.5625rem]">
                 <span className="w-12 truncate text-dim">{c.name}</span>
-                <span className="flex-1 truncate uppercase tracking-[0.1em] text-faint">
-                  {t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}
+                <span
+                  className={`flex-1 truncate uppercase tracking-[0.1em] ${
+                    stalled ? 'text-meter-exposure' : 'text-faint'
+                  }`}
+                >
+                  {t(`stage.${stage}`)}
+                  {stalled ? ` - ${t('stage.confidanteHint')}` : ''}
                 </span>
                 {band !== 'calm' ? (
                   <span

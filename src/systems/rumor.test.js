@@ -93,7 +93,31 @@ describe('propagate', () => {
       relations: relations(),
       rng: always,
     });
-    expect(rumors[0].text).toBe('you heard the player was at the cafe with Irene');
+    expect(rumors[0].text).toBe('you heard the player was at Cafe with Irene');
+  });
+
+  /**
+   * Section 19, rule 2: memory is English whatever the UI language, so the
+   * player can switch mid-run without corrupting history.
+   *
+   * `scene.locationLabel` is the PLAYER-facing name and `App` builds it with
+   * `t()`, so on a `zh` run this line used to read "you heard the player was at
+   * 练习室 with Irene" - and that went into `heard_about`, into block 3, and
+   * into the save file. The name is now resolved from the location table, which
+   * makes it impossible for a caller to get wrong rather than merely
+   * inadvisable.
+   */
+  it('ignores the localized label the player sees', () => {
+    const localized = { ...scene, locationLabel: '咖啡厅' };
+    const { rumors } = propagate({
+      scene: localized,
+      subject,
+      cast: CAST,
+      relations: relations(),
+      rng: always,
+    });
+    expect(rumors[0].text).toContain('Cafe');
+    expect(rumors[0].text).not.toContain('咖啡厅');
   });
 
   it('a present member witnesses directly, with no roll and a bigger hit', () => {

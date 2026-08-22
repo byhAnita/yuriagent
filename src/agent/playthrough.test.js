@@ -143,6 +143,7 @@ async function playCampaign({
   let memory = newMemory(castIds);
   let taskState = newTaskState();
   let usedGestures = [];
+  let foundRumors = [];
   let sceneNo = 0;
 
   const stats = {
@@ -151,6 +152,7 @@ async function playCampaign({
     soloBlocks: 0,
     snoops: 0,
     snoopsThatTaughtNothing: 0,
+    rumorsFound: 0,
     factsLearned: 0,
     factsBySubject: Object.fromEntries(castIds.map((id) => [id, 0])),
     scenesBySubject: Object.fromEntries(castIds.map((id) => [id, 0])),
@@ -393,13 +395,18 @@ async function playCampaign({
             cards,
             dossier: memory.dossier,
             present,
+            foundRumors,
             rng: makeRng(deriveSeed(seed, `solo:${n}`)),
           });
           if (res) {
             player = applySoloPlayerDelta(player, res.playerDelta);
             if (chosen.learns) {
               stats.snoops += 1;
-              if (!res.learned) stats.snoopsThatTaughtNothing += 1;
+              if (!res.learned && !res.heard) stats.snoopsThatTaughtNothing += 1;
+            }
+            if (res.heard) {
+              foundRumors = [...foundRumors, res.heard.text];
+              stats.rumorsFound += 1;
             }
             if (res.learned) {
               stats.factsLearned += 1;
@@ -484,7 +491,7 @@ function report(label, out) {
     `blocks ${stats.blocks}  scenes ${stats.scenes}  solo ${stats.soloBlocks}  empty ${stats.emptyBlocks}`,
   );
   log(
-    `snoops ${stats.snoops} (${stats.snoopsThatTaughtNothing} taught nothing)  facts ${stats.factsLearned}`,
+    `snoops ${stats.snoops} (${stats.snoopsThatTaughtNothing} taught nothing)  facts ${stats.factsLearned}  rumors found ${stats.rumorsFound}`,
   );
   log(
     `openers ${stats.openersUsed} (${stats.objectsBought} bought, ${stats.gesturesUsed} said)  rumors ${stats.rumors}`,

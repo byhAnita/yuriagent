@@ -131,3 +131,90 @@ describe('the header carries her voice, not only her standing', () => {
     expect(a).not.toBe(b);
   });
 });
+
+/**
+ * Why she is in this room.
+ *
+ * The calendar has always known - `occupancyAt` returns an activity for every
+ * member in every block - and none of it reached the prompt, which said only
+ * "Location: X Practice Room". The model had to invent a reason for her to be
+ * standing there, so every scene in a given room opened the same way and she
+ * could never say the obvious thing: that the new choreography is hard.
+ */
+describe('the header says what she is doing here', () => {
+  const scene = (extra) =>
+    buildSceneHeader({
+      roster: [{ id: 'irene', name: 'Irene' }],
+      absent: [],
+      week: 0,
+      day: 1,
+      block: 'evening',
+      phase: 'prep',
+      locationLabel: 'X Practice Room',
+      exposure: 20,
+      relations: { irene: rel(40) },
+      player: { energy: 80 },
+      ...extra,
+    });
+
+  it('turns a scheduled activity into something she could talk about', () => {
+    const out = scene({ occupancy: { irene: { activity: 'group_practice' } } });
+    expect(out).toContain('Irene is running the new choreography with the other four.');
+  });
+
+  it('says something different for the same room on a different day', () => {
+    const practice = scene({ occupancy: { irene: { activity: 'group_practice' } } });
+    const alone = scene({ occupancy: { irene: { activity: 'late_practice' } } });
+    expect(practice).not.toBe(alone);
+    expect(alone).toContain('long after she needed to be');
+  });
+
+  it('says nothing rather than guessing when the activity is unknown', () => {
+    expect(scene({ occupancy: { irene: { activity: 'wandering_about' } } })).not.toContain(
+      'Irene is undefined',
+    );
+    expect(scene({})).not.toContain('Irene is .');
+  });
+
+  it('only speaks for people who are actually in the room', () => {
+    const out = scene({
+      occupancy: { irene: { activity: 'group_practice' }, yeri: { activity: 'radio_host' } },
+    });
+    expect(out).toContain('Irene is running');
+    expect(out).not.toContain('radio');
+  });
+
+  it('gives the week a meaning, not just a label', () => {
+    expect(scene({ phase: 'comeback' })).toContain('Cameras on everything');
+    expect(scene({ phase: 'rest' })).toContain('scattered to their own work');
+    expect(scene({ phase: 'prep' })).not.toBe(scene({ phase: 'comeback' }));
+  });
+
+  it('names the job the player still owes, and drops it once it is done', () => {
+    const owed = scene({ task: { taskId: 'prep_outfits', done: false } });
+    const done = scene({ task: { taskId: 'prep_outfits', done: true } });
+    expect(owed).toContain('still owes');
+    expect(owed).toContain('stage outfits still need prepping');
+    expect(done).toContain('has already prepped the stage outfits');
+    expect(done).not.toContain('still owes');
+  });
+
+  it('puts the job after her, and the gift after everything', () => {
+    // Section 8: the most decision-relevant material sits closest to the
+    // dialogue, and what the player walked in holding is the most immediate
+    // thing in the room.
+    const out = scene({
+      occupancy: { irene: { activity: 'group_practice' } },
+      task: { taskId: 'stage_check', done: false },
+      giftNote: 'System note: the player handed Irene a mugwort pack.',
+    });
+    const at = (needle) => out.indexOf(needle);
+    expect(at('Irene is running')).toBeLessThan(at('still owes'));
+    expect(at('still owes')).toBeLessThan(at('System note'));
+  });
+
+  it('survives a weekend, when there is no task at all', () => {
+    expect(() => scene({ task: null })).not.toThrow();
+    expect(scene({ task: null })).not.toContain('owes');
+  });
+});

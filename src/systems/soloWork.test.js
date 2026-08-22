@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   learnableTargets,
+  availableFinds,
+  FACT_WEIGHT,
+  RUMOR_WEIGHT,
   resolveSoloAction,
   soloLedgerText,
   applySoloPlayerDelta,
@@ -372,5 +375,93 @@ describe('every fact buys its own gift', () => {
       const reachable = new Set(card.learnableFacts.flatMap((f) => giftsFor(f).map((g) => g.id)));
       expect(reachable.size, card.id).toBeGreaterThan(2);
     }
+  });
+});
+
+/**
+ * Rumors as a find.
+ *
+ * The 25-fact pool empties around week 6 of 9, after which 12-21 of ~40 snoop
+ * blocks in a measured campaign returned nothing at all - half the map went
+ * back to being a credit dispenser, which is the state section 10b exists to
+ * prevent. `heard_about` was already sitting in state and the player had no way
+ * to look at it: jealousy was invisible until it had turned into strain.
+ */
+describe('an empty room can also tell you what she has heard', () => {
+  const cards = [
+    { id: 'irene', name: 'Irene', learnableFacts: ['hates cold hands'] },
+    { id: 'nana', name: 'Nana', learnableFacts: ['drinks five litres of water'] },
+  ];
+  const blank = { irene: { known_facts: [] }, nana: { known_facts: [] } };
+  const withRumor = {
+    irene: { known_facts: ['hates cold hands'], heard_about: ['you heard the player was at Cafe with Nana'] },
+    nana: { known_facts: ['drinks five litres of water'] },
+  };
+
+  it('offers facts and rumors together', () => {
+    const finds = availableFinds({ cards, dossier: withRumor });
+    expect(finds.map((f) => f.kind).sort()).toEqual(['rumor']);
+  });
+
+  it('weights a fact above a rumor, so the early game teaches facts', () => {
+    expect(FACT_WEIGHT).toBeGreaterThan(RUMOR_WEIGHT);
+    const finds = availableFinds({ cards, dossier: blank });
+    expect(finds.every((f) => f.weight === FACT_WEIGHT)).toBe(true);
+  });
+
+  it('never tells you what somebody in the room has heard', () => {
+    // Same rule as facts: you do not snoop on a woman standing next to you.
+    const finds = availableFinds({ cards, dossier: withRumor, present: ['irene'] });
+    expect(finds.every((f) => f.memberId !== 'irene')).toBe(true);
+  });
+
+  it('does not turn up the same rumor twice', () => {
+    const found = ['you heard the player was at Cafe with Nana'];
+    const finds = availableFinds({ cards, dossier: withRumor, foundRumors: found });
+    expect(finds.every((f) => f.kind !== 'rumor')).toBe(true);
+  });
+
+  it('returns a rumor from a snoop without writing to her dossier', () => {
+    // It changes what the PLAYER knows, not what she knows.
+    const result = resolveSoloAction({
+      locationId: 'wardrobe',
+      actionId: 'read_fitting_notes',
+      cards,
+      dossier: withRumor,
+      rng: () => 0.5,
+    });
+    expect(result.heard).toEqual({
+      memberId: 'irene',
+      name: 'Irene',
+      text: 'you heard the player was at Cafe with Nana',
+    });
+    expect(result.dossierAdd).toEqual([]);
+    expect(result.playerDelta.secrecy).toBe(-5);
+  });
+
+  it('re-points the sentence at the player in the ledger', () => {
+    const result = {
+      heard: { name: 'Irene', text: 'you heard the player was at Cafe with Nana' },
+    };
+    const line = soloLedgerText(result, { locationLabel: 'Wardrobe Room' });
+    expect(line).toContain('Irene has heard the player was at Cafe with Nana');
+    expect(line).not.toContain('you heard');
+  });
+
+  it('still charges nothing when there is neither a fact nor a rumor left', () => {
+    const empty = {
+      irene: { known_facts: ['hates cold hands'] },
+      nana: { known_facts: ['drinks five litres of water'] },
+    };
+    const result = resolveSoloAction({
+      locationId: 'wardrobe',
+      actionId: 'read_fitting_notes',
+      cards,
+      dossier: empty,
+      rng: () => 0.5,
+    });
+    expect(result.learned).toBeNull();
+    expect(result.heard).toBeNull();
+    expect(result.playerDelta.secrecy).toBe(0);
   });
 });

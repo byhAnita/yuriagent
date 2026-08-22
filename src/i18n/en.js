@@ -39,6 +39,7 @@ export default {
     ours: 'Ours',
     out: 'Out',
     confidante: 'Confidante',
+    confidanteHint: 'stalled; needs to be seen',
     reckless: 'Reckless',
   },
 
@@ -213,6 +214,7 @@ export default {
     secrecy: 'Discretion',
     mayLearn: 'you might find something',
     learned: 'You learned something',
+    heard: 'She has heard',
     learnedNothing: 'Nothing you did not already know.',
     prep_fittings: 'Get tomorrow to ready itself',
     prep_fittings_result: 'You steam, tag and hang until the rail is a day ahead of the schedule. Someone will notice. Probably not today.',

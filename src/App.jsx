@@ -43,6 +43,9 @@ const IDENTITY = {
   promptRole: 'an artist assistant at the agency',
   taskPool: ['prep_outfits', 'run_schedule', 'handle_press_kit', 'stage_check', 'restock_wardrobe'],
   exposureModifier: { wardrobe: -10, cafe: 10 },
+  // Section 13. Secrecy is also the baseline a night's distance recovers
+  // toward - never past it, because discretion is not earned by sleeping.
+  startStats: { competence: 20, energy: 90, secrecy: 70, credits: 6 },
 };
 
 const SEED = 20260821;
@@ -80,6 +83,13 @@ export default function App() {
    * (CLAUDE.md section 11).
    */
   const [usedGestures, setUsedGestures] = useState([]);
+
+  /**
+   * Rumors the player has already dug up, so a snoop never turns up the same
+   * one twice. Not a dossier write - finding out that Yeri has heard something
+   * changes what the PLAYER knows, not what Yeri knows.
+   */
+  const [foundRumors, setFoundRumors] = useState([]);
   const [outcome, setOutcome] = useState(null);
   const [sceneNo, setSceneNo] = useState(0);
   const [solo, setSolo] = useState(null);
@@ -170,7 +180,7 @@ export default function App() {
             });
           }
         }
-        nextPlayer = restOvernight(nextPlayer);
+        nextPlayer = restOvernight(nextPlayer, { secrecyBaseline: IDENTITY.startStats.secrecy });
         setTaskState(newTaskState());
       }
 
@@ -211,9 +221,11 @@ export default function App() {
       cards,
       dossier: memory.dossier,
       present,
+      foundRumors,
       rng,
     });
     if (!result) return;
+    if (result.heard) setFoundRumors((f) => [...f, result.heard.text]);
 
     setPlayer((p) => applySoloPlayerDelta(p, result.playerDelta));
 
@@ -280,8 +292,20 @@ export default function App() {
       locationId: pendingScene.locationId,
       locationLabel: t(`location.${pendingScene.locationId}`),
       dormWitnessIds,
+
+      /**
+       * What she is here for, and what the player still owes today.
+       *
+       * Both already existed and neither reached the model: block 4 said only
+       * where the scene was, so every visit to the practice room opened the
+       * same way and she could never mention the choreography she is actually
+       * struggling with. `openScene` spreads the scene object into the header,
+       * so adding them here is all the wiring there is.
+       */
+      occupancy,
+      task: task ? { ...task, done: taskState.done } : null,
     };
-  }, [pendingScene, occupancy, run, sceneNo, t]);
+  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done]);
 
   const setup = useMemo(
     () =>

@@ -8,6 +8,7 @@
  */
 
 import { actionsFor } from '../../data/soloActions.js';
+import { phraseDiscovered } from '../../systems/rumor.js';
 
 export const TASK_ACTION = '__task';
 
@@ -99,6 +100,25 @@ export default function SoloAction({ locationId, task, result, onChoose, onDone,
               </span>
               <p className="font-display text-[1rem] italic leading-snug text-text">
                 {result.learned.name} {result.learned.fact}.
+              </p>
+            </div>
+          ) : result.heard ? (
+            /*
+              Not a fact about her - what somebody else has already heard about
+              you. It buys no opener; it is the only way to see jealousy coming
+              before it has turned into strain, so it gets its own colour.
+            */
+            <div className="thought-in rounded-[var(--radius)] border border-meter-exposure/60 bg-surface px-4 py-3">
+              <span className="mb-1 block font-mono text-[0.5rem] uppercase tracking-[0.18em] text-meter-exposure">
+                {t('solo.heard')}
+              </span>
+              {/*
+                English, like the fact above it and like the ledger line in the
+                aftermath - memory is English whatever the UI language
+                (section 19, rule 2).
+              */}
+              <p className="font-display text-[1rem] italic leading-snug text-text">
+                {phraseDiscovered(result.heard.name, result.heard.text)}.
               </p>
             </div>
           ) : result.action.learns ? (

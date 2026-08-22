@@ -22,6 +22,7 @@ import { MAX_BEATS_PER_RESPONSE, READ_HER_USES_PER_SCENE } from '../config/const
 import { renderLedger, renderDossier } from './memory.js';
 import { jealousyBand, sceneModifiers } from '../systems/jealousy.js';
 import { resolveStage } from '../systems/relationship.js';
+import { doingLine } from '../data/activities.js';
 
 const LANG_NAMES = {
   en: 'English',
@@ -205,6 +206,35 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
   ].join('\n');
 }
 
+/**
+ * What the week feels like, as a sentence rather than a label.
+ *
+ * The header already said "Company phase: prep", which is a word the model has
+ * no reason to attach meaning to. Section 10 defines the emotional rhythm of
+ * the three weeks - build, risk, repair - and it is the thing that should make
+ * the same room read differently in week 1 and week 2.
+ *
+ * Model-facing English, never localized.
+ */
+export const PHASE_WEATHER = {
+  prep: 'Comeback preparation. Everyone is in the building and nobody is watching from outside yet.',
+  comeback:
+    'Comeback week. Cameras on everything, the whole group in the same rooms, and no privacy anywhere.',
+  rest: 'The quiet week between comebacks. The others have scattered to their own work.',
+};
+
+/**
+ * The daily job, in words. Model-facing English; the player-facing labels are
+ * in `i18n/` under `task.*`.
+ */
+export const TASK_CHORE = {
+  prep_outfits: { owed: 'the stage outfits still need prepping', past: 'prepped the stage outfits' },
+  run_schedule: { owed: "the day's schedule still needs running down", past: 'run the schedule down' },
+  handle_press_kit: { owed: 'the press kit still needs handling', past: 'handled the press kit' },
+  stage_check: { owed: 'the stage still needs checking', past: 'checked the stage' },
+  restock_wardrobe: { owed: 'the wardrobe still needs restocking', past: 'restocked the wardrobe' },
+};
+
 /** Block 4. Rebuilt at scene start, then frozen. */
 export function buildSceneHeader({
   roster,
@@ -219,13 +249,34 @@ export function buildSceneHeader({
   player,
   giftNote,
   crossAwareness = [],
+  occupancy = {},
+  task = null,
 }) {
   const lines = [
     '## This scene',
     `Week ${week + 1}, day ${day + 1}, ${block}. Company phase: ${phase}.`,
+    PHASE_WEATHER[phase] ?? '',
     `Location: ${locationLabel}.`,
     `Present: ${roster.map((r) => `${r.name} (${r.id})`).join(', ')}.`,
   ];
+
+  /**
+   * Why she is in this room at all.
+   *
+   * The calendar has always known - `occupancyAt` returns an activity for every
+   * member in every block - and none of it reached the prompt, which said only
+   * "Location: X Practice Room". So the model invented a reason each time, every
+   * scene in a given room opened the same way, and she could never say the
+   * obvious natural thing: that the new choreography is giving her trouble.
+   *
+   * This is the cheapest variety in the game. It changes every block, for free,
+   * from data that already exists, and it is what makes the same room in week 1
+   * and week 7 a different scene.
+   */
+  for (const r of roster) {
+    const doing = doingLine(occupancy[r.id]?.activity);
+    if (doing) lines.push(`${r.name} is ${doing}.`);
+  }
 
   if (absent.length > 0) {
     lines.push(`Absent, and not in this scene at all: ${absent.map((a) => a.name).join(', ')}.`);
@@ -278,9 +329,30 @@ export function buildSceneHeader({
   if (player) {
     lines.push(`The player looks ${player.energy < 30 ? 'exhausted' : 'fine'}.`);
   }
+
+  /**
+   * What the player is supposed to be doing today.
+   *
+   * Placed last but one, right before the gift note, because it is the most
+   * immediate thing in the room after what they walked in holding: the reason
+   * they can be standing here at all, and the thing she is most likely to ask
+   * about. A still-unfinished job is also a source of pressure she can see -
+   * "shouldn't you be doing that?" is a line the model cannot write without
+   * being told.
+   */
+  const chore = task && TASK_CHORE[task.taskId];
+  if (chore) {
+    lines.push(
+      task.done
+        ? `The player has already ${chore.past} today.`
+        : `The player still owes the agency one job today: ${chore.owed}.`,
+    );
+  }
+
   if (giftNote) lines.push(giftNote);
 
-  return lines.join('\n');
+  // `PHASE_WEATHER` and the activity lines can legitimately be absent.
+  return lines.filter(Boolean).join('\n');
 }
 
 /**

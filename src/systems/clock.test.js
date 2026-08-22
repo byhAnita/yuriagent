@@ -135,3 +135,49 @@ describe('isLastBlockOfDay', () => {
     expect(isLastBlockOfDay({ block: 'morning' })).toBe(false);
   });
 });
+
+/**
+ * Secrecy is no longer a one-way ratchet.
+ *
+ * A measured campaign hit secrecy 0 in week 3 of 9 and stayed there: every
+ * later snoop was free, which switches off the only cost that makes the
+ * knowledge economy a decision, and exposure carried a flat +21 forever.
+ */
+describe('secrecy comes back overnight', () => {
+  const p = (secrecy) => ({ energy: 50, secrecy });
+
+  it('recovers a point a day when it is below the baseline', () => {
+    expect(restOvernight(p(40)).secrecy).toBe(41);
+  });
+
+  it('stops at the baseline rather than climbing past it', () => {
+    expect(restOvernight(p(70)).secrecy).toBe(70);
+    expect(restOvernight(p(69)).secrecy).toBe(70);
+  });
+
+  it('never drags a discreet player back down', () => {
+    // Above the baseline is earned, not a deviation to be corrected.
+    expect(restOvernight(p(90)).secrecy).toBe(90);
+  });
+
+  it('takes the baseline from the identity when it has one', () => {
+    expect(restOvernight(p(30), { secrecyBaseline: 20 }).secrecy).toBe(30);
+    expect(restOvernight(p(10), { secrecyBaseline: 20 }).secrecy).toBe(11);
+  });
+
+  it('still restores energy, and does not touch anything else', () => {
+    const out = restOvernight({ energy: 50, secrecy: 40, credits: 7 });
+    expect(out.energy).toBe(74);
+    expect(out.credits).toBe(7);
+  });
+
+  it('cannot outpace a snooping streak', () => {
+    // The cheapest snoop is -1 and the dearest is -7; a day gives back 1.
+    let player = p(70);
+    for (let day = 0; day < 5; day += 1) {
+      player = { ...player, secrecy: player.secrecy - 4 };
+      player = restOvernight(player);
+    }
+    expect(player.secrecy).toBeLessThan(60);
+  });
+});

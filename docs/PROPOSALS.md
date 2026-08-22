@@ -1,11 +1,13 @@
 # Proposals
 
-Design changes that came out of the post-M4 testing pass and were **not**
-implemented, because each one changes a rule rather than repairing one.
-`CLAUDE.md` is the design; this file is the queue of arguments for amending it.
+Design changes that came out of the post-M4 testing pass, each of which changes
+a rule rather than repairing one. `CLAUDE.md` is the design; this file is the
+queue of arguments for amending it, and the record of which argument won.
 
 Each entry says what was measured, why it is a problem, what the options are,
-and which one I would pick. Nothing here is in the code.
+and which one I would pick. **Entries marked DONE have been accepted and built**
+- the reasoning is kept because the measurement is the evidence for whether the
+number should move again. Everything else is still only an argument.
 
 > Evidence throughout is from `src/agent/playthrough.test.js` (189-block
 > campaigns through the real engine, offline writer) and
@@ -65,7 +67,10 @@ spread narrows before touching any threshold.
 
 ## 2. Secrecy is a one-way ratchet that bottoms out by week three
 
-**Priority: high.**
+**DONE 2026-08-22 - option 1.** `SECRECY_RECOVERED_OVERNIGHT = 1`, drifting toward
+the identity baseline and never past it. Measured after: secrecy floor over a
+full campaign went 0 -> 16, so it spends the whole run somewhere that a snoop
+decision still costs something.
 
 ### Measured
 
@@ -105,7 +110,10 @@ it makes the whole campaign's worth of snoop decisions matter.
 
 ## 3. Energy only does something if the player uses Read her
 
-**Priority: medium.**
+**DONE 2026-08-22 - option 2, documentation.** Read her is the energy sink and
+section 10 now says so instead of claiming blocks are the pressure. No
+coefficient moved. If playtesting shows players ignore Read her, option 1
+(overnight 24 -> 18) is the fallback - but not both at once.
 
 ### Measured
 
@@ -144,7 +152,11 @@ players ignore Read her - in which case option 1. Do not do both at once.
 
 ## 4. The fact pool runs out, and 40% of late snoops teach nothing
 
-**Priority: medium.**
+**DONE 2026-08-22 - option 3.** A snoop now turns up either a member fact or a
+rumor: something another member has already heard about the player. Facts are
+weighted 3:1 over rumors, and early in a run there are no rumors to find at all,
+so the early game teaches facts and the late game teaches jealousy. Measured
+after: snoops that taught nothing went **12-21 per campaign to 0**.
 
 ### Measured
 
@@ -181,7 +193,10 @@ the same.
 
 ## 5. The plateau needs to say so
 
-**Priority: medium.** Follows directly from the stall fix.
+**DONE 2026-08-22.** The member row on the day screen marks a stalled route in
+the exposure colour and says what it needs: "stalled; needs to be seen". With
+the risk marker already on the chips, the plateau now states both the problem
+and the answer.
 
 `confidante` now genuinely stops intimacy (see the fix in `relationship.js`),
 which is what makes the good endings reachable. But the UI does not tell the

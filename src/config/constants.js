@@ -136,6 +136,18 @@ export const ENERGY_PER_READ = 1;
  */
 export const ENERGY_RESTORED_OVERNIGHT = 24;
 
+/**
+ * Secrecy comes back a point a day, toward the identity's baseline and never
+ * past it.
+ *
+ * Without it secrecy is a one-way ratchet: snooping costs 1-7 and nothing
+ * restored it, so a measured campaign hit 0 in week 3 of 9 and stayed pinned
+ * there. Below the floor a snoop is free - which silently switches off the one
+ * cost that makes the knowledge economy a decision - and exposure carries a
+ * flat +21 forever, so the practice room stops being private.
+ */
+export const SECRECY_RECOVERED_OVERNIGHT = 1;
+
 // --- openers (section 11) ---------------------------------------------------
 /**
  * A knowledge fact can be spent two ways: on an object, or on saying something.

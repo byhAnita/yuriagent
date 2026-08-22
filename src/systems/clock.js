@@ -17,8 +17,10 @@ import {
   CYCLES_PER_CAMPAIGN,
   ENERGY_PER_BLOCK,
   ENERGY_RESTORED_OVERNIGHT,
+  SECRECY_RECOVERED_OVERNIGHT,
 } from '../config/constants.js';
 import { clamp } from './rng.js';
+import { SECRECY_NEUTRAL } from './exposure.js';
 
 export const WEEKS_PER_CAMPAIGN = PHASES.length * CYCLES_PER_CAMPAIGN;
 
@@ -78,9 +80,29 @@ export function spendBlockEnergy(player, extra = 0) {
   return { ...player, energy: clamp(player.energy - ENERGY_PER_BLOCK - extra) };
 }
 
-/** Sleep is the only thing that gives energy back. */
-export function restOvernight(player) {
-  return { ...player, energy: clamp(player.energy + ENERGY_RESTORED_OVERNIGHT) };
+/**
+ * Sleep is the only thing that gives energy back - and a day's distance is the
+ * only thing that gives secrecy back.
+ *
+ * Secrecy used to be a one-way ratchet. Snooping costs 1-7 and nothing restored
+ * it, so a full campaign hit 0 in week 3 of 9 and stayed there: every later
+ * snoop was free, which switched off section 10b's "the cost is real" for two
+ * thirds of the run, and exposure carried a flat +21 on every scene forever.
+ * A stat that saturates early is not a decision any more.
+ *
+ * It recovers slowly and only toward the baseline, never past it - a reputation
+ * for being nosy fades if you stop being nosy, but discretion is not something
+ * you accumulate by sleeping. One a day against a 63-day campaign is small
+ * enough that a snooping streak still hurts, and large enough that the value
+ * spends the whole run somewhere interesting instead of pinned at the floor.
+ */
+export function restOvernight(player, { secrecyBaseline = SECRECY_NEUTRAL } = {}) {
+  const secrecy =
+    player.secrecy < secrecyBaseline
+      ? Math.min(secrecyBaseline, player.secrecy + SECRECY_RECOVERED_OVERNIGHT)
+      : player.secrecy;
+
+  return { ...player, energy: clamp(player.energy + ENERGY_RESTORED_OVERNIGHT), secrecy };
 }
 
 export function isLastBlockOfDay(run) {

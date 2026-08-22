@@ -672,6 +672,39 @@ Two rules:
    it belongs in the frozen header. `guard` and `fluster` move *during* a scene
    and therefore stay client-side - putting them here would break invariant 2.
 
+### Why this scene is not the last one
+
+Block 4 also carries **what she is doing here**, **what the week feels like**,
+and **what the player still owes today**.
+
+All three already existed in state and none of them reached the model. The
+calendar has known since M1 that Irene is in the practice room for
+`group_practice`; block 4 said `Location: X Practice Room` and stopped. So the
+model had to invent a reason for her to be standing in a room, every visit to
+that room opened the same way, and she could never say the obvious natural
+thing - that the new choreography is giving her trouble.
+
+| line | source | changes |
+|---|---|---|
+| `Irene is running the new choreography with the other four.` | `occupancyAt().activity` -> `ACTIVITY_DOING` | every block |
+| `Comeback week. Cameras on everything...` | `PHASE_WEATHER[phase]` | every week |
+| `The player still owes the agency one job today: the stage outfits still need prepping.` | `generateDayTask` -> `TASK_CHORE` | every day |
+
+This is the cheapest variety in the game: it costs about forty tokens in a block
+that is rebuilt every scene anyway, so it is **free in cache terms**, and it is
+what makes the same room in week 1 and week 7 a different scene. Measured live,
+the same member in the same practice room opened three different ways under
+`group_practice`, `late_practice` and `solo_recording`.
+
+Order inside block 4 is by immediacy, which is section 8's salience rule applied
+within a block: time and weather, location, who is here, **what she is doing**,
+how visible it is, where the two of you stand, what she has been unsettled by,
+**what the player owes**, and last of all what they walked in holding. The gift
+note stays at the bottom because it is the most immediate thing in the room.
+
+Both new strings are **model-facing English** and never localized - the
+player-facing labels are separate keys in `i18n/` (section 19).
+
 ### And her voice, said again
 
 Block 4 also repeats one line of card for every present member: her
@@ -908,10 +941,18 @@ that made the task cost something.
 | a night | `+24` |
 | sleeping in your own room | `+30`, and it costs the block |
 
-Overnight deliberately does **not** cover a full day. Three blocks with a couple
-of Read her uses runs slightly negative, so a heavy day forces a rest block -
-and that block is one the player wanted to spend on her. If sleep ever becomes
-free, the whole day structure stops mattering.
+**Read her is the energy sink, not the block.** Three blocks cost 18, plus one
+per scene at the door, against 24 overnight - so a maximally busy day that never
+looks inside her head is energy-*positive* by 3 to 5, and a measured campaign
+never took energy below 77 of 100. What actually runs the player down is
+choosing to read her: two uses a scene across three scenes is another 6, which
+tips the day negative and eventually forces a rest block that the player wanted
+to spend on her.
+
+That is a defensible mechanic - it makes the rationed action the thing you
+budget for - but it is not what this section used to claim, and the claim was
+wrong: blocks are not the pressure. If playtesting shows players simply ignore
+Read her, the fix is `ENERGY_RESTORED_OVERNIGHT` 24 -> 18. Not both.
 
 ### Player stats
 
@@ -971,13 +1012,47 @@ Snooping trades **`secrecy`** for a fact. Low secrecy amplifies scene exposure
 and feeds `exposure_end`, so the cost is real and it lands later - which is the
 right shape for a cost that buys knowledge.
 
+**Secrecy recovers one point a night**, toward the identity's starting value and
+never past it. Without that it is a one-way ratchet: a measured campaign hit 0
+in week 3 of 9 and stayed pinned, which switched the cost off entirely for the
+remaining two thirds of the run and left every scene carrying a flat +21
+exposure. A reputation for being nosy fades if you stop being nosy; discretion
+is not something you accumulate by sleeping.
+
+### Two kinds of find
+
+A snoop turns up one of two things, and which one depends mostly on what is left:
+
+| | what it is | what it buys |
+|---|---|---|
+| **a fact** | one of her `learnableFacts` | an opener, and the dossier entry that unlocks it |
+| **a rumor** | something *another* member has already heard about the player | nothing to spend - it is the only way to see jealousy coming |
+
+Facts are weighted 3:1 over rumors, but the curve mostly draws itself: at the
+start of a run there are 25 facts and **no rumors at all**, because nothing has
+happened yet for anyone to have heard about. Rumors accumulate as the player
+starts being seen, and by the last cycle the facts are gone and rumors are what
+is left. So the early game teaches you about them and the late game teaches you
+about what they know - which is the right order.
+
+The rumor find is also the only window onto section 5b's `heard_about` channel.
+That data has always existed and the player has never been able to look at it,
+so jealousy was invisible until it had already turned into strain. Finding one
+writes nothing to her dossier: it changes what the **player** knows, not what
+she knows.
+
+Before this, the 25-fact pool emptied around week 6 and 12-21 of a campaign's
+~40 snoop blocks returned nothing - half the map quietly reverted to being a
+credit dispenser. Measured after: zero.
+
 Three rules that are not optional:
 
-1. **No charge for a search that found nothing.** Once you know everything
-   learnable about the cast, snooping stops taking secrecy. The player should
-   not be taxed for having already done the work.
+1. **No charge for a search that found nothing.** Once there is no fact and no
+   undiscovered rumor left, snooping stops taking secrecy. The player should not
+   be taxed for having already done the work.
 2. **Never about someone in the room.** You do not learn a secret about a woman
-   who is standing next to you.
+   who is standing next to you - and you do not find out what she has heard,
+   either. The rule covers both kinds of find.
 3. **A member drops out once you know all of her facts**, which quietly pushes
    the player toward whoever they have been neglecting.
 

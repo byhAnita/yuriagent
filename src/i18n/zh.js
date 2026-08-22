@@ -39,6 +39,7 @@ export default {
     ours: '我们',
     out: '公开',
     confidante: '知己',
+    confidanteHint: '停滞了，需要被看见',
     reckless: '冒进',
   },
 
@@ -213,6 +214,7 @@ export default {
     secrecy: '谨慎',
     mayLearn: '也许会发现什么',
     learned: '你知道了一件事',
+    heard: '她听说了',
     learnedNothing: '没有你还不知道的事。',
     prep_fittings: '把明天提前准备好',
     prep_fittings_result: '熨好、贴标、挂回衣架，整排衣服提前了一天。会有人注意到，但大概不是今天。',
