@@ -1,0 +1,241 @@
+# Proposals
+
+Design changes that came out of the post-M4 testing pass and were **not**
+implemented, because each one changes a rule rather than repairing one.
+`CLAUDE.md` is the design; this file is the queue of arguments for amending it.
+
+Each entry says what was measured, why it is a problem, what the options are,
+and which one I would pick. Nothing here is in the code.
+
+> Evidence throughout is from `src/agent/playthrough.test.js` (189-block
+> campaigns through the real engine, offline writer) and
+> `src/agent/liveQuality.test.js` (DeepSeek V4 Flash, `LIVE_QUALITY=1`).
+> Both are in the repo and re-runnable.
+
+---
+
+## 1. A scene's payout depends on how many beats the model felt like writing
+
+**Priority: high.** This is the one I would do first.
+
+### Measured
+
+Six identical seven-turn scenes against DeepSeek, same setup, same stances:
+
+| beats | guard drop | fluster peak | paid? |
+|---|---|---|---|
+| 7 | 9 | 23 | no |
+| 7 | 0 | 23 | no |
+| 21 | -1 | 67 | yes |
+| 13 | 25 | 63 | yes |
+| 21 | 25 | 80 | yes |
+| 21 | -4 | 85 | yes |
+
+Every seven-beat scene paid nothing. Every twenty-one-beat scene paid. The
+model writes one to three beats per turn as a stylistic choice, deltas are
+per-beat and the client sums them, so **a scene is worth roughly three times
+more when the model is feeling verbose.** The player did the same things in all
+six.
+
+### Why it matters
+
+Section 6's whole claim is that the player reads hidden state and bets on it. If
+the payout is driven by the model's paragraph count, the bet is partly a
+coin-flip on prose length, and the feedback the player gets is noise on top of
+signal. It also makes every threshold in section 6 untunable: whatever value is
+chosen is right for one beat count and wrong for the other.
+
+### Options
+
+1. **Average within a turn.** A turn's movement is the mean of its beats rather
+   than the sum. Three beats in one reply are one exchange described in three
+   moments, so a mean is arguably the truer reading of "where her guard is now".
+   One line in `applyBeatToMeters`.
+2. **Cap per-turn movement** at, say, ±10 guard. Cheap, but measured per-turn
+   movement was already near 10 in the verbose runs, so it compresses the spread
+   without removing it.
+3. **Ask for exactly one metadata line per turn** and let the prose carry the
+   beats. Cleanest signal, but it throws away the per-beat emotion track that
+   drives the portrait, which is a real loss.
+
+**Recommendation: option 1**, and re-run the six-scene sample to confirm the
+spread narrows before touching any threshold.
+
+---
+
+## 2. Secrecy is a one-way ratchet that bottoms out by week three
+
+**Priority: high.**
+
+### Measured
+
+Every 189-block campaign ends with `secrecy` at **0**, reached around week 3 of
+9. Snooping costs 1-7 secrecy and nothing anywhere restores it.
+
+### Why it matters
+
+Two things break at the floor, in opposite directions:
+
+- **Snooping becomes free.** Section 10b's first rule is that the cost of
+  knowledge is real and lands later. Once secrecy is 0 it cannot go lower, so
+  every subsequent snoop is free, and the player learns the remaining facts at
+  no price at all. Two thirds of the campaign is played with the cost switched
+  off.
+- **Exposure is permanently +21.** `(70 - secrecy) * 0.3` becomes a flat bonus
+  on every scene for the rest of the run. That is not purely bad - it pushes
+  more scenes over the risk threshold, which now helps admissibility - but it is
+  not a *decision* any more, and the practice room stops being private.
+
+### Options
+
+1. **Slow recovery.** `secrecy += 1` at day rollover, capped at the identity's
+   starting value. A reputation for being nosy fades if you stop being nosy.
+   Keeps the value moving inside its interesting band all campaign.
+2. **Scale the snoop cost** so it is a percentage of remaining secrecy and
+   always bites. Never reaches zero, but the late-game cost becomes negligible
+   in absolute terms, which is the same problem wearing a hat.
+3. **Leave it, and let the floor be a state.** "Everyone knows you're the one
+   who reads things" is a legitimate late-game identity. But then it wants to be
+   *visible* - a named condition on the day screen, not a silently pinned stat.
+
+**Recommendation: option 1**, at +1/day. It is one line in the day rollover and
+it makes the whole campaign's worth of snoop decisions matter.
+
+---
+
+## 3. Energy only does something if the player uses Read her
+
+**Priority: medium.**
+
+### Measured
+
+Energy floor across a full campaign: **77 of 100**. It never came close to
+constraining anything.
+
+The arithmetic: three blocks cost 18, plus 1 per scene aftermath, so a full day
+is 19-21 against `ENERGY_RESTORED_OVERNIGHT = 24`. **A maximally busy day is
+energy-positive.** Section 10 claims "three blocks with a couple of Read her
+uses runs slightly negative, so a heavy day forces a rest block" - and that is
+true *only* if the player spends 6 energy a day on Read her. Every day they
+don't, they gain 3-5.
+
+### Why it matters
+
+Sleeping in your own room is meant to be a block the player wanted to spend on
+her. If energy never runs down, that trade never happens and the rest block is
+dead content. It also means low-energy chip narrowing (`LOW_ENERGY = 25`) is
+effectively unreachable in normal play.
+
+### Options
+
+1. **Overnight 24 -> 18.** A three-block day then costs 1-3 net, which
+   accumulates to a forced rest every couple of weeks. Smallest change.
+2. **Leave it and call Read her the energy sink.** Defensible - it makes Read
+   her the thing you budget for, which is a fine mechanic - but then section 10
+   should say so, because it currently claims blocks are the pressure.
+3. **Charge more for a scene than for solo work.** A scene is emotionally
+   expensive; restocking a wardrobe is not. Makes energy a reason to take a
+   quiet block, which is thematically nice and mechanically fiddly.
+
+**Recommendation: option 2 plus a documentation fix**, unless playtesting shows
+players ignore Read her - in which case option 1. Do not do both at once.
+
+---
+
+## 4. The fact pool runs out, and 40% of late snoops teach nothing
+
+**Priority: medium.**
+
+### Measured
+
+25 facts, all of them learned by roughly week 6. After that, **12-21 of ~40
+snoop blocks in a campaign return nothing.** The no-charge rule (section 10b,
+rule 1) means the player is not billed, so the failure is quiet - but the block
+and the energy are still gone.
+
+### Why it matters
+
+An empty room is supposed to be worth entering. Once the pool is dry, half the
+map reverts to being a credit dispenser, which is exactly the state section 10b
+was written to fix.
+
+### Options
+
+1. **More facts per card.** Simple, and it scales badly: 3 cycles x 5 members
+   wants something like 8-10 each, and the persona-level rule in section 22
+   correctly makes those hard to write.
+2. **Second-tier finds.** Once her facts are exhausted, a snoop turns up a
+   `shared_moments` or `open_threads` entry instead - something about the two of
+   you rather than about her. Reuses the dossier categories that currently only
+   the summarizer writes.
+3. **Rumors as a find.** A late snoop turns up what *another member* has heard,
+   which is intelligence about the jealousy layer rather than about a person.
+   Fits section 5b and makes the fourth-wall-adjacent `heard_about` channel
+   legible to the player for the first time.
+
+**Recommendation: option 3**, then option 2 if it is still thin. Both give the
+late game something the early game does not have, which is better than more of
+the same.
+
+---
+
+## 5. The plateau needs to say so
+
+**Priority: medium.** Follows directly from the stall fix.
+
+`confidante` now genuinely stops intimacy (see the fix in `relationship.js`),
+which is what makes the good endings reachable. But the UI does not tell the
+player it has happened: the stage name changes to a word they may not have seen
+before, and the meter simply stops moving.
+
+The plateau is the single most important state in the game to be legible,
+because it is the one that demands a specific response - go somewhere visible
+and make an overt move. Right now the player has to infer that from a stalled
+number.
+
+**Recommendation:** a one-line explanation wherever the stage is shown, plus the
+existing risk marker on the chips (already shipped) being enough to point at the
+way out. This is UI work, not a rule change, but it is a rule that is invisible
+without it.
+
+---
+
+## 6. Credits have exactly one sink
+
+**Priority: low.**
+
+With openers working, a campaign ends at 0-2 credits with 26-41 scenes where the
+player wanted an opener and could not afford one. So credits *are* binding now,
+and the economy works - but every credit goes on the same thing.
+
+Nothing else in the game costs money: not the task, not travel, not repair.
+Section 11's line that "money is not the constraint, attention is" is true of
+each individual opener and false of the aggregate.
+
+**Recommendation:** leave it until there is a second thing worth buying. Noted
+here so it is not rediscovered as a bug.
+
+---
+
+## 7. `severance_end` is the catch-all for collapses it does not describe
+
+**Priority: low.**
+
+`resolveBadEnd` falls through to `severance_end` for any collapse that is not
+reckless, not exposed and not deeply-close-and-unnameable - so a mid-intimacy
+strain collapse reports "she cuts contact". The table in section 5 defines
+`severance_end` specifically as the reckless collapse.
+
+It is not wrong in fiction, and it is one line, but a run that quietly fell
+apart under accumulated strain is a different story from one that burned down in
+public. A fourth ending id (`attrition_end`?) would say the true thing.
+
+---
+
+## 8. Two members in a scene is still not reachable
+
+**Priority: v1, already tracked.** Repeated here only because the jealousy
+system's most legible surface - the witnessed gesture in section 5b - is the
+part of the design with no path to being seen. `VNStage` renders one portrait,
+so `App` passes a roster of one, so `WITNESS_EXPOSURE_FLOOR` has never fired in
+play. Everything behind it is built and tested.

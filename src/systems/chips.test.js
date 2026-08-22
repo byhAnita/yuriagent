@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { availableStances, suggestedStances, generateChips, STANCES } from './chips.js';
+import {
+  availableStances,
+  suggestedStances,
+  generateChips,
+  STANCES,
+  isRiskStance,
+} from './chips.js';
+import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 import { newRelation } from './relationship.js';
 
 const rel = (patch) => ({ ...newRelation(50), intimacy: 50, ...patch });
@@ -84,5 +91,36 @@ describe('generateChips', () => {
     const r = rel({ intimacy: 80, strain: 70, jealousy: 60 });
     const { locked } = availableStances(r);
     for (const chip of generateChips(r)) expect(locked[chip]).toBeUndefined();
+  });
+});
+
+/**
+ * Which moves are a bet. Section 5 pays admissibility only for "surviving
+ * deliberate risk at high Exposure", and until `sceneEngine` started calling
+ * this, nothing in the game ever set the flag.
+ */
+describe('isRiskStance', () => {
+  it('counts the overt moves where somebody could see', () => {
+    for (const stance of ['touch', 'invite', 'confide']) {
+      expect(isRiskStance(stance, 80)).toBe(true);
+    }
+  });
+
+  it('does not count the loud but deniable ones', () => {
+    // Deniable is exactly what fails to move admissibility: a witness has to
+    // be able to describe what they saw.
+    for (const stance of ['tease', 'press', 'joke', 'deflect', 'retreat', 'apologize']) {
+      expect(isRiskStance(stance, 100)).toBe(false);
+    }
+  });
+
+  it('is not a risk where nobody is watching', () => {
+    expect(isRiskStance('touch', RISK_EXPOSURE_THRESHOLD - 1)).toBe(false);
+    expect(isRiskStance('touch', RISK_EXPOSURE_THRESHOLD)).toBe(true);
+  });
+
+  it('survives a missing stance', () => {
+    expect(isRiskStance(undefined, 90)).toBe(false);
+    expect(isRiskStance(null, 90)).toBe(false);
   });
 });

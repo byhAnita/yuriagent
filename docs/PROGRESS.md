@@ -7,12 +7,43 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M4 complete plus a post-M4 pass, M5 next
 
-**360 tests, lint and build clean.** The game is playable end to end for a day:
+**385 tests, lint and build clean.** The game is playable end to end for a day:
 map -> empty room or scene -> opener -> dialogue -> exit -> rumor -> rollover,
 with no API key required.
 
-Since M4 closed, a playtest-driven pass has landed that is worth knowing about
-before touching anything:
+### The balance pass, 2026-08-22
+
+A second post-M4 pass, driven by a **headless campaign harness**
+(`src/agent/playthrough.test.js`) that plays all 189 blocks through the real
+engine, and by **live quality measurement** against DeepSeek
+(`src/agent/liveQuality.test.js`, `LIVE_QUALITY=1`). Four defects, all of the
+same shape: two correct halves and a missing join, invisible to every unit test
+and to any playtest shorter than a full campaign.
+
+| | |
+|---|---|
+| **The second axis was dead** | `markRisk` was never called by anything. `riskTaken` was false in every scene ever played, so admissibility never left 0, every route plateaued, and **no good ending was reachable**. A risk is now a stance (`touch`/`invite`/`confide`) taken at exposure >= 60, marked on the chip. |
+| **The plateau never plateaued** | `confidante` is called a stall in four places and stalled nothing - campaigns ended with all five at intimacy 100 and `confidante_end` for everybody. Closeness now stops while she is on it. Good endings went 0% -> 12-64% by policy. |
+| **Scenes paid nothing live** | section 6's thresholds were calibrated against the mock. A live scene that plainly went well moved guard by a net 1. The format contract now states the per-beat scale; 4/6 sampled scenes now pay. |
+| **Two members wrote the same line** | Irene and Hyewon at 90% shared vocabulary from an identical opening. Block 4 now repeats her speech style next to the instruction: 90% -> 27%. |
+| **Conversation taught nothing spendable** | the summarizer's own phrasing never matched an opener's `requires`, so openers were reachable by snooping alone. The scene-exit call now carries the card wording as a checklist. |
+
+**`docs/PROPOSALS.md` is new** and holds eight design-level findings from the
+same pass that were deliberately *not* implemented, with the measurements behind
+each. Read it before tuning anything.
+
+### Measured, so it does not have to be re-derived
+
+- **Balance ending: 1/20 for `balanced`, 0/20 for `expert`** (~5%, inside
+  section 5b's "under 10%" target). Near-misses are one member short, and the
+  member is always stuck on the plateau.
+- **Endings by policy**, 5 seeds x 5 members: `balanced` 64% good, `spread` 48%,
+  `expert` 52%, `bold` 32%, `devoted` 12% (correctly - it gets `ours_end` for
+  the one route and `drift_end` for the four it ignored).
+- **Live**: prefix cache 1792/1794 tokens hit. Beat call 1.2-1.7s, chip call
+  1.4s / 194 miss tokens. Metadata adherence 21/21 beats.
+
+Since M4 closed, an earlier playtest-driven pass had already landed:
 
 | | |
 |---|---|
@@ -250,12 +281,18 @@ The list to work from. Roughly in the order they should be picked up.
 
 ### Known gaps that are not M5
 
-- **`balanceSim` is further out of date than it was.** It does not model
-  openers, chips, solo work or the energy economy, and the opener economy has
-  since grown from 8 shared gifts to 25 per-fact openers with a free gesture
-  tier. The 2.8% balance-ending figure is stale rather than wrong. Re-running it
-  honestly means teaching `simulateScene` about all of it first - real work, and
-  worth doing before any further coefficient tuning.
+- **`balanceSim` has been superseded and should probably be retired.** It models
+  a scene as a number and knows nothing about openers, chips, solo work, the
+  calendar or energy, so its 2.8% figure has been stale since the opener economy
+  grew. `src/agent/playthrough.test.js` now answers the same questions by
+  playing the real loop, and it found two defects `balanceSim` structurally
+  could not see. Keeping both means maintaining two sets of policies that
+  disagree. Decide: teach `simulateScene` the rest of the game, or delete it and
+  move the section 5b table to harness numbers.
+- **The written-chip writer is not in the harness.** `playthrough.test.js`
+  drives `chips.js` directly, so the campaign numbers assume static chips. That
+  is the conservative direction (written chips should make a player better, not
+  worse) but it is an assumption, not a measurement.
 - **Group scenes.** Prompt and parser handle two members; `VNStage` renders one
   portrait, so `App` deliberately passes a roster of one. Needs the two-portrait
   stage plus the witnessed-gesture bonus in `computeDeltas`.
@@ -270,10 +307,12 @@ The list to work from. Roughly in the order they should be picked up.
 - **ko / pt** are stubbed in `i18n/index.js` and fall back to `en`. Note that
   `i18n/coverage.test.js` asserts en/zh parity only; adding a locale means
   adding it there too.
-- **Only the beat call is measured live.** The chip call, summarizer and Read
-  her have been exercised, but group scenes, `zh` output and the other three
-  router entries have not. `live.test.js` covers a single-member practice-room
-  scene on DeepSeek and nothing else.
+- **Only DeepSeek is measured live.** The beat call, chip call, summarizer, Read
+  her and `zh` output have all now been exercised and are good (`zh` writes
+  clean Chinese prose with ASCII metadata; Read her and the ledger lines are
+  genuinely sharp). The other three router entries in `modelConfigs.js` have
+  never been called, and neither has a group scene, because there is no way to
+  start one.
 - **The written-chip budget is provider-dependent.** A chip call measured 1.3s
   on a quiet provider and 8.1s on a busy one. `live.test.js` reports when it
   misses the 3s reading budget rather than failing, because that is DeepSeek's
@@ -323,3 +362,11 @@ after being written down.
 | 2026-08-22 | Facts and openers replaced with a researched set supplied by the user: 25 facts, 25 openers, 7 buyable objects and 18 gestures. Only seven of the interactions were actually things you could buy, which is what the opener split is for. |
 | 2026-08-22 | Snooping opened up to eight of nine rooms, priced by secrecy (-7 green room down to -1 dorm living). Three rooms funnelled the entire knowledge economy through the wardrobe. |
 | 2026-08-22 | Nana's tattoo-removal fact replaced with her magical-girl figures. Publicly self-disclosed, but it is a real person's body rather than a habit - the same call as the invented knee injury. Section 22 now carries the rule so it is not re-litigated per fact. |
+| 2026-08-22 | **The second axis was dead in the shipped game.** `markRisk` existed, was tested, and was called by nothing - so `riskTaken` was false in every scene ever played and admissibility never left 0. A risk is now a stance (`touch`/`invite`/`confide`) taken at exposure >= 60, marked on the chip so the bet is visible. |
+| 2026-08-22 | **The plateau now plateaus.** `confidante` is described as a stall in four places and stalled nothing; campaigns ended with every member at intimacy 100 and `confidante_end` for all five. Intimacy gains are suppressed while she is on the plateau. Together with the risk fix, good endings went 0% to 12-64% depending on policy. |
+| 2026-08-22 | Added `src/agent/playthrough.test.js`: a 189-block campaign through the real engine. It found both of the above in its first run. `balanceSim` structurally could not - it models a scene as a number. |
+| 2026-08-22 | **Section 6's meter thresholds were calibrated against the mock.** Live, a scene that plainly went well moved guard by a net 1 and paid nothing, because the model anchored on the example beats. The format contract now states the per-beat scale. Stating a per-SCENE target instead overshot badly, because beat count per turn varies 1-3 and a scene budget silently multiplies. |
+| 2026-08-22 | Block 4 repeats the present member's `speechStyle`. All five cards sit in block 1 ~1500 tokens above the instruction, and the model collapsed Irene and Hyewon onto the personality subset they share - identical opening line, 90% shared vocabulary. Now 27%. |
+| 2026-08-22 | The scene-exit call carries the card's `learnableFacts` wording as a checklist. Openers match `requires` by substring and the summarizer wrote its own phrasing, so the `dialogue -> fact -> opener` arm of section 11 had never worked: every opener was reachable by snooping alone. |
+| 2026-08-22 | `mockClient` honours `delay: 0` for stream chunks too. The per-chunk 12ms remained, so a headless campaign spent seven minutes inside setTimeout pretending to type. |
+| 2026-08-22 | Added `docs/PROPOSALS.md` for design-level findings that were measured but deliberately not implemented - beat-count-dependent payouts, the secrecy ratchet, inert energy, the exhausted fact pool. |
