@@ -5,11 +5,17 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M4 complete plus a post-M4 pass, M5 next
+## Current: M0-M4 complete, M5 underway
 
-**432 tests, lint and build clean.** The game is playable end to end for a day:
-map -> empty room or scene -> opener -> dialogue -> exit -> rumor -> rollover,
-with no API key required.
+**568 tests, lint and build clean.** `dev` holds everything; the M2-M4 work was
+merged 2026-08-22 and the M5 map work sits on top of it.
+
+The game is playable end to end for a day - map -> empty room or scene ->
+opener -> dialogue -> exit -> rumor -> rollover, with no API key required - but
+**that is still the OLD map.** The phase maps, dating, scene frames and the
+witnessed rule are built and tested and none of them is reachable in play yet.
+See "M5 in progress" below, which lists exactly what is wired to nothing and
+why that list is the thing to watch.
 
 ### The balance pass, 2026-08-22
 
@@ -270,6 +276,92 @@ with several people lets you choose who you walk up to.
 
 ---
 
+## M5 in progress: the phase map, dating, and what is wired to nothing yet
+
+**568 tests, lint and build clean.** `dev` is at the M2-M4 merge plus the M5
+map work. Everything below is on `dev`.
+
+### Done
+
+| | |
+|---|---|
+| `data/phaseMaps.js` | slots, roles, three phase maps, coverage assertions |
+| `data/locations.js` | 12 new rooms; `drama_set` broadened to all filming |
+| `systems/tasks.js` | a task names a **slot**, resolved per phase |
+| `data/activities.js` | every activity names a slot too |
+| `systems/calendar.js` | event day first, phase-scoped group density, free evenings, her-room routine |
+| `systems/dating.js` | public/private gates, the roll, the bill, who finds out |
+| `store/playerName.js` | collection-ready, sanitised at the prompt boundary |
+| `agent/promptBuilder.js` | the pronoun rule; the player name in block 1 |
+| `data/sceneFrames.js` | settings and movements for every date venue, 16 turns |
+| `systems/exposure.js` | `witnessedExposure` - the room counts, not just the street |
+
+### Three defects the new assertions caught, all the same shape
+
+None of them were visible before the map could rotate, and all three are the
+`markRisk` shape: two halves that are each correct, with nothing joining them.
+
+1. **A slot pointed at `filming_set`, which does not exist.** Caught by the
+   coverage test on its first run, before anything was wired to it.
+2. **`occupancyAt` needed a `phase` the caller had to remember to pass**, and
+   returned `undefined` when it did not - dropping a member off the map. The
+   plan now carries its own phase, and idle has a fallback. A member is always
+   somewhere.
+3. **Activities hardcoded locations.** `concept_meeting` scheduled a member into
+   the `corridor`, which is on no phase map, and `group_practice` did the same
+   in COMEBACK. Both were unreachable rooms - the player would simply never find
+   her.
+
+### Built, tested, and NOT REACHABLE IN PLAY
+
+This is the important half of this section. Each of these is correct and has
+tests, and none of it does anything in the running game yet. **This is exactly
+the shape of the largest bug the project has had** - `markRisk` was implemented
+and tested for two milestones while nothing ever called it, and the cost was
+every good ending being unreachable in the shipped game.
+
+- **Witnessed 1v1.** `propagate` still receives only the member being addressed
+  as `presentIds`, so the witnessed branch cannot fire. Needs `App.jsx` to pass
+  the full room roster.
+- **`riskExposure`.** `beginScene` computes it from `scene.rosterIds`, which
+  today holds one id. Correct the moment the roster is real.
+- **Dating.** Nothing calls `dateOffers` or `askOut`; there is no weekend
+  invitation UI and no whole-day scene.
+- **Scene frames and the 16-turn register.** `sceneFrames.js` is not read by
+  `promptBuilder` yet.
+- **The player name.** Sanitised and injected, but there is no field to type it
+  into - every run is still "the player".
+- **The phase map itself.** `LocationGrid` does not consult `mapFor(phase)`, so
+  the map on screen is still the old flat one.
+
+### Next, in this order
+
+1. **`soloWork.js`** - offer every action in every room, and scale the snoop
+   secrecy cost by `presence`. Pure, small.
+2. **`systems/speaker.js` and `addresseeId`** - the *pure* half of proposal 12.
+   Deliberately before the UI: the addressee is also what proposal 11's
+   interaction control targets, so building the room screen without it means
+   building it twice.
+3. **The UI** - company zone, room action list with the task in it, weekend
+   date invitation, name entry. This is where everything above becomes
+   reachable, including the two wiring gaps named as such.
+4. **The interjection call and its directive** - the half of proposal 12 that
+   needs a live measurement, which needs a playable loop first.
+5. **Authored events**, then endings, save/load, PWA.
+
+### Why group scenes are not next
+
+Proposal 12 is agreed and unimplemented. It is not the next thing to build, for
+one reason that outranks the rest: **there are already two features sitting in
+the tree that are tested and unreachable.** Opening a third front while those
+are outstanding is how a project ends up with two `markRisk` bugs instead of
+one. The interjection threshold also cannot be tuned without a playable loop,
+and there is not one for the new map yet.
+
+The pure half - speaker weighting and the addressee - *is* next, because the UI
+has to be built around it either way.
+---
+
 ## Still open
 
 The list to work from. Roughly in the order they should be picked up.
@@ -280,8 +372,12 @@ The list to work from. Roughly in the order they should be picked up.
   and the state schema in CLAUDE.md section 15 is the contract.
 - **Endings screen.** The campaign can run past its last week without resolving.
   `resolveEnding` and `isBalanceEnding` exist and are tested; nothing calls them.
-- **Event anchors.** `eventWindows()` returns the six weekend blocks and nothing
-  uses them. `data/events/` is empty.
+- **Authored events.** `eventDays()` now places one or two weekdays per phase and
+  returns where they happen; `data/events/` is still empty, so the day resolves
+  as an ordinary one. Five sites, five situations, escalating per cycle - see
+  PROPOSALS 10. Note the reversal: events go on **weekdays** now, not weekends.
+- **Group scenes.** PROPOSALS 12. The addressee primitive and the speaker
+  weighting are the next pure work; the interjection call needs a live pass.
 - **Repair events.** `applyRepair` is implemented and tested; nothing calls it,
   and `flags.repairUsed` is unused.
 - **PWA install / service worker.** Manifest and icons exist; no SW.
