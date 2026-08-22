@@ -168,6 +168,24 @@ resolveStage(intimacy, admissibility) {
 
 Display names for all locales live in `i18n/`. Never hardcode stage text in components.
 
+### The plateau actually stops her
+
+`confidante` is not a label on a position, it is a **brake**. While she is on
+it, `applySceneOutcome` refuses intimacy *gains*: admissibility still moves,
+strain still decays, losses still land, and the scene that walks her onto the
+plateau is still paid in full - a wall you can watch yourself hit is a rule, one
+that catches you mid-step is a bug.
+
+Without the brake the word meant nothing. A full campaign ended with all five
+members at `intimacy` 100, `admissibility` near zero and `confidante_end` for
+everybody, under every policy including one that took a public risk in every
+scene it could. With it, good endings became reachable at 12-64% depending on
+how the player plays, and the balance ending sits near 5%.
+
+This is also the clearest statement the game makes of its own thesis. Privacy is
+safe and stagnant; the only way forward is to be seen. When she stalls, the move
+is to take her somewhere public and make an overt one.
+
 ### Strain bands
 
 | Band | Range | Effect |
@@ -293,6 +311,17 @@ Two members present is where jealousy becomes visible rather than inferred.
 
 Five interacting tracks cannot be tuned on paper. `systems/balanceSim.js` runs N scripted playthroughs with no UI and no LLM and reports the distribution of reachable endings.
 
+**There are now two harnesses, and the newer one is the authority.**
+`src/agent/playthrough.test.js` plays 189 blocks through the *real* engine -
+calendar, occupancy, openers, snooping, energy, the prompt pipeline against the
+offline writer, rumors, day rollover - where `balanceSim` models a scene as a
+number. That difference is not academic: the engine harness found two defects on
+its first run (the dead risk flag and the plateau that did not plateau) that
+`balanceSim` structurally could not see, because in `balanceSim` those code
+paths do not exist. Its own numbers below are from the older harness and predate
+both fixes; treat them as history. See `docs/PROGRESS.md` for current figures
+and `docs/PROPOSALS.md` for whether `balanceSim` should be retired.
+
 The **balance ending** is every member at `nameless` or above (`GOOD_ENDINGS`), with jealousy under 50 and nothing collapsed. `nameless` rather than `unspoken` is the right bar: five relationships that are deeply close and cannot be named is the truest version of this game's best outcome, and considerably more interesting than five public girlfriends.
 
 Four policies stand in for player skill. Measured at 400 runs each:
@@ -338,6 +367,40 @@ gesture witnessed in a group scene         -> larger admissibility gain,
 
 Deltas are computed by `systems/relationship.js` from accumulated per-turn metadata.
 **The LLM never reports macro deltas** - only per-turn `guard` / `fluster` movement and emotion. Fewer things for a small model to get wrong.
+
+### What a "risk action" is
+
+An **overt stance taken where somebody could see**: `touch`, `invite` or
+`confide` at `exposure >= 60`. `chips.js` owns the list (`RISK_STANCES`), the
+turn loop sets the flag, and the chip carries a marker so the player knows they
+are placing a bet.
+
+Those three and not the others, because a witness has to be able to *describe*
+what they saw. Reaching for her, asking her somewhere, and saying the unsayable
+within earshot are all nameable. `tease` and `press` are loud and deniable, and
+deniable is precisely what cannot move admissibility.
+
+This was the largest bug the project has had. `markRisk` existed and was tested,
+`computeDeltas` priced the outcome and was tested, and **nothing ever called
+`markRisk`** - so `riskTaken` was false in every scene ever played,
+`admissibility` never left 0, every route plateaued at `confidante`, and all
+four good endings plus the balance ending were unreachable in the shipped game.
+Both halves were correct; only the join was missing. No unit test could see it,
+and a headless campaign found it on the first run
+(`src/agent/playthrough.test.js`).
+
+### The scale is stated per beat, never per scene
+
+The thresholds above (15, 60) are sums over a scene, and the model reports
+per-beat movement - but **it writes one to three beats per turn as a stylistic
+choice**, so a scene-level instruction silently multiplies by however many beats
+it felt like writing. Told "her guard should fall 15-30 across a scene", a live
+model produced a 55-point drop with fluster pegged at 100 by turn four. Told the
+per-beat scale instead, six sampled scenes produced a usable spread and four of
+them paid.
+
+That beat-count sensitivity is still the weakest joint in this mapping and is
+written up in `docs/PROPOSALS.md`.
 
 ### A scene occupies one block
 
@@ -608,6 +671,24 @@ Two rules:
 2. **Standing is macro state, not a meter.** It is fixed for the whole scene, so
    it belongs in the frozen header. `guard` and `fluster` move *during* a scene
    and therefore stay client-side - putting them here would break invariant 2.
+
+### And her voice, said again
+
+Block 4 also repeats one line of card for every present member: her
+`speechStyle`.
+
+It is duplicated from block 1 on purpose. All five cards live up there, roughly
+1500 tokens above the instruction, and selecting the right one out of five is a
+step a small model does not reliably take. Given an identical practice-room
+opening, **Irene and Hyewon came back with the same line** - "You are early. The
+others won't be here for another hour" - at 90% shared vocabulary, while the
+three louder cards stayed distinct. Neither card is at fault; the model
+collapsed the two reserved women onto the subset they share. Repeating the line
+here took the overlap to 27%.
+
+Costs ~25 tokens in a block that is rebuilt every scene anyway, so it is free in
+cache terms. This is the cheap version of a general rule: **when two cards are
+adjacent in temperament, distance from the instruction is what flattens them.**
 
 ### Cache accounting
 
@@ -923,6 +1004,24 @@ dialogue --reveals--> dossier fact --unlocks--> a specific gift --> LLM sees the
 - Generic gift (rose, iced coffee): `+1` effect, generic reaction.
 - **Knowledge-gated gift**: purchasable only once the matching `known_facts` entry exists. `+5` effect and a unique reaction, because the fact is in-prompt.
 
+### Two ways in, and the dialogue one has to be wired for
+
+A fact reaches the dossier from **snooping** (section 10b) or from **the scene
+itself**. Only the first worked for a long time, and the reason is worth
+remembering: openers match `requires` against dossier text by substring, and the
+summarizer wrote whatever phrasing it liked. A live scene where Irene talked
+about practising alone produced *"values trust earned in private, not public"* -
+a good memory that matches no opener that exists. Every opener in the game was
+therefore reachable by snooping and by nothing else, and **talking to her taught
+the player nothing they could spend.**
+
+The scene-exit call now carries the card's own wording for the facts the player
+does not already have, scoped to members in the room like everything else in
+block 3. It is a **checklist, not an instruction to fish**: use this wording if
+the thing genuinely came up, and otherwise add nothing. A fact awarded for
+nothing is worse than a fact never awarded, because it hands over an opener
+nobody earned.
+
 **Locked gifts are not shown.** Naming a gift the player cannot buy spoils the
 fact it is waiting on and clutters the list with things they cannot act on. When
 nothing is unlocked the modal says only that such gifts open when she tells you
@@ -1200,6 +1299,8 @@ src/
     memory.js                # ledger append + compaction, dossier CRUD
     summarizer.js            # scene-exit call
     chipWriter.js            # written chip labels; ephemeral frame, never committed
+    playthrough.test.js      # a whole campaign through the real engine, offline
+    liveQuality.test.js      # what a real model writes; LIVE_QUALITY=1, opt-in
   systems/                   # PURE. no React, no network.
     rng.js                   # seeded mulberry32, injected everywhere
     relationship.js          # intimacy/admissibility/strain, stage, endings
@@ -1219,6 +1320,7 @@ src/
     llmTool.js               # multi-model router, streaming, retries
     mockClient.js            # offline writer; the game runs with no API key
     client.js                # picks live vs mock, falls back per call
+    liveEnv.js               # test-only: reads .env.local. Never imported by the app.
   data/
     characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri
                              # library: seulgi, wendy, joy
@@ -1298,6 +1400,8 @@ Rules:
 **Status: M0-M4 complete. M5 is next.** Running state, what is done and what is
 still open, lives in `docs/PROGRESS.md` - that file is updated *before* a
 milestone closes, and it is what makes compacting this session safe.
+Design changes that have been argued for but not made live in
+`docs/PROPOSALS.md`; read it before touching a coefficient.
 
 M1 before M2 is deliberate: the relationship model is the product, and it must be correct before a single token is spent on it.
 
