@@ -1,9 +1,10 @@
 /**
  * Stance chips. CLAUDE.md section 6.
  *
- * Verbs, not a chat box. Chips are generated client-side, cost nothing, render
- * instantly, and cover the latency of the previous stream - which is the real
- * reason they are the primary input rather than a convenience.
+ * Verbs, not a chat box. A chip is `{ stance, label }`: the stance is what the
+ * game acts on and comes from chips.js, the label is optional prose written for
+ * this moment. The static set renders instantly and a written one replaces it
+ * only if it arrives in time, so this component never waits for anything.
  *
  * Free text is the escape hatch, deliberately smaller and secondary.
  */
@@ -25,6 +26,14 @@ export default function ChipBar({
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+
+  /**
+   * Written labels do not fit three-across at 390px - "I'm not going anywhere"
+   * wraps to three lines in a 110px button. When any chip carries one the bar
+   * becomes a stack of full-width options, which is also how a VN presents a
+   * choice. With no labels it stays the compact row.
+   */
+  const written = chips.some((c) => c.label);
 
   /**
    * When the block is spent the chips do not simply go dead - that reads as a
@@ -59,8 +68,8 @@ export default function ChipBar({
 
   return (
     <div className="px-5 pb-5 pt-3">
-      <div className="flex flex-wrap gap-1.5">
-        {chips.map((stance) => {
+      <div className={written ? 'flex flex-col gap-1.5' : 'flex flex-wrap gap-1.5'}>
+        {chips.map(({ stance, label }) => {
           const isSuggested = suggested.includes(stance);
           return (
             <button
@@ -68,7 +77,11 @@ export default function ChipBar({
               type="button"
               disabled={disabled}
               onClick={() => onStance(stance)}
-              className="group relative flex-1 rounded-[var(--radius-sm)] border border-hairline bg-surface px-2.5 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-text transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35"
+              className={`group relative rounded-[var(--radius-sm)] border border-hairline bg-surface transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 ${
+                written
+                  ? 'w-full px-3 py-2 text-left'
+                  : 'flex-1 px-2.5 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-text'
+              }`}
             >
               {isSuggested ? (
                 <span
@@ -76,7 +89,27 @@ export default function ChipBar({
                   className="absolute left-1.5 top-1.5 h-1 w-1 rounded-full bg-accent"
                 />
               ) : null}
-              {t(`stance.${stance}`)}
+
+              {/*
+                The stance stays visible even when a written label carries the
+                line. The player is choosing a POSTURE - locking, the suggested
+                dot and every rule in chips.js are stance-based - so hiding the
+                verb behind prose would make the system illegible.
+              */}
+              {written ? (
+                <>
+                  <span className="block font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
+                    {t(`stance.${stance}`)}
+                  </span>
+                  {label ? (
+                    <span className="mt-0.5 block line-clamp-2 font-body text-[0.875rem] leading-snug text-text">
+                      {label}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                t(`stance.${stance}`)
+              )}
             </button>
           );
         })}

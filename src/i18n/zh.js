@@ -7,6 +7,7 @@ export default {
     fontSize: '字号',
     language: '语言',
     reduceMotion: '减少动效',
+    writtenChips: '智能选项文案',
     model: '模型',
     apiKey: 'API Key',
     saveKey: '保存',

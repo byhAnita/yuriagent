@@ -92,6 +92,21 @@ export default function SettingsModal({ settings, onChange, apiKey, onKeyChange,
             </Pill>
           </Group>
 
+          <Group label={t('settings.writtenChips')}>
+            <Pill
+              active={settings.writtenChips !== false}
+              onClick={() => set({ writtenChips: true })}
+            >
+              {t('settings.on')}
+            </Pill>
+            <Pill
+              active={settings.writtenChips === false}
+              onClick={() => set({ writtenChips: false })}
+            >
+              {t('settings.off')}
+            </Pill>
+          </Group>
+
           <Group label={t('settings.model')}>
             {Object.entries(MODELS).map(([id, m]) => (
               <Pill key={id} active={settings.model === id} onClick={() => set({ model: id })}>

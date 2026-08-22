@@ -46,6 +46,8 @@ export const CALL_PRESETS = {
   turn: { temperature: 0.9, maxTokens: 320, stream: true },
   thought: { temperature: 0.8, maxTokens: 80, stream: false },
   summarize: { temperature: 0.2, maxTokens: 400, stream: false },
+  /** Three short lines. Never streamed - it is swapped in whole or not at all. */
+  chips: { temperature: 0.85, maxTokens: 120, stream: false },
 };
 
 export function getModel(id) {

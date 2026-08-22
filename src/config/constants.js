@@ -97,6 +97,24 @@ export const MAX_INTERACTIVE_MEMBERS = 2;
  */
 export const SCENE_TURN_LIMIT = 8;
 
+// --- written chips (section 6) ----------------------------------------------
+export const CHIPS_PER_TURN = 3;
+
+/**
+ * A written label longer than this means the model ignored the contract and
+ * wrote prose. Short ones are clamped to two lines in the UI instead of being
+ * rejected - throwing away a good chip for being four characters over is worse
+ * than letting it wrap.
+ */
+export const MAX_CHIP_LABEL = 64;
+
+/**
+ * Consecutive chip-writer failures before the scene gives up on it. Two is
+ * enough to tell a bad response from a bad connection, and giving up costs the
+ * player nothing: chips.js is a complete input system on its own.
+ */
+export const CHIP_FAILURES_BEFORE_GIVING_UP = 2;
+
 /** Every block spent costs this; Read her costs one on top. */
 export const ENERGY_PER_BLOCK = 6;
 export const ENERGY_PER_READ = 1;

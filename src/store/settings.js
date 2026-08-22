@@ -21,6 +21,12 @@ export const DEFAULT_SETTINGS = {
    * would fall back to the offline writer with no visible reason.
    */
   model: DEFAULT_MODEL,
+  /**
+   * Written chip labels (section 6). On by default. Turning it off costs the
+   * player nothing but variety - chips.js is a complete input system on its
+   * own - and it halves the request count, which matters on a free tier.
+   */
+  writtenChips: true,
 };
 
 export function loadSettings() {
@@ -36,6 +42,7 @@ export function loadSettings() {
       lang: typeof parsed.lang === 'string' ? parsed.lang : DEFAULT_SETTINGS.lang,
       reduceMotion: Boolean(parsed.reduceMotion),
       model: Object.hasOwn(MODELS, parsed.model) ? parsed.model : DEFAULT_SETTINGS.model,
+      writtenChips: parsed.writtenChips !== false,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

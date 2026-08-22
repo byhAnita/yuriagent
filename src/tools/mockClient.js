@@ -53,6 +53,24 @@ const LINES = {
   ],
 };
 
+/**
+ * The player's side, for written chips (section 6). Short, in the player's
+ * voice, and saying nothing the player could not already have seen - the same
+ * constraint the live directive puts on the model.
+ */
+const PLAYER_LINES = {
+  tease: ['You are enjoying this', 'That is not what you said yesterday', 'Say that again'],
+  reassure: ['I am not going anywhere', 'You did fine out there', 'Take your time'],
+  deflect: ['So. The schedule.', 'Ask about the fitting', 'Let it go for now'],
+  press: ['Ask what she meant by that', 'Wait her out', 'Push once more'],
+  confide: ['Tell her about the call', 'Admit you were nervous too', 'Say the true thing'],
+  touch: ['Fix her collar', 'Reach for her hand', 'Stand closer'],
+  retreat: ['Say goodnight', 'Leave before this goes further', 'Step back'],
+  joke: ['Make it worse on purpose', 'Blame the choreographer', 'Do the voice'],
+  apologize: ['Say you should have known', 'Own it, briefly', 'Apologise properly'],
+  invite: ['Ask about Sunday', 'Suggest the late train', 'Offer to wait'],
+};
+
 const THOUGHTS = [
   'She is wondering whether you noticed her hands were shaking.',
   'She is counting how many people are still in the building.',
@@ -142,6 +160,23 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
     }
 
     const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+
+    // Written chips. The offline writer cannot make them scene-specific, but it
+    // can honour the contract exactly - which is what the parser, the roster
+    // rule and the backfill path need to be exercised in real play.
+    if (preset === 'chips') {
+      const asked = /Use only these stances, once each: ([a-z, ]+)\./.exec(last)?.[1] ?? '';
+      const stances = asked
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => PLAYER_LINES[s]);
+
+      return stances
+        .slice(0, 3)
+        .map((s) => `${s}|${pick(rng, PLAYER_LINES[s])}`)
+        .join('\n');
+    }
+
     const stance = /^\[(\w+)\]/.exec(last)?.[1];
     const speaker = /@([a-z0-9_]+)/.exec(messages[0]?.content ?? '')?.[1] ?? 'irene';
     const rosterMatch = /Present: ([A-Za-z]+) \(([a-z0-9_]+)\)/.exec(messages[0]?.content ?? '');

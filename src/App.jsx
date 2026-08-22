@@ -377,6 +377,7 @@ export default function App() {
           client={client}
           giftNote={giftNote}
           onSceneEnd={onSceneEnd}
+          writtenChips={settings.writtenChips}
           t={t}
         />
       ) : null}

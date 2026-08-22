@@ -7,6 +7,7 @@ export default {
     fontSize: 'Text size',
     language: 'Language',
     reduceMotion: 'Reduce motion',
+    writtenChips: 'Written options',
     model: 'Model',
     apiKey: 'API key',
     saveKey: 'Save',
