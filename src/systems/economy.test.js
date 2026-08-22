@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { isUnlocked, giftsFor, canPurchase, purchase, earn } from './economy.js';
+import {
+  isUnlocked,
+  giftsFor,
+  canPurchase,
+  purchase,
+  earn,
+  canGesture,
+  spendGesture,
+} from './economy.js';
+import { GESTURE_EFFECT } from '../config/constants.js';
+import { KNOWLEDGE_GIFTS } from '../data/gifts.js';
 import { getGift } from '../data/gifts.js';
 import { generateDayTask, completeTask, failTask, canAttempt, applyPlayerDeltas } from './tasks.js';
 
@@ -12,24 +22,31 @@ describe('knowledge gating', () => {
   });
 
   it('locks a knowledge gift until the fact exists', () => {
-    expect(isUnlocked(getGift('hand_warmer'), empty)).toBe(false);
-    expect(isUnlocked(getGift('hand_warmer'), knowsCold)).toBe(true);
+    expect(isUnlocked(getGift('mugwort_pack'), empty)).toBe(false);
+    expect(isUnlocked(getGift('mugwort_pack'), knowsCold)).toBe(true);
   });
 
   it('matches a fact the summarizer wrote in its own words', () => {
     const loose = { known_facts: ['her hands are always cold in the studio'], player_told_her: [] };
-    expect(isUnlocked(getGift('hand_warmer'), loose)).toBe(true);
+    expect(isUnlocked(getGift('mugwort_pack'), loose)).toBe(true);
   });
 
   it('also matches things the player told her', () => {
-    const told = { known_facts: [], player_told_her: ['you are homesick for Busan'] };
-    expect(isUnlocked(getGift('hometown_dish'), told)).toBe(true);
+    const told = { known_facts: [], player_told_her: ['she drinks five litres of water a day'] };
+    expect(isUnlocked(getGift('insulated_water_jug'), told)).toBe(true);
+  });
+
+  /** A gift id from an older catalogue must not take the modal down. */
+  it('treats an unknown gift id as locked rather than throwing', () => {
+    expect(() => isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).not.toThrow();
+    expect(isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).toBe(false);
+    expect(canPurchase('a_gift_that_no_longer_exists', knowsCold, 999)).toBe(false);
   });
 
   it('money is not the constraint - attention is', () => {
-    expect(canPurchase('hand_warmer', empty, 999)).toBe(false);
-    expect(canPurchase('hand_warmer', knowsCold, 3)).toBe(true);
-    expect(canPurchase('hand_warmer', knowsCold, 2)).toBe(false);
+    expect(canPurchase('mugwort_pack', empty, 999)).toBe(false);
+    expect(canPurchase('mugwort_pack', knowsCold, 3)).toBe(true);
+    expect(canPurchase('mugwort_pack', knowsCold, 2)).toBe(false);
   });
 });
 
@@ -43,7 +60,7 @@ describe('giftsFor', () => {
 
   it('separates affordability from knowledge', () => {
     const { knowledge } = giftsFor(knowsCold, 0);
-    const warmer = knowledge.find((g) => g.id === 'hand_warmer');
+    const warmer = knowledge.find((g) => g.id === 'mugwort_pack');
     expect(warmer.unlocked).toBe(true);
     expect(warmer.affordable).toBe(false);
     expect(warmer.purchasable).toBe(false);
@@ -52,20 +69,20 @@ describe('giftsFor', () => {
 
 describe('purchase', () => {
   it('returns null when the gift is not purchasable', () => {
-    expect(purchase('hand_warmer', empty, 100, 'Irene')).toBeNull();
+    expect(purchase('mugwort_pack', empty, 100, 'Irene')).toBeNull();
   });
 
   it('spends credits and writes the scene-opening note', () => {
-    const out = purchase('hand_warmer', knowsCold, 10, 'Irene');
+    const out = purchase('mugwort_pack', knowsCold, 10, 'Irene');
     expect(out.credits).toBe(7);
     expect(out.intimacyDelta).toBe(5);
     expect(out.sceneNote).toContain('Irene');
-    expect(out.sceneNote).toContain('hand warmer');
+    expect(out.sceneNote).toContain('mugwort pack');
   });
 
   it('is worth far more than a generic gift', () => {
     const generic = purchase('rose', empty, 10, 'Irene');
-    const known = purchase('hand_warmer', knowsCold, 10, 'Irene');
+    const known = purchase('mugwort_pack', knowsCold, 10, 'Irene');
     expect(known.intimacyDelta).toBeGreaterThan(generic.intimacyDelta * 4);
   });
 
@@ -112,5 +129,96 @@ describe('tasks', () => {
     expect(out.competence).toBe(0);
     expect(out.energy).toBe(0);
     expect(out.credits).toBe(0);
+  });
+});
+
+/**
+ * Spending knowledge by saying something. CLAUDE.md section 11.
+ *
+ * Not every way of showing you were listening is a purchase. Asking how the
+ * ankle held up is the more natural move most of the time, and an economy whose
+ * only verb is BUY reads as a shop rather than as attention.
+ */
+describe('a gesture is the other way to spend a fact', () => {
+  const knowsLaundry = {
+    known_facts: ['has extremely cold hands and warms them with mugwort packs'],
+    player_told_her: [],
+  };
+
+  it('costs nothing and needs no credits', () => {
+    expect(canGesture('mugwort_pack', knowsLaundry, [])).toBe(true);
+    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
+    expect(said.intimacyDelta).toBe(GESTURE_EFFECT);
+  });
+
+  /** Free has to mean weaker, or the shop is decoration. */
+  it('lands smaller than buying the object', () => {
+    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
+    const bought = purchase('mugwort_pack', knowsLaundry, 99, 'Irene');
+    expect(said.intimacyDelta).toBeLessThan(bought.intimacyDelta);
+  });
+
+  /** ...and once, or it stops being attention and becomes a script. */
+  it('can only be spent once per fact', () => {
+    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
+    expect(said.usedGestures).toContain('mugwort_pack');
+    expect(canGesture('mugwort_pack', knowsLaundry, said.usedGestures)).toBe(false);
+    expect(spendGesture('mugwort_pack', knowsLaundry, said.usedGestures, 'Irene')).toBeNull();
+  });
+
+  it('is locked by the same fact the object is locked by', () => {
+    expect(canGesture('mugwort_pack', { known_facts: [] }, [])).toBe(false);
+    expect(canGesture('iced_coffee', knowsLaundry, [])).toBe(false);
+  });
+
+  it('quotes the fact and names her, exactly as the gift note does', () => {
+    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
+    expect(said.fact).toBe(knowsLaundry.known_facts[0]);
+    expect(said.sceneNote).toContain(said.fact);
+    expect(said.sceneNote).toContain('Irene');
+  });
+
+  /**
+   * The one thing the model must not do with a gesture is invent the present
+   * that is not there - the opening beat is written from this note alone.
+   */
+  it('tells the model there is no object to react to', () => {
+    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
+    expect(said.tier).toBe('gesture');
+    expect(said.sceneNote).toMatch(/no gift and no object/i);
+    expect(said.sceneNote).toMatch(/do not invent a present/i);
+    expect(said.sceneNote).not.toMatch(/handed/i);
+  });
+
+  it('shows a spent gesture as spent, and an unlearned one as locked', () => {
+    const shown = giftsFor(knowsLaundry, 99, ['mugwort_pack']);
+    const spent = shown.gesture.find((g) => g.id === 'mugwort_pack');
+    const never = shown.gesture.find((g) => g.id === 'pink_plushie');
+
+    expect(spent.unlocked).toBe(true);
+    expect(spent.used).toBe(true);
+    expect(spent.purchasable).toBe(false);
+
+    expect(never.unlocked).toBe(false);
+    expect(never.purchasable).toBe(false);
+  });
+
+  /**
+   * Every fact can be spent as a line. Only some can be spent as an object -
+   * you cannot buy somebody a fear of heights.
+   */
+  it('offers a gesture for every fact, and a purchase for only some', () => {
+    const shown = giftsFor(knowsLaundry, 0);
+    expect(shown.gesture).toHaveLength(KNOWLEDGE_GIFTS.length);
+    expect(shown.knowledge.length).toBeLessThan(shown.gesture.length);
+    expect(shown.gesture.every((g) => g.cost === 0)).toBe(true);
+    expect(shown.knowledge.every((g) => g.cost > 0)).toBe(true);
+  });
+
+  it('refuses to sell an opener that is not an object', () => {
+    const knowsGym = { known_facts: ['squeezes ten-minute gym sets into the breaks'], player_told_her: [] };
+    expect(canGesture('squats_together', knowsGym, [])).toBe(true);
+    expect(canPurchase('squats_together', knowsGym, 999)).toBe(false);
+    expect(purchase('squats_together', knowsGym, 999, 'Irene')).toBeNull();
   });
 });

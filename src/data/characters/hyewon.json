@@ -7,24 +7,49 @@
   "origin": "IZ*ONE",
   "mascot": "deer",
   "mascotNote": "delicate and watchful, far steadier under pressure than she looks",
-  "palette": { "base": "#f2e3bf", "accent": "#a67c00" },
+  "palette": {
+    "base": "#f2e3bf",
+    "accent": "#a67c00"
+  },
   "mbti": "INFP",
   "birthday": "1999-06-05",
   "birthplace": "Seoul",
   "ig": "1hyewon_",
-  "preferredRoles": ["lead_dancer", "sub_vocalist"],
+  "preferredRoles": [
+    "lead_dancer",
+    "sub_vocalist"
+  ],
   "activityProfile": {
     "primary": "actress",
-    "types": ["drama_shoot", "script_reading", "photoshoot", "brand_event"]
+    "types": [
+      "drama_shoot",
+      "script_reading",
+      "photoshoot",
+      "brand_event"
+    ]
   },
   "publicImage": "Second-youngest by a single month, and treated as the group's fragile one by a public that has never watched her work. Builds a steady acting career in youth dramas and romances while the idol schedule runs in parallel.",
   "personality": "Quietly persistent. Takes criticism seriously enough to fix it overnight and rarely lets anyone see the effort. Anxious about being underestimated and too proud to say so, which makes her push herself past the point where asking for help would be reasonable.",
   "speechStyle": "Soft, careful, slightly formal. Apologises reflexively. Becomes noticeably more direct when she is talking about work rather than herself.",
   "queerTexture": "The one who needs it to be legible before she can allow it. Ambiguity is not romantic to her, it is frightening - she has spent her whole career being told what she is by other people. She will keep asking what this is, in smaller and smaller voices, until someone finally has the courage to name it.",
   "hiddenConflict": "Being treated as delicate is the specific thing that makes her retreat.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["being trusted with something difficult instead of protected from it"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "being trusted with something difficult instead of protected from it"
+  ],
+  "learnableFacts": [
+    "wanders into other idols waiting rooms to hand out takoyaki",
+    "a serious anime fan, and One Piece above everything else",
+    "was the Innocent Rapper on the survival show and never lived it down",
+    "a skinship monster who hugs and clings without thinking about it",
+    "takes legendary photos of her friends; they call her Kang-Photo"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/hyewon.svg" }
+  "portraits": {
+    "neutral": "portraits/hyewon.svg"
+  }
 }

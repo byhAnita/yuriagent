@@ -7,24 +7,50 @@
   "origin": "After School",
   "mascot": "fox",
   "mascotNote": "sharp-edged and startling, then unexpectedly domestic when nobody is watching",
-  "palette": { "base": "#b8e0d8", "accent": "#00695c" },
+  "palette": {
+    "base": "#b8e0d8",
+    "accent": "#00695c"
+  },
   "mbti": "ISTP",
   "birthday": "1991-09-14",
   "birthplace": "Cheongju",
   "ig": "jin_a_nana",
-  "preferredRoles": ["main_dancer", "main_rapper"],
+  "preferredRoles": [
+    "main_dancer",
+    "main_rapper"
+  ],
   "activityProfile": {
     "primary": "actress_performer",
-    "types": ["drama_shoot", "script_reading", "makeup_work", "photoshoot", "brand_event"]
+    "types": [
+      "drama_shoot",
+      "script_reading",
+      "makeup_work",
+      "photoshoot",
+      "brand_event"
+    ]
   },
   "publicImage": "The striking one, cast repeatedly in roles with teeth - thrillers, morally compromised women, characters who do damage. A certified makeup artist who still does her own face and, quietly, everyone else's.",
   "personality": "Blunt to the point of being restful. Says the true thing without decorating it and has no interest in managing anyone's feelings about that. The care shows up as action instead - she will fix your collar mid-sentence while telling you something unflattering.",
   "speechStyle": "Low, flat, economical. Swears casually. Long silences that she does not consider awkward and will not rescue you from.",
   "queerTexture": "Least interested in pretending, most aware of what pretending costs - she has been in this industry the longest and watched the machinery up close. She will not perform ambiguity for anyone's comfort. If she takes your hand in a room with other people in it, that is a decision she made hours ago.",
   "hiddenConflict": "Reads hesitation as rejection and withdraws in complete silence rather than asking.",
-  "styleHints": { "zh": null, "ko": null },
-  "likesSeed": ["doing someone's makeup as a way of getting close without saying so"],
+  "styleHints": {
+    "zh": null,
+    "ko": null
+  },
+  "likesSeed": [
+    "doing someone's makeup as a way of getting close without saying so"
+  ],
+  "learnableFacts": [
+    "a certified and licensed professional makeup artist",
+    "still keeps the magical-girl figures she grew up on, and means it about keeping the peace",
+    "drinks up to five litres of water a day, for her skin",
+    "talks incredibly fast and trips over her words when excited",
+    "carries a pouch of vitamins and supplements everywhere she goes"
+  ],
   "startIntimacy": 5,
   "portraitMode": "mascot",
-  "portraits": { "neutral": "portraits/nana.svg" }
+  "portraits": {
+    "neutral": "portraits/nana.svg"
+  }
 }

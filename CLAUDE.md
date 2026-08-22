@@ -61,7 +61,11 @@ Everything in v2 must have its **interface stubbed in MVP** (identity config, ca
 - LLM: OpenAI-compatible router - DeepSeek V4 Flash (default), Gemini 3.5 Flash-Lite, GPT-5.6 Luna, Qwen 3.8 Max
 - PWA: manifest + service worker, mobile-first 390x844
 - Persistence: localStorage
-- Lint: oxlint (`npm run lint`). Validate with `npm run build`.
+- Tests: vitest (`npm test`). Lint: oxlint (`npm run lint`). Build: `npm run build`.
+- **The game is playable with no API key.** `tools/mockClient.js` emits the real
+  contract format and `tools/client.js` picks between it and the live router.
+  That is a supported mode, not a degraded one: it keeps the loop free to play
+  and lets development continue without spending tokens.
 
 ---
 
@@ -163,6 +167,24 @@ resolveStage(intimacy, admissibility) {
 | `reckless` | hazard: pushed public before private was ready |
 
 Display names for all locales live in `i18n/`. Never hardcode stage text in components.
+
+### The plateau actually stops her
+
+`confidante` is not a label on a position, it is a **brake**. While she is on
+it, `applySceneOutcome` refuses intimacy *gains*: admissibility still moves,
+strain still decays, losses still land, and the scene that walks her onto the
+plateau is still paid in full - a wall you can watch yourself hit is a rule, one
+that catches you mid-step is a bug.
+
+Without the brake the word meant nothing. A full campaign ended with all five
+members at `intimacy` 100, `admissibility` near zero and `confidante_end` for
+everybody, under every policy including one that took a public risk in every
+scene it could. With it, good endings became reachable at 12-64% depending on
+how the player plays, and the balance ending sits near 5%.
+
+This is also the clearest statement the game makes of its own thesis. Privacy is
+safe and stagnant; the only way forward is to be seen. When she stalls, the move
+is to take her somewhere public and make an overt one.
 
 ### Strain bands
 
@@ -289,6 +311,17 @@ Two members present is where jealousy becomes visible rather than inferred.
 
 Five interacting tracks cannot be tuned on paper. `systems/balanceSim.js` runs N scripted playthroughs with no UI and no LLM and reports the distribution of reachable endings.
 
+**There are now two harnesses, and the newer one is the authority.**
+`src/agent/playthrough.test.js` plays 189 blocks through the *real* engine -
+calendar, occupancy, openers, snooping, energy, the prompt pipeline against the
+offline writer, rumors, day rollover - where `balanceSim` models a scene as a
+number. That difference is not academic: the engine harness found two defects on
+its first run (the dead risk flag and the plateau that did not plateau) that
+`balanceSim` structurally could not see, because in `balanceSim` those code
+paths do not exist. Its own numbers below are from the older harness and predate
+both fixes; treat them as history. See `docs/PROGRESS.md` for current figures
+and `docs/PROPOSALS.md` for whether `balanceSim` should be retired.
+
 The **balance ending** is every member at `nameless` or above (`GOOD_ENDINGS`), with jealousy under 50 and nothing collapsed. `nameless` rather than `unspoken` is the right bar: five relationships that are deeply close and cannot be named is the truest version of this game's best outcome, and considerably more interesting than five public girlfriends.
 
 Four policies stand in for player skill. Measured at 400 runs each:
@@ -312,8 +345,8 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 
 | Meter | Direction | Source |
 |---|---|---|
-| `guard` | down = good | seeded from `100 - intimacy`, moved by the LLM per turn |
-| `fluster` | up = you landed | starts at 0, moved by the LLM per turn |
+| `guard` | down = good | opens at `100 - intimacy`, and the LLM reports where it is on every beat |
+| `fluster` | up = you landed | opens at 0, and the LLM reports where it is on every beat |
 | `exposure` | up = risky | **derived from location + time block + secrecy, not from the LLM**; also drives rumor propagation (section 5b) |
 
 `exposure` being deterministic is what makes map choice matter romantically instead of only logistically: practice room at night is low, cafeteria at noon is high.
@@ -321,9 +354,9 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 ### Micro -> macro mapping (computed client-side at scene exit)
 
 ```
-guard dropped >= 15 over the scene         -> intimacy      += 2..4
-fluster peaked >= 60                       -> intimacy      += 1..3
-risk action at exposure >= 60, survived    -> admissibility += 3..6
+guard dropped >= 12 over the scene         -> intimacy      += 2..4
+fluster peaked >= 30                       -> intimacy      += 1..3
+risk action at exposure >= 60, survived    -> admissibility += (3..6) x (1 + I/100 x 1.2)
 risk action at exposure >= 60, failed      -> strain        += 10..20
 stage == 'reckless'                        -> strain        += 5 / scene
 daily task failed and it affected her      -> strain        += 8
@@ -335,9 +368,135 @@ gesture witnessed in a group scene         -> larger admissibility gain,
 Deltas are computed by `systems/relationship.js` from accumulated per-turn metadata.
 **The LLM never reports macro deltas** - only per-turn `guard` / `fluster` movement and emotion. Fewer things for a small model to get wrong.
 
+### What a "risk action" is
+
+An **overt stance taken where somebody could see**: `touch`, `invite` or
+`confide` at `exposure >= 60`. `chips.js` owns the list (`RISK_STANCES`), the
+turn loop sets the flag, and the chip carries a marker so the player knows they
+are placing a bet.
+
+Those three and not the others, because a witness has to be able to *describe*
+what they saw. Reaching for her, asking her somewhere, and saying the unsayable
+within earshot are all nameable. `tease` and `press` are loud and deniable, and
+deniable is precisely what cannot move admissibility.
+
+This was the largest bug the project has had. `markRisk` existed and was tested,
+`computeDeltas` priced the outcome and was tested, and **nothing ever called
+`markRisk`** - so `riskTaken` was false in every scene ever played,
+`admissibility` never left 0, every route plateaued at `confidante`, and all
+four good endings plus the balance ending were unreachable in the shipped game.
+Both halves were correct; only the join was missing. No unit test could see it,
+and a headless campaign found it on the first run
+(`src/agent/playthrough.test.js`).
+
+### The metadata line reports where she is, not how far she moved
+
+`guard58` is a reading. `guard-8` is a movement. The contract is the reading.
+
+The model writes **one to three beats per reply** and picks how many for prose
+reasons, not as a measure of how far the conversation got. While the line
+carried a delta, the client had to reassemble a quantity out of however many
+pieces the model chose to write, and **no arithmetic survives that.** Three
+settings were measured at twelve live scenes each before the shape of the
+problem was clear:
+
+| what the prompt asked for | what the client did | result |
+|---|---|---|
+| a scale per BEAT | sum | verbose paid: every 21-beat scene, no 7-beat one |
+| a scale per BEAT | mean | the bias **flipped**: 5/6 terse paid, 1/5 verbose |
+| a budget per REPLY | sum | verbose paid again: 6/7 verbose, 0/5 terse |
+| **a reading, 0-100** | **take the last** | guard fell in **12 of 12** scenes |
+
+The middle row is the instructive failure. Averaging looks like the obvious fix
+and is not, because the problem is upstream of the arithmetic: handed a per-beat
+range, the model uses the small end of it when it writes three beats and a big
+number when it writes one, so a verbose reply moves her *less* in its own
+numbers however the client adds them up.
+
+An absolute has no such problem. **The last beat of a reply is the state**, so
+three beats say precisely what one says, and the client stops doing arithmetic
+it has no basis for. It also needs no budget instruction at all, which removes
+the thing the model kept failing to do.
+
+What it bought, on the same twelve-scene script: guard drops went from
+`10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20` - fluctuating, half of them
+negative, the branch effectively dead - to `17, 4, 8, 10, 13, 10, 7, 11, 10, 11,
+9, 17`. **Every scene now moves her the right way**, the spread is tight, and
+guard behaves like something that trends across a scene instead of jittering
+inside one.
+
+Two things this requires, both deliberate:
+
+1. **Block 4 states her opening reading** (`Irene starts this scene at guard55,
+   fluster0`), because an absolute needs a scale to sit on. This does not break
+   section 8's invariant 2, which forbids re-injecting a *refreshed* stat block
+   mid-scene: the opening value is stated once, in the frozen header, and never
+   updated. It is also not the thing section 8's "words, not numbers" rule
+   forbids - that exists so the model does not narrate a relationship stat, and
+   this is the opening value of a reading it is already required to emit.
+2. **A signed value is still read as movement.** Section 9 assumes format
+   failures rather than forbidding them, and a model slipping back into deltas
+   must move the meter sensibly rather than have `-8` read as an absolute and
+   slam guard to zero.
+
+The offline writer emits readings too, converting its own delta tables against a
+running state that resets on each opening beat. It has to: the game is playable
+with no key and that is a supported mode, so a mock speaking a dialect the live
+model no longer speaks would make offline play diverge from online play in the
+one system the whole relationship model runs on. Its magnitudes are still
+roughly twice DeepSeek's, so **harness payout numbers remain an upper bound.**
+
+A per-SCENE budget was tried first and is the one thing that must not be
+repeated: it overshot to a 55-point drop with fluster pegged at 100 by turn
+four, because a scene is many replies and the model cannot see how many are
+left.
+
+### A public risk is worth more the closer you already are
+
+`admissibility += (3..6) x (1 + intimacy/100 x RISK_PAYOFF_SCALE)`, and the
+failure branch is deliberately flat.
+
+A fixed 3-6 inverted the game's incentive at the worst possible moment.
+`STAGE_A_MIN` steps the requirement up in 20-point jumps as intimacy crosses
+each tier, so escaping the `confidante` plateau costs 10 admissibility at
+intimacy 60, 30 at 75 and 50 at 90 - while the payout stayed the same size. Two
+measured campaigns on one seed:
+
+| intimacy | admissibility | endings |
+|---|---|---|
+| 54-69 | 0-12 | two good |
+| 71-77 | 12-23 | none |
+
+The run that got **closer to her did worse**, because the same admissibility
+that clears the `nameless` bar is eighteen short of the `unspoken` one. Getting
+closer was buying a worse ending, which is the opposite of what this game is
+about.
+
+Scaling the payout is also the truer sentence: being seen with someone you are
+obviously close to says more than being seen with a colleague, so it moves the
+needle further. The punishment is not scaled, because a failed public risk
+already costs 10-20 strain and doubling that at high intimacy would hand the
+problem straight back the other way.
+
+
+### A scene occupies one block
+
+`SCENE_TURN_LIMIT = 8`. Past that the block ends on its own. Without a cap a
+player could grind a single block indefinitely and the opportunity cost that
+makes three-blocks-a-day work would evaporate.
+
+The opening beat does not count against it - nobody spent a turn walking through
+a door. When the count reaches zero the chip bar is **replaced** by a notice and
+a Leave button. Disabled chips with no explanation read as a frozen screen.
+
 ### Player input
 
-Three **chips** per turn plus optional free text. Chips are generated client-side from stance templates filtered by stage and strain band: zero LLM cost, instant render, and they cover the latency of the previous stream.
+Three **chips** per turn plus optional free text. A chip is a **stance**: the
+player commits to a posture, and what she actually says back is the model's
+answer. The player never writes her side and never picks a scripted line.
+
+The baseline set is the stance names themselves, which is what ships when there
+is no key, no budget, or no response:
 
 ```
 [ Tease ]   [ Reassure ]   [ Change the subject ]        (pen) free text
@@ -346,11 +505,160 @@ Three **chips** per turn plus optional free text. Chips are generated client-sid
 Stance vocabulary: `tease, reassure, deflect, press, confide, touch, retreat, joke, apologize, invite`.
 Locking: `press` / `touch` / `confide` unavailable in `rift`; `touch` requires `intimacy >= 50`.
 
+`systems/chips.js` resolves which stances are legal from stage, strain band,
+jealousy band and energy, and which the situation is actively asking for. That
+resolution is pure, deterministic and free, and it is the source of truth for
+what may be offered. Nothing below is allowed to widen it.
+
+### Written chips
+
+A bare `[ Tease ]` is legible but generic - it reads the same in week 1 and in
+the middle of a fight. So the label may be **written by the model for this
+moment**, while the stance underneath stays exactly what `chips.js` decided:
+
+```
+[ You're doing that thing with your hands again ]     -> tease
+[ I'm not going anywhere ]                            -> reassure
+[ So. The schedule. ]                                 -> deflect
+```
+
+The stance is what the game acts on. The label is what the player reads. Keeping
+those separate is what lets the writing improve without any mechanic changing.
+
+#### Latency: the static chips are already on screen
+
+This is the whole design. Chips are **never awaited**. `chips.js` renders its set
+the instant the turn resolves, and the written ones replace them if and when they
+arrive. There is no spinner and no empty bar, so a slow call, a failed call and a
+disabled feature are all invisible.
+
+The call itself is the `Read her` shape (below): it branches off the prefix that
+just finished streaming, so it is a near-total cache hit.
+
+**Measured** against DeepSeek V4 Flash, single-member practice-room scene
+(`src/tools/live.test.js`, which is opt-in and skipped without a key):
+
+| | beat call | chip call |
+|---|---|---|
+| prefix | cache hit | **same prefix, same hit** |
+| miss | ~60 tok | **~140-210 tok** |
+| output | ~160 tok | ~45 tok |
+| wall time | 1.4-2.8 s | **1.3-1.7 s** |
+
+Two things that estimate got wrong, both corrected here because the arithmetic
+was more optimistic than reality:
+
+- **The directive is the miss.** Not ~20 tokens - the instruction plus her last
+  beat, and the beat is not optional because the chips have to answer it. An
+  early wordy directive cost 171 tokens of miss on its own and pushed the call
+  to 1725ms; trimming it to ~90 tokens took it to ~1370ms. The directive has a
+  length test for exactly this reason.
+- **The chip call is not six times faster.** It is modestly faster, and against
+  a warm beat call it was once *slower*. That does not matter, because the thing
+  it has to beat is not the beat call - it is the player's reading time, and
+  1.5s against three beats of 30-50 words is comfortable.
+
+It cannot run *concurrently* with the beat call - it has to know what she said -
+so it fires at stream end and runs while the player is tapping through beats.
+
+**One turn, one token.** A written set belonging to a turn the player has
+already left is discarded; nothing else gates the swap.
+
+An earlier version also required the bar to still be disabled, reasoning that
+relabelling a live button is a misclick. In play that was backwards, and it
+broke the feature outright: a one-beat reply makes the bar live the instant the
+turn resolves, roughly a second *before* the chip call returns, so the written
+set was computed, paid for and thrown away in the commonest case. The only
+written chips that ever survived were the ones arriving while the bar was still
+disabled - which is exactly when they could not be clicked. The player saw
+static labels most turns and dead labels the rest.
+
+The misclick is prevented structurally instead: **the chip bar is always a stack
+of full-width options, labelled or not.** One geometry means a swap changes only
+the words, never the position or the size of the target under a finger.
+
+Do not route chips to a different, faster model. That abandons the shared prefix
+and turns a 20-token miss into 2200. Same model is what makes this cheap.
+
+The chip call also carries **its own, shorter deadline** (`timeoutMs` on the
+preset, 10s against the 45s default). A chip set that arrives after the player
+has taken their turn is discarded anyway, so waiting the full request timeout
+for one only holds a slot open and delays the circuit breaker noticing that the
+provider is struggling.
+
+#### While she is still speaking
+
+Chips are held while beats remain unread - choosing a stance mid-reply would
+skip her line. That hold needs to *say so*. Section 6 already learned this for a
+spent block: a disabled control with no explanation reads as a frozen screen,
+and a small caret in the corner of the dialogue box is not an explanation. The
+bar therefore grows an explicit continue control whenever beats are outstanding,
+and the dimmed options above it are visibly waiting rather than broken.
+
+#### Contract
+
+One line per chip, pipe-delimited, same house style as section 9. Not JSON -
+more tokens, and small models break it more often.
+
+```
+tease|You're doing that thing with your hands again
+reassure|I'm not going anywhere
+deflect|So. The schedule.
+```
+
+Validated client-side, never trusted:
+
+1. The stance must already be in `availableStances().available`. Every lock rule
+   is preserved for free, and the model cannot unlock `touch` by asking.
+2. Deduplicate stances. Trim and cap the label - it must survive `zh` at
+   `fontScale` 1.25 on a 390px screen.
+3. Fewer than three survive -> **backfill from `generateChips`**, keeping the
+   ones that did. Degrading chip by chip beats degrading all at once.
+4. None survive -> the static set stands, and the player never knows.
+
+Labels are prose, so they are written in `meta.lang`. Stance ids are machine
+tokens and stay ASCII English in every locale (section 19).
+
+#### Chips must not hand over the answer key
+
+The pillar is that the player *reads* hidden state and bets on it, which is why
+`Read her` is rationed rather than streamed. A chip reading *"Ask why she's upset
+about Wendy"* hands over jealousy the player never detected, for free, and
+bypasses that economy entirely. The chip writer can see blocks 3 and 4, so it
+holds the material to do exactly that.
+
+The rule:
+
+> **The stance may be informed by everything the model knows. The label may only
+> contain what the player could have seen or heard.**
+
+That keeps the value - the model knowing `reassure` is the live move is the point
+of writing chips at all - while forbidding it to narrate what it knows. Two
+consequences, both enforced in code rather than hoped for:
+
+- A label naming a member who is not in the scene is **rejected**, mirroring the
+  parser's roster rule (section 9).
+- Chips are intentions, never outcomes. *"Kiss her"*, not *"Kiss her and she
+  melts."* The chip is what the player tries; what happens is the model's answer.
+
+#### Failure budget
+
+Token cost is negligible, but request count roughly doubles - about 500 extra
+calls per campaign - which matters for free-tier rate limits, not for money. Two
+consecutive chip failures in a scene disables the writer for the rest of that
+scene, and a setting disables it entirely. Both fall back to `chips.js`, which is
+a complete input system on its own and must stay that way.
+
+`agent/chipWriter.js` owns the call, the parse and the validation. It lives in
+`agent/` and not `systems/` because it touches a model (section 4). Its request
+frame is **ephemeral and never committed**: unlike `Read her`, a chip request must
+not append to block 5, or the transcript fills with chip requests and every later
+turn loses its prefix.
+
 ### "Read her"
 
 Inner thought is **not** streamed on every line - that hands the player the answer key and kills the tension.
 `Read her` is a limited action: 2 uses per scene, or 1 Energy. It appends a system note at the tail of the scene buffer and requests a thought-only response (~30 output tokens, full prefix cache hit).
-
 ---
 
 ## 7. Memory Architecture
@@ -362,7 +670,7 @@ Five prompt blocks; four of them frozen while a scene is open.
 | 1 | **Static system** - rules, format contract, identity, all cast cards | whole run, byte-stable | ~2200 tok |
 | 2 | **Ledger** - append-only one-sentence scene summaries + macro state | whole run | ~1200 tok |
 | 3 | **Dossier** - learned facts, **only for members present in this scene** | rebuilt at scene start | ~60 tok / char |
-| 4 | **Scene header** - roster, time, location, exposure, stats, gift note | rebuilt at scene start | ~150 tok |
+| 4 | **Scene header** - roster, time, location, exposure, standing, gift note | rebuilt at scene start | ~150 tok |
 | 5 | **Scene buffer** - dialogue turns in the current room | **purged on exit** | grows |
 
 ### Dossier
@@ -408,7 +716,7 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 [ block 1  system       ]  byte-stable for the whole run
 [ block 2  ledger       ]  append-only; gains an entry at every scene boundary
 [ block 3  dossier      ]  present members only; rebuilt at every scene boundary
-[ block 4  scene header ]  roster, time, location, exposure, stats, gift note
+[ block 4  scene header ]  roster, time, location, exposure, standing, gift note
 [ block 5  turns        ]  the ONLY thing that grows during a scene
 ```
 
@@ -417,6 +725,80 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 The ledger gains an entry after *every* scene. So on the first turn of a new scene, everything after block 1 is a cache miss no matter how blocks 2-4 are arranged - moving the dossier earlier or later changes nothing.
 
 Ordering is therefore chosen for **salience, not cache**: the most decision-relevant material sits closest to the dialogue. Dossier facts about the woman in the room matter more to the next line than a summary of week 1, so the dossier goes after the ledger.
+
+### Standing: what block 4 says about closeness
+
+Block 4 names, for every present member, **where the two of you stand** - as a
+sentence, never as a number:
+
+```
+Irene: the two of you are close in a way neither of you has put a name to.
+Irene has been on edge about where your attention has been lately.
+```
+
+This is the input the model needs to make *any* reaction proportionate - a gift,
+a joke, a hand on a shoulder. Without it every scene is written at the same
+emotional distance, which is the single most obvious way a generated line reads
+as canned.
+
+Two rules:
+
+1. **Words, not numbers.** A stat block invites the model to narrate the stat,
+   and section 9 forbids numbers in prose. A sentence cannot be quoted back.
+2. **Standing is macro state, not a meter.** It is fixed for the whole scene, so
+   it belongs in the frozen header. `guard` and `fluster` move *during* a scene
+   and therefore stay client-side - putting them here would break invariant 2.
+
+### Why this scene is not the last one
+
+Block 4 also carries **what she is doing here**, **what the week feels like**,
+and **what the player still owes today**.
+
+All three already existed in state and none of them reached the model. The
+calendar has known since M1 that Irene is in the practice room for
+`group_practice`; block 4 said `Location: X Practice Room` and stopped. So the
+model had to invent a reason for her to be standing in a room, every visit to
+that room opened the same way, and she could never say the obvious natural
+thing - that the new choreography is giving her trouble.
+
+| line | source | changes |
+|---|---|---|
+| `Irene is running the new choreography with the other four.` | `occupancyAt().activity` -> `ACTIVITY_DOING` | every block |
+| `Comeback week. Cameras on everything...` | `PHASE_WEATHER[phase]` | every week |
+| `The player still owes the agency one job today: the stage outfits still need prepping.` | `generateDayTask` -> `TASK_CHORE` | every day |
+
+This is the cheapest variety in the game: it costs about forty tokens in a block
+that is rebuilt every scene anyway, so it is **free in cache terms**, and it is
+what makes the same room in week 1 and week 7 a different scene. Measured live,
+the same member in the same practice room opened three different ways under
+`group_practice`, `late_practice` and `solo_recording`.
+
+Order inside block 4 is by immediacy, which is section 8's salience rule applied
+within a block: time and weather, location, who is here, **what she is doing**,
+how visible it is, where the two of you stand, what she has been unsettled by,
+**what the player owes**, and last of all what they walked in holding. The gift
+note stays at the bottom because it is the most immediate thing in the room.
+
+Both new strings are **model-facing English** and never localized - the
+player-facing labels are separate keys in `i18n/` (section 19).
+
+### And her voice, said again
+
+Block 4 also repeats one line of card for every present member: her
+`speechStyle`.
+
+It is duplicated from block 1 on purpose. All five cards live up there, roughly
+1500 tokens above the instruction, and selecting the right one out of five is a
+step a small model does not reliably take. Given an identical practice-room
+opening, **Irene and Hyewon came back with the same line** - "You are early. The
+others won't be here for another hour" - at 90% shared vocabulary, while the
+three louder cards stayed distinct. Neither card is at fault; the model
+collapsed the two reserved women onto the subset they share. Repeating the line
+here took the overlap to 27%.
+
+Costs ~25 tokens in a block that is rebuilt every scene anyway, so it is free in
+cache terms. This is the cheap version of a general rule: **when two cards are
+adjacent in temperament, distance from the instruction is what flattens them.**
 
 ### Cache accounting
 
@@ -445,16 +827,65 @@ Result: turn 1 of a scene is a cache miss; every subsequent turn is a near-total
 Metadata on the **first line**, machine-readable, then prose. Metadata first means the portrait reacts before the text arrives.
 
 ```
-@irene|blush|guard-8|fluster+12
+@irene|blush|guard47|fluster18
 *I take the water bottle with a slight blush.* "Thanks... you really saved me back there."
 ```
 
-Grammar: `@<speaker_id>|<emotion>|guard<signed_int>|fluster<signed_int>`
+Grammar: `@<speaker_id>|<emotion>|guard<0-100>|fluster<0-100>`
 Emotions (MVP set): `neutral, happy, blush, shy, upset, surprised`.
+
+The two numbers are **readings, not movements** - where she is at the end of
+that beat. Section 6 has the argument and the measurements; the short version is
+that the model chooses how many beats to write for prose reasons, and no
+client-side arithmetic can turn an unknown number of deltas into a quantity.
+With a reading, the last beat of a reply is the state.
+
+**A signed value is still accepted and read as movement.** `guard-8` means she
+moved eight, not that she is at minus eight. Format failures are guaranteed at
+this tier (see the parser rules below), and a model slipping back into deltas
+must move the meter sensibly instead of slamming guard to zero. The offline
+writer emits readings, so both paths run in every test.
 
 **All machine-readable tokens stay ASCII English in every language.** Speaker ids, emotion names, and field names are never localized. Only the prose after the metadata line is written in the player's language. A localized emotion name kills the parser.
 
-Up to **3 beats** per response, separated by a blank line, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
+Up to **3 beats** per response, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
+
+**A beat ends where the next metadata line begins - not at the next blank line.**
+Models put a blank line between the action paragraph and the speech, which is
+good prose and exactly the shape asked for above:
+
+```
+@irene|neutral|guard+0|fluster+0
+*She is at the mirror, and does not turn around.*
+
+"You're here."
+```
+
+That is **one** beat. Splitting on the blank line tore it in two and the orphan
+half carried no emotion and no deltas, so roughly half of all beats moved
+nothing - a live run found this, and no amount of prompt-side reasoning would
+have. Prose never begins with `@`; a beat always does, so the separator is
+`/
+s*
+(?=s*@)/` and nothing else.
+
+### The opening beat is hers
+
+A scene does **not** open with a synthesised player action. `*enters*` gives the
+model nothing to react to, which is how a carefully chosen gift once got
+answered with "You came."
+
+Instead the first turn is an instruction (`openingDirective` in
+`agent/sceneEngine.js`):
+
+- no gift: *write her opening beat - what she does in the moment she notices the
+  player has walked in.*
+- with a gift: *write her opening beat. It is her reaction to what she has just
+  been handed, and to the person holding it.*
+
+The gift note itself is appended ahead of that instruction and **carries its
+tier** (section 11), because an iced coffee and a hand warmer she never told
+anyone she needed are otherwise the same sentence to the model.
 
 ### Parser rules (`agent/responseParser.js`)
 
@@ -464,7 +895,7 @@ Streaming state machine. Format failures are guaranteed at this model tier, so:
 2. Unknown emotion -> fall back to `neutral`.
 3. **Speaker id not in the current scene roster -> drop the beat entirely.** This is the hard guarantee against member bleed; prompting alone will not hold it.
 4. Unknown but rostered speaker id -> fall back to the focus character.
-5. Malformed delta -> treat as 0.
+5. Malformed meter -> treat as no movement. An unsigned number is a reading and replaces the meter; a signed one is a movement and is added to it; an out-of-range reading is clamped to 0-100 rather than trusted.
 6. **Never** show a raw metadata line to the player.
 
 ### Member separation
@@ -549,9 +980,24 @@ Most locations move these together. The **dorm is the one place that splits them
 | `wardrobe` | 20 | 1-2 - the assistant's own turf |
 | `dorm_living` | **15** | **all four others** |
 | `dorm_kitchen` | 12 | 1-2 |
-| `dorm_room` | **5** | 1 |
+| `dorm_room` | **5** | 1 - **needs `intimacy >= 50`** |
+| `dorm_player_room` | 5 | 0 - yours, and the only place that gives anything back |
 
 So the dorm is safe from scandal and dangerous for jealousy, and every other location trades the two together. Going out raises admissibility and risks a leak; going home builds intimacy and gets you watched.
+
+**The dorm is a second step in the map**, not a row: living room, kitchen, your
+own room, and five closed doors. Her door opens at `intimacy >= 50` - the same
+threshold as the `touch` stance, so "you may go into her room" and "you may
+reach for her hand" unlock together, which is the correct reading. A locked door
+shows her name and the number: that is a goal, not a spoiler. A dark door means
+she is not home tonight.
+
+**The dorm is a second step in the map**, not a row: living room, kitchen, your
+own room, and five closed doors. Her door opens at `intimacy >= 50` - the same
+threshold as the `touch` stance, so "you may go into her room" and "you may
+reach for her hand" unlock together, which is the correct reading. A locked door
+shows her name and the number: that is a goal, not a spoiler. A dark door means
+she is not home tonight.
 
 ### Private scene, public approach
 
@@ -567,8 +1013,35 @@ One mandatory work objective per day, flexible execution window across the three
 
 **Tasks do not auto-complete on room entry.** A task creates a *conflict*: one block left, the outfit is not ready, and she wants to talk. Choose. That tension is the point of the task system.
 
+The objective is discharged **at its own location**, listed alongside the solo
+actions for that room (section 10b). Never from a menu - a button that works
+from anywhere ignores where the player is standing, which is the only thing
+that made the task cost something.
+
 - Success: `competence +`, positive ledger entry.
 - Failure: `competence -`, `energy -`, and if the failure touched her, `strain += 8`.
+
+### Energy is the pacing mechanism
+
+| | |
+|---|---|
+| a block | `-6` |
+| "Read her" | `-1` each |
+| a night | `+24` |
+| sleeping in your own room | `+30`, and it costs the block |
+
+**Read her is the energy sink, not the block.** Three blocks cost 18, plus one
+per scene at the door, against 24 overnight - so a maximally busy day that never
+looks inside her head is energy-*positive* by 3 to 5, and a measured campaign
+never took energy below 77 of 100. What actually runs the player down is
+choosing to read her: two uses a scene across three scenes is another 6, which
+tips the day negative and eventually forces a rest block that the player wanted
+to spend on her.
+
+That is a defensible mechanic - it makes the rationed action the thing you
+budget for - but it is not what this section used to claim, and the claim was
+wrong: blocks are not the pressure. If playtesting shows players simply ignore
+Read her, the fix is `ENERGY_RESTORED_OVERNIGHT` 24 -> 18. Not both.
 
 ### Player stats
 
@@ -578,6 +1051,107 @@ One mandatory work objective per day, flexible execution window across the three
 | `energy` | consumed by blocks and by "Read her"; low energy narrows chip options |
 | `secrecy` | low secrecy amplifies scene `exposure`; feeds `exposure_end` |
 | `credits` | earned from completed tasks, spent on gifts |
+
+---
+
+## 10b. Solo Work: the empty room
+
+Most blocks are spent in a room with nobody in it. That has to be worth doing,
+or two thirds of the map is dead space and the day is a menu of one option.
+
+Authored, deterministic, **no LLM call** - the same argument as the calendar.
+Spending a model call on "you restocked the wardrobe" is waste, and these need
+to be instant because they are the filler between scenes. `data/soloActions.js`
+holds the table; `systems/soloWork.js` resolves one.
+
+### The point is not the credits
+
+The credit earners are the boring half. The important actions are the **snoops**:
+an empty room is how you learn something about a member who is not in it, which
+is the second path into `known_facts` and therefore into the knowledge-gated
+gifts. That is what makes an empty wardrobe worth entering.
+
+**Almost every room can teach you something**, and what changes is the price.
+Only three could at first, which quietly funnelled the whole knowledge economy
+through the wardrobe and left the rest of the map as credit dispensers you
+visited when the wardrobe was busy. Anywhere the player is alone, a block and
+some energy can buy a fact.
+
+| Room | Work | Snoop | secrecy |
+|---|---|---|---|
+| `broadcast_studio` | help the crew | **take the long way past the green room** | **-7** |
+| `wardrobe` | prep the fittings | **read the fitting notes** | -5 |
+| `drama_set` | wait it out | **read the call sheet properly** | -4 |
+| `practice_room` | run the setlist / tidy up | **watch the playback back** | -4 |
+| `corridor` | chase the schedule | **take your time getting through** | -3 |
+| `cafe` | buy the table coffee | **stay for another cup** | -2 |
+| `dorm_kitchen` | cook for whoever comes in | **read what is stuck to the fridge** | -2 |
+| `dorm_living` | - | **wait up** | -1 |
+| `dorm_player_room` | sleep / lie awake | - | - |
+
+The spread is the point. Loitering in a corridor is nearly free; being nosy in a
+live studio green room, where everyone present is paid to watch, is the most
+expensive thing on the map. So *where* you go to learn something is a decision
+with a price attached, rather than a fixed errand at the wardrobe.
+
+Your own room stays the exception. There is nothing to find out about anyone
+else in it.
+
+Snooping trades **`secrecy`** for a fact. Low secrecy amplifies scene exposure
+and feeds `exposure_end`, so the cost is real and it lands later - which is the
+right shape for a cost that buys knowledge.
+
+**Secrecy recovers one point a night**, toward the identity's starting value and
+never past it. Without that it is a one-way ratchet: a measured campaign hit 0
+in week 3 of 9 and stayed pinned, which switched the cost off entirely for the
+remaining two thirds of the run and left every scene carrying a flat +21
+exposure. A reputation for being nosy fades if you stop being nosy; discretion
+is not something you accumulate by sleeping.
+
+### Two kinds of find
+
+A snoop turns up one of two things, and which one depends mostly on what is left:
+
+| | what it is | what it buys |
+|---|---|---|
+| **a fact** | one of her `learnableFacts` | an opener, and the dossier entry that unlocks it |
+| **a rumor** | something *another* member has already heard about the player | nothing to spend - it is the only way to see jealousy coming |
+
+Facts are weighted 3:1 over rumors, but the curve mostly draws itself: at the
+start of a run there are 25 facts and **no rumors at all**, because nothing has
+happened yet for anyone to have heard about. Rumors accumulate as the player
+starts being seen, and by the last cycle the facts are gone and rumors are what
+is left. So the early game teaches you about them and the late game teaches you
+about what they know - which is the right order.
+
+The rumor find is also the only window onto section 5b's `heard_about` channel.
+That data has always existed and the player has never been able to look at it,
+so jealousy was invisible until it had already turned into strain. Finding one
+writes nothing to her dossier: it changes what the **player** knows, not what
+she knows.
+
+Before this, the 25-fact pool emptied around week 6 and 12-21 of a campaign's
+~40 snoop blocks returned nothing - half the map quietly reverted to being a
+credit dispenser. Measured after: zero.
+
+Three rules that are not optional:
+
+1. **No charge for a search that found nothing.** Once there is no fact and no
+   undiscovered rumor left, snooping stops taking secrecy. The player should not
+   be taxed for having already done the work.
+2. **Never about someone in the room.** You do not learn a secret about a woman
+   who is standing next to you - and you do not find out what she has heard,
+   either. The rule covers both kinds of find.
+3. **A member drops out once you know all of her facts**, which quietly pushes
+   the player toward whoever they have been neglecting.
+
+Every solo action writes a line to the ledger in English, composed in code
+rather than by the model - it is bookkeeping, and the summarizer call it would
+otherwise cost is better spent on a scene.
+
+`learnableFacts` on the card (section 12) is the pool. Every knowledge gift in
+`data/gifts.js` must have at least one owner among the cast, or it is
+unreachable; there is a test that asserts this.
 
 ---
 
@@ -593,6 +1167,104 @@ dialogue --reveals--> dossier fact --unlocks--> a specific gift --> LLM sees the
 
 - Generic gift (rose, iced coffee): `+1` effect, generic reaction.
 - **Knowledge-gated gift**: purchasable only once the matching `known_facts` entry exists. `+5` effect and a unique reaction, because the fact is in-prompt.
+
+### Two ways in, and the dialogue one has to be wired for
+
+A fact reaches the dossier from **snooping** (section 10b) or from **the scene
+itself**. Only the first worked for a long time, and the reason is worth
+remembering: openers match `requires` against dossier text by substring, and the
+summarizer wrote whatever phrasing it liked. A live scene where Irene talked
+about practising alone produced *"values trust earned in private, not public"* -
+a good memory that matches no opener that exists. Every opener in the game was
+therefore reachable by snooping and by nothing else, and **talking to her taught
+the player nothing they could spend.**
+
+The scene-exit call now carries the card's own wording for the facts the player
+does not already have, scoped to members in the room like everything else in
+block 3. It is a **checklist, not an instruction to fish**: use this wording if
+the thing genuinely came up, and otherwise add nothing. A fact awarded for
+nothing is worse than a fact never awarded, because it hands over an opener
+nobody earned.
+
+**Locked gifts are not shown.** Naming a gift the player cannot buy spoils the
+fact it is waiting on and clutters the list with things they cannot act on. When
+nothing is unlocked the modal says only that such gifts open when she tells you
+the right thing.
+
+**The reaction is generated, never authored.** There is no thank-you table. The
+opening beat of a gift scene is a normal model call (section 9), which is what
+lets the same iced coffee read as polite at `colleague` and as something else
+entirely at `unspoken`. A fixed line cannot vary with affection, and a fixed
+line is instantly legible to the player as a fixed line.
+
+Three things have to reach the model for that reaction to land, and each one was
+missing at some point:
+
+**1. The tier**, not just the object:
+
+- generic - *"an ordinary, thoughtful gesture - kind, but nothing she could not
+  have guessed at."*
+- knowledge - *"She has never told anyone she needed one. Only somebody who had
+  been paying very close attention would have known to bring it."*
+
+Without it, an iced coffee and a hand warmer are the same sentence to the model.
+
+**2. The fact it was bought on.** `requires` is matched by substring against her
+dossier, so the code already knows *exactly which remembered line* unlocked this
+gift. That line is quoted into the note verbatim:
+
+> the player has just handed Hyewon a knee brace. She let this slip once: "an
+> old knee injury that flares up in the cold". She has never told anyone she
+> needed one - only somebody who had been paying very close attention would have
+> known to bring it.
+
+The fact is already in block 3, but block 3 is a list of everything known about
+her, and the step from `knee_brace` to that one line is an inference. At this
+model tier, an inference that can be stated should be stated. This is the whole
+distance between *"You were paying attention"* and *"How did you know about my
+knee?"*, and the second one is the product.
+
+**3. How close she already is.** See block 4 (section 7): the same gift from a
+colleague and from someone at `unspoken` is not the same event, and the model
+cannot know that unless the header says so.
+
+### Two ways to spend a fact
+
+**A gift is not the only way to show you were listening**, and most of the time
+it is not the natural one. Knowing about her ankle and buying tape is one move;
+knowing about her ankle and *asking how it held up* is another, and the second is
+what a person would actually do. An economy whose only verb is BUY reads as a
+shop rather than as attention.
+
+So every knowledge fact opens **two** ways into the scene, side by side in the
+same modal:
+
+| | cost | effect | limit |
+|---|---|---|---|
+| the object | credits | `+5` | repeatable |
+| **the gesture** | free | `+3` | **once per fact, per run** |
+
+Not every fact has an object behind it, and forcing one is what made the whole
+thing read as a shop. An opener marked `object: false` opens the scene by being
+**said** and nothing else - you cannot buy somebody the habit of naming
+everyone. The modal is titled for what it actually is, *how you walk in*, rather
+than for the half of it that costs money.
+
+Both are gated by the same fact and both quote it into the scene note, because
+the payoff is identical: she hears that you remembered.
+
+The two limits are what keep it honest:
+
+- **Free has to be weaker**, or credits stop meaning anything and the shop
+  becomes decoration.
+- **Once per fact.** Asking after her ankle the first time is attention; asking
+  every scene is a script. Spent gestures leave the list rather than greying out
+  - there is nothing left to reconsider.
+
+The gesture note carries one instruction the gift note does not need: *there is
+no object; do not invent one.* The opening beat is written from that note alone,
+and a model handed "she remembered something you said" will happily produce a
+present that is not in anyone's hands.
 
 Gifts are chosen in a pre-scene modal before the first LLM call, then injected as the opening line of block 5:
 `System note: the player opened the scene by giving Irene a hand warmer.`
@@ -630,6 +1302,7 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
   "hiddenConflict": null,
   "styleHints": { "zh": null, "ko": null },
   "likesSeed": ["quiet mornings"],
+  "learnableFacts": ["hates cold hands", "cannot sleep the week before a comeback"],
   "startIntimacy": 5,
   "portraitMode": "mascot",
   "portraits": { "neutral": "portraits/irene.svg" }
@@ -641,6 +1314,49 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
 Localized display names live in `i18n/`, not on the card, so a card stays a single portable file.
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
+
+`learnableFacts` is the pool solo-work snooping draws from (section 10b).
+
+**Five per card, twenty-five in all, and the opener is written to the habit
+rather than the habit to the opener.** An earlier catalogue did the reverse -
+eight neutral objects, one matching fact per member - and the result was a fixed
+lookup: jisoo always meant the annotated script, hyewon always meant the knee
+brace. The snoop was already picking a random member and a random fact; with two
+facts each and one opener apiece there was nothing for the randomness to do.
+
+Four rules, all asserted:
+
+- **One opener per fact, never none and never two.** A fact matching two needles
+  hands over a second opener free; a fact matching none is a snoop that teaches
+  something worthless.
+- **No two members share an opener.** Not strictly required, but an opener that
+  answers two people says nothing about either.
+- **No fact repeats across the cast.** Two members with cold hands is two members
+  with the same character.
+- **Every member reaches several openers**, so what you can do depends on which
+  fact you happened to turn up first.
+
+### Facts come from the real member, and stop at the persona
+
+Facts are drawn from the member's publicly known habits, because an opener that
+answers a real habit reads as attention paid and an invented one reads as a
+fetch quest. Irene's laundry and her cold hands, Jisoo balancing things on her
+head, Hyewon handing out takoyaki in other groups' waiting rooms, Yeri's
+fearlessness in a haunted house.
+
+They stay at **persona level: preferences, routines and running jokes.** Never a
+claim about a real person's health, body, relationships or private life, even a
+positively-worded or self-disclosed one (section 22). Two facts have been cut
+under this rule after being written - an invented knee injury, and a real and
+publicly discussed course of tattoo removal. Both would have played fine; both
+are somebody's body rather than somebody's habit, and the line is easier to hold
+at "not at all" than at "tastefully".
+
+`requires` carries **paraphrases**, not just the card's wording. The summarizer
+writes dossier entries in its own words, so a single tight needle means the
+opener silently never unlocks for a player whose model phrased it differently.
+This has regressed twice during content rewrites; the tests that catch it are
+the ones that feed in a rephrased fact rather than the card's own string.
 
 `portraitMode` is one of `mascot` | `single` | `multi` (see section 14). MVP writes only `mascot`; the field exists now so v2 is content, not a refactor.
 
@@ -712,9 +1428,11 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
   cast:      [ characterId ],
   relations: {
     irene: { intimacy, admissibility, strain, jealousy,
-             peakIntimacy, peakAdmissibility, stage, endingLocked: null }
+             peakIntimacy, peakAdmissibility, criticalScenes,
+             stage, endingLocked: null }
   },
-  dossier:   { irene: { known_facts, shared_moments, open_threads, player_told_her } },
+  dossier:   { irene: { known_facts, shared_moments, open_threads,
+                        player_told_her, heard_about } },
   ledger:    [ { id, day, block, type: 'full' | 'summary', text, summary } ],
   calendar:  { weekPlan, todayTask, taskState },
   flags:     { firedEvents: [], repairUsed: {} },
@@ -725,6 +1443,10 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
 `scene` is deliberately excluded from saves: the memory design says a scene is ephemeral, so saving mid-scene means saving at the room door.
 
 Save key: `yuriagent_saves_v1`. On load, unknown or missing fields fill from defaults rather than throwing.
+
+The **API key is not in here**. It lives in `yuriagent_key_v1` via `store/apiKey.js`,
+in its own module with its own storage key, so it can never be accidentally
+serialised into a save file that gets exported or shared (section 22).
 
 ---
 
@@ -740,38 +1462,53 @@ src/
     responseParser.js        # tolerant streaming state machine
     memory.js                # ledger append + compaction, dossier CRUD
     summarizer.js            # scene-exit call
+    chipWriter.js            # written chip labels; ephemeral frame, never committed
+    playthrough.test.js      # a whole campaign through the real engine, offline
+    liveQuality.test.js      # what a real model writes; LIVE_QUALITY=1, opt-in
   systems/                   # PURE. no React, no network.
+    rng.js                   # seeded mulberry32, injected everywhere
     relationship.js          # intimacy/admissibility/strain, stage, endings
     jealousy.js              # bands, gain/decay, exclusivity curve
     rumor.js                 # exposure -> awareness; presence -> witnessed events
     castBuilder.js           # any 5 cards -> a coherent X lineup
     calendar.js              # deterministic seeded group + member schedules
+    clock.js                 # block/day/week/phase advance, energy
     tasks.js
+    soloWork.js              # empty rooms: work, snooping, learned facts
     economy.js               # credits, knowledge-gated gifts
     exposure.js              # location x block x secrecy -> risk
-    chips.js                 # stance chip generation + locking
+    chips.js                 # stance legality + the fallback chip set
     balanceSim.js            # headless playthrough harness (dev only)
+    *.test.js                # colocated; vitest
   tools/
     llmTool.js               # multi-model router, streaming, retries
+    mockClient.js            # offline writer; the game runs with no API key
+    client.js                # picks live vs mock, falls back per call
+    liveEnv.js               # test-only: reads .env.local. Never imported by the app.
   data/
     characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri
                              # library: seulgi, wendy, joy
     identities/*.json
     activities.js            # group / solo / idle activity tables
-    locations.js             # exposureBase + presence per location
+    locations.js             # exposureBase + presence + zone per location
+    soloActions.js           # what the assistant does in an empty room
     gifts.js
+    cast.js                  # card loader; PROMPT_EXCLUDED_FIELDS
     events/                  # anchor nodes
   ui/
-    vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar, ThoughtBubble
-    map/                     # LocationGrid, WeekCalendar
-    modals/                  # GiftModal, SaveModal, SettingsModal
-    screens/                 # Cover, Setup, Game, Ending
+    vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar,
+                             # ThoughtBubble, SceneHeader, beatQueue
+    map/                     # LocationGrid, DormMap, WeekCalendar
+    modals/                  # GiftModal, SettingsModal, SaveModal (M5)
+    screens/                 # Day, SoloAction, Cover/Ending (M5)
   i18n/                      # zh/en (ko/pt stubs)
   config/
     constants.js
     modelConfigs.js
   store/
-    save.js
+    save.js                  # M5
+    settings.js
+    apiKey.js                # its own key so it can never join a save file
 public/
   portraits/*.svg
   manifest.webmanifest
@@ -808,7 +1545,7 @@ Rules:
 
 - Never commit directly to `main`. Merge `dev -> main` only after `npm run build` passes and the affected loop has been played manually.
 - Tag `main` merges: `v0.1.0`, `v0.2.0`, ...
-- `npm run build` and `npm run lint` must pass before any merge.
+- `npm test`, `npm run lint` and `npm run build` must pass before any merge.
 - Never commit API keys or key files.
 
 ---
@@ -822,7 +1559,13 @@ Rules:
 | **M2** | Prompt pipeline: `promptBuilder`, `llmTool`, `responseParser`, `memory` | a scene runs in a console harness; cache invariants and roster enforcement asserted |
 | **M3** | VN layer: portrait + CSS emotions, dialogue box with beat reveal, chip bar, meters, Read her | one full scene playable end to end |
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
-| **M5** | Run layer: 3-week cycle, event anchors, endings, save/load, PWA install | full playthrough reaches an ending |
+| **M5** | Run layer: full 3x3 campaign, event anchors on weekend blocks, endings screen, save/load, PWA install | full playthrough reaches an ending |
+
+**Status: M0-M4 complete. M5 is next.** Running state, what is done and what is
+still open, lives in `docs/PROGRESS.md` - that file is updated *before* a
+milestone closes, and it is what makes compacting this session safe.
+Design changes that have been argued for but not made live in
+`docs/PROPOSALS.md`; read it before touching a coefficient.
 
 M1 before M2 is deliberate: the relationship model is the product, and it must be correct before a single token is spent on it.
 
@@ -907,7 +1650,11 @@ Inline styles are allowed only for values that come from data at runtime: charac
 - `systems/` stays pure and side-effect free - that is what makes the relationship model testable.
 - **No literal colours or font sizes in components.** Use the tokens from section 20. Inline styles only for runtime data (character palette, meter widths).
 - Mobile-first, 390x844 reference. Verify layouts at `fontScale` 1.25 with `zh` strings.
-- Validate every change with `npm run build` and `npm run lint`. Do not commit a red build.
+- Validate every change with `npm test`, `npm run lint` and `npm run build`. Do
+  not commit a red build or a red suite.
+- `systems/` and `agent/` changes need a test. A design rule that is not asserted
+  somewhere is a rule that will be quietly broken later - every bug found in
+  playtesting so far had no test covering it.
 - No workaround flags, no commented-out errors. Fix the cause.
 
 ---
@@ -919,6 +1666,13 @@ Carried over from `rv-simulator`, non-negotiable:
 - Fan-made, non-profit, MIT. Not affiliated with any agency or artist.
 - Characters are **fictional personas** with animal-mascot presentation. The shipped card library contains no real-person likeness art. Player-uploaded portraits (v2) stay on the player's device, are never transmitted, and are never sent to the model.
 - No negative real-world claims about real artists; no real romantic or marital assertions.
+- **Card content stays at persona level: preferences, routines and running
+  jokes.** Never a real person's health, body, relationships or private life -
+  not even positively worded, and not even something they have discussed
+  publicly themselves. Two `learnableFacts` have been cut under this rule after
+  being written (an invented knee injury, a real course of tattoo removal).
+  Both would have played fine. The line is easier to hold at "not at all" than
+  at "tastefully", and a game about five women deserves the strict version.
 - No politics, graphic violence, occult, or sexual content involving minors.
 - Adult-adult romance stays tasteful. The game is about tension, not explicitness.
 - API keys live in localStorage on the player's device only. Never logged, never committed, never sent anywhere but the chosen model endpoint.

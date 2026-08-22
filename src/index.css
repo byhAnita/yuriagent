@@ -10,80 +10,108 @@
    Themes are selected by [data-theme] on <html>. `bloom` reads its hue from
    --bloom-base / --bloom-accent, which App sets at runtime from the palette of
    whichever member currently has the highest intimacy.
+
+   Art direction: BACKSTAGE MONITOR. The chrome is production equipment -
+   monospace timecode, VU-style meters, hairline rules. The dialogue box is the
+   only warm, soft surface in the frame. Feelings under instrumentation.
 --------------------------------------------------------------------------- */
 
 :root {
   --font-scale: 1;
   --radius: 0.75rem;
+  --radius-sm: 0.375rem;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 8px 24px rgb(0 0 0 / 0.12);
 
-  --font-ui: ui-sans-serif, system-ui, 'Segoe UI', 'Noto Sans SC', 'Noto Sans KR', sans-serif;
+  /* Serif intimacy, monospace apparatus. */
+  --font-display: 'Instrument Serif', 'Noto Serif SC', Georgia, serif;
+  --font-body: 'Newsreader', 'Noto Serif SC', 'Noto Serif KR', Georgia, serif;
+  --font-mono: 'DM Mono', 'Noto Sans SC', ui-monospace, 'SFMono-Regular', monospace;
+  --font-ui: var(--font-mono);
 
-  /* meters keep their identity across all themes - they encode meaning */
+  /* Meters keep their identity across all themes - they encode meaning. */
   --meter-guard: #6ea8d8;
   --meter-fluster: #e08aa8;
   --meter-exposure: #e0a94a;
+
+  --stage-pool: 62%;
+  --grain-opacity: 0.035;
 }
 
 /* night - default */
 :root,
 [data-theme='night'] {
-  --bg: #0e0b12;
-  --surface: #171320;
-  --surface-alt: #1f1a2b;
+  --bg: #0b0910;
+  --surface: #15111e;
+  --surface-alt: #1e1829;
+  --surface-warm: #221a26;
   --text: #ece8f2;
-  --text-dim: #9a92ab;
-  --border: #2c2438;
+  --text-dim: #a79fb8;
+  --text-faint: #837b96;
+  --border: #2a2237;
+  --hairline: #3a3048;
   --accent: #c9a0dc;
-  --accent-soft: #3a2c48;
+  --accent-soft: #362a45;
   --on-accent: #16101c;
   --danger: #e05a6b;
   --warn: #e0a94a;
+  --vignette: rgb(0 0 0 / 0.55);
 }
 
 [data-theme='day'] {
-  --bg: #faf7fb;
-  --surface: #ffffff;
-  --surface-alt: #f2edf5;
+  --bg: #efe9ee;
+  --surface: #fbf8fa;
+  --surface-alt: #f0e9ef;
+  --surface-warm: #fdf6f2;
   --text: #1c1722;
-  --text-dim: #6b6377;
-  --border: #e2dae8;
+  --text-dim: #574f63;
+  --text-faint: #6f6779;
+  --border: #ddd3e0;
+  --hairline: #cbbfd2;
   --accent: #7b4b96;
-  --accent-soft: #ece2f2;
+  --accent-soft: #e9dcf0;
   --on-accent: #ffffff;
-  --danger: #c0392b;
-  --warn: #a76b12;
+  --danger: #b8352c;
+  --warn: #9c6410;
+  --vignette: rgb(60 40 70 / 0.14);
 }
 
 [data-theme='dusk'] {
-  --bg: #1a1512;
-  --surface: #241d19;
-  --surface-alt: #2e2621;
-  --text: #ede4da;
-  --text-dim: #a89684;
-  --border: #3a2f27;
+  --bg: #171210;
+  --surface: #221b17;
+  --surface-alt: #2c231e;
+  --surface-warm: #2f241c;
+  --text: #ede2d6;
+  --text-dim: #b8a794;
+  --text-faint: #8d7d6c;
+  --border: #382c24;
+  --hairline: #4a3a2e;
   --accent: #d8a06a;
-  --accent-soft: #40301f;
-  --on-accent: #1a1512;
+  --accent-soft: #3d2c1d;
+  --on-accent: #171210;
   --danger: #d2685c;
   --warn: #d8a06a;
+  --vignette: rgb(0 0 0 / 0.5);
 }
 
 /* bloom - tinted from the focus member's card palette (section 20) */
 [data-theme='bloom'] {
   --bloom-base: #c9a0dc;
   --bloom-accent: #6a1b9a;
-  --bg: color-mix(in srgb, var(--bloom-accent) 12%, #0d0a10);
-  --surface: color-mix(in srgb, var(--bloom-accent) 16%, #151120);
-  --surface-alt: color-mix(in srgb, var(--bloom-accent) 22%, #1b1626);
+  --bg: color-mix(in srgb, var(--bloom-accent) 12%, #0a080e);
+  --surface: color-mix(in srgb, var(--bloom-accent) 16%, #141020);
+  --surface-alt: color-mix(in srgb, var(--bloom-accent) 22%, #1a1526);
+  --surface-warm: color-mix(in srgb, var(--bloom-base) 10%, #1d1626);
   --text: color-mix(in srgb, var(--bloom-base) 22%, #f2eef6);
-  --text-dim: color-mix(in srgb, var(--bloom-base) 40%, #8b8399);
-  --border: color-mix(in srgb, var(--bloom-accent) 34%, #241d30);
+  --text-dim: color-mix(in srgb, var(--bloom-base) 34%, #a49bb5);
+  --text-faint: color-mix(in srgb, var(--bloom-base) 26%, #837a94);
+  --border: color-mix(in srgb, var(--bloom-accent) 34%, #221b2e);
+  --hairline: color-mix(in srgb, var(--bloom-accent) 46%, #2e2540);
   --accent: var(--bloom-base);
   --accent-soft: color-mix(in srgb, var(--bloom-accent) 40%, #241d30);
   --on-accent: #16101c;
   --danger: #e05a6b;
   --warn: #e0a94a;
+  --vignette: rgb(0 0 0 / 0.5);
 }
 
 /* expose tokens as Tailwind utilities: bg-bg, text-dim, border-border, ... */
@@ -91,9 +119,12 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-alt: var(--surface-alt);
+  --color-surface-warm: var(--surface-warm);
   --color-text: var(--text);
   --color-dim: var(--text-dim);
+  --color-faint: var(--text-faint);
   --color-border: var(--border);
+  --color-hairline: var(--hairline);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
@@ -103,8 +134,9 @@
   --color-fluster: var(--meter-fluster);
   --color-exposure: var(--meter-exposure);
 
-  --radius-token: var(--radius);
-  --font-ui: var(--font-ui);
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
 }
 
 /* --font-scale drives the root rem; every size in the app follows from it */
@@ -118,13 +150,190 @@ body {
   min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
 
-/* settings.reduceMotion, plus the OS preference as the initial value */
+/* ---------------------------------------------------------------------------
+   The stage.
+
+   A single practice-room light from above. The pool takes its hue from the
+   character palette, which is the one runtime-data exception in section 20.
+--------------------------------------------------------------------------- */
+
+.stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.stage::before {
+  content: '';
+  position: absolute;
+  inset: -20% -30% auto;
+  height: 130%;
+  background: radial-gradient(
+    ellipse var(--stage-pool) 55% at 50% 22%,
+    var(--stage-glow, transparent) 0%,
+    transparent 72%
+  );
+  z-index: -2;
+  pointer-events: none;
+  transition: background 700ms ease;
+}
+
+/* Vignette + fine grain. Atmosphere, not decoration - it puts the subject
+   under a light instead of on a flat colour. */
+.stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 40%, transparent 40%, var(--vignette) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-blend-mode: normal, overlay;
+  opacity: 1;
+}
+
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* Hairline rules, the way a call sheet is ruled. */
+.rule {
+  border: 0;
+  border-top: 1px solid var(--hairline);
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   Portrait emotion states. CLAUDE.md section 14.
+
+   ONE asset per character. Emotion is entirely CSS, which is what lets the card
+   library scale to 50+ characters with zero new art per emotion.
+--------------------------------------------------------------------------- */
+
+.portrait {
+  transition:
+    filter 420ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 420ms ease;
+  transform-origin: 50% 88%;
+  will-change: transform, filter;
+}
+
+.portrait--neutral {
+  filter: none;
+}
+
+.portrait--happy {
+  filter: brightness(1.06) saturate(1.04);
+  animation: portrait-bounce 900ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.portrait--blush {
+  filter: brightness(1.03) saturate(1.12) hue-rotate(-4deg);
+  transform: scale(1.02);
+}
+
+.portrait--shy {
+  filter: blur(0.4px) brightness(0.96);
+  transform: translateY(0.5rem) scale(0.99);
+  opacity: 0.9;
+}
+
+.portrait--upset {
+  filter: saturate(0.65) brightness(0.9) contrast(1.05);
+  transform: rotate(-2deg);
+}
+
+.portrait--surprised {
+  filter: brightness(1.04) contrast(1.06);
+  transform: scale(1.05);
+  animation: portrait-shake 380ms ease-in-out;
+}
+
+/* The cheek wash for blush lives on an overlay so it can use the character's
+   own accent instead of a hardcoded pink. */
+.portrait-blush-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 420ms ease;
+  background: radial-gradient(
+      circle 14% at 34% 42%,
+      var(--cheek, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(circle 14% at 66% 42%, var(--cheek, transparent) 0%, transparent 70%);
+  mix-blend-mode: soft-light;
+}
+
+.portrait-blush-wash--on {
+  opacity: 1;
+}
+
+@keyframes portrait-bounce {
+  0% { transform: translateY(0) scale(1); }
+  35% { transform: translateY(-0.55rem) scale(1.015); }
+  70% { transform: translateY(0.1rem) scale(0.995); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes portrait-shake {
+  0%, 100% { transform: scale(1.05) translateX(0); }
+  25% { transform: scale(1.05) translateX(-0.2rem); }
+  75% { transform: scale(1.05) translateX(0.2rem); }
+}
+
+/* Beat reveal. Each beat lifts in as it is uncovered. */
+@keyframes beat-in {
+  from { opacity: 0; transform: translateY(0.4rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.beat-in {
+  animation: beat-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes caret-pulse {
+  0%, 100% { opacity: 0.25; transform: translateX(0); }
+  50% { opacity: 1; transform: translateX(0.15rem); }
+}
+
+.caret-pulse {
+  animation: caret-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes thought-in {
+  from { opacity: 0; transform: translateY(0.6rem) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.thought-in {
+  animation: thought-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Meter needles settle rather than snap. */
+.meter-fill {
+  transition: width 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility. settings.reduceMotion, plus the OS preference as the initial
+   value. Emotion keyframes and beat transitions fall back to instant changes.
+--------------------------------------------------------------------------- */
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
