@@ -18,11 +18,12 @@ number should move again. Everything else is still only an argument.
 
 ## 1. A scene's payout depends on how many beats the model felt like writing
 
-**DONE 2026-08-22 - option 1.** `turnDeltas` averages within a reply.
-Re-measured live: beat count no longer predicts payout - a 7-beat scene dropped
-guard 19 and a 19-beat scene dropped 6. The thresholds moved with the unit,
-because a mean is smaller than a sum by construction and the old fluster bar of
-60 had become unreachable: `GUARD_DROP_TO_PAY = 12`, `FLUSTER_PEAK_TO_PAY = 30`.
+**DONE 2026-08-22 - none of the three listed options; the budget moved into the
+prompt instead.** The deltas in one reply must now ADD UP to what that exchange
+moved her, and the client sums them. Thresholds were recalibrated on the way:
+`GUARD_DROP_TO_PAY = 12`, `FLUSTER_PEAK_TO_PAY = 30` - the old fluster bar of 60
+had become unreachable and that whole branch was dead. See "where it landed"
+below for what each setting actually measured, and for what is still wrong.
 
 It also surfaced a measurement problem worth keeping in view: **the offline
 writer is 2-3x more generous per turn than DeepSeek**, so every payout figure
@@ -30,7 +31,56 @@ the campaign harness reports is an upper bound. Aligning the mock's magnitudes
 with the live model would make the harness numbers trustworthy, and would mean
 re-baselining a lot of existing test expectations.
 
-### Not finished: the bias reversed
+### Where it landed, after three settings
+
+| setting | aggregation | result over 12 live scenes |
+|---|---|---|
+| per-beat scale | sum | verbose pays: 21-beat scenes always, 7-beat never |
+| per-beat scale | mean | **flipped** - 5 of 6 terse paid, 1 of 5 verbose |
+| **per-reply budget** | **sum** | verbose pays again: 6 of 7 verbose, 0 of 5 terse |
+
+Shipped: the third. Not because it removed the bias - it did not - but because
+**it is the only one that is correct if the model obeys.** The prompt now says
+the deltas in one reply must add up to what that exchange moved, so summing is
+the matching arithmetic; averaging would divide an already-apportioned total and
+would get *worse* as the model improved. A setting that is wrong in the limit is
+the wrong thing to ship, even when it happens to score the same today.
+
+Pay rate is 6 of 12 either way, which is a reasonable share of scenes moving the
+relationship.
+
+**The guard branch is currently dead.** Over those twelve scenes, guard drops
+were 10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20 - not one cleared
+`GUARD_DROP_TO_PAY = 12`, and all six paying scenes paid on fluster alone. So
+"she opened up over the course of the scene" earns nothing right now and only
+"you flustered her" does. Guard is behaving as something that fluctuates within
+a scene rather than something that trends down across one.
+
+I deliberately did **not** lower the threshold to fix that. On this sample a bar
+of 8 would take the pay rate to 10 of 12, which is too generous, and one noisy
+sample is not enough to move a coefficient that the whole first axis runs
+through - two consecutive six-scene samples on an unchanged build averaged +7.8
+and -3.3 guard drop.
+
+### The durable fix, not yet attempted: report state, not deltas
+
+Every setting above fights the same thing - the client has to reassemble a
+quantity from an unknown number of pieces. That goes away if the metadata line
+carries **where she is now** rather than how far she just moved:
+
+```
+@irene|shy|guard42|fluster60
+```
+
+Beat count then stops mattering entirely: the last beat of a reply is the state,
+and a reply with three beats says the same thing as a reply with one. It also
+removes a class of drift, since an absolute cannot accumulate rounding.
+
+The costs are real: it is a **section 9 contract change**, so the parser, the
+offline writer, `applyBeatToMeters` and a good number of tests all move, and
+small models may anchor less well on an absolute than on a nudge. Worth trying
+behind a flag and measuring against the same twelve-scene script before
+committing to it.
 
 Twelve live scenes after the change, 6 of 12 paid - but the correlation with
 beat count did not disappear, it **flipped**:

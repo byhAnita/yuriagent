@@ -168,7 +168,9 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '@irene|neutral|guard+3|fluster+0',
     '*She does not look up from the notes.* "You are early."',
     '',
-    '@irene|shy|guard-14|fluster+18',
+    // The two beats add up to guard -8, fluster +14: one exchange that got
+    // through, shared out across the two moments it took.
+    '@irene|shy|guard-11|fluster+14',
     '*A pause, and then she does look up.* "That was not a complaint."',
     '',
     `Valid emotions: ${EMOTIONS.join(', ')}.`,
@@ -185,19 +187,34 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
      * than on the stated range and reported +1 and +2 all the way through. It
      * paid nothing.
      *
-     * The correction has to be per-beat, not per-scene. An earlier version gave
-     * the model the scene-level target instead ("her guard should fall 15-30 in
-     * total") and it overshot to a 55-point drop with fluster pegged at 100 by
-     * turn four, because deltas are PER BEAT and the beat count per turn varies
-     * from one to three - a scene budget silently multiplies by however many
-     * beats the model felt like writing. Section 6 also still holds either way:
-     * these are micro numbers, and the client alone decides what a scene was
-     * worth.
+     * The budget is per REPLY. That is the third setting tried and the only one
+     * that holds:
+     *
+     * - per SCENE ("her guard should fall 15-30 in total") overshot to a
+     *   55-point drop with fluster pegged at 100 by turn four, because a scene
+     *   is many replies and the model cannot see how many are left.
+     * - per BEAT ("a beat that gets through moves guard 5-10") made the payout
+     *   depend on verbosity. Measured over twelve live scenes, the model used
+     *   the small end of the range when it wrote three beats and a big number
+     *   when it wrote one, so a chatty reply moved her LESS: five of six terse
+     *   scenes paid and one of five verbose ones did, whichever way the client
+     *   added the numbers up. No client-side aggregation can fix that, because
+     *   it happens before the arithmetic.
+     * - per REPLY is bounded in the way the scene budget was not. One reply is
+     *   one exchange, and the model knows how many beats it is writing as it
+     *   writes them, so "split this across them" is a request it can actually
+     *   satisfy.
+     *
+     * Section 6 holds throughout: these are micro numbers, and the client alone
+     * decides what a scene was worth.
      */
-    'Scale matters. A beat that only keeps the conversation alive moves them by',
-    '1-3. A beat that actually gets through moves guard by 5-10 and fluster by a',
-    'similar amount. Save anything past 12 for a real breakthrough. A beat that',
-    'lands badly moves them back the other way.',
+    'The numbers belong to the REPLY, not to each beat. Whatever this exchange',
+    'moved her, split it across however many beats you write: the deltas in one',
+    'reply should ADD UP to it, never repeat it in each beat.',
+    'An exchange that only keeps the conversation alive adds up to 1-3. One that',
+    'actually gets through moves guard by 5-10 and fluster by a similar amount.',
+    'Save anything past 12 for a real breakthrough. One that lands badly moves',
+    'them back the other way.',
     'Report only these. Never report anything else.',
     '',
     '## Language',

@@ -244,40 +244,40 @@ describe('beat segmentation', () => {
 });
 
 /**
- * A turn is the unit, not a beat.
+ * A turn is the unit, and the model splits it across its own beats.
  *
- * The model writes one to three beats per reply as a stylistic choice and does
- * not shrink its per-beat numbers when it writes more of them, so summing made
- * a chatty reply worth three times a terse one for identical player input. Six
- * live scenes with the same seven turns: every 7-beat scene paid nothing and
- * every 21-beat scene paid the maximum.
+ * Two failed settings are behind this. With a per-BEAT scale in the prompt,
+ * summing made a chatty reply worth three times a terse one for identical
+ * player input - every 7-beat scene paid nothing, every 21-beat scene paid the
+ * maximum. Averaging flipped the bias instead of removing it, because a model
+ * handed a per-beat range uses the small end of it when it writes three beats.
+ * The budget now lives in the prompt, stated per reply, and the client's job is
+ * simply to add up what the model already apportioned.
  */
 describe('turnDeltas', () => {
   const beat = (guard, fluster) => ({ guard, fluster });
 
-  it('averages within a reply rather than summing', () => {
-    expect(turnDeltas([beat(-5, 5), beat(-5, 5), beat(-5, 5)])).toEqual({ guard: -5, fluster: 5 });
+  it('adds up the beats of one reply', () => {
+    expect(turnDeltas([beat(-5, 5), beat(-5, 5), beat(-5, 5)])).toEqual({
+      guard: -15,
+      fluster: 15,
+    });
   });
 
-  it('makes a verbose reply worth the same as a terse one', () => {
-    const terse = turnDeltas([beat(-6, 8)]);
-    const chatty = turnDeltas([beat(-6, 8), beat(-6, 8), beat(-6, 8)]);
-    expect(chatty).toEqual(terse);
-  });
-
-  it('still lets a genuinely bigger beat move further', () => {
-    expect(turnDeltas([beat(-14, 18)]).guard).toBeLessThan(turnDeltas([beat(-3, 2)]).guard);
+  it('trusts the model to have split the exchange across them', () => {
+    // The prompt asks for deltas that ADD UP to what the reply moved, so three
+    // small beats and one big one are two ways of saying the same thing.
+    expect(turnDeltas([beat(-3, 4), beat(-3, 4), beat(-3, 4)])).toEqual(
+      turnDeltas([beat(-9, 12)]),
+    );
   });
 
   it('keeps direction when beats disagree', () => {
-    // She bristles, then softens: the reply nets out open. -5.5 rounds to -5,
-    // because Math.round goes toward +Infinity on a tie - a half-point of bias
-    // toward keeping her guard up, which is the harmless direction.
-    expect(turnDeltas([beat(3, 0), beat(-14, 18)])).toEqual({ guard: -5, fluster: 9 });
+    expect(turnDeltas([beat(3, 0), beat(-11, 14)])).toEqual({ guard: -8, fluster: 14 });
   });
 
   it('treats a missing delta as zero, not as a hole', () => {
-    expect(turnDeltas([beat(-4, 4), { emotion: 'shy' }])).toEqual({ guard: -2, fluster: 2 });
+    expect(turnDeltas([beat(-4, 4), { emotion: 'shy' }])).toEqual({ guard: -4, fluster: 4 });
   });
 
   it('survives an empty turn', () => {

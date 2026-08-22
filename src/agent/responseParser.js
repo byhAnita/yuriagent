@@ -141,36 +141,33 @@ export function totalDeltas(beats) {
 }
 
 /**
- * What one TURN moved, which is not the sum of its beats.
+ * What one TURN moved: the sum of its beats, because the model is now the one
+ * that splits the movement across them.
  *
- * A reply carries one to three beats and the model picks how many as a
- * stylistic choice, not as a measure of how far the conversation got. It does
- * not shrink its per-beat numbers when it writes more of them - measured, the
- * per-beat magnitude is much the same either way - so summing made a chatty
- * reply worth three times a terse one for identical player input.
+ * This went round twice, and the second lap is the useful record.
  *
- * Six live scenes with the same seven turns and the same stances:
+ * Summing was wrong while the prompt asked for a magnitude PER BEAT: the model
+ * writes one to three beats as a stylistic choice, so a chatty reply was worth
+ * three times a terse one for identical player input. Measured live, every
+ * seven-beat scene paid nothing and every twenty-one-beat scene paid the
+ * maximum.
  *
- *   7 beats  -> guard drop  9, fluster peak 23  -> paid nothing
- *   7 beats  -> guard drop  0, fluster peak 23  -> paid nothing
- *   21 beats -> guard drop 25, fluster peak 80  -> paid the maximum
+ * Averaging looked like the fix and was not. Twelve live scenes later the bias
+ * had flipped rather than gone: five of six terse scenes paid and one of five
+ * verbose ones did. The reason is upstream of the arithmetic - handed a
+ * per-beat range, the model uses the small end of it when it writes three beats
+ * and a big number when it writes one, so a verbose reply moves her less in its
+ * own numbers however the client adds them up.
  *
- * Averaging makes a turn a turn. Three beats in one reply are one exchange
- * described in three moments, so the mean is the truer reading of where her
- * guard now is - and the scene's payout tracks what the player did rather than
- * how many paragraphs came back.
- *
- * The cost is real and accepted: genuine progression WITHIN a reply is
- * flattened. That is the smaller error, because the model has no notion of
- * budgeting a total across however many beats it is about to write.
+ * So the budget moved into the prompt, where the problem is: the deltas in one
+ * reply must ADD UP to what that exchange moved. Splitting is the model's job,
+ * and it is one it can do - a reply is a single exchange and its length is
+ * known as it writes. The client's job is then simply to add them, which is
+ * also the honest reading of "she opened up a little, and then a little more".
  */
 export function turnDeltas(beats) {
   if (!beats || beats.length === 0) return { guard: 0, fluster: 0 };
-  const { guard, fluster } = totalDeltas(beats);
-  return {
-    guard: Math.round(guard / beats.length),
-    fluster: Math.round(fluster / beats.length),
-  };
+  return totalDeltas(beats);
 }
 
 /**

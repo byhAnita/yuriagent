@@ -389,29 +389,52 @@ Both halves were correct; only the join was missing. No unit test could see it,
 and a headless campaign found it on the first run
 (`src/agent/playthrough.test.js`).
 
-### A turn is the unit, and it is the mean of its beats
+### A turn is one reply, and the model apportions it
 
-The model reports per-beat movement and writes **one to three beats per reply**
-as a stylistic choice. It does not shrink the numbers when it writes more of
-them, so summing made a chatty reply worth three times a terse one for identical
-player input. Measured across six live scenes with the same seven turns and the
-same stances: every seven-beat scene paid nothing, every twenty-one-beat scene
-paid the maximum. Verbosity was progress.
+The model writes **one to three beats per reply** and picks how many as a
+stylistic choice, not as a measure of how far the conversation got. That single
+fact broke the micro-to-macro mapping twice, and the record is worth keeping:
 
-So `turnDeltas` **averages** within a reply. Three beats in one reply are one
-exchange described in three moments, and the mean is the truer reading of where
-her guard now is. Re-measured afterwards, beat count no longer predicts payout -
-a seven-beat scene dropped guard by 19 and a nineteen-beat scene by 6.
+| what the prompt asked for | what the client did | measured over 12 live scenes |
+|---|---|---|
+| a scale per BEAT | sum | verbose pays: every 21-beat scene, no 7-beat scene |
+| a scale per BEAT | mean | the bias **flipped**: 5 of 6 terse paid, 1 of 5 verbose |
+| **a budget per REPLY** | **sum** | verbose pays again: 6 of 7 verbose, 0 of 5 terse |
 
-The cost is accepted and real: genuine progression *within* a reply is
-flattened. That is the smaller error, because the model has no way to budget a
-total across however many beats it is about to write.
+The middle row is the interesting failure. Averaging looks like the obvious fix
+and is not, because the problem is upstream of the arithmetic: handed a per-beat
+range, the model uses the small end of it when it writes three beats and a big
+number when it writes one, so a verbose reply moves her *less* in its own
+numbers however the client adds them up.
 
-The thresholds above moved with the unit. They were 15 and 60 against a summed
-meter; a mean is smaller by construction, and 60 fluster had become literally
-unreachable, which killed the entire "you landed even though her guard held"
-branch. `GUARD_DROP_TO_PAY = 12` and `FLUSTER_PEAK_TO_PAY = 30` are calibrated
-against live guard drops of 0/6/6/-2/15/19 and fluster peaks of 8/14/22/24/30/34.
+So the budget moved into the prompt, where the problem is: **the deltas in one
+reply must add up to what that exchange moved her.** Splitting is the model's
+job, and it is one it can do - a reply is a single exchange and its length is
+known as it writes. The client simply adds them up.
+
+That setting still shows a bias toward verbose replies. It ships anyway, because
+it is the only one of the three that is **correct if the model obeys** -
+averaging an already-apportioned total would get worse as the model improved,
+and a rule that is wrong in the limit is the wrong rule to ship.
+
+A per-SCENE budget was tried first and is the one thing that must not be
+repeated: it overshot to a 55-point guard drop with fluster pegged at 100 by
+turn four, because a scene is many replies and the model cannot see how many are
+left.
+
+Thresholds were recalibrated on the way. They were 15 and 60 against beats that
+were larger and fewer; 60 fluster had become literally unreachable, which killed
+the entire "you landed even though her guard held" branch.
+
+**Known and unfixed: the guard branch does not fire.** Over twelve live scenes
+not one cleared `GUARD_DROP_TO_PAY = 12` - drops were 10, 8, -7, 11, 0, -3, -10,
+-23, 9, 9, 9, -20 - and all six paying scenes paid on fluster alone. Guard is
+behaving as something that fluctuates inside a scene rather than something that
+trends down across one. Lowering the bar to 8 would take the pay rate to 10 of
+12, which is too generous, so it stays until there is a bigger sample. The
+durable fix is probably to have the metadata line report **where she is** rather
+than **how far she moved**; that is a section 9 contract change and wants its
+own session. See `docs/PROPOSALS.md`.
 
 **The offline writer is two to three times more generous per turn than
 DeepSeek**, so harness payout numbers are an upper bound, not a forecast.
@@ -443,18 +466,6 @@ needle further. The punishment is not scaled, because a failed public risk
 already costs 10-20 strain and doubling that at high intimacy would hand the
 problem straight back the other way.
 
-### The scale is stated per beat, never per scene
-
-The thresholds above (15, 60) are sums over a scene, and the model reports
-per-beat movement - but **it writes one to three beats per turn as a stylistic
-choice**, so a scene-level instruction silently multiplies by however many beats
-it felt like writing. Told "her guard should fall 15-30 across a scene", a live
-model produced a 55-point drop with fluster pegged at 100 by turn four. Told the
-per-beat scale instead, six sampled scenes produced a usable spread and four of
-them paid.
-
-That beat-count sensitivity is still the weakest joint in this mapping and is
-written up in `docs/PROPOSALS.md`.
 
 ### A scene occupies one block
 
