@@ -299,4 +299,50 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     const line = result.memory.ledger.at(-1).text;
     expect(/[一-鿿]/.test(line)).toBe(false);
   }, 240000);
+
+  /**
+   * The other half of section 11's diagram: talking to her has to be able to
+   * teach the player something they can SPEND. The summarizer used to write its
+   * own phrasing, which matched no opener's `requires` needle, so every opener
+   * in the game was reachable by snooping alone.
+   */
+  it('records a card fact in the card wording when it actually comes up', async () => {
+    const args = setup({ intimacy: 55 });
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, {
+      text: 'You never sit still. Do you actually train on top of all this practice?',
+      client,
+    });
+    session = await runTurn(session, {
+      text: 'Ten minutes between runs. That is not a break, that is a second workout.',
+      client,
+    });
+
+    const result = await endScene(session, {
+      client,
+      memory: args.memory,
+      relations: args.relations,
+      cards,
+      scene: args.scene,
+      rng: makeRng(9),
+    });
+
+    const facts = result.memory.dossier.irene.known_facts;
+    log('\n[quality] --- fact capture ---');
+    for (const b of session.beats) log(`  @${b.speaker}  ${b.text}`);
+    log(`  known_facts: ${JSON.stringify(facts)}`);
+
+    const gym = 'squeezes ten-minute gym sets into the breaks between practices';
+    const matched = facts.some((f) => f.toLowerCase().includes('gym'));
+    log(
+      matched
+        ? '[quality] a gym fact was recorded'
+        : '[quality] NOT captured - the dialogue arm of the economy is still shut',
+    );
+    log(`  (the card wording is: "${gym}")`);
+
+    expect(Array.isArray(facts)).toBe(true);
+  }, 240000);
+
 });

@@ -201,10 +201,25 @@ export function computeDeltas(session, rel, rng) {
 export async function endScene(session, { client, memory, relations, cards, scene, rng }) {
   const rosterIds = [...session.frame.rosterIds];
 
+  /**
+   * What she could still let slip, in the card's own words.
+   *
+   * Only for members actually in the room, and only facts the player does not
+   * already have - the same scoping rule block 3 uses. See `learnableNote`.
+   */
+  const learnable = rosterIds
+    .map((id) => {
+      const card = cards.find((c) => c.id === id);
+      const known = new Set((memory.dossier[id]?.known_facts ?? []).map((f) => f.toLowerCase()));
+      const facts = (card?.learnableFacts ?? []).filter((f) => !known.has(f.toLowerCase()));
+      return { name: card?.name ?? id, facts };
+    })
+    .filter((x) => x.facts.length > 0);
+
   let parsed;
   try {
     const raw = await client({
-      messages: buildSummarizerMessages(session.frame, buildMessages),
+      messages: buildSummarizerMessages(session.frame, buildMessages, { learnable }),
       preset: 'summarize',
     });
     parsed = parseSummary(raw, { rosterIds });

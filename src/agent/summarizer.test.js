@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { parseSummary, toCommit, SUMMARIZER_INSTRUCTION } from './summarizer.js';
+import {
+  parseSummary,
+  toCommit,
+  SUMMARIZER_INSTRUCTION,
+  buildSummarizerMessages,
+  learnableNote,
+} from './summarizer.js';
 
 const ctx = { rosterIds: ['irene', 'nana'] };
 
@@ -116,5 +122,51 @@ describe('toCommit', () => {
     const commit = toCommit(parsed, { week: 1, day: 3, block: 'evening', id: 's7' });
     expect(commit.entry).toMatchObject({ id: 's7', week: 1, day: 3, block: 'evening' });
     expect(commit.entry.text).toBe(commit.entry.summary);
+  });
+});
+
+/**
+ * The dialogue arm of the knowledge economy.
+ *
+ * Section 11 draws it as `dialogue -> dossier fact -> unlocks an opener`, and
+ * only the snooping arm worked: openers match `requires` needles by substring,
+ * and the summarizer wrote its own phrasing every time. A live scene about
+ * practising alone produced "values trust earned in private, not public" -
+ * a good memory that unlocks nothing that exists.
+ */
+describe('the summarizer is told what she could let slip', () => {
+  it('offers the card wording for facts the player does not have yet', () => {
+    const note = learnableNote([{ name: 'Irene', facts: ['hates cold hands'] }]);
+    expect(note).toContain('Irene: hates cold hands');
+    expect(note).toContain('THIS exact');
+  });
+
+  it('says nothing at all when there is nothing left to learn', () => {
+    expect(learnableNote([])).toBe('');
+    expect(learnableNote([{ name: 'Irene', facts: [] }])).toBe('');
+    expect(learnableNote(undefined)).toBe('');
+  });
+
+  it('tells the model not to fish for them', () => {
+    // A fact awarded for nothing is worse than a fact never awarded: it hands
+    // over an opener the player did not earn.
+    const note = learnableNote([{ name: 'Irene', facts: ['hates cold hands'] }]);
+    expect(note).toContain('If it did not come up, do not add it');
+  });
+
+  it('appends to the instruction rather than replacing it', () => {
+    const frame = { x: 1 };
+    const build = () => [{ role: 'system', content: 'prefix' }];
+    const msgs = buildSummarizerMessages(frame, build, {
+      learnable: [{ name: 'Irene', facts: ['hates cold hands'] }],
+    });
+    expect(msgs[0].content).toBe('prefix');
+    expect(msgs.at(-1).content).toContain('Return JSON only');
+    expect(msgs.at(-1).content).toContain('hates cold hands');
+  });
+
+  it('is byte-identical to the old call when nothing is passed', () => {
+    const build = () => [{ role: 'system', content: 'prefix' }];
+    expect(buildSummarizerMessages({}, build).at(-1).content).toBe(SUMMARIZER_INSTRUCTION);
   });
 });

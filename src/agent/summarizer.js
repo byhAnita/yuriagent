@@ -121,8 +121,47 @@ export function parseSummary(raw, ctx = {}) {
  * Appended at the TAIL of the open frame, so the whole scene prefix is still a
  * cache hit and the miss is only this instruction (~40 tokens, section 8).
  */
-export function buildSummarizerMessages(frame, buildMessages) {
-  return [...buildMessages(frame), { role: 'user', content: SUMMARIZER_INSTRUCTION }];
+export function buildSummarizerMessages(frame, buildMessages, { learnable = [] } = {}) {
+  return [
+    ...buildMessages(frame),
+    { role: 'user', content: SUMMARIZER_INSTRUCTION + learnableNote(learnable) },
+  ];
+}
+
+/**
+ * The card's own wording, offered as a checklist.
+ *
+ * Section 11 draws the knowledge economy as `dialogue -> dossier fact ->
+ * unlocks a specific opener`, and the dialogue arm of it did not work. Openers
+ * match `requires` needles against dossier text, and the summarizer wrote
+ * whatever phrasing it liked - a live scene where Irene talked about practising
+ * alone produced "values trust earned in private, not public", which is a fine
+ * memory and matches no opener that exists. So every opener in the game was
+ * reachable only by snooping, and talking to her taught the player nothing they
+ * could spend. Two thirds of the loop in that diagram was decoration.
+ *
+ * Handing over the exact strings costs ~40 tokens on one call per scene and
+ * makes conversation a real second path into the economy. It is a checklist,
+ * not an instruction to fish: the model is told to use the wording ONLY if the
+ * thing actually came up, because a fact awarded for nothing is worse than a
+ * fact never awarded - it hands over an opener the player did not earn.
+ */
+export function learnableNote(learnable) {
+  if (!learnable || learnable.length === 0) return '';
+  const lines = learnable.flatMap(({ name, facts }) =>
+    (facts ?? []).map((f) => `- ${name}: ${f}`),
+  );
+  if (lines.length === 0) return '';
+
+  return [
+    '',
+    '',
+    'If any of these came up in the scene - she said it, showed it, or it was',
+    'plainly true of her here - add it as a known_facts entry using THIS exact',
+    'wording. If it did not come up, do not add it. Do not steer future scenes',
+    'toward them.',
+    ...lines,
+  ].join('\n');
 }
 
 /** Turn a parsed summary into the shape memory.commitSummary expects. */
