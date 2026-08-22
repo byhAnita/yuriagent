@@ -273,6 +273,12 @@ export default {
     read_the_fridge_result: '便条、一张没人遵守的值日表，还有一句写给某个特定的人的话。你看了两遍。',
   },
 
+  rumorLine: {
+    witnessed: '{name} 当场看见你和 {subject} 在一起。',
+    approach: '{name} 看着你走进 {subject} 的房间。',
+    heard: '{name} 听说你和 {subject} 在{where}。',
+  },
+
   date: {
     title: '约人出去',
     note: '这会花掉一整天，而且别人会发现你不在。',

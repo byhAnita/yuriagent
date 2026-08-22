@@ -276,6 +276,7 @@ export function buildSceneHeader({
   giftNote,
   sceneFrame = null,
   register = null,
+  lang = 'en',
   crossAwareness = [],
   occupancy = {},
   task = null,
@@ -415,6 +416,32 @@ export function buildSceneHeader({
   if (frameText) lines.push('', '## The day', frameText);
   if (register) lines.push('', '## How to write this one', register);
 
+  /**
+   * The language directive, said again.
+   *
+   * It is already at the end of block 1 - and that is roughly 1500 tokens above
+   * the dialogue with three English blocks in between, which is precisely the
+   * distance problem section 8 documents for `speechStyle`. Measured live on a
+   * `zh` run: beats came back in English, switched to Chinese for a few turns,
+   * then reverted. Written chips were Chinese throughout, and their directive
+   * sits right at the tail - which is the same evidence pointing the same way.
+   *
+   * Everything between block 1 and here is English by design (section 19 keeps
+   * memory language-agnostic), so by the time the model reaches the turn it has
+   * read fifteen hundred tokens of English and one sentence asking for Chinese.
+   *
+   * Free in cache terms: block 4 is rebuilt at every scene start anyway.
+   */
+  if (lang && lang !== 'en') {
+    lines.push(
+      '',
+      `## Language - ${LANG_NAMES[lang] ?? lang}`,
+      `Write every line of prose and dialogue below in ${LANG_NAMES[lang] ?? lang}.`,
+      'The notes above are in English for bookkeeping. Do not answer in English.',
+      'Metadata lines, speaker ids and emotion names stay ASCII English.',
+    );
+  }
+
   // `PHASE_WEATHER` and the activity lines can legitimately be absent.
   return lines.filter(Boolean).join('\n');
 }
@@ -455,6 +482,7 @@ export function openScene({
     absent,
     relations,
     player,
+    lang,
     ...scene,
   });
 

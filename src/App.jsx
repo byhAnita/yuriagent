@@ -634,9 +634,20 @@ function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
             {t('exposureBand.public')}
           </h3>
           <ul className="flex flex-col gap-1">
+            {/*
+              Rendered from the rumor's SHAPE, never from `r.text`.
+
+              `r.text` is the dossier line and it is English on purpose -
+              section 19 keeps memory language-agnostic so the player can switch
+              language mid-run without corrupting history. Printing it put
+              English sentences into a Chinese run.
+            */}
             {rumors.map((r, i) => (
               <li key={i} className="font-body text-[0.875rem] italic text-dim">
-                {cards.find((c) => c.id === r.memberId)?.name}: {r.text}
+                {t(`rumorLine.${r.kind ?? 'heard'}`)
+                  .replace('{name}', cards.find((c) => c.id === r.memberId)?.name ?? '')
+                  .replace('{subject}', r.subjectName ?? '')
+                  .replace('{where}', r.locationId ? t(`location.${r.locationId}`) : '')}
               </li>
             ))}
           </ul>
@@ -661,8 +672,19 @@ function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
         </ul>
       </section>
 
-      {memory.ledger.length > 0 ? (
-        <p className="font-body text-[0.875rem] italic text-dim">{memory.ledger.at(-1).text}</p>
+      {/*
+        The player reads `display`, never the ledger line.
+
+        The ledger is memory, and section 19 rule 2 keeps memory in English so
+        the player can switch language mid-run without corrupting history. The
+        summarizer now returns both: `summary` for the ledger and `display` in
+        the language of the run. Falling back to the ledger shows the wrong
+        language rather than nothing, which is the right way round.
+      */}
+      {outcome.summary?.display || memory.ledger.length > 0 ? (
+        <p className="font-body text-[0.875rem] italic text-dim">
+          {outcome.summary?.display || memory.ledger.at(-1)?.text}
+        </p>
       ) : null}
 
       <button

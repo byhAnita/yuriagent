@@ -111,6 +111,10 @@ export function propagate({ scene, subject, cast, relations, rng }) {
       rumors.push({
         memberId: member.id,
         text: phraseWitnessed(subject.name),
+        kind: 'witnessed',
+        subjectId: subject.id,
+        subjectName: subject.name,
+        locationId: scene.locationId,
         witnessed: true,
         exposure,
       });
@@ -123,6 +127,10 @@ export function propagate({ scene, subject, cast, relations, rng }) {
       rumors.push({
         memberId: member.id,
         text: phraseApproach(subject.name),
+        kind: 'approach',
+        subjectId: subject.id,
+        subjectName: subject.name,
+        locationId: scene.locationId,
         witnessed: true,
         exposure: WITNESS_EXPOSURE_FLOOR,
       });
@@ -136,6 +144,10 @@ export function propagate({ scene, subject, cast, relations, rng }) {
       rumors.push({
         memberId: member.id,
         text: phraseRumor(subject.name, scene.locationId),
+        kind: 'heard',
+        subjectId: subject.id,
+        subjectName: subject.name,
+        locationId: scene.locationId,
         witnessed: false,
         exposure: scene.exposure,
       });

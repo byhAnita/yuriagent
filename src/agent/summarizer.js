@@ -15,11 +15,31 @@
 
 import { DOSSIER_CATEGORIES } from './memory.js';
 
+/**
+ * Two summaries, and they are not the same sentence.
+ *
+ * `summary` is MEMORY and stays English whatever the scene was written in -
+ * section 19 rule 2, so the player can switch language mid-run without
+ * corrupting history and one card library serves every locale.
+ *
+ * `display` is for the PLAYER and is written in the language they are playing
+ * in. Without it the aftermath screen printed the memory line, which put an
+ * English sentence at the end of every Chinese scene. Costs about twenty output
+ * tokens on a call that already exists.
+ */
+export function summarizerInstruction(lang = 'en') {
+  const base = SUMMARIZER_INSTRUCTION;
+  if (!lang || lang === 'en') return base;
+  return `${base}
+"display" is the same sentence written for the player, in ${lang}. Never English.`;
+}
+
 export const SUMMARIZER_INSTRUCTION = [
   'The scene has ended. Return JSON only, no prose, no markdown fence.',
   '',
   '{',
-  '  "summary": "one sentence, under 120 characters, past tense",',
+  '  "summary": "one sentence, under 120 characters, past tense, ENGLISH",',
+  '  "display": "the same sentence, in the language the scene was written in",',
   '  "dossier_add": [{ "memberId": "id", "category": "known_facts", "text": "short fact" }],',
   '  "dossier_resolve": [{ "memberId": "id", "text": "the thread that got answered" }]',
   '}',
@@ -74,6 +94,9 @@ function sanitize(parsed, { rosterIds = [] } = {}) {
 
   return {
     summary: String(parsed?.summary ?? '').trim().slice(0, 200),
+    // Falls back to the English one rather than showing nothing: a missing
+    // display line should degrade to the wrong language, never to a blank.
+    display: String(parsed?.display ?? parsed?.summary ?? '').trim().slice(0, 200),
     dossierAdd: clean(parsed?.dossier_add, true).slice(0, 3),
     dossierResolve: clean(parsed?.dossier_resolve, false).slice(0, 3),
   };
@@ -121,10 +144,10 @@ export function parseSummary(raw, ctx = {}) {
  * Appended at the TAIL of the open frame, so the whole scene prefix is still a
  * cache hit and the miss is only this instruction (~40 tokens, section 8).
  */
-export function buildSummarizerMessages(frame, buildMessages, { learnable = [] } = {}) {
+export function buildSummarizerMessages(frame, buildMessages, { learnable = [], lang = 'en' } = {}) {
   return [
     ...buildMessages(frame),
-    { role: 'user', content: SUMMARIZER_INSTRUCTION + learnableNote(learnable) },
+    { role: 'user', content: summarizerInstruction(lang) + learnableNote(learnable) },
   ];
 }
 

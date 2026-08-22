@@ -342,7 +342,7 @@ export async function endScene(session, { client, memory, relations, cards, scen
   let parsed;
   try {
     const raw = await client({
-      messages: buildSummarizerMessages(session.frame, buildMessages, { learnable }),
+      messages: buildSummarizerMessages(session.frame, buildMessages, { learnable, lang: scene.lang }),
       preset: 'summarize',
     });
     parsed = parseSummary(raw, { rosterIds });

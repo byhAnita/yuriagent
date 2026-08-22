@@ -83,21 +83,21 @@ export default function DormMap({ cards, relations, occupancy, onBack, onEnterRo
           label={t('location.dorm_living')}
           note={t('map.dormNote')}
           right={inLiving.length ? faces(inLiving) : null}
-          onClick={() =>
-            inLiving.length
-              ? onEnterRoom('dorm_living', inLiving.map((c) => ({ id: c.id })))
-              : onEnterSolo('dorm_living')
-          }
+          /**
+           * The shared dorm rooms open the ROOM, never a scene.
+           *
+           * They used to walk the player straight into a 1v1 with whoever was
+           * listed first, which is the worst possible default here: the dorm is
+           * where the whole cast is, so it is where an unchosen 1v1 costs the
+           * most in witnessed jealousy (section 5b).
+           */
+          onClick={() => onEnterSolo('dorm_living', inLiving.map((c) => ({ id: c.id })))}
         />
 
         <Room
           label={t('location.dorm_kitchen')}
           right={inKitchen.length ? faces(inKitchen) : null}
-          onClick={() =>
-            inKitchen.length
-              ? onEnterRoom('dorm_kitchen', inKitchen.map((c) => ({ id: c.id })))
-              : onEnterSolo('dorm_kitchen')
-          }
+          onClick={() => onEnterSolo('dorm_kitchen', inKitchen.map((c) => ({ id: c.id })))}
         />
 
         <Room

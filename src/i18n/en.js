@@ -273,6 +273,21 @@ export default {
     read_the_fridge_result: 'Notes, a rota nobody follows, and one thing written to somebody in particular. You read it twice.',
   },
 
+  /**
+   * What she found out, for the PLAYER to read.
+   *
+   * The same event is stored in her dossier in English (section 19 rule 2:
+   * memory is language-agnostic so the player can switch mid-run without
+   * corrupting history). These are the display twin of those lines, and the
+   * two must never be confused - printing the memory string put English into a
+   * Chinese run, which is what this exists to stop.
+   */
+  rumorLine: {
+    witnessed: '{name} saw you with {subject}.',
+    approach: "{name} watched you go into {subject}'s room.",
+    heard: '{name} heard you were at {where} with {subject}.',
+  },
+
   date: {
     title: 'Ask someone out',
     note: 'It takes the whole day, and the others will notice you were gone.',
