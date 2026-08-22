@@ -254,3 +254,59 @@ system's most legible surface - the witnessed gesture in section 5b - is the
 part of the design with no path to being seen. `VNStage` renders one portrait,
 so `App` passes a roster of one, so `WITNESS_EXPOSURE_FLOOR` has never fired in
 play. Everything behind it is built and tested.
+
+---
+
+## 9. The plateau gets harder to escape the closer you get
+
+**Priority: high, and it interacts with #1.** Observed while A/B-testing the
+secrecy change; not yet acted on.
+
+### Measured
+
+`STAGE_A_MIN` steps the admissibility requirement up as intimacy crosses each
+tier boundary: `nameless` wants 20, `unspoken` 40, `ours` 60, and the plateau
+triggers ten below each. So the bar to escape `confidante` is **10 at intimacy
+60, 30 at intimacy 75, and 50 at intimacy 90** - while a successful public risk
+pays 3-6 and there is at most one per scene.
+
+Two campaigns on the same seed, differing only in whether secrecy recovers:
+
+| | intimacy | admissibility | endings |
+|---|---|---|---|
+| recovery on | 71-77 | 12-23 | 5x `confidante_end` |
+| recovery off | 54-69 | 0-12 | 2x `unnamed_end`, 3x `confidante_end` |
+
+The run with **lower** intimacy got the better endings, because at intimacy
+54-69 an admissibility of 10-12 clears the `nameless` bar, and at 71-77 the same
+admissibility is 18 short of the `unspoken` one.
+
+### Why it matters
+
+It inverts the incentive at exactly the wrong moment. Getting closer to her
+raises the price of ever being able to name it, so a player who has been
+building intimacy efficiently - which is what the openers reward - walks into a
+wall they cannot see and cannot easily climb. It also means intimacy inflation
+(the repeatable +5 opener) is not just a pacing problem: it actively buys the
+player a worse ending.
+
+Note this is *not* what I first assumed. The secrecy fix looked like it had
+suppressed public scenes by removing the free +21 exposure from a floored
+secrecy; measured, public scenes were 40 vs 38 and risks 27 vs 21. The bar
+moving, not the opportunities disappearing, is what did it.
+
+### Options
+
+1. **Flatten the step.** Make `STAGE_A_MIN` rise proportionally rather than in
+   20-point jumps, so the plateau bar tracks intimacy smoothly instead of
+   lurching at 70 and 85.
+2. **Pay admissibility proportionally too.** A successful risk at high intimacy
+   is worth more than one at `colleague` - which is also true in fiction: being
+   seen with someone you are obviously close to says more.
+3. **Cap the opener's contribution to intimacy**, so intimacy stops outrunning
+   admissibility in the first place. Overlaps with #1 and with section 11's
+   deliberate choice to make the object repeatable.
+
+**Recommendation: option 2.** It fixes the incentive without touching the map,
+and "the more there is between you, the more a public gesture costs and means"
+is the game's own thesis rather than a balance patch.

@@ -130,6 +130,9 @@ async function playCampaign({
   policy = 'balanced',
   turnsPerScene = 4,
   snoopRate = 0.25,
+  // 0 disables overnight secrecy recovery, for the A/B that measured its
+  // knock-on effect on how many scenes cross the risk threshold.
+  secrecyBaseline = 70,
   weeks = WEEKS_PER_CAMPAIGN,
 } = {}) {
   const cards = getCast();
@@ -452,7 +455,7 @@ async function playCampaign({
           relations[id] = applySceneOutcome(relations[id], { strain });
         }
       }
-      nextPlayer = restOvernight(nextPlayer);
+      nextPlayer = restOvernight(nextPlayer, { secrecyBaseline });
       taskState = newTaskState();
       taskDone = false;
     } else {
@@ -536,6 +539,9 @@ describe('a whole campaign through the real engine', () => {
     async () => {
       const out = await playCampaign({ seed: 7, policy: 'balanced' });
       report('balanced, seed 7', out);
+      if (process.env.HARNESS_AB) {
+        report('balanced, seed 7, no secrecy recovery', await playCampaign({ seed: 7, policy: 'balanced', secrecyBaseline: 0 }));
+      }
 
       expect(out.stats.blocks).toBe(WEEKS_PER_CAMPAIGN * DAYS_PER_WEEK * BLOCKS.length);
       expect(out.stats.scenes).toBeGreaterThan(30);
