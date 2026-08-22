@@ -33,6 +33,7 @@ import { availableStances } from '../systems/chips.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { makeRng } from '../systems/rng.js';
+import { GUARD_DROP_TO_PAY, FLUSTER_PEAK_TO_PAY } from '../config/constants.js';
 
 const { apiKey, modelId, live } = liveConfig();
 
@@ -46,6 +47,16 @@ const { apiKey, modelId, live } = liveConfig();
  */
 const enabled = live && Boolean(process.env.LIVE_QUALITY);
 const log = (...a) => process.stdout.write(`${a.join(' ')}\n`);
+
+/**
+ * The real thresholds, imported rather than copied.
+ *
+ * They were copied once, and after `GUARD_DROP_TO_PAY` / `FLUSTER_PEAK_TO_PAY`
+ * moved, the report cheerfully printed "0/6 paid" for a sample in which one
+ * scene had in fact cleared the fluster bar. A measurement harness that lies is
+ * worse than none.
+ */
+const pays = (r) => r.drop >= GUARD_DROP_TO_PAY || r.peak >= FLUSTER_PEAK_TO_PAY;
 
 const cards = getCast();
 const castIds = cards.map((c) => c.id);
@@ -120,11 +131,11 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
         log(
           `  beats ${String(r.beats).padStart(3)}  guard drop ${String(r.drop).padStart(4)}  ` +
             `fluster peak ${String(r.peak).padStart(4)}  pays ${
-              r.drop >= 15 || r.peak >= 60 ? 'yes' : 'NO'
+              pays(r) ? 'yes' : 'NO'
             }`,
         );
       }
-      const paid = runs.filter((r) => r.drop >= 15 || r.peak >= 60).length;
+      const paid = runs.filter((r) => pays(r)).length;
       log(`[quality] ${paid}/${samples} scenes paid any intimacy at all`);
     }
 

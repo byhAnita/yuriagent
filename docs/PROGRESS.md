@@ -7,7 +7,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M4 complete plus a post-M4 pass, M5 next
 
-**411 tests, lint and build clean.** The game is playable end to end for a day:
+**421 tests, lint and build clean.** The game is playable end to end for a day:
 map -> empty room or scene -> opener -> dialogue -> exit -> rumor -> rollover,
 with no API key required.
 
@@ -34,9 +34,16 @@ each. Read it before tuning anything.
 
 ### Measured, so it does not have to be re-derived
 
-- **Balance ending: 1/20 for `balanced`, 0/20 for `expert`** (~5%, inside
-  section 5b's "under 10%" target). Near-misses are one member short, and the
-  member is always stuck on the plateau.
+- **Endings by policy** after the balance pass, 5 seeds x 5 members: good
+  endings per route are expert 88%, bold 84%, balanced 52%, spread 24%,
+  devoted 20% - and devoted now reaches out_end for the one route it commits
+  to. Reading the map beats spreading thin; spreading thin beats no plan.
+- **All five good: 4/20 for expert, 0/20 for bold.** The balance ending, which
+  additionally wants jealousy under 50 everywhere, is **0/20 for both** - so
+  jealousy is now the binding constraint on it rather than admissibility. That
+  is what section 5b intends, but reachability under the new coefficients has
+  not been demonstrated and should be, with a policy that converts piqued
+  deliberately rather than by luck.
 - **Endings by policy**, 5 seeds x 5 members: `balanced` 64% good, `spread` 48%,
   `expert` 52%, `bold` 32%, `devoted` 12% (correctly - it gets `ours_end` for
   the one route and `drift_end` for the four it ignored).
@@ -376,3 +383,6 @@ after being written down.
 | 2026-08-22 | The day screen marks a stalled route and says what it needs (proposal 5). |
 | 2026-08-22 | **Rumors were writing localized text into English memory.** `phraseRumor` took `scene.locationLabel`, which App builds with `t()`, so a `zh` run put "you heard the player was at 练习室 with Irene" into `heard_about`, block 3 and the save. Section 19 rule 2 exists so language can be switched mid-run. The name now comes from the location table. |
 | 2026-08-22 | Section 10 corrected: **Read her is the energy sink, not the block.** A busy day that never reads her is energy-positive by 3-5, and a measured campaign never went below 77/100. |
+| 2026-08-22 | **A turn is the mean of its beats** (proposal 1). Summing made a chatty reply worth 3x a terse one for identical input. Thresholds moved with the unit: `GUARD_DROP_TO_PAY` 15 -> 12, `FLUSTER_PEAK_TO_PAY` 60 -> 30, the latter having become literally unreachable. **Not finished** - the beat-count bias flipped rather than vanished, because the model uses small per-beat numbers when it writes three of them. See PROPOSALS 1. |
+| 2026-08-22 | **A survived public risk scales with intimacy** (proposal 9): `(3..6) x (1 + I/100 x 1.2)`, failure branch flat. Escaping the plateau costs 10 admissibility at intimacy 60 and 50 at 90, so a flat payout meant getting closer to her bought a worse ending. Good endings by policy: spread 24%, devoted 20%, balanced 52%, bold 84%, expert 88%. |
+| 2026-08-22 | Added PROPOSALS 10: phase-specific maps and authored event scenes (Yuhan's design). Not implemented - written up for confirmation, with the two objections that matter (a whole-day location does not fit a three-block clock, and a map bigger than ~10 reachable rooms per phase is mostly empty). |

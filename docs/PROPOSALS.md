@@ -30,6 +30,35 @@ the campaign harness reports is an upper bound. Aligning the mock's magnitudes
 with the live model would make the harness numbers trustworthy, and would mean
 re-baselining a lot of existing test expectations.
 
+### Not finished: the bias reversed
+
+Twelve live scenes after the change, 6 of 12 paid - but the correlation with
+beat count did not disappear, it **flipped**:
+
+| beats per scene | scenes | paid |
+|---|---|---|
+| 7 (one per turn) | 6 | 5 |
+| 20-21 (three per turn) | 5 | 1 |
+
+The cause is not the aggregation. It is that the model, given the per-beat scale
+guidance, uses the *small* end of the range ("1-3, keeping the conversation
+alive") when it writes three beats and a big number when it writes one. So a
+verbose reply moves less in the model's own numbers, whichever way the client
+adds them up - summing those same scenes would have paid one or two of five.
+
+Neither summing nor averaging can fix that, because the problem is upstream of
+the arithmetic. The next thing to try is prompt-side and bounded: **tell the
+model that the deltas across one reply should add up to how far that exchange
+moved her**, and go back to summing. A per-*reply* budget is not the per-*scene*
+budget that overshot badly earlier - a reply is one exchange, and its length is
+known to the model as it writes.
+
+Do not tune the thresholds again before that experiment. The sample-to-sample
+variance is large (two consecutive six-scene samples averaged +7.8 and -3.3
+guard drop on the same script), and the current script also has the player
+`press`ing twice at intimacy 45, so these numbers describe an indifferent
+player rather than a good one.
+
 ### Measured
 
 Six identical seven-turn scenes against DeepSeek, same setup, same stances:
