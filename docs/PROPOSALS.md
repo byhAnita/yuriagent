@@ -849,3 +849,141 @@ collected or used. It needs:
 
 Order: the name and the pronoun rule first, because they are global and cheap;
 the registers with dating; the event frames with the events.
+
+---
+
+## 14. A fact is one string doing three jobs
+
+**Status: PROPOSED 2026-08-22, not implemented.** Found by Yuhan in a `zh`
+session: a learned fact shows in English. The other three bugs from that session
+were fixed directly; this one is a schema question and wants deciding first.
+
+### The diagnosis
+
+`learnableFacts` entries are used for three different things:
+
+| job | who reads it | what it needs to be |
+|---|---|---|
+| a line in prompt block 3 | the model | **English** - section 19 rule 2, so memory survives a language switch |
+| the needle a gift `requires` | `economy.js`, by substring | **stable and machine-comparable** |
+| the sentence after a snoop | the player | **the player's language** |
+
+One string cannot be all three, and today it is. It only looks correct because
+the third job is invisible in an English run.
+
+**This is the only card field with that problem**, which is worth stating
+because it bounds the whole thing. `personality`, `speechStyle` and
+`queerTexture` are prompt-only and never shown. `name`, `emoji` and `palette`
+are display-only and never semantic. Gift and gesture labels are already keyed
+by gift id and localized. `learnableFacts` is the single field that is *both*
+prompt-facing and player-facing, so it is the single field that needs splitting.
+
+### The rule
+
+> Every stored string has a **canonical English form** for memory and matching,
+> and a **display form** in the player's language. Authored content takes its
+> display form from `i18n/`. Generated content gets it from the model, in the
+> same call that generated it.
+
+The second half already exists as of the section 19 fix: the summarizer now
+returns `display` beside `summary` for exactly this reason. This proposal is the
+same move applied to facts.
+
+### Authored facts: give them ids
+
+```json
+"learnableFacts": ["cold_hands", "no_sleep_before_comeback"]
+```
+
+with `fact.cold_hands` in `i18n/en.js` and `i18n/zh.js`.
+
+This is worth doing even setting the language bug aside, because it fixes
+something section 12 already complains about. Gift `requires` matches dossier
+text **by substring**, and section 12 records that this "has regressed twice
+during content rewrites" - a fact reworded on a card silently unlocks nothing.
+An id cannot be reworded by accident.
+
+It does not replace substring matching, because there are two ways a fact
+reaches the dossier and only one of them has an id:
+
+- **snooped** - drawn from `learnableFacts`, so the id is known at the moment it
+  is awarded. Match by id. Display from `i18n/`.
+- **from dialogue** - written by the summarizer in its own words, so there is no
+  id and never can be. Match by substring, as now. Display from the
+  summarizer's own `display` field.
+
+### The dossier entry becomes an object
+
+```js
+known_facts: [{ text: 'hates cold hands', factId: 'cold_hands', display: '怕手冷' }]
+```
+
+`text` stays English and stays what the prompt sees, so blocks 3 and 5 do not
+change at all and neither does the cache behaviour.
+
+**Do this now rather than later.** Section 15's schema has these as bare
+strings, and `store/save.js` is still an empty stub - so there are no saves in
+the world to migrate. This is the last moment the change is free, and after
+save/load ships it needs a `schemaVersion` bump and a migration.
+
+### Custom cards: the same resolver, from the other direction
+
+A player writing a card types everything in their own language, which inverts
+section 12's rule that semantic fields are authored English. A custom card
+cannot ship `i18n/` files either, so its facts have to carry their text inline:
+
+```json
+"learnableFacts": [{ "id": "hates_cold", "zh": "怕手冷", "en": "hates cold hands" }]
+```
+
+So the resolver takes **either shape** - a bare id resolved through `i18n/`, or
+an object carrying its own text - and everything else in the game calls the
+resolver rather than reading the field. Shipped cards stay tidy (translations
+live with translations); custom cards stay self-contained and portable as a
+single file, which section 12 cares about.
+
+Two functions, and nothing outside them ever touches `learnableFacts` directly:
+
+```js
+factCanonical(fact)      // English, for prompt + matching. Always defined.
+factDisplay(fact, lang)  // the player's language, falling back to canonical.
+```
+
+### The English a custom card has no way to produce
+
+A card authored in Chinese has no canonical English, and memory needs one.
+Three options:
+
+1. **Translate once at import.** One model call when the card is saved,
+   producing the English canonical fields; the original stays as the `zh`
+   display. Costs one call per card, once, and the card is fully portable
+   afterwards.
+2. **Let memory drift into the authoring language.** Cheapest, and it breaks
+   section 19's guarantee that the player can switch language mid-run.
+3. **Declare the card single-locale.** It carries `lang: "zh"` and the picker
+   says so. No call, no drift, no portability.
+
+**Recommended: 1, with 3 as the automatic fallback.** A card records the
+language it was written in; if the translation has not run - no key, offline,
+the player declined - it stays single-locale and the picker is honest about it.
+What must not happen is option 2 by default, because a save that silently mixes
+languages in its ledger cannot be repaired later.
+
+This also means **the game must not require a model call to make a card.**
+Offline play is a supported mode (section 3), so creating a card offline has to
+work and simply produce a single-locale one.
+
+### Scope
+
+Small, and mostly mechanical:
+
+- `data/facts.js` - the resolver, plus the id table for shipped cards
+- five card files - facts become ids
+- `i18n/en.js`, `i18n/zh.js` - 25 `fact.*` keys each
+- `data/gifts.js` - `requires` gains `factIds`, keeps the paraphrase list for
+  summarizer-written entries
+- `systems/soloWork.js` - awards `{ text, factId, display }`
+- `agent/memory.js` - dossier entries are objects; `renderDossier` reads `.text`
+- one test that a `zh` run puts no ASCII sentence on the snoop screen
+
+The card-editor half is v2 and only needs the resolver to exist now.
