@@ -115,6 +115,17 @@ export const MAX_CHIP_LABEL = 64;
  */
 export const CHIP_FAILURES_BEFORE_GIVING_UP = 2;
 
+/**
+ * ...and how many turns it stays given up for.
+ *
+ * Measured against a busy provider, a chip call that normally takes 1.4s took
+ * 8.1s. A latch that switched the writer off for the rest of the scene turned a
+ * two-minute slow patch into eight turns of plain stance names, which is what
+ * "after one round it was hardcoded for the whole conversation" looked like
+ * from the outside. A cooldown costs a few turns instead of all of them.
+ */
+export const CHIP_COOLDOWN_TURNS = 3;
+
 /** Every block spent costs this; Read her costs one on top. */
 export const ENERGY_PER_BLOCK = 6;
 export const ENERGY_PER_READ = 1;

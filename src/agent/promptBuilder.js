@@ -119,6 +119,26 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '## Cast',
     cards.map((c) => renderCard(c, lineup?.[c.id] ?? [], false)).join('\n\n'),
     '',
+    /**
+     * The differentiation directive.
+     *
+     * The cards already carry public image, personality, speech and the unnamed
+     * thing, but a small model treats them as colour and writes one generic idol
+     * five times over. Naming those three fields as THE differentiators, and
+     * saying what the test is - the same event must read differently depending
+     * on who is in the room - is what makes them load-bearing rather than
+     * decorative. Section 9's roster rule stops the wrong NAME appearing; this
+     * is what stops the right name sounding like everyone else.
+     */
+    '## CRITICAL - they are not interchangeable',
+    'Public image, personality and the unnamed thing are the PRIMARY differentiators',
+    'for every scene. The same event must feel distinct depending on which member is',
+    'present: her voice, her body language, what she notices, what she refuses to say,',
+    'and how she deflects should all follow from her card and nobody else\'s.',
+    'Never flatten a member into a generic idol. If a line could have been spoken by',
+    'any of the five, it is wrong - rewrite it as something only she would say.',
+    'Her speech style governs sentence length, register and how much she leaves out.',
+    '',
     '## How to write',
     '- 30 to 50 words per beat. Short. This is dialogue, not narration.',
     '- Actions in *asterisks*, speech in "quotes".',

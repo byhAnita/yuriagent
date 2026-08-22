@@ -22,8 +22,15 @@ describe('knowledge gating', () => {
   });
 
   it('also matches things the player told her', () => {
-    const told = { known_facts: [], player_told_her: ['you are homesick for Busan'] };
-    expect(isUnlocked(getGift('hometown_dish'), told)).toBe(true);
+    const told = { known_facts: [], player_told_her: ['kimchi fried rice is her comfort food'] };
+    expect(isUnlocked(getGift('kimchi_kit'), told)).toBe(true);
+  });
+
+  /** A gift id from an older catalogue must not take the modal down. */
+  it('treats an unknown gift id as locked rather than throwing', () => {
+    expect(() => isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).not.toThrow();
+    expect(isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).toBe(false);
+    expect(canPurchase('a_gift_that_no_longer_exists', knowsCold, 999)).toBe(false);
   });
 
   it('money is not the constraint - attention is', () => {

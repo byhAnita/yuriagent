@@ -23,7 +23,10 @@ import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, getGift } from '../data/gifts.js';
  * cannot be satisfied by the seam between two unrelated facts.
  */
 export function matchedFact(gift, dossier) {
-  if (!gift.requires) return null;
+  // A null gift means an id that no longer exists - a save written against an
+  // older catalogue, say. That must read as "not unlocked", never as a crash
+  // that takes the gift modal down with it.
+  if (!gift?.requires) return null;
   const facts = [...(dossier?.known_facts ?? []), ...(dossier?.player_told_her ?? [])];
   for (const fact of facts) {
     const hay = String(fact).toLowerCase();
@@ -34,6 +37,7 @@ export function matchedFact(gift, dossier) {
 
 /** Does anything she has told you match what this gift needs to know? */
 export function isUnlocked(gift, dossier) {
+  if (!gift) return false;
   if (!gift.requires) return true;
   return matchedFact(gift, dossier) !== null;
 }

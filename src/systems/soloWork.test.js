@@ -230,48 +230,6 @@ describe('goodwillTargets', () => {
  * exactly one possible owner and the whole economy was a fixed lookup.
  */
 describe('knowledge is not a fixed lookup', () => {
-  it('leaves no knowledge gift unreachable', () => {
-    for (const gift of KNOWLEDGE_GIFTS) {
-      const owners = cards.filter((c) =>
-        (c.learnableFacts ?? []).some((f) => isUnlocked(gift, { known_facts: [f] })),
-      );
-      expect(owners.length, `${gift.id} is unreachable`).toBeGreaterThan(0);
-    }
-  });
-
-  /**
-   * The property that actually kills the fixed lookup. One gift per member
-   * means learning anything about her tells you exactly what to buy; several
-   * means what you can buy depends on which fact you happened to turn up.
-   */
-  it('gives every member more than one gift to reach', () => {
-    for (const card of cards.filter((c) => (c.learnableFacts ?? []).length > 0)) {
-      const reachable = KNOWLEDGE_GIFTS.filter((g) =>
-        card.learnableFacts.some((f) => isUnlocked(g, { known_facts: [f] })),
-      );
-      expect(reachable.length, `${card.id} only reaches ${reachable.length} gift(s)`).toBeGreaterThan(1);
-    }
-  });
-
-  it('gives each member enough to learn that the order matters', () => {
-    for (const card of cards.filter((c) => (c.learnableFacts ?? []).length > 0)) {
-      expect(card.learnableFacts.length, `${card.id}`).toBeGreaterThanOrEqual(5);
-    }
-  });
-
-  /**
-   * One fact must not trip two gifts. That is a wording accident rather than a
-   * design choice, and it quietly makes a second gift free.
-   */
-  it('does not let one fact unlock two different gifts', () => {
-    for (const card of cards) {
-      for (const fact of card.learnableFacts ?? []) {
-        const hits = KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [fact] }));
-        expect(hits.length, `"${fact}" unlocks ${hits.map((h) => h.id).join(', ')}`).toBeLessThan(2);
-      }
-    }
-  });
-
   it('learns different things about the same member on different seeds', () => {
     const learnedFor = (seed) => {
       const out = resolveSoloAction({
@@ -289,7 +247,6 @@ describe('knowledge is not a fixed lookup', () => {
       const got = learnedFor(seed);
       if (got) seen.add(got);
     }
-    // Not just several members - several distinct facts overall.
     expect(seen.size).toBeGreaterThan(6);
   });
 
@@ -306,5 +263,74 @@ describe('knowledge is not a fixed lookup', () => {
       if (out.learned) members.add(out.learned.memberId);
     }
     expect(members.size).toBeGreaterThan(2);
+  });
+});
+
+/**
+ * One gift per fact, one fact per gift. CLAUDE.md sections 11 and 12.
+ *
+ * Reported as "we always get jisoo annotated script for jisoo". The snoop rng
+ * was already even across members and across facts; the economy was a lookup
+ * because eight shared objects sat behind two facts per member. Twenty-five
+ * facts and twenty-five gifts is what gives the randomness something to do.
+ */
+describe('every fact buys its own gift', () => {
+  const withFacts = cards.filter((c) => (c.learnableFacts ?? []).length > 0);
+  const giftsFor = (fact) => KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [fact] }));
+
+  it('gives every member five facts', () => {
+    for (const card of withFacts) {
+      expect(card.learnableFacts.length, card.id).toBe(5);
+    }
+  });
+
+  it('unlocks exactly one gift per fact - never none, never two', () => {
+    for (const card of withFacts) {
+      for (const fact of card.learnableFacts) {
+        const hits = giftsFor(fact);
+        expect(hits.length, `"${fact}" -> [${hits.map((h) => h.id).join(', ')}]`).toBe(1);
+      }
+    }
+  });
+
+  it('leaves no knowledge gift unreachable', () => {
+    for (const gift of KNOWLEDGE_GIFTS) {
+      const owners = withFacts.filter((c) =>
+        c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [f] })),
+      );
+      expect(owners.length, `${gift.id} is unreachable`).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * Not strict, but strongly preferred: a gift that answers two different
+   * members is a gift that says nothing about either of them.
+   */
+  it('does not hand the same gift to two members', () => {
+    for (const gift of KNOWLEDGE_GIFTS) {
+      const owners = withFacts
+        .filter((c) => c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [f] })))
+        .map((c) => c.id);
+      expect(owners.length, `${gift.id} <- ${owners.join(', ')}`).toBe(1);
+    }
+  });
+
+  it('never repeats a fact across the cast', () => {
+    const seen = new Map();
+    for (const card of withFacts) {
+      for (const fact of card.learnableFacts) {
+        const key = fact.toLowerCase();
+        expect(seen.has(key), `"${fact}" on ${card.id} and ${seen.get(key)}`).toBe(false);
+        seen.set(key, card.id);
+      }
+    }
+  });
+
+  /** Which gift opens has to depend on what you turned up, not on who she is. */
+  it('leaves every member several different gifts to reach', () => {
+    for (const card of withFacts) {
+      const reachable = new Set(card.learnableFacts.flatMap((f) => giftsFor(f).map((g) => g.id)));
+      expect(reachable.size, card.id).toBeGreaterThan(2);
+    }
   });
 });

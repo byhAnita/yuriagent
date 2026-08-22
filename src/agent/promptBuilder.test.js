@@ -222,3 +222,55 @@ describe('buildMessages', () => {
     expect(messages.filter((m) => m.role === 'system')).toHaveLength(1);
   });
 });
+
+/**
+ * They are not interchangeable. CLAUDE.md sections 1 and 12.
+ *
+ * The card fields were always in block 1, and a small model still wrote one
+ * generic idol five times. Naming public image, personality and the unnamed
+ * thing as the differentiators - and stating the test, that the same event must
+ * read differently depending on who is present - is what makes them
+ * load-bearing instead of decorative.
+ */
+describe('the differentiation directive', () => {
+  const cards = getCast();
+  const block = buildSystemBlock({
+    cards,
+    lineup: buildLineup(cards),
+    identity: { promptRole: 'an artist assistant' },
+    playerName: 'You',
+    lang: 'en',
+  });
+
+  it('names the three fields that must drive the difference', () => {
+    expect(block).toMatch(/PRIMARY differentiators/);
+    expect(block).toMatch(/public image/i);
+    expect(block).toMatch(/personality/i);
+    expect(block).toMatch(/unnamed thing/i);
+  });
+
+  it('states the test a line has to pass', () => {
+    expect(block).toMatch(/could have been spoken by/i);
+    expect(block).toMatch(/generic idol/i);
+  });
+
+  it('sits above the writing rules, where a directive is read as a rule', () => {
+    expect(block.indexOf('PRIMARY differentiators')).toBeLessThan(block.indexOf('## How to write'));
+  });
+
+  /** A directive about the cards is worthless if the cards are not there. */
+  it('actually carries every differentiating field for every member', () => {
+    for (const card of cards) {
+      expect(block).toContain(card.personality);
+      expect(block).toContain(card.speechStyle);
+      expect(block).toContain(card.queerTexture);
+      expect(block).toContain(card.publicImage);
+    }
+  });
+
+  it('still never leaks the real group a card came from', () => {
+    for (const card of cards) {
+      if (card.origin) expect(block).not.toContain(card.origin);
+    }
+  });
+});

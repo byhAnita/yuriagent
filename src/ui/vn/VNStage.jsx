@@ -28,6 +28,7 @@ import {
   READ_HER_USES_PER_SCENE,
   SCENE_TURN_LIMIT,
   CHIP_FAILURES_BEFORE_GIVING_UP,
+  CHIP_COOLDOWN_TURNS,
 } from '../../config/constants.js';
 import { makeRng } from '../../systems/rng.js';
 
@@ -80,6 +81,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
    */
   const turnToken = useRef(0);
   const chipFailures = useRef(0);
+  const chipCooldown = useRef(0);
 
   /**
    * The stances currently on the bar, for backfilling a partial written set.
@@ -126,7 +128,13 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
         lang: setup.lang,
       });
 
-      chipFailures.current = ok ? 0 : chipFailures.current + 1;
+      if (ok) {
+        chipFailures.current = 0;
+      } else if ((chipFailures.current += 1) >= CHIP_FAILURES_BEFORE_GIVING_UP) {
+        // Stand down for a few turns rather than for the rest of the scene.
+        chipFailures.current = 0;
+        chipCooldown.current = CHIP_COOLDOWN_TURNS;
+      }
 
       if (token !== turnToken.current) return;
       if (got.some((c) => c.label)) setWritten(got);
@@ -154,7 +162,8 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
         setSession(next);
         if (!opening) setTurn((n) => n + 1);
 
-        if (writtenChips && chipFailures.current < CHIP_FAILURES_BEFORE_GIVING_UP) {
+        if (chipCooldown.current > 0) chipCooldown.current -= 1;
+        else if (writtenChips) {
           // Deliberately not awaited. The turn is over as far as the UI cares.
           requestWrittenChips(next.frame, token);
         }
