@@ -23,6 +23,7 @@ import {
   openingDirective,
 } from '../../agent/sceneEngine.js';
 import { generateChips, suggestedStances, availableStances } from '../../systems/chips.js';
+import { relanguage } from '../../agent/promptBuilder.js';
 import { writeChips } from '../../agent/chipWriter.js';
 import {
   READ_HER_USES_PER_SCENE,
@@ -57,6 +58,23 @@ export default function VNStage({
   const [thought, setThought] = useState(null);
   const [turn, setTurn] = useState(0);
   const busy = useRef(false);
+
+  /**
+   * A language switch mid-scene has to reach the prefix.
+   *
+   * The session is initial state, so blocks 1-4 keep whatever language the
+   * scene opened in - while the chip directive is rebuilt from live settings
+   * every turn. That put Chinese buttons under English dialogue, which is what
+   * was reported. `relanguage` rebuilds the prefix and carries block 5 over;
+   * section 8's invariant 1 exists to stop the prefix churning every turn, not
+   * to make a deliberate settings change silently not work.
+   */
+  const openedLang = useRef(setup.lang);
+  useEffect(() => {
+    if (openedLang.current === setup.lang) return;
+    openedLang.current = setup.lang;
+    setSession((s) => ({ ...s, frame: relanguage(s.frame, setup) }));
+  }, [setup]);
 
   const focusCard = setup.cards.find((c) => c.id === session.focusId);
   const rel = setup.relations[session.focusId];

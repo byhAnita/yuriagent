@@ -1,0 +1,332 @@
+/**
+ * Playing in Chinese, against a real model. OPT-IN.
+ *
+ * `liveQuality.test.js` already had a `zh` check and it did not catch the bug
+ * Yuhan reported, because it plays TWO turns. The failure was a flicker -
+ * English, then Chinese for a few turns, then English again - which a two-turn
+ * sample cannot see. So this file measures the Han ratio PER TURN across a long
+ * scene and reports which turns fell back.
+ *
+ * Four questions, none of which an offline test can answer:
+ *
+ *   1. does a long `zh` scene stay in Chinese, turn by turn
+ *   2. does the date register - sixteen turns, an English frame in block 4 -
+ *      pull it back into English
+ *   3. does the summarizer keep MEMORY English while writing DISPLAY in Chinese
+ *   4. does a card whose semantic fields are all Chinese work at all
+ *
+ * Run: ZH_SMOKE=1 npm test -- zhSmoke
+ */
+
+import { describe, it, expect } from 'vitest';
+import { stream, complete } from '../tools/llmTool.js';
+import { liveConfig } from '../tools/liveEnv.js';
+import { beginScene, runTurn, endScene, openingDirective } from './sceneEngine.js';
+import { newMemory } from './memory.js';
+import { newRelation } from '../systems/relationship.js';
+import { getCast } from '../data/cast.js';
+import { buildLineup } from '../systems/castBuilder.js';
+import { dateFrame, REGISTERS } from '../data/sceneFrames.js';
+
+const { apiKey, modelId, live } = liveConfig();
+const enabled = live && Boolean(process.env.ZH_SMOKE);
+const log = (...a) => process.stdout.write(`${a.join(' ')}\n`);
+
+const cards = getCast();
+
+
+
+function client({ messages, preset, onChunk }) {
+  if (onChunk) return stream({ messages, apiKey, modelId, preset, onChunk }).then((r) => r.text);
+  return complete({ messages, apiKey, modelId, preset }).then((r) => r.text);
+}
+
+const HAN = /[一-鿿]/g;
+const LATIN_WORD = /[A-Za-z]{3,}/g;
+
+/** How Chinese is this, 0..1. Punctuation and spaces do not count either way. */
+function hanRatio(text) {
+  const han = (text.match(HAN) ?? []).length;
+  const latin = (text.match(/[A-Za-z]/g) ?? []).length;
+  return han + latin === 0 ? 1 : han / (han + latin);
+}
+
+function setup({ cast = cards, memberId = 'irene', intimacy = 45, date = null } = {}) {
+  const ids = cast.map((c) => c.id);
+  return {
+    cards: cast,
+    lineup: buildLineup(cast),
+    identity: { promptRole: 'an artist assistant', exposureModifier: {} },
+    player: { name: '雨涵', energy: 80, secrecy: 70, credits: 20 },
+    lang: 'zh',
+    memory: newMemory(ids),
+    relations: Object.fromEntries(ids.map((id) => [id, newRelation(intimacy)])),
+    scene: {
+      id: 'zh',
+      rosterIds: [memberId],
+      presentIds: [memberId],
+      focusId: memberId,
+      week: 0,
+      day: 1,
+      block: 'evening',
+      phase: 'prep',
+      locationId: date ? 'bistro' : 'practice_room',
+      locationLabel: date ? '小餐馆' : 'X 练习室',
+      lang: 'zh',
+      seed: 1,
+      date,
+      sceneFrame: date ? dateFrame(date, 'bistro') : null,
+      register: date ? REGISTERS.date : REGISTERS.ordinary,
+    },
+  };
+}
+
+/** Play n turns and report the Han ratio of each one separately. */
+async function playAndMeasure(args, stances) {
+  let session = beginScene(args);
+  const perTurn = [];
+
+  session = await runTurn(session, { text: openingDirective(false), client });
+  perTurn.push(session.beats.map((b) => b.text).join(' '));
+
+  let seen = session.beats.length;
+  for (const stance of stances) {
+    session = await runTurn(session, { stance, text: '', client });
+    perTurn.push(session.beats.slice(seen).map((b) => b.text).join(' '));
+    seen = session.beats.length;
+  }
+
+  return { session, perTurn };
+}
+
+function report(label, perTurn) {
+  log(`\n[zh] --- ${label} ---`);
+  const ratios = perTurn.map((t) => hanRatio(t));
+  perTurn.forEach((text, i) => {
+    const r = ratios[i];
+    log(`  t${i} ${(r * 100).toFixed(0).padStart(3)}% han  ${text.slice(0, 90)}`);
+  });
+  const english = ratios.filter((r) => r < 0.5).length;
+  log(`[zh] ${perTurn.length - english}/${perTurn.length} turns in Chinese`);
+  return { ratios, english };
+}
+
+describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
+  /**
+   * The reported bug, at the length it was reported at.
+   *
+   * The fix under test: the language directive is repeated at the bottom of
+   * block 4, because at the end of block 1 it sits ~1500 tokens and three
+   * English blocks away from the dialogue.
+   */
+  it('holds Chinese across a whole scene, not just the first reply', async () => {
+    const { perTurn } = await playAndMeasure(setup(), [
+      'tease',
+      'reassure',
+      'press',
+      'confide',
+      'deflect',
+      'joke',
+    ]);
+
+    const { english } = report('ordinary scene, 7 turns', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /**
+   * The harder case: a date puts an English frame and an English style
+   * directive into block 4, immediately before the model writes. If anything
+   * pulls it back to English it should be this.
+   */
+  it('holds Chinese through a date, whose frame is English', async () => {
+    const { perTurn } = await playAndMeasure(setup({ date: 'public', intimacy: 60 }), [
+      'confide',
+      'tease',
+      'invite',
+      'reassure',
+      'touch',
+    ]);
+
+    const { english } = report('public date, 6 turns', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /**
+   * The suspect.
+   *
+   * The reported reply was a reaction to the `ask_for_a_vitamin` gesture, and a
+   * gift note is ENGLISH and appended at the TAIL of block 5 - so it is the
+   * last thing the model reads before writing. Six turns of clean Chinese
+   * without one (above) and English with one would say the note is the cause,
+   * which is the same proximity argument as block 4, pointing the other way.
+   */
+  it('holds Chinese when the scene opens on an English gift note', async () => {
+    const args = setup({ intimacy: 30 });
+    const note =
+      'System note: the player opened the scene by asking Irene for something out of her vitamin pouch. ' +
+      'She let this slip once: "carries a pouch of vitamins everywhere". There is no object; do not invent one. ' +
+      'She has never told anyone she needed one - only somebody paying very close attention would have known.';
+
+    let session = beginScene(args);
+    session = await runTurn(session, { text: `${note}\n\n${openingDirective(true)}`, client });
+    const perTurn = [session.beats.map((b) => b.text).join(' ')];
+
+    let seen = session.beats.length;
+    for (const stance of ['tease', 'reassure', 'press']) {
+      session = await runTurn(session, { stance, text: '', client });
+      perTurn.push(session.beats.slice(seen).map((b) => b.text).join(' '));
+      seen = session.beats.length;
+    }
+
+    const { english } = report('opened on an English gift note', perTurn);
+    expect(english).toBe(0);
+  }, 300000);
+
+  /** The machine tokens must survive whatever the prose does (section 19). */
+  it('never localizes a speaker id or an emotion', async () => {
+    const { session } = await playAndMeasure(setup(), ['tease', 'press']);
+    for (const b of session.beats) {
+      expect(b.speaker).toBe('irene');
+      if (b.emotion) expect(/^[a-z]+$/.test(b.emotion)).toBe(true);
+    }
+  }, 300000);
+});
+
+describe.skipIf(!enabled)('memory stays English while the player reads Chinese', () => {
+  it('writes an English ledger line and a Chinese display line', async () => {
+    const args = setup({ intimacy: 55 });
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { stance: 'confide', text: '', client });
+    session = await runTurn(session, { stance: 'press', text: '', client });
+
+    const result = await endScene(session, {
+      client,
+      memory: args.memory,
+      relations: args.relations,
+      cards,
+      scene: args.scene,
+      rng: () => 0.5,
+    });
+
+    const { summary } = result;
+    log('\n[zh] --- scene exit ---');
+    log(`  summary (memory)  ${summary.summary}`);
+    log(`  display (player)  ${summary.display}`);
+    for (const d of summary.dossierAdd) log(`  dossier  ${d.memberId}: ${d.text}`);
+
+    // Section 19 rule 2: memory is language-agnostic so the player can switch
+    // language mid-run. If this drifts, a save silently mixes languages.
+    expect(hanRatio(summary.summary)).toBeLessThan(0.2);
+    for (const d of summary.dossierAdd) expect(hanRatio(d.text)).toBeLessThan(0.2);
+
+    // And the thing the player actually reads.
+    expect(hanRatio(summary.display)).toBeGreaterThan(0.5);
+  }, 300000);
+});
+
+/**
+ * The custom-card probe. PROPOSALS 14.
+ *
+ * Pretend to be a zh player writing their own character: every semantic field
+ * typed in Chinese. The editor does not exist yet, so this feeds such a card
+ * straight through the pipeline and asks whether it works at all - which is the
+ * question the proposal turns on, and one no amount of design argument settles.
+ *
+ * The id stays ASCII deliberately. Speaker ids are machine tokens (section 9)
+ * and a Han-character id would go into the metadata line and through the
+ * parser's roster check, so if this is going to break, better to know that it
+ * is the ID and not the card.
+ */
+const customZhCard = {
+  id: 'yuna',
+  schema: 1,
+  name: '尹娜',
+  emoji: '🦊',
+  mascot: 'fox',
+  mascotNote: '看起来什么都不在乎，其实什么都记得',
+  palette: { base: '#e8c8a0', accent: '#a0522d' },
+  mbti: 'INFP',
+  birthday: '1999-11-02',
+  preferredRoles: ['sub_vocalist'],
+  activityProfile: { primary: 'actress', types: ['drama_shoot', 'photoshoot'] },
+  publicImage: '综艺里话最少的那一个，被剪进去的镜头总是在笑别人的笑话',
+  personality: '慢热，观察型。不喜欢先开口，但一旦开口就说得很准',
+  speechStyle: '短句，句尾常常省略。很少用感叹号，会用停顿代替强调',
+  queerTexture: '对亲近的界线格外敏感，会先退半步再看对方要不要跟上',
+  hiddenConflict: null,
+  styleHints: { zh: null, ko: null },
+  likesSeed: ['凌晨的便利店'],
+  learnableFacts: ['怕冷，但从不承认', '睡前一定要听完一整张专辑'],
+  startIntimacy: 5,
+  portraitMode: 'mascot',
+  portraits: {},
+};
+
+describe.skipIf(!enabled)('a card written entirely in Chinese', () => {
+  const cast = [customZhCard, ...cards.slice(1)];
+
+  it('plays a scene at all', async () => {
+    const { session, perTurn } = await playAndMeasure(
+      setup({ cast, memberId: 'yuna' }),
+      ['tease', 'confide', 'press'],
+    );
+
+    report('custom zh card, 4 turns', perTurn);
+    for (const b of session.beats) log(`  @${b.speaker}|${b.emotion}`);
+
+    // The parser contract has to hold even though the card is not English.
+    expect(session.beats.length).toBeGreaterThan(0);
+    for (const b of session.beats) {
+      expect(b.speaker).toBe('yuna');
+      if (b.emotion) expect(/^[a-z]+$/.test(b.emotion)).toBe(true);
+    }
+  }, 300000);
+
+  /**
+   * The question the proposal turns on.
+   *
+   * If the model writes her memory in Chinese because her card is Chinese,
+   * option 2 in PROPOSALS 14 - let memory drift into the authoring language -
+   * is what happens BY DEFAULT rather than by choice, and a save silently mixes
+   * languages. That would make translate-at-import mandatory rather than
+   * preferred.
+   */
+  it('still writes her memory in English', async () => {
+    const args = setup({ cast, memberId: 'yuna', intimacy: 50 });
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { stance: 'confide', text: '', client });
+
+    const result = await endScene(session, {
+      client,
+      memory: args.memory,
+      relations: args.relations,
+      cards: cast,
+      scene: args.scene,
+      rng: () => 0.5,
+    });
+
+    log('\n[zh] --- custom card, scene exit ---');
+    log(`  summary  ${result.summary.summary}`);
+    log(`  display  ${result.summary.display}`);
+    for (const d of result.summary.dossierAdd) log(`  dossier  ${d.memberId}: ${d.text}`);
+
+    const drift = hanRatio(result.summary.summary);
+    log(`[zh] memory han ratio ${(drift * 100).toFixed(0)}%`);
+    expect(drift).toBeLessThan(0.2);
+  }, 300000);
+
+  /**
+   * Her facts are Chinese on the card, so they reach block 3 as Chinese - which
+   * is the whole of PROPOSALS 14 from the other direction. Reported, not
+   * asserted: this is a reading about what a Chinese card does to memory, and
+   * the fix is a schema decision rather than a bug to fail on.
+   */
+  it('reports what her Chinese facts do to the dossier', async () => {
+    const words = customZhCard.learnableFacts.join(' ');
+    log(`\n[zh] her facts as authored: ${words}`);
+    log(`[zh] latin words in them: ${(words.match(LATIN_WORD) ?? []).length}`);
+    expect(hanRatio(words)).toBeGreaterThan(0.9);
+  });
+});

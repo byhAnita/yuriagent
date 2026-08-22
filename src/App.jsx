@@ -387,6 +387,8 @@ export default function App() {
       phase: run.phase,
       locationId: pendingScene.locationId,
       locationLabel: t(`location.${pendingScene.locationId}`),
+      // The summarizer needs it too: memory stays English, display does not.
+      lang: settings.lang,
       dormWitnessIds,
 
       /**
@@ -415,7 +417,7 @@ export default function App() {
       occupancy,
       task: task ? { ...task, done: taskState.done } : null,
     };
-  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done]);
+  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done, settings.lang]);
 
   const setup = useMemo(
     () =>

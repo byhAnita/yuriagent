@@ -504,6 +504,30 @@ export function appendTurn(frame, turn) {
 }
 
 /**
+ * Rebuild the frozen prefix in a new language, keeping the conversation.
+ *
+ * The one sanctioned exception to invariant 1, and it needs its reason stated
+ * because it looks exactly like the thing that rule forbids.
+ *
+ * Section 19 allows switching language at any time and says the run continues.
+ * Section 8 freezes blocks 1-4 for the life of a scene. Both are right, and
+ * together they meant an open scene kept writing in the language it opened in
+ * while the chip directive - rebuilt from live settings every turn - switched
+ * at once. Chinese buttons under English dialogue, which is what was reported.
+ *
+ * Invariant 1 exists to stop the prefix churning on EVERY turn, which is what
+ * would destroy the cache economics. A language switch is a rare, deliberate
+ * act by the player, and one cache miss is the correct price for a setting that
+ * actually takes effect. Block 5 is carried over untouched, because losing her
+ * replies to change a setting would be far worse than the bug.
+ */
+export function relanguage(frame, openSceneArgs) {
+  let next = openScene(openSceneArgs);
+  for (const turn of frame.turns) next = appendTurn(next, turn);
+  return next;
+}
+
+/**
  * Something genuinely new mid-scene goes at the TAIL as its own message.
  * Never edited into the header - that would invalidate the whole prefix.
  */
