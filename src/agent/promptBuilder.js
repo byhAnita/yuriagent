@@ -133,6 +133,23 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '@<speaker_id>|<emotion>|guard<signed int>|fluster<signed int>',
     '*action* "speech"',
     '',
+    /**
+     * A second example, because one beat cannot show what separates two.
+     *
+     * Added while chasing a suspected metadata-omission problem that turned out
+     * to be a parser bug (see responseParser beat segmentation). Kept anyway:
+     * measured adherence is now total, and section 9 assumes format failures at
+     * this tier, so demonstrating the multi-beat shape is cheap insurance in a
+     * block that is byte-stable and cached for the whole run.
+     */
+    'EVERY beat needs its own metadata line, including the second and third:',
+    '',
+    '@irene|neutral|guard+2|fluster+0',
+    '*She does not look up from the notes.* "You are early."',
+    '',
+    '@irene|shy|guard-6|fluster+8',
+    '*A pause, and then she does look up.* "That was not a complaint."',
+    '',
     `Valid emotions: ${EMOTIONS.join(', ')}.`,
     'guard is her defensiveness, fluster is how much you landed. Both are per-beat',
     'deltas, roughly -20 to +20. Report only these. Never report anything else.',

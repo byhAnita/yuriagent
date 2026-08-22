@@ -77,7 +77,17 @@ export function parseResponse(text, { rosterIds = [], focusId = null } = {}) {
   const roster = new Set(rosterIds);
   const fallbackSpeaker = focusId ?? rosterIds[0] ?? null;
 
-  const chunks = raw.split(/\n\s*\n/);
+  /**
+   * A blank line only starts a new beat when a metadata line follows it.
+   *
+   * Splitting on any blank line was wrong, and a live run caught it: the model
+   * writes an action paragraph, a blank line, then the speech - which is one
+   * beat, and exactly the shape section 9 asks for. That was being torn in two,
+   * and the orphaned half carried no emotion and no deltas, so roughly half of
+   * all beats moved nothing at all. Prose never begins with '@'; a beat always
+   * does.
+   */
+  const chunks = raw.split(/\n\s*\n(?=\s*@)/);
   const beats = [];
   const dropped = [];
   let sawMeta = false;
@@ -147,8 +157,11 @@ export function createStreamParser(ctx = {}) {
       buffer += chunk;
       const out = [];
 
+      // Same rule as parseResponse: only a blank line that introduces another
+      // metadata line completes the beat in front of it. The final beat has no
+      // successor, so it is flushed by end().
       let idx;
-      while ((idx = buffer.search(/\n\s*\n/)) !== -1) {
+      while ((idx = buffer.search(/\n\s*\n(?=\s*@)/)) !== -1) {
         const piece = buffer.slice(0, idx);
         buffer = buffer.slice(idx).replace(/^\n\s*\n/, '');
         const { beats, dropped: d } = parseResponse(piece, ctx);

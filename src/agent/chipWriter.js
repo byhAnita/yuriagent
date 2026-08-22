@@ -32,23 +32,23 @@ const LANG_NAMES = {
  */
 export function buildChipDirective({ stances, lang = 'en', absentNames = [] }) {
   const language = LANG_NAMES[lang] ?? LANG_NAMES.en;
+
+  /**
+   * Kept deliberately short. Measured against DeepSeek, this directive IS the
+   * cache miss on the chip call - an earlier, wordier version cost 171 tokens
+   * of miss and pushed the call past the beat call it is supposed to hide
+   * behind. Every line here has to earn its tokens.
+   */
   const lines = [
-    'System note: it is the player\'s turn. Offer exactly three things the player could do right now.',
-    '',
-    'One per line, nothing else:',
-    'stance|what the player says or does, at most eight words',
-    '',
-    `Use only these stances, once each: ${stances.join(', ')}.`,
-    `Write the player's side in ${language}. Stance ids stay in ASCII English.`,
-    '',
-    'Rules:',
-    '- Write only what the player could have seen or heard. Never her private',
-    '  thoughts, never anything she has not shown you.',
-    '- An option is what the player TRIES. Never write what happens next.',
-    '- The player speaks for themselves. Do not write her reply.',
+    "System note: the player's turn. Give exactly three options.",
+    'One per line, nothing else: stance|what the player says, max 8 words',
+    `Stances, once each: ${stances.join(', ')}.`,
+    `Option text in ${language}; stance ids stay ASCII English.`,
+    'Only what the player could see or hear - never her thoughts.',
+    'Write what the player tries, not what happens. Never write her reply.',
   ];
   if (absentNames.length > 0) {
-    lines.push(`- Do not mention ${absentNames.join(' or ')}. They are not here.`);
+    lines.push(`Never mention ${absentNames.join(', ')}.`);
   }
   return lines.join('\n');
 }

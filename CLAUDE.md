@@ -395,15 +395,31 @@ disabled feature are all invisible.
 The call itself is the `Read her` shape (below): it branches off the prefix that
 just finished streaming, so it is a near-total cache hit.
 
+**Measured** against DeepSeek V4 Flash, single-member practice-room scene
+(`src/tools/live.test.js`, which is opt-in and skipped without a key):
+
 | | beat call | chip call |
 |---|---|---|
 | prefix | cache hit | **same prefix, same hit** |
-| miss | ~60 tok | ~20 tok |
-| output | ~160 tok | ~25 tok |
+| miss | ~60 tok | **~140-210 tok** |
+| output | ~160 tok | ~45 tok |
+| wall time | 1.4-2.8 s | **1.3-1.7 s** |
 
-Output tokens dominate wall time, and this generates roughly six times fewer. It
-cannot run *concurrently* with the beat call - it has to know what she said - so
-it fires at stream end and runs while the player is tapping through beats.
+Two things that estimate got wrong, both corrected here because the arithmetic
+was more optimistic than reality:
+
+- **The directive is the miss.** Not ~20 tokens - the instruction plus her last
+  beat, and the beat is not optional because the chips have to answer it. An
+  early wordy directive cost 171 tokens of miss on its own and pushed the call
+  to 1725ms; trimming it to ~90 tokens took it to ~1370ms. The directive has a
+  length test for exactly this reason.
+- **The chip call is not six times faster.** It is modestly faster, and against
+  a warm beat call it was once *slower*. That does not matter, because the thing
+  it has to beat is not the beat call - it is the player's reading time, and
+  1.5s against three beats of 30-50 words is comfortable.
+
+It cannot run *concurrently* with the beat call - it has to know what she said -
+so it fires at stream end and runs while the player is tapping through beats.
 
 **Swap only while beats are still being revealed.** Once the player reveals the
 last beat the chip bar is live, and relabelling a button under a finger is a
@@ -603,7 +619,26 @@ Emotions (MVP set): `neutral, happy, blush, shy, upset, surprised`.
 
 **All machine-readable tokens stay ASCII English in every language.** Speaker ids, emotion names, and field names are never localized. Only the prose after the metadata line is written in the player's language. A localized emotion name kills the parser.
 
-Up to **3 beats** per response, separated by a blank line, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
+Up to **3 beats** per response, each with its own metadata line. The client reveals beats one tap at a time. This halves call count and hides latency behind player pacing.
+
+**A beat ends where the next metadata line begins - not at the next blank line.**
+Models put a blank line between the action paragraph and the speech, which is
+good prose and exactly the shape asked for above:
+
+```
+@irene|neutral|guard+0|fluster+0
+*She is at the mirror, and does not turn around.*
+
+"You're here."
+```
+
+That is **one** beat. Splitting on the blank line tore it in two and the orphan
+half carried no emotion and no deltas, so roughly half of all beats moved
+nothing - a live run found this, and no amount of prompt-side reasoning would
+have. Prose never begins with `@`; a beat always does, so the separator is
+`/
+s*
+(?=s*@)/` and nothing else.
 
 ### The opening beat is hers
 

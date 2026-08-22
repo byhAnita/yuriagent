@@ -198,16 +198,31 @@ describe('the directive says what may not be written', () => {
   });
 
   it('forbids narrating what the player cannot see', () => {
-    expect(directive).toMatch(/seen or heard/i);
-    expect(directive).toMatch(/private\s+thoughts/i);
+    expect(directive).toMatch(/see or hear/i);
+    expect(directive).toMatch(/never her thoughts/i);
   });
 
   it('asks for an intention, not an outcome', () => {
-    expect(directive).toMatch(/what happens next/i);
+    expect(directive).toMatch(/not what happens/i);
   });
 
   it('names absent members as off limits', () => {
     expect(directive).toContain('Wendy');
+  });
+
+  /**
+   * The directive is the cache miss on every chip call, measured live. A wordy
+   * earlier version cost 171 tokens of miss and pushed the call past the beat
+   * call it is meant to hide behind; trimming it took the call from 1725ms to
+   * 1371ms. This is the guard against it growing back.
+   */
+  it('stays short enough to be cheap to miss on', () => {
+    const full = buildChipDirective({
+      stances: ['tease', 'reassure', 'deflect', 'press', 'joke', 'retreat'],
+      lang: 'en',
+      absentNames: ['Nana', 'Jisoo', 'Hyewon', 'Yeri'],
+    });
+    expect(full.length).toBeLessThan(500);
   });
 });
 

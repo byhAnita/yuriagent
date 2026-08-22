@@ -176,3 +176,68 @@ describe('createStreamParser', () => {
     expect(parser.end().beats).toEqual(parseResponse(raw, ctx).beats);
   });
 });
+
+/**
+ * A blank line inside one beat's prose is not a beat boundary.
+ *
+ * Found live, not by reasoning: DeepSeek writes the action paragraph, a blank
+ * line, then the speech - the exact shape section 9 asks for. Splitting on any
+ * blank line tore that into two beats, and the orphan carried no emotion and no
+ * deltas, so about half of all beats silently moved nothing.
+ */
+describe('beat segmentation', () => {
+  const ctx = { rosterIds: ['irene'], focusId: 'irene' };
+
+  const oneBeat =
+    '@irene|neutral|guard+0|fluster+0\n' +
+    '*She is at the mirror, and does not turn around.*\n\n' +
+    '"You\'re here."';
+
+  const twoBeats =
+    '@irene|surprised|guard+2|fluster+2\n' +
+    '*She finally turns.* "That\'s a new look for you."\n\n' +
+    '@irene|neutral|guard-3|fluster+1\n' +
+    '*She sets the bottle down.* "Sit."';
+
+  it('keeps a paragraph break inside one beat', () => {
+    const { beats } = parseResponse(oneBeat, ctx);
+    expect(beats).toHaveLength(1);
+    expect(beats[0].emotion).toBe('neutral');
+    expect(beats[0].text).toContain('mirror');
+    expect(beats[0].text).toContain("You're here.");
+  });
+
+  it('still separates genuine beats', () => {
+    const { beats } = parseResponse(twoBeats, ctx);
+    expect(beats).toHaveLength(2);
+    expect(beats.map((b) => b.emotion)).toEqual(['surprised', 'neutral']);
+    expect(totalDeltas(beats)).toEqual({ guard: -1, fluster: 3 });
+  });
+
+  it('does not lose the deltas of a beat with a paragraph break', () => {
+    const withBreak =
+      '@irene|shy|guard-8|fluster+12\n*She looks away.*\n\n"Do not start."';
+    expect(totalDeltas(parseResponse(withBreak, ctx).beats)).toEqual({
+      guard: -8,
+      fluster: 12,
+    });
+  });
+
+  it('segments the same way when streamed in chunks', () => {
+    const parser = createStreamParser(ctx);
+    for (let i = 0; i < twoBeats.length; i += 7) parser.push(twoBeats.slice(i, i + 7));
+    const { beats } = parser.end();
+
+    expect(beats).toHaveLength(2);
+    expect(beats.map((b) => b.emotion)).toEqual(['surprised', 'neutral']);
+  });
+
+  it('streams a single beat with a paragraph break as one beat', () => {
+    const parser = createStreamParser(ctx);
+    for (let i = 0; i < oneBeat.length; i += 5) parser.push(oneBeat.slice(i, i + 5));
+    const { beats } = parser.end();
+
+    expect(beats).toHaveLength(1);
+    expect(beats[0].text).toContain("You're here.");
+  });
+});

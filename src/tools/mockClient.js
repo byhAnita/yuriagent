@@ -165,7 +165,7 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
     // can honour the contract exactly - which is what the parser, the roster
     // rule and the backfill path need to be exercised in real play.
     if (preset === 'chips') {
-      const asked = /Use only these stances, once each: ([a-z, ]+)\./.exec(last)?.[1] ?? '';
+      const asked = /Stances, once each: ([a-z, ]+)\./.exec(last)?.[1] ?? '';
       const stances = asked
         .split(',')
         .map((s) => s.trim())
