@@ -98,6 +98,51 @@ export const MAX_INTERACTIVE_MEMBERS = 2;
 export const SCENE_TURN_LIMIT = 8;
 
 /**
+ * A date or an authored event is a whole DAY, not a block, so it gets a longer
+ * budget and a different register (proposal 13). Keeping the ordinary scene
+ * terse is deliberate: section 1's first pillar is 30-50 word bursts rather
+ * than 300-word narration, and a literary register everywhere would repeal it.
+ * The contrast is what makes a date feel like one.
+ */
+export const SCENE_TURN_LIMITS = { ordinary: SCENE_TURN_LIMIT, date: 16, event: 16 };
+
+// --- dating (CLAUDE.md section 10) ------------------------------------------
+/**
+ * A public date gates on ADMISSIBILITY and a private one on INTIMACY, because
+ * a private date asks how close the two of you are and a public one asks how
+ * nameable it is. That falls out of the two-axis model rather than being bolted
+ * onto it, and it makes the two non-substitutable: a player stuck on the
+ * `confidante` plateau can get the private date easily and cannot get the
+ * public one at all.
+ *
+ * `floor` is a hard no. `sure` is a certain yes. Between them it is a real bet,
+ * which is pillar 1 - the player reads hidden state and wagers on it.
+ *
+ * `public.floor` sits between STAGE_A_MIN.nameless (20) and .unspoken (40): you
+ * must already have taken a public risk or two, and it is reachable mid-game.
+ * `private.floor` is 50, the same number as `touch` and her bedroom door, so
+ * "you may go into her room" and "you may ask her to spend a day with you"
+ * unlock together.
+ */
+export const DATE_KINDS = {
+  public: { axis: 'admissibility', floor: 30, sure: 55, credits: 12 },
+  private: { axis: 'intimacy', floor: 50, sure: 75, credits: 0 },
+};
+
+/** She will not be asked out while this hurt. Section 5b's bands. */
+export const DATE_REFUSING_STRAIN = 'rift';
+
+/**
+ * Jealousy multipliers on the acceptance roll.
+ *
+ * `piqued` is above 1 on purpose. Section 5b calls that band an OPPORTUNITY
+ * rather than a tax - she is unsettled about where your attention has been, so
+ * being asked for a whole day is the reassurance she wanted. `sharp` is a real
+ * penalty and `corrosive` is a refusal.
+ */
+export const DATE_JEALOUSY_FACTOR = { calm: 1, piqued: 1.15, sharp: 0.6, corrosive: 0 };
+
+/**
  * What a scene has to achieve before it pays any intimacy (section 6).
  *
  * These moved when the unit of measurement did. They were 15 and 60 against a
