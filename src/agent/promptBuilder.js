@@ -23,6 +23,7 @@ import { renderLedger, renderDossier } from './memory.js';
 import { jealousyBand, sceneModifiers } from '../systems/jealousy.js';
 import { resolveStage } from '../systems/relationship.js';
 import { doingLine } from '../data/activities.js';
+import { displayName } from '../store/playerName.js';
 
 const LANG_NAMES = {
   en: 'English',
@@ -109,12 +110,17 @@ function renderCard(card, roles, includeHiddenConflict) {
 export function buildSystemBlock({ cards, lineup, identity, playerName, lang = 'en' }) {
   const language = LANG_NAMES[lang] ?? LANG_NAMES.en;
 
+  // Sanitised HERE rather than trusted from the caller: this function is the
+  // boundary to the model, and a name carrying a newline can forge a metadata
+  // line. Doing it at the boundary means no future call site can get it wrong.
+  const who = displayName(playerName);
+
   return [
     'You write one beat of a visual novel set inside the K-pop industry.',
     '',
     '## World',
     'The five women below are the group X, under X Entertainment. They share a dorm.',
-    `The player is ${playerName || 'the player'}, ${identity?.promptRole ?? 'an artist assistant at the agency'}.`,
+    `The player is ${who}, ${identity?.promptRole ?? 'an artist assistant at the agency'}.`,
     'They are colleagues. Everything between them happens inside that constraint.',
     '',
     '## Cast',
@@ -147,6 +153,20 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '- Never narrate the player. Never decide what the player feels or says.',
     '- Never state a number, a meter, or a relationship stage in the prose.',
     '- She has her own life, her own career and her own fears. She is not waiting for you.',
+    /**
+     * The pronoun rule.
+     *
+     * Without it every line addresses a person with no name, which is the
+     * flattest possible second person. With it, the first time she uses the
+     * player's name is a MOMENT - and which register she reaches for is itself
+     * a signal, which is the kind of thing pillar 1 asks the player to read.
+     *
+     * Narration stays second person because the player is the camera; only
+     * speech gets the name, because only a person in the room can use one.
+     */
+    `- In narration, the player is "you" and "your" - never ${who}.`,
+    '- In dialogue, inside quotes, she may use the player\'s name, or a nickname,',
+    '  or a title. What she calls the player is her choice and it can change.',
     '',
     '## Format contract',
     'Every beat begins with a metadata line, then the prose on the next line:',
