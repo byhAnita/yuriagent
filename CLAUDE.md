@@ -536,7 +536,8 @@ The call itself is the `Read her` shape (below): it branches off the prefix that
 just finished streaming, so it is a near-total cache hit.
 
 **Measured** against DeepSeek V4 Flash, single-member practice-room scene
-(`src/tools/live.test.js`, which is opt-in and skipped without a key):
+(`src/tools/live.test.js`, which needs `LIVE_PROVIDER=1` as well as a key -
+the default suite is free and offline):
 
 | | beat call | chip call |
 |---|---|---|

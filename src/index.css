@@ -324,6 +324,21 @@ body {
   animation: thought-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* The cover sheet, ruled line by ruled line.
+
+   One orchestrated reveal, on the only screen with room for one. --i is the
+   row index, set by the component, so the stagger lives here rather than as a
+   pile of literal delays in JSX. Both reduce-motion paths below neutralise it. */
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to { opacity: 1; transform: none; }
+}
+
+.sheet-in {
+  animation: sheet-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
 /* Meter needles settle rather than snap. */
 .meter-fill {
   transition: width 620ms cubic-bezier(0.22, 1, 0.36, 1);

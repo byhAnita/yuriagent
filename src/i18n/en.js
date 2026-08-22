@@ -1,6 +1,33 @@
 export default {
   app: { title: 'YuriAgent', tagline: 'X Entertainment' },
 
+  start: {
+    blurb: 'You work for them. That is the whole of your access, and it is more than most people get.',
+    nameLabel: 'Your name',
+    namePlaceholder: 'What they call you',
+    nameNote: 'Narration will always say "you". Only they use your name.',
+    identityLabel: 'Who you are',
+    castLabel: 'X',
+    castFixed: 'five, fixed',
+    customCast: 'Build your own five',
+    soon: 'soon',
+    begin: 'Begin',
+  },
+
+  identity: {
+    assistant: 'Artist Assistant',
+    manager: 'Group Manager',
+    producer: 'Producer',
+    idol: 'Sixth Member',
+  },
+
+  identityNote: {
+    assistant: 'You carry the bags and know the schedule. Nobody looks twice at you, which is the job and the opportunity.',
+    manager: 'You decide where they go. Everything you do is on the record.',
+    producer: 'You are in the room where the work is made, and almost nowhere else.',
+    idol: 'You are one of them. Every hour of your day is theirs too.',
+  },
+
   settings: {
     title: 'Settings',
     theme: 'Theme',

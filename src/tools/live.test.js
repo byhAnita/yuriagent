@@ -105,7 +105,18 @@ function timedClient(report) {
   };
 }
 
-describe.skipIf(!live)('live provider', () => {
+/**
+ * Opt-in, not key-in.
+ *
+ * Gating on a key alone meant `npm test` billed a provider on every run for
+ * anyone who had ever pasted one into .env.local - which is every developer of
+ * this game. `liveQuality` and `zhSmoke` already require a flag on top of the
+ * key; this is the same rule, and the reason is the same: a live call is a
+ * deliberate act, and the default suite has to be free and offline.
+ */
+const enabled = live && Boolean(process.env.LIVE_PROVIDER);
+
+describe.skipIf(!enabled)('live provider', () => {
   it(
     'reaches the endpoint at all',
     async () => {

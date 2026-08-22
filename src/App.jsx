@@ -16,6 +16,7 @@ import { loadApiKey, saveApiKey } from './store/apiKey.js';
 import { makeT } from './i18n/index.js';
 import { BLOCKS, SCENE_TURN_LIMITS } from './config/constants.js';
 import { getCast } from './data/cast.js';
+import { getIdentity, DEFAULT_IDENTITY } from './data/identities.js';
 import { buildLineup } from './systems/castBuilder.js';
 import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
@@ -34,6 +35,7 @@ import { appendLedger, addDossierEntry } from './agent/memory.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
 import VNStage from './ui/vn/VNStage.jsx';
+import Start from './ui/screens/Start.jsx';
 import Day from './ui/screens/Day.jsx';
 import GiftModal from './ui/modals/GiftModal.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
@@ -42,16 +44,6 @@ import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
 import { dateFrame, REGISTERS } from './data/sceneFrames.js';
-
-const IDENTITY = {
-  id: 'assistant',
-  promptRole: 'an artist assistant at the agency',
-  taskPool: ['prep_outfits', 'run_schedule', 'handle_press_kit', 'stage_check', 'restock_wardrobe'],
-  exposureModifier: { wardrobe: -10, cafe: 10 },
-  // Section 13. Secrecy is also the baseline a night's distance recovers
-  // toward - never past it, because discretion is not earned by sleeping.
-  startStats: { competence: 20, energy: 90, secrecy: 70, credits: 6 },
-};
 
 const SEED = 20260821;
 
@@ -65,20 +57,31 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   const [run, setRun] = useState(() => newRun({ seed: SEED }));
-  const [player, setPlayer] = useState({
-    name: 'You',
-    energy: 90,
-    secrecy: 70,
-    credits: 6,
-    competence: 20,
-  });
+
+  /**
+   * Section 13 ships one identity and stubs the rest, so this is effectively a
+   * constant today. It is state rather than a constant because the start screen
+   * sets it, and because everything downstream already takes an identity object
+   * - which is what makes adding the second one content instead of a refactor.
+   */
+  const [identityId, setIdentityId] = useState(DEFAULT_IDENTITY);
+  const identity = useMemo(() => getIdentity(identityId), [identityId]);
+
+  /**
+   * Stats start from the identity, not from a literal. A producer walks in with
+   * standing and credits an assistant does not have.
+   */
+  const [player, setPlayer] = useState(() => ({
+    name: '',
+    ...getIdentity(DEFAULT_IDENTITY).startStats,
+  }));
   const [relations, setRelations] = useState(() =>
     Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
   );
   const [memory, setMemory] = useState(() => newMemory(castIds));
   const [taskState, setTaskState] = useState(newTaskState);
 
-  const [screen, setScreen] = useState('day');
+  const [screen, setScreen] = useState('start');
   const [pendingScene, setPendingScene] = useState(null);
   const [giftNote, setGiftNote] = useState(null);
 
@@ -142,13 +145,13 @@ export default function App() {
   const task = useMemo(
     () =>
       generateDayTask({
-        identity: IDENTITY,
+        identity,
         day: run.day,
         week: run.week,
         phase: run.phase,
         seed: SEED,
       }),
-    [run.day, run.week, run.phase],
+    [run.day, run.week, run.phase, identity],
   );
 
   const focusId = useMemo(
@@ -227,7 +230,7 @@ export default function App() {
             });
           }
         }
-        nextPlayer = restOvernight(nextPlayer, { secrecyBaseline: IDENTITY.startStats.secrecy });
+        nextPlayer = restOvernight(nextPlayer, { secrecyBaseline: identity.startStats.secrecy });
         setTaskState(newTaskState());
       }
 
@@ -235,7 +238,7 @@ export default function App() {
       setRun(next);
       setScreen('day');
     },
-    [run, player, task, taskState, castIds],
+    [run, player, task, taskState, castIds, identity],
   );
 
   /**
@@ -440,7 +443,7 @@ export default function App() {
         ? {
             cards,
             lineup,
-            identity: IDENTITY,
+            identity,
             player,
             lang: settings.lang,
             memory,
@@ -448,7 +451,7 @@ export default function App() {
             scene,
           }
         : null,
-    [scene, cards, lineup, player, settings.lang, memory, relations],
+    [scene, cards, lineup, identity, player, settings.lang, memory, relations],
   );
 
   const onSceneEnd = (result) => {
@@ -463,8 +466,33 @@ export default function App() {
 
   const giftTarget = pendingScene ? cards.find((c) => c.id === pendingScene.rosterIds[0]) : null;
 
+  /**
+   * The one moment the run's fixed inputs are set.
+   *
+   * `player.name` goes into block 1, which is byte-stable for the whole run, so
+   * it cannot be edited afterwards without invalidating the prefix for every
+   * remaining scene. Collecting it here and nowhere else is what keeps that
+   * true (section 8, invariant 1).
+   */
+  const onBegin = ({ name, identityId: chosen }) => {
+    const picked = getIdentity(chosen);
+    setIdentityId(picked.id);
+    setPlayer({ name, ...picked.startStats });
+    setScreen('day');
+  };
+
   return (
     <>
+      {screen === 'start' ? (
+        <Start
+          cards={cards}
+          lineup={lineup}
+          onBegin={onBegin}
+          onOpenSettings={() => setShowSettings(true)}
+          t={t}
+        />
+      ) : null}
+
       {screen === 'day' && !solo ? (
         <Day
           run={run}
@@ -475,7 +503,7 @@ export default function App() {
           weekPlan={weekPlan}
           task={task}
           taskState={taskState}
-          identity={IDENTITY}
+          identity={identity}
           onEnter={onEnter}
           onEnterSolo={onEnterSolo}
           onSkipBlock={() => advance()}

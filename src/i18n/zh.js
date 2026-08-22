@@ -1,6 +1,33 @@
 export default {
   app: { title: 'YuriAgent', tagline: 'X 娱乐' },
 
+  start: {
+    blurb: '你为她们工作。你能靠近的全部理由，也仅此而已——但已经比大多数人多了。',
+    nameLabel: '你的名字',
+    namePlaceholder: '她们怎么称呼你',
+    nameNote: '旁白始终称你为「你」，只有她们会叫你的名字。',
+    identityLabel: '你的身份',
+    castLabel: 'X',
+    castFixed: '五人，已定',
+    customCast: '自己组一个五人团',
+    soon: '待开放',
+    begin: '开始',
+  },
+
+  identity: {
+    assistant: '艺人助理',
+    manager: '团队经纪人',
+    producer: '制作人',
+    idol: '第六位成员',
+  },
+
+  identityNote: {
+    assistant: '你拎包、记行程。没人会多看你一眼——这既是这份工作，也是你的机会。',
+    manager: '你决定她们去哪里。你做的每一件事都会留下记录。',
+    producer: '你在作品诞生的那个房间里，也几乎只在那里。',
+    idol: '你是她们中的一个。你的每一个小时也都属于她们。',
+  },
+
   settings: {
     title: '设置',
     theme: '主题',
