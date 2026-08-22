@@ -313,6 +313,7 @@ export default {
   },
 
   vn: {
+    modelDown: 'Model unreachable - offline line',
     sayIt: 'Say something',
     send: 'Send',
     readHer: 'Read her',

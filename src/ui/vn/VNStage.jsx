@@ -45,6 +45,8 @@ export default function VNStage({
    * word bursts, and the contrast is what makes a date feel like one.
    */
   turnLimit = SCENE_TURN_LIMIT,
+  /** True when the last call failed and the offline writer answered instead. */
+  offline = false,
   t,
 }) {
   // A gift is injected at the head of block 5, before the first call, so the
@@ -284,6 +286,21 @@ export default function VNStage({
           pending={pending}
           placeholder={outOfTurns ? t('vn.outOfTurns') : t('vn.thinking')}
         />
+
+        {/*
+          Say when the model did not answer.
+
+          Without it the player reads a canned line in her voice and believes
+          the model wrote it. Quiet rather than alarming: the beat is real,
+          the scene continues, and section 3 treats the offline writer as a
+          supported mode - this only marks that it was reached for when it
+          was not supposed to be.
+        */}
+        {offline ? (
+          <p className="mt-1.5 font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-warn">
+            {t('vn.modelDown')}
+          </p>
+        ) : null}
       </div>
 
       <ChipBar

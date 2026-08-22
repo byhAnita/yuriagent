@@ -304,6 +304,7 @@ export default {
   },
 
   vn: {
+    modelDown: '模型未响应 · 离线台词',
     sayIt: '说点什么',
     send: '发送',
     readHer: '读心',

@@ -100,6 +100,15 @@ export default function App() {
   const [solo, setSolo] = useState(null);
 
   /**
+   * Set when a live call failed and the offline writer answered instead.
+   *
+   * The player is otherwise reading a canned line in the model's place with no
+   * way to know - which is exactly what made the language bug so hard to pin
+   * down. Cleared by the next call that succeeds.
+   */
+  const [offline, setOffline] = useState(false);
+
+  /**
    * The weekend invitation.
    *
    * `askedToday` is keyed by week and day rather than being a boolean, so it
@@ -153,7 +162,13 @@ export default function App() {
   const focusCard = cards.find((c) => c.id === focusId);
 
   const client = useMemo(
-    () => createClient({ apiKey, modelId: settings.model, seed: SEED + sceneNo }),
+    () =>
+      createClient({
+        apiKey,
+        modelId: settings.model,
+        seed: SEED + sceneNo,
+        onFallback: (error) => setOffline(Boolean(error)),
+      }),
     [apiKey, settings.model, sceneNo],
   );
 
@@ -569,6 +584,7 @@ export default function App() {
           onSceneEnd={onSceneEnd}
           writtenChips={settings.writtenChips}
           turnLimit={scene?.date ? SCENE_TURN_LIMITS.date : SCENE_TURN_LIMITS.ordinary}
+          offline={offline}
           t={t}
         />
       ) : null}

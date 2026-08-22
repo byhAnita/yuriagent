@@ -13,8 +13,18 @@
 import { stream, complete, withRetry } from './llmTool.js';
 import { createMockClient } from './mockClient.js';
 
-export function createClient({ apiKey, modelId, seed = 1 }) {
+export function createClient({ apiKey, modelId, seed = 1, onFallback = null }) {
   const mock = createMockClient({ seed });
+
+  /**
+   * No key is not a failure, so it never reports one.
+   *
+   * Section 3 calls playing without a key a supported mode rather than a
+   * degraded one, and a notice on every beat would contradict that. The signal
+   * is only for the case the player cannot otherwise explain: they HAVE a key,
+   * the model is answering most turns, and one turn quietly came from
+   * somewhere else.
+   */
   if (!apiKey) return mock;
 
   return async function client({ messages, preset, onChunk }) {
@@ -23,11 +33,23 @@ export function createClient({ apiKey, modelId, seed = 1 }) {
         const { text } = await withRetry(() =>
           stream({ messages, apiKey, modelId, preset, onChunk }),
         );
+        onFallback?.(null);
         return text;
       }
       const { text } = await withRetry(() => complete({ messages, apiKey, modelId, preset }));
+      if (preset !== 'chips') onFallback?.(null);
       return text;
-    } catch {
+    } catch (error) {
+      /**
+       * Tell somebody. A silent substitution is what made this hard to find:
+       * the player reads a canned line in the offline writer's voice, believes
+       * the model wrote it, and has no way to know the call failed.
+       *
+       * Chips are excluded because section 6 already says a failed chip call is
+       * meant to be invisible - the static set is a complete input system and
+       * the player should never learn it was reached for.
+       */
+      if (preset !== 'chips') onFallback?.(error ?? new Error('call failed'));
       return mock({ messages, preset, onChunk });
     }
   };
