@@ -421,13 +421,39 @@ was more optimistic than reality:
 It cannot run *concurrently* with the beat call - it has to know what she said -
 so it fires at stream end and runs while the player is tapping through beats.
 
-**Swap only while beats are still being revealed.** Once the player reveals the
-last beat the chip bar is live, and relabelling a button under a finger is a
-misclick. Late arrivals are discarded. The feature is therefore strictly
-opportunistic: it can improve the bar, never degrade it.
+**One turn, one token.** A written set belonging to a turn the player has
+already left is discarded; nothing else gates the swap.
+
+An earlier version also required the bar to still be disabled, reasoning that
+relabelling a live button is a misclick. In play that was backwards, and it
+broke the feature outright: a one-beat reply makes the bar live the instant the
+turn resolves, roughly a second *before* the chip call returns, so the written
+set was computed, paid for and thrown away in the commonest case. The only
+written chips that ever survived were the ones arriving while the bar was still
+disabled - which is exactly when they could not be clicked. The player saw
+static labels most turns and dead labels the rest.
+
+The misclick is prevented structurally instead: **the chip bar is always a stack
+of full-width options, labelled or not.** One geometry means a swap changes only
+the words, never the position or the size of the target under a finger.
 
 Do not route chips to a different, faster model. That abandons the shared prefix
 and turns a 20-token miss into 2200. Same model is what makes this cheap.
+
+The chip call also carries **its own, shorter deadline** (`timeoutMs` on the
+preset, 10s against the 45s default). A chip set that arrives after the player
+has taken their turn is discarded anyway, so waiting the full request timeout
+for one only holds a slot open and delays the circuit breaker noticing that the
+provider is struggling.
+
+#### While she is still speaking
+
+Chips are held while beats remain unread - choosing a stance mid-reply would
+skip her line. That hold needs to *say so*. Section 6 already learned this for a
+spent block: a disabled control with no explanation reads as a frozen screen,
+and a small caret in the corner of the dialogue box is not an explanation. The
+bar therefore grows an explicit continue control whenever beats are outstanding,
+and the dimmed options above it are visibly waiting rather than broken.
 
 #### Contract
 

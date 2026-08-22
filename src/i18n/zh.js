@@ -231,6 +231,7 @@ export default {
     again: '再来一幕',
     turnsLeft: '剩余',
     outOfTurns: '这个时段结束了。',
+    continue: '她还没说完',
   },
 
   dev: { scaffold: 'M0 脚手架', castLoaded: '角色', tokenCheck: '样式变量检查' },

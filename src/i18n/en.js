@@ -231,6 +231,7 @@ export default {
     again: 'Another scene',
     turnsLeft: 'left',
     outOfTurns: 'The block is over.',
+    continue: 'She is still speaking',
   },
 
   dev: { scaffold: 'M0 scaffold', castLoaded: 'Cast', tokenCheck: 'Token check' },

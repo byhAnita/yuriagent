@@ -167,3 +167,92 @@ describe('written chips', () => {
     for (const b of chipButtons()) expect(b.textContent).toMatch(/^stance\.\w+$/);
   });
 });
+
+describe('written chips land in the common case', () => {
+  const ONE_BEAT = '@irene|neutral|guard+2|fluster+0\n*She glances up.* "You are early."';
+
+  /**
+   * The reported bug, and the one the instant-resolving test above missed.
+   *
+   * A one-beat reply makes the bar live the moment the turn resolves, which is
+   * about a second BEFORE the chip call comes back. The swap used to require
+   * the bar to still be disabled, so in the commonest case the written set was
+   * computed, paid for, and thrown away - the player only ever saw the static
+   * labels, and the only written chips that survived were the ones arriving
+   * while the bar was disabled, which is exactly when they could not be used.
+   */
+  const slowChips =
+    (delayMs) =>
+    ({ preset, onChunk }) => {
+      if (preset === 'chips') {
+        return new Promise((resolve) =>
+          setTimeout(
+            () => resolve('tease|Say that again\nreassure|I am here\ndeflect|So. The schedule.'),
+            delayMs,
+          ),
+        );
+      }
+      if (onChunk) onChunk(ONE_BEAT);
+      return Promise.resolve(ONE_BEAT);
+    };
+
+  it('swaps in labels that arrive after the bar has already gone live', async () => {
+    mount({ client: slowChips(80), writtenChips: true });
+
+    // The bar is usable first, on the static set - that must never regress.
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 4000,
+    });
+
+    // And the written labels still arrive afterwards.
+    await waitFor(
+      () => expect(chipButtons().some((b) => /Say that again/.test(b.textContent ?? ''))).toBe(true),
+      { timeout: 4000 },
+    );
+    expect(chipButtons().every((b) => !b.disabled)).toBe(true);
+  });
+
+  it('keeps one geometry, so a swap never moves a button', async () => {
+    mount({ client: slowChips(80) });
+
+    await waitFor(() => expect(chipButtons().length).toBe(3));
+    const before = chipButtons().map((b) => b.className);
+
+    await waitFor(
+      () => expect(chipButtons().some((b) => /Say that again/.test(b.textContent ?? ''))).toBe(true),
+      { timeout: 4000 },
+    );
+    expect(chipButtons().map((b) => b.className)).toEqual(before);
+  });
+});
+
+describe('unread beats say so', () => {
+  const TWO_BEATS =
+    '@irene|neutral|guard+2|fluster+0\n*She glances up.* "You are early."\n\n' +
+    '@irene|shy|guard-6|fluster+8\n*A pause.* "That was not a complaint."';
+
+  const client = ({ preset, onChunk }) => {
+    if (preset === 'chips') return Promise.resolve('');
+    if (onChunk) for (let i = 0; i < TWO_BEATS.length; i += 9) onChunk(TWO_BEATS.slice(i, i + 9));
+    return Promise.resolve(TWO_BEATS);
+  };
+
+  /**
+   * A dead bar with a caret in the corner as its only explanation is the same
+   * mistake section 6 already fixed once for a spent block.
+   */
+  it('offers a continue control instead of only a caret', async () => {
+    const user = userEvent.setup();
+    mount({ client });
+
+    const cont = () => screen.queryByText(/vn\.continue/);
+    await waitFor(() => expect(cont()).not.toBeNull(), { timeout: 4000 });
+    expect(chipButtons().every((b) => b.disabled)).toBe(true);
+
+    await user.click(cont());
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 4000,
+    });
+    expect(cont()).toBeNull();
+  });
+});

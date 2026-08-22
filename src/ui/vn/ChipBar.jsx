@@ -21,6 +21,8 @@ export default function ChipBar({
   readHerLeft,
   turnsLeft,
   outOfTurns,
+  awaitingRead = false,
+  onAdvance,
   disabled,
   t,
 }) {
@@ -28,12 +30,14 @@ export default function ChipBar({
   const [text, setText] = useState('');
 
   /**
-   * Written labels do not fit three-across at 390px - "I'm not going anywhere"
-   * wraps to three lines in a 110px button. When any chip carries one the bar
-   * becomes a stack of full-width options, which is also how a VN presents a
-   * choice. With no labels it stays the compact row.
+   * The bar is always a stack of full-width options, labelled or not.
+   *
+   * Written labels cannot fit three-across at 390px - "I'm not going anywhere"
+   * wraps to three lines in a 110px button - but switching layout when they
+   * arrive would move every button mid-turn. One geometry means a written set
+   * changes only the words, never the target under a finger, which is what
+   * makes it safe to swap them in while the bar is already live.
    */
-  const written = chips.some((c) => c.label);
 
   /**
    * When the block is spent the chips do not simply go dead - that reads as a
@@ -68,7 +72,7 @@ export default function ChipBar({
 
   return (
     <div className="px-5 pb-5 pt-3">
-      <div className={written ? 'flex flex-col gap-1.5' : 'flex flex-wrap gap-1.5'}>
+      <div className="flex flex-col gap-1.5">
         {chips.map(({ stance, label }) => {
           const isSuggested = suggested.includes(stance);
           return (
@@ -77,11 +81,7 @@ export default function ChipBar({
               type="button"
               disabled={disabled}
               onClick={() => onStance(stance)}
-              className={`group relative rounded-[var(--radius-sm)] border border-hairline bg-surface transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 ${
-                written
-                  ? 'w-full px-3 py-2 text-left'
-                  : 'flex-1 px-2.5 py-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-text'
-              }`}
+              className="group relative w-full rounded-[var(--radius-sm)] border border-hairline bg-surface px-3 py-2 text-left transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 disabled:hover:border-hairline disabled:hover:bg-surface"
             >
               {isSuggested ? (
                 <span
@@ -96,24 +96,41 @@ export default function ChipBar({
                 dot and every rule in chips.js are stance-based - so hiding the
                 verb behind prose would make the system illegible.
               */}
-              {written ? (
-                <>
-                  <span className="block font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
-                    {t(`stance.${stance}`)}
-                  </span>
-                  {label ? (
-                    <span className="mt-0.5 block line-clamp-2 font-body text-[0.875rem] leading-snug text-text">
-                      {label}
-                    </span>
-                  ) : null}
-                </>
-              ) : (
-                t(`stance.${stance}`)
-              )}
+              <span
+                className={`block font-mono uppercase tracking-[0.16em] ${
+                  label
+                    ? 'text-[0.5625rem] text-dim'
+                    : 'text-[0.6875rem] tracking-[0.12em] text-text'
+                }`}
+              >
+                {t(`stance.${stance}`)}
+              </span>
+              {label ? (
+                <span className="mt-0.5 block line-clamp-2 font-body text-[0.875rem] leading-snug text-text">
+                  {label}
+                </span>
+              ) : null}
             </button>
           );
         })}
       </div>
+
+      {/*
+        She has not finished speaking. The options above are already on screen
+        and already dead, and section 6 learned once that a disabled control
+        with no explanation reads as a frozen screen - so say what the move is
+        and make it a real target, rather than leaving a caret in a corner as
+        the only clue.
+      */}
+      {awaitingRead ? (
+        <button
+          type="button"
+          onClick={onAdvance}
+          className="mt-2 w-full rounded-[var(--radius-sm)] border border-accent/40 bg-surface-alt px-4 py-2 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-accent transition-colors hover:bg-surface"
+        >
+          {t('vn.continue')} &#9656;
+        </button>
+      ) : null}
 
       <div className="mt-2 flex items-center gap-2">
         <button

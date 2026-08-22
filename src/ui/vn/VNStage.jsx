@@ -50,9 +50,9 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
   const emotion = queue.current?.emotion ?? 'neutral';
 
   /**
-   * The deterministic set. Rendered instantly, every turn, no matter what.
-   * Written chips replace it only if they arrive before the bar goes live
-   * (CLAUDE.md section 6), so nothing here ever waits on a model.
+   * The deterministic set. Rendered instantly, every turn, no matter what, and
+   * replaced in place if a written set arrives (CLAUDE.md section 6). Nothing
+   * here ever waits on a model.
    */
   const staticChips = useMemo(
     () =>
@@ -67,13 +67,17 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
   const suggested = useMemo(() => suggestedStances(rel), [rel]);
 
   /**
-   * Relabelling a button under the player's finger is a misclick, so a written
-   * set is only accepted while the bar is still disabled. `barLive` is a ref
-   * rather than state because it is read inside an async callback, where a
-   * captured value would be stale - the same trap that once cost a task its
-   * credits in `advance()`.
+   * One turn, one token. A written set that comes back after the player has
+   * already moved on belongs to a turn that no longer exists, so it is dropped.
+   *
+   * This used to ALSO require the bar to still be disabled, on the theory that
+   * relabelling a live button is a misclick. That was backwards in practice: a
+   * one-beat reply makes the bar live the instant the turn resolves, which is
+   * about a second before the chip call returns, so the written set was thrown
+   * away in the common case and the player only ever saw the static labels. The
+   * geometry is stable now (the bar is always a stack), so a swap changes words
+   * in place and never moves a button out from under a finger.
    */
-  const barLive = useRef(false);
   const turnToken = useRef(0);
   const chipFailures = useRef(0);
 
@@ -101,10 +105,10 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
   /**
    * Ask for written labels for the turn the player is about to take.
    *
-   * Fired at stream end and never awaited: it runs while the player taps
-   * through the beats she just spoke. Three ways it comes to nothing, all
-   * silent - the bar went live first, the player already moved on, or the model
-   * gave us nothing usable and the static set stands.
+   * Fired at stream end and never awaited: it runs while the player is reading
+   * the beats she just spoke. Two ways it comes to nothing, both silent - the
+   * player already moved on, or the model gave us nothing usable and the static
+   * set stands.
    */
   const requestWrittenChips = useCallback(
     async (frame, token) => {
@@ -124,7 +128,7 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
 
       chipFailures.current = ok ? 0 : chipFailures.current + 1;
 
-      if (token !== turnToken.current || barLive.current) return;
+      if (token !== turnToken.current) return;
       if (got.some((c) => c.label)) setWritten(got);
     },
     [client, rel, setup.cards, setup.lang, setup.player.energy],
@@ -199,11 +203,14 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
     }
   }, [session, client, setup, onSceneEnd]);
 
-  // The bar is live exactly when it is not disabled, so the two can never drift.
+  /**
+   * Two different reasons the bar is not usable, and they need different words.
+   * A call in flight is "wait"; unread beats are "your move, after you read
+   * this" - and section 6 already learned that a disabled control with no
+   * explanation reads as a frozen screen.
+   */
+  const awaitingRead = !pending && hasMore(queue);
   const barDisabled = pending || hasMore(queue);
-  useEffect(() => {
-    barLive.current = !barDisabled;
-  }, [barDisabled]);
 
   // Opening beat, so the player walks into something rather than a blank room.
   useEffect(() => {
@@ -249,6 +256,8 @@ export default function VNStage({ setup, client, giftNote, onSceneEnd, writtenCh
         readHerLeft={readHerLeft}
         turnsLeft={turnsLeft}
         outOfTurns={outOfTurns}
+        awaitingRead={awaitingRead}
+        onAdvance={() => setQueue(advance)}
         disabled={barDisabled}
         t={t}
       />

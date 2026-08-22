@@ -220,3 +220,64 @@ describe('goodwillTargets', () => {
     expect(goodwillTargets(cards, occupancy, 'cafe').sort()).toEqual(['irene', 'nana']);
   });
 });
+
+/**
+ * Which fact you learn, and about whom, has to move between runs.
+ *
+ * Reported from play: "we always get jisoo annotated script for jisoo, knee
+ * injury for hyewon". The rng was never the problem - both picks were already
+ * random - but every card carried exactly two facts, so each knowledge gift had
+ * exactly one possible owner and the whole economy was a fixed lookup.
+ */
+describe('knowledge is not a fixed lookup', () => {
+  it('gives every knowledge gift more than one possible owner', () => {
+    for (const gift of KNOWLEDGE_GIFTS) {
+      const owners = cards.filter((c) =>
+        (c.learnableFacts ?? []).some((f) => isUnlocked(gift, { known_facts: [f] })),
+      );
+      expect(owners.length, `${gift.id} is reachable from too few members`).toBeGreaterThan(1);
+    }
+  });
+
+  it('gives each member enough to learn that the order matters', () => {
+    for (const card of cards.filter((c) => (c.learnableFacts ?? []).length > 0)) {
+      expect(card.learnableFacts.length, `${card.id}`).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('learns different things about the same member on different seeds', () => {
+    const learnedFor = (seed) => {
+      const out = resolveSoloAction({
+        locationId: 'wardrobe',
+        actionId: 'read_fitting_notes',
+        cards,
+        dossier: fresh(),
+        rng: makeRng(seed),
+      });
+      return out.learned ? `${out.learned.memberId}:${out.learned.fact}` : null;
+    };
+
+    const seen = new Set();
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const got = learnedFor(seed);
+      if (got) seen.add(got);
+    }
+    // Not just several members - several distinct facts overall.
+    expect(seen.size).toBeGreaterThan(6);
+  });
+
+  it('spreads across members rather than always naming the same one', () => {
+    const members = new Set();
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const out = resolveSoloAction({
+        locationId: 'wardrobe',
+        actionId: 'read_fitting_notes',
+        cards,
+        dossier: fresh(),
+        rng: makeRng(seed),
+      });
+      if (out.learned) members.add(out.learned.memberId);
+    }
+    expect(members.size).toBeGreaterThan(2);
+  });
+});

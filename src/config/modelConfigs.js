@@ -46,8 +46,15 @@ export const CALL_PRESETS = {
   turn: { temperature: 0.9, maxTokens: 320, stream: true },
   thought: { temperature: 0.8, maxTokens: 80, stream: false },
   summarize: { temperature: 0.2, maxTokens: 400, stream: false },
-  /** Three short lines. Never streamed - it is swapped in whole or not at all. */
-  chips: { temperature: 0.85, maxTokens: 120, stream: false },
+  /**
+   * Three short lines. Never streamed - swapped in whole or not at all.
+   *
+   * Its own, much shorter deadline: a chip set that arrives after the player
+   * has already taken their turn is discarded anyway, so waiting the full
+   * request timeout for one only holds a slot open and delays the circuit
+   * breaker noticing that the provider is struggling.
+   */
+  chips: { temperature: 0.85, maxTokens: 120, stream: false, timeoutMs: 10000 },
 };
 
 export function getModel(id) {

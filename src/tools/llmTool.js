@@ -96,7 +96,7 @@ export async function complete({
 }) {
   const model = getModel(modelId);
   const shape = { ...CALL_PRESETS[preset], stream: false };
-  const clock = deadline(REQUEST_TIMEOUT_MS, signal);
+  const clock = deadline(shape.timeoutMs ?? REQUEST_TIMEOUT_MS, signal);
 
   try {
     const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
@@ -149,7 +149,7 @@ export async function stream({
 
   // A stream may legitimately run for a while, so the deadline is on SILENCE
   // rather than on total duration: every token pushes it back out.
-  const clock = deadline(REQUEST_TIMEOUT_MS, signal);
+  const clock = deadline(shape.timeoutMs ?? REQUEST_TIMEOUT_MS, signal);
 
   try {
     const res = await fetchImpl(`${model.baseUrl}/chat/completions`, {
