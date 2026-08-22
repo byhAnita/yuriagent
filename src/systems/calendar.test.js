@@ -53,13 +53,22 @@ describe('the weekend is protected', () => {
 
   it('puts everyone somewhere non-working at the weekend', () => {
     const plan = generateWeek({ phase: 'comeback', cards, seed: SEED });
-    const working = ['practice_room', 'broadcast_studio', 'drama_set', 'wardrobe', 'corridor'];
+    const working = [
+      'practice_room',
+      'broadcast_studio',
+      'drama_set',
+      'wardrobe',
+      'makeup_room',
+      'photo_studio',
+      'meeting_room',
+    ];
 
     for (const day of WEEKEND_DAYS) {
       for (const block of BLOCKS) {
         const occ = occupancyAt(plan, { day, block, cards, seed: SEED });
         for (const [, where] of Object.entries(occ)) {
-          expect(where.layer).toBe('idle');
+          // 'routine' is her own room on one of her evenings - also not work.
+          expect(['idle', 'routine']).toContain(where.layer);
           expect(working).not.toContain(where.locationId);
         }
       }

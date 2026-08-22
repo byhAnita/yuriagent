@@ -566,3 +566,90 @@ without checking the structure it sits in:
    small. Write the first as a 2-member scene to prove the injection shape.
 3. **Group rotation** - `systems/` speaker weighting first, then the turn loop.
 4. **Multi-portrait** - last.
+
+---
+
+## 11. The opener moves into the scene, and taking someone a gift takes the floor
+
+**Status: AGREED 2026-08-22 with Yuhan, recommendation below. Not implemented.**
+Raised because group scenes break the current placement.
+
+### The problem
+
+Section 11 puts the opener in a **pre-scene modal**: the player picks a gift or a
+gesture before the first call, and it is injected as the opening line of block 5
+so that her opening beat is the reaction. That works for one member in a room and
+does not survive section 10c. In a rotating group scene there is no single
+"before the scene starts" moment that belongs to any one member.
+
+### The change
+
+**One interactions control, next to the portrait, live for the whole scene.** It
+replaces the pre-scene modal rather than sitting alongside it - two mechanisms
+for one act is complexity with nothing bought. Opening with a gift becomes
+"tap it before saying anything", and section 9's existing gift opening directive
+still fires for that case.
+
+Three reasons it is right, and the second is the one that was not obvious:
+
+1. **Uniform across 1v1 and group.** The reason it came up.
+2. **The gesture half improves.** Section 11's free option - asking how her ankle
+   held up - is a conversational act, and a pre-scene modal makes the player bet
+   it blind at the door. Mid-scene it can land immediately after she mentions the
+   thing, which is the best possible moment for *"How did you know about my
+   knee?"* The responsive version should read better, not worse.
+3. **The cache already allows it.** Section 8 invariant 3 names a mid-scene gift
+   explicitly: appended at the tail, never edited into the header. No cost.
+
+### Ordering in a group scene: interaction takes the floor
+
+The question Yuhan raised: A speaks, the player gifts A, and B was next.
+
+**Rule: interacting with someone makes her the next speaker.**
+
+A gift is an *address*. Handing someone something in a room full of people is
+turning to them, and cutting from that to a third party talking about the
+schedule is not how a room works. Two alternatives were considered and both are
+worse: attaching the control to the current speaker restricts the player to
+whoever happened to talk last, and attaching it to the *next* speaker uses the
+client's pick where the player's intent belongs.
+
+Two things follow for free:
+
+- **It gives the group scene its missing verb.** In section 10c the rotation is
+  client-driven and the player only answers or passes. "Turn to her" is the lever
+  the player needs, and it is a forced value into the speaker-weight function -
+  no new machinery.
+- **It fires the witnessed rule.** Turning to one member in a full room and
+  handing her something is the loudest witnessed act in the game. Section 5b
+  already prices it.
+
+### One opener per scene, and that is the interesting part
+
+The pre-scene modal rationed this by construction; an always-live button does
+not. Credits are binding (proposal 6), but an economic brake alone means a rich
+player can degrade the fiction into a gift every turn until "she hears that you
+remembered" is noise.
+
+**One per scene, not one per member.** In a group scene that becomes the best
+version of the mechanic: the single opener is a choice of *who gets it in front
+of everyone else*, and scarcity is what makes "whom" mean anything. That is the
+jealousy tension inside one tap.
+
+The control dims after use **with the reason shown** - section 6 already learned
+that a disabled control with no explanation reads as a frozen screen.
+
+### Smaller consequences
+
+- **Only someone in the room.** You cannot hand a gift to an absent member. This
+  mirrors the parser roster rule and the chip-label rule.
+- **The i18n title changes.** "How you walk in" stops being accurate once the
+  control is live all scene.
+- **Turn 0 versus later.** Given on turn 0 it uses the existing gift opening
+  directive; given later it is an ordinary tail injection under invariant 3.
+  Both paths already exist.
+
+### Cost
+
+Small. UI work plus a target step in group scenes, a one-per-scene flag in the
+turn loop, and a forced next-speaker value. No prompt-block changes at all.
