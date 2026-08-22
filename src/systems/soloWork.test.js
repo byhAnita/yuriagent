@@ -230,18 +230,45 @@ describe('goodwillTargets', () => {
  * exactly one possible owner and the whole economy was a fixed lookup.
  */
 describe('knowledge is not a fixed lookup', () => {
-  it('gives every knowledge gift more than one possible owner', () => {
+  it('leaves no knowledge gift unreachable', () => {
     for (const gift of KNOWLEDGE_GIFTS) {
       const owners = cards.filter((c) =>
         (c.learnableFacts ?? []).some((f) => isUnlocked(gift, { known_facts: [f] })),
       );
-      expect(owners.length, `${gift.id} is reachable from too few members`).toBeGreaterThan(1);
+      expect(owners.length, `${gift.id} is unreachable`).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * The property that actually kills the fixed lookup. One gift per member
+   * means learning anything about her tells you exactly what to buy; several
+   * means what you can buy depends on which fact you happened to turn up.
+   */
+  it('gives every member more than one gift to reach', () => {
+    for (const card of cards.filter((c) => (c.learnableFacts ?? []).length > 0)) {
+      const reachable = KNOWLEDGE_GIFTS.filter((g) =>
+        card.learnableFacts.some((f) => isUnlocked(g, { known_facts: [f] })),
+      );
+      expect(reachable.length, `${card.id} only reaches ${reachable.length} gift(s)`).toBeGreaterThan(1);
     }
   });
 
   it('gives each member enough to learn that the order matters', () => {
     for (const card of cards.filter((c) => (c.learnableFacts ?? []).length > 0)) {
-      expect(card.learnableFacts.length, `${card.id}`).toBeGreaterThanOrEqual(4);
+      expect(card.learnableFacts.length, `${card.id}`).toBeGreaterThanOrEqual(5);
+    }
+  });
+
+  /**
+   * One fact must not trip two gifts. That is a wording accident rather than a
+   * design choice, and it quietly makes a second gift free.
+   */
+  it('does not let one fact unlock two different gifts', () => {
+    for (const card of cards) {
+      for (const fact of card.learnableFacts ?? []) {
+        const hits = KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [fact] }));
+        expect(hits.length, `"${fact}" unlocks ${hits.map((h) => h.id).join(', ')}`).toBeLessThan(2);
+      }
     }
   });
 

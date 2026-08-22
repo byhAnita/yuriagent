@@ -998,9 +998,31 @@ Localized display names live in `i18n/`, not on the card, so a card stays a sing
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
 
-`learnableFacts` is the pool solo-work snooping draws from (section 10b). Each
-entry should contain the substring a knowledge gift matches on, so that learning
-it genuinely opens something.
+`learnableFacts` is the pool solo-work snooping draws from (section 10b).
+
+**Five per card, and the gift is written to the habit rather than the habit to
+the gift.** An earlier catalogue did the reverse - eight neutral objects, one
+matching fact per member - and the result was a fixed lookup: jisoo always meant
+the annotated script, hyewon always meant the knee brace. The snoop was already
+picking a random member and a random fact; with two facts each and one gift
+apiece there was simply nothing for the randomness to do.
+
+Two rules, both asserted:
+
+- **Every member reaches more than one knowledge gift**, so what you can buy
+  depends on which fact you happened to turn up first.
+- **No single fact unlocks two gifts.** That is a wording accident rather than a
+  design choice, and it hands over a second gift free.
+
+Facts are drawn from the real member's publicly known habits - the laundry, the
+film camera, the piano, the perfume - because a gift that answers a real habit
+reads as attention paid, and an invented one reads as a fetch quest. They stay
+persona-level: preferences and routines, never a claim about a real person's
+health, relationships or private life (section 22).
+
+`requires` carries **paraphrases**, not just the card's wording. The summarizer
+writes dossier entries in its own words, so a single tight needle means the gift
+silently never unlocks for a player whose model phrased it differently.
 
 `portraitMode` is one of `mascot` | `single` | `multi` (see section 14). MVP writes only `mascot`; the field exists now so v2 is content, not a refactor.
 
