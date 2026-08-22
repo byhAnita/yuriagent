@@ -908,6 +908,14 @@ Three layers, cheapest first:
 
 Interactive scenes cap at **2 present members**. Three or more only inside scripted event nodes, where the prompt is tight and one retry is acceptable.
 
+**The cap is a constraint on the single-call architecture, and client-side
+rotation retires it.** It exists because one call writing three people is
+unreliable at this model tier - not because three people in a room is wrong. In
+a rotating group scene the client picks who speaks and asks for **one member's
+beat per call**, so the roster rule above holds at one speaker per call and
+member bleed stays structurally prevented rather than prompted against. The cap
+stands until that rotation ships and has been measured; see section 10c.
+
 Summarizer and any JSON-returning call use the rv-simulator 4-level fallback: direct parse -> strip markdown -> regex field extraction -> safe defaults. Never crash.
 
 ---
@@ -952,14 +960,123 @@ weekPlan: {
 This is load-bearing, not a nicety:
 
 - It is the only time the whole cast is simultaneously reachable and unscheduled, which makes the weekend the relationship engine's own playground.
-- Weekend blocks are where **event anchors** are placed, so a scripted beat can never collide with a comeback.
+- The weekend is where **dating** lives (below). A date consumes the whole day.
 - It gives the week a shape - five days of opportunity cost, two days of choice.
+
+**Event anchors go on weekdays, not weekends.** This reversed during the M5
+design pass and the earlier reasoning was backwards. The argument for weekends
+was that nothing was scheduled there, so a scripted beat could not collide with
+a comeback - but an authored event should *replace* a scheduled day, not dodge
+one. The Music Bank recording genuinely is that Thursday. Weekends belong to the
+player, which is what this section wanted them for in the first place.
 
 `isWeekend(day)`, `workDays()` and `eventWindows()` in `systems/calendar.js`. Day 0 is Monday.
 
 Occupancy for any `(day, block, location)` is derived: company slot first, then member solo slots, then a default idle location per member. This is what makes the map a *search* rather than a menu - Wendy is at the radio station on Wednesday afternoon whether you go looking or not.
 
 Solo slots are generated from each card's `activityProfile.types`, resolved through the shared table in `data/activities.js`, which maps an activity type to its location, its `exposureBase`, and the phases it can appear in. Cards therefore stay portable: a card from any group drops into any cast without touching the calendar code.
+
+### The map is a template of roles, filled differently each phase
+
+The map is **a fixed set of role slots**, not a list of rooms. The shape is
+constant for the whole campaign - the player learns the grammar once - while the
+contents turn over with the phase. A **role is carried by the slot**, and one
+slot can carry several.
+
+| Slot | # | Roles | PREP | COMEBACK | REST |
+|---|---|---|---|---|---|
+| `workroom_a` | 1 | chat, task, knowledge | practice room | filming location | photo studio |
+| `workroom_b` | 1 | chat, task, knowledge | wardrobe | make-up room | recording studio |
+| `social` | 1 | chat, **rumor** | drink room | green room | hair salon |
+| `venue` | 1 | chat, **public date**, part-time | bistro | cafe | Han River park |
+| `event_a` / `event_b` | 1-2 | authored, whole day, fires once | meeting room | Music Bank, fan meeting hall | cruise, island |
+| dorm shared | 2 | chat, knowledge | living room, kitchen | same | same |
+| her room | x5 | **private date**, gated | routine evenings | (away) | routine evenings |
+| your room | 1 | rest | same | same | same |
+
+Eight or nine reachable at a time. An earlier draft capped this as "eight to ten
+locations per phase", which is a number somebody has to remember; slots make the
+same constraint structural. REST keeps its workrooms because the solo layer
+resumes fully that week - they become individual-career sites rather than
+vanishing.
+
+**Every phase must carry every role, and this is asserted.** Section 21: a rule
+that is not asserted is one that gets quietly broken, and "COMEBACK has no rumor
+room" is exactly the hole that survives a content edit.
+
+`data/phaseMaps.js` holds `SLOTS` and `PHASE_MAP`. Nothing else may hardcode a
+location id where a role is meant.
+
+### Where everyone is: the day has two textures
+
+Weekday assembly order, at week start:
+
+1. place the special event day
+2. place the daily task
+3. place group activity - **the density is phase-scoped**, because the phase
+   table above is a claim about co-presence and a flat density cannot deliver
+   it: PREP 3-4 slots a week, COMEBACK 4-5, REST 0
+4. fill what is left with solo activity, then the social room
+
+Morning and afternoon are work-adjacent. **Evenings are not:** the cast leaves
+the workrooms, and turns up at the dorm, at the venue, or in her own room. So
+after hours a workroom is *reliably* empty, which is the point - the player can
+still work overtime there, and a dependable fallback is what makes the
+unreliable options feel like a search rather than a lottery.
+
+The two halves of the day therefore have different textures - work-adjacent
+contact before dinner, relaxed and private contact after it.
+
+Weekend assembly runs **at the start of each weekend day**, not at week start,
+because occupancy depends on whether a date happened and that is player input.
+Still deterministic: the inputs are `(seed, week, day, dateChoice)`.
+
+### Her room is a routine, not a die roll
+
+Each member is in her own room **one or two fixed evenings a week**, set by the
+seed and stable for the cycle. Evenings only, and never during COMEBACK - she is
+not home that week.
+
+Fixed rather than random because this section has promised it since M1 and never
+delivered: *routines are learnable*. A random presence is a lucky knock; a
+routine is something **snooping can reveal**, which finally gives the knowledge
+economy something to buy besides objects and openers - **access**. A fact that
+tells you where she will be is more interesting than one that tells you what to
+purchase.
+
+### Dating: the two axes already say what the gate is
+
+A date is asked for at the start of a weekend day, is refusable, and consumes
+the whole day.
+
+- **A public date gates on `admissibility`.**
+- **A private date gates on `intimacy`.**
+
+This falls out of the existing model rather than being bolted on. A private date
+asks *how close are we*; a public one asks *how nameable is this*. So the two are
+not substitutes: a player deep in `confidante` gets the private date easily and
+cannot get the public one at all, which is the plateau stating its terms as
+plainly as the game can.
+
+**A refusal is not a failure.** It is the first time a hidden number becomes a
+visible yes or no, which is pillar 1 working. An early ask costs the block and
+nothing else.
+
+Two things keep a public date distinct from simply meeting her at the cafe on a
+Tuesday evening, which would otherwise offer most of the same exposure for a
+fraction of the cost:
+
+1. **It is witnessed-tier for all four absent members** - no probability roll,
+   the way section 5b treats a group scene. Everyone finds out. That makes it
+   categorically the loudest act in the game.
+2. **The player pays the bill in credits.** See section 11: this is the second
+   sink the economy has been waiting for, and it *competes* - a gift for her
+   today, or affording to take her out on Saturday.
+
+The emergent property worth protecting: **a date is depth and a free weekend is
+breadth.** One consumes a day for one member; the other is six blocks across up
+to three. That is the multi-route tension of section 5b expressed as a decision
+the player makes every week.
 
 ### Locations: exposure and presence are independent
 
@@ -1018,6 +1135,25 @@ actions for that room (section 10b). Never from a menu - a button that works
 from anywhere ignores where the player is standing, which is the only thing
 that made the task cost something.
 
+**A task names a slot, not a room.** `prep_outfits` belongs to *workroom B*,
+which resolves to the wardrobe in PREP, the make-up room in COMEBACK and the
+recording studio in REST. Binding to a location id does not survive phase maps:
+three of the five shipped tasks pointed at `corridor` or `broadcast_studio`,
+neither of which exists as an ordinary room once the map rotates. Name the role,
+resolve the instance - the same argument that keeps cards portable across casts.
+
+Two rules for how it is offered, both about keeping it a choice:
+
+1. **It is one option in the room's action list, never a banner or a screen of
+   its own.** Privileging it visually turns the choice back into an errand.
+2. **The list must show the clock** - *today's job, last block*. The conflict
+   this section describes only bites if the player can see the window closing. A
+   conflict discovered by having already failed is a gotcha, not a decision.
+
+The sharpest case is the one the schedule produces on its own: the task's room
+has her in it. Spending the block on the outfits while she is standing there is
+the task system working exactly as designed.
+
 - Success: `competence +`, positive ledger entry.
 - Failure: `competence -`, `energy -`, and if the failure touched her, `strain += 8`.
 
@@ -1058,6 +1194,22 @@ Read her, the fix is `ENERGY_RESTORED_OVERNIGHT` 24 -> 18. Not both.
 
 Most blocks are spent in a room with nobody in it. That has to be worth doing,
 or two thirds of the map is dead space and the day is a menu of one option.
+
+**Every action is offered in every room, occupied or not.** Being locked out of
+snooping because somebody walked in is agency lost for no design gain; a room
+offers what it offers, and the player chooses. What changes with company is the
+price, and two things set it - one of which was already here:
+
+1. **You never learn about someone in the room** - facts *and* rumors, the rule
+   below. So the more members present, the smaller the pool. An occupied room is
+   a weaker snoop automatically, with no new code.
+2. **The secrecy cost scales with `presence`.** Being nosy in front of witnesses
+   costs more than being nosy alone. `presence` is already on every location, so
+   this is a multiplier rather than new data.
+
+Empty stays cheap; occupied stays possible. Without rule 2 the occupied room
+would be strictly better than the empty one - chat *and* a snoop for the same
+block - which only inverts the dead-space problem this section exists to solve.
 
 Authored, deterministic, **no LLM call** - the same argument as the calendar.
 Spending a model call on "you restocked the wardrobe" is waste, and these need
@@ -1152,6 +1304,45 @@ otherwise cost is better spent on a scene.
 `learnableFacts` on the card (section 12) is the pool. Every knowledge gift in
 `data/gifts.js` must have at least one owner among the cast, or it is
 unreachable; there is a test that asserts this.
+
+---
+
+## 10c. Group Scenes: the client owns the turn order
+
+**Planned, not built.** Sequenced after phase maps and authored events.
+
+Any room with members in it offers three things: talk to one of them, join the
+group, or work the room (knowledge / rumor / part-time). The group option is the
+one that needs new machinery.
+
+The shape: the client picks who speaks, asks the model for **that member's beat
+alone**, reveals it, lets the player answer or pass, and rotates.
+
+This is not a convenience - it is what makes group scenes safe at this model
+tier. One call means one speaker, so section 9's roster rule applies unchanged
+and member bleed is prevented by construction instead of by instruction. Asking
+a Flash-tier model to write five distinct women in a single response is the
+hardest thing this game could ask of it, and rotation means never asking.
+
+Three rules, all found by reasoning about it rather than measuring, so all three
+need checking against a real run:
+
+1. **Latency is additive.** Each member must see what the last one said, so the
+   calls cannot run in parallel. A five-member round is roughly 8-14s of model
+   time. Beat reveal hides some of it. Measure before trusting it.
+2. **Do not prompt the player every line.** Five "say something or pass?" prompts
+   per round is a lot of decisions for very little content. The rotation runs;
+   the player interjects.
+3. **Do not pick the speaker at random** - it reads as arbitrary. Weight by who
+   has a stake: jealousy, intimacy, whether the last line was about her. Pure
+   function in `systems/`, deterministic and testable, no model call.
+
+Block 3 carries every present member's dossier in a group scene - about 300
+tokens rather than 60. That sits inside the per-scene rebuild and costs nothing
+in cache terms.
+
+The multi-portrait stage (section 14) comes **after** this works. It is
+presentation for something that does not exist yet.
 
 ---
 
