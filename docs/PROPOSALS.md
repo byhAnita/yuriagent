@@ -653,3 +653,199 @@ that a disabled control with no explanation reads as a frozen screen.
 
 Small. UI work plus a target step in group scenes, a one-per-scene flag in the
 turn loop, and a forced next-speaker value. No prompt-block changes at all.
+
+---
+
+## 12. A group scene is a room, not a queue
+
+**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** Supersedes the
+round-robin sketch in section 10c.
+
+### The problem with rotation
+
+The first design was: pick a member, she speaks, the player answers, rotate.
+Yuhan pushed on it and it does not survive the question - **A speaks, the player
+responds, and then it is B's turn. Who was the player talking to? Who answers?**
+
+A rota has no answer, because a conversation is not a turn order. Rotation also
+generates four calls a round that the scene did not ask for.
+
+### The primitive: an addressee
+
+> **The player always has a current addressee. Whoever the player addresses
+> speaks next. It defaults to whoever last spoke, and one tap changes it.**
+
+That answers all three questions at once. Who is the player talking to - the
+addressee. Who answers - the addressee. Does the player choose - yes, but only
+when they want to, because the addressee is **sticky**, so the common case costs
+zero extra taps.
+
+A gift is one way of addressing someone (proposal 11), a chip is another. One
+verb, two surfaces, which is a good sign it is the right primitive.
+
+### The addressee alone collapses the scene
+
+If the addressee always answers, B and C never speak and a group scene is a 1v1
+with spectators. So the un-addressed need a way in - and it must not be a rota:
+
+```
+1. the addressee speaks
+2. the client MAY add ONE interjection from another member,
+   if her stake clears a threshold
+3. the player acts: chip / free text / gift / turn to someone / pass
+```
+
+**The interjection is the whole feature.** It is not randomness - it is section
+10c's stake function doing real work. Nana cuts in *because* she is at `sharp`
+jealousy and the player just turned to Irene; Hyewon cuts in because they were
+talking about her. The room writes itself out of state the game already tracks,
+which is what a group scene should be and what a rota structurally cannot be.
+
+`pass` also stops being a skip button: it is the player letting the room breathe,
+with the client picking who fills the silence by stake.
+
+### This retires the latency worry
+
+Section 10c estimated 8-14s a round from five sequential calls. Addressee plus
+optional interjection is **one or two calls per player turn** - a 1v1, sometimes
+plus one. The rota was generating calls the scene did not need.
+
+### Two things that come free
+
+- **The UI already exists in the design.** Section 14: *"the speaker sits at full
+  opacity and scale, others dim to 0.55 and scale 0.95."* That is exactly how to
+  show who the player is turned to.
+- **Attention becomes a visible, priced state.** Who the player is turned to is
+  on screen at all times, the others can see it, and turning away is witnessed.
+  The group scene's tension is literally where the player's attention points -
+  the jealousy system made continuous rather than settled at scene exit.
+
+### Implementation plan
+
+1. `systems/speaker.js` - **pure**. `stakeOf(member, sceneState)` and
+   `pickSpeaker(rng, candidates)`. Weighted by jealousy band, intimacy, whether
+   the last beat named her, and how long since she last spoke. Deterministic,
+   testable, no model call.
+2. `systems/speaker.js` - `shouldInterject(stakes, threshold)`. Threshold is a
+   **named constant** set by the harness, like `RISK_PAYOFF_SCALE`. An
+   interjection every turn is a scene where nobody finishes a sentence.
+3. `agent/sceneEngine.js` - scene session gains `addresseeId`; `runTurn` targets
+   it; a second optional call for the interjection.
+4. `agent/promptBuilder.js` - an **interjection directive**: *you are Nana; Irene
+   and the player were talking; you cut in.* This is a new prompt shape beside
+   `openingDirective`, and the one most likely to read badly if the threshold is
+   wrong.
+5. `ui/vn/` - portrait row with the section 14 focus treatment; a "turn to her"
+   control; `pass`.
+6. Raise section 9's 2-member cap only after this is measured live.
+
+### Risk
+
+The interjection threshold is the one number here that cannot be reasoned to. It
+needs a live pass, not a harness pass, because the failure mode is prose quality
+rather than a distribution.
+
+---
+
+## 13. Dates and events need a different register, and the player needs a name
+
+**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** Raised by Yuhan while
+planning dating: a whole-day scene played at ordinary-chat register will drift.
+
+### Three registers, and the contrast is the point
+
+An ordinary slot chat is one block, `SCENE_TURN_LIMIT = 8`, 30-50 word beats. A
+date or an authored event is a **whole day**. Played at the same register it
+either ends too soon or wanders, because nothing in the prompt says where the
+scene is going.
+
+| Register | Turns | Style | Frame |
+|---|---|---|---|
+| ordinary | 8 | terse, legible, quick | location + activity + standing |
+| **date** | ~16 | literary, sensory | + an authored spine for the venue |
+| **event** | ~16 | literary, sensory | + an authored spine for the occasion |
+
+**Keeping ordinary scenes terse is deliberate.** Section 1's first pillar is
+"legible tension over long prose - 30-50 word bursts, not 300-word narration",
+and applying a literary register everywhere would quietly repeal it. Making the
+register a *contrast* is what lets a date feel like a date: the game changes how
+it writes when the day is hers.
+
+### The spine: shape without script
+
+Drift is a length problem, and the fix is not a longer instruction - it is
+giving the scene somewhere to go. A date frame carries **movements**: two to
+four situations the scene may pass through, in order, none of them required.
+
+```
+bistro:
+  setting  - a corner table, the window fogged, the waiter who does not
+             recognise her
+  movements - arriving and deciding where to sit
+            - the meal, and what she does not say about work
+            - the walk back, and how long it takes
+```
+
+**The rule from section 11 holds unchanged: a movement may set the situation,
+never the outcome.** "The walk back, and how long it takes" is a place. "She
+takes your hand on the walk back" is a script, and section 1 rules out branching
+text adventures explicitly. Everything the engine already does - standing,
+dossier, her voice, the meters - still writes what happens.
+
+This is adapted from `rv-simulator`'s `specialEvents.js`, which frames an event
+as setup -> emotional beat -> constraint in one or two sentences. The one thing
+deliberately dropped: its prompts name the payoff (*"player thinks: I want to
+hold onto this moment forever"*). At whole-day length with a real relationship
+model underneath, the payoff has to be earned by the scene rather than stated by
+the frame.
+
+### Style directive
+
+Applied to date and event registers only:
+
+```
+Literary and sensory. Sight, sound, touch, smell.
+Open with one or two sentences that establish the atmosphere before anyone
+speaks.
+```
+
+### The pronoun rule is global
+
+This one applies to every register and is missing today:
+
+```
+In NARRATION, refer to the player as "you" and "your".
+In DIALOGUE, inside quotation marks, she may use the player's name.
+```
+
+Without it every line addresses a person with no name, which is the flattest
+possible second person. With it, the first time she uses the player's name is a
+moment - and it is her choice of register, which is exactly the kind of signal
+this game asks the player to read.
+
+### The player needs a name
+
+`player.name` is **already in the section 15 state schema** and has never been
+collected or used. It needs:
+
+- a name field at run start, alongside the (later) cast picker
+- injection into block 1, which is byte-stable for the run, so it is set once
+- **sanitising**: cap the length, strip newlines and control characters. It is
+  player text going into a prompt, and a name containing a newline can forge a
+  metadata line and move her meters.
+- no localisation - it is the player's own text, in whatever script they typed.
+
+### Implementation plan
+
+1. `config/constants.js` - `SCENE_TURN_LIMIT` becomes per-register.
+2. `data/sceneFrames.js` - setting and movements per date venue and per event.
+   Model-facing English, never localized, like `ACTIVITY_DOING`.
+3. `agent/promptBuilder.js` - block 1 gains the pronoun rule and the player name;
+   block 4 gains the style directive and the spine when the register is not
+   ordinary. Both are inside blocks that are already rebuilt or already stable,
+   so **neither costs anything in cache terms**.
+4. `store/player.js` + a name field on the start screen; sanitiser with a test.
+5. `systems/dating.js` picks the frame for the venue.
+
+Order: the name and the pronoun rule first, because they are global and cheap;
+the registers with dating; the event frames with the events.
