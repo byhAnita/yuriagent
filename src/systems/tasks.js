@@ -10,16 +10,25 @@
  */
 
 import { isWeekend } from './calendar.js';
+import { resolveSlot } from '../data/phaseMaps.js';
 import { makeRng, deriveSeed, pick } from './rng.js';
 import { clamp } from './rng.js';
 
-/** Task definitions for the assistant identity. Keyed by identity taskPool. */
+/**
+ * Task definitions for the assistant identity. Keyed by identity taskPool.
+ *
+ * A task names a SLOT, not a location. `prep_outfits` belongs to workroom B,
+ * which is the wardrobe in PREP, the make-up room in COMEBACK and the photo
+ * studio in REST. Binding to a location id does not survive the map rotating:
+ * three of these five used to point at `corridor` or `broadcast_studio`, and
+ * neither exists as an ordinary room in every phase. See CLAUDE.md section 10.
+ */
 export const TASKS = {
-  prep_outfits: { location: 'wardrobe', affectsMembers: true, credits: 3, competence: 4 },
-  run_schedule: { location: 'corridor', affectsMembers: true, credits: 2, competence: 3 },
-  handle_press_kit: { location: 'corridor', affectsMembers: false, credits: 3, competence: 4 },
-  stage_check: { location: 'broadcast_studio', affectsMembers: true, credits: 4, competence: 5 },
-  restock_wardrobe: { location: 'wardrobe', affectsMembers: false, credits: 2, competence: 2 },
+  prep_outfits: { slot: 'workroom_b', affectsMembers: true, credits: 3, competence: 4 },
+  run_schedule: { slot: 'workroom_a', affectsMembers: true, credits: 2, competence: 3 },
+  handle_press_kit: { slot: 'solo_site', affectsMembers: false, credits: 3, competence: 4 },
+  stage_check: { slot: 'workroom_a', affectsMembers: true, credits: 4, competence: 5 },
+  restock_wardrobe: { slot: 'workroom_b', affectsMembers: false, credits: 2, competence: 2 },
 };
 
 export const FAILURE = {
@@ -44,8 +53,14 @@ export function generateDayTask({ identity, day, week = 0, phase, seed }) {
   if (pool.length === 0) return null;
 
   const rng = makeRng(deriveSeed(seed, `task:${week}:${day}:${phase}`));
-  const taskId = pick(rng, pool);
-  return { taskId, ...TASKS[taskId], day, week };
+
+  // A slot the phase does not fill has nowhere to discharge the task, so it is
+  // not a legal objective this week. Never let the pool empty entirely.
+  const placeable = pool.filter((id) => resolveSlot(phase, TASKS[id].slot));
+  const taskId = pick(rng, placeable.length > 0 ? placeable : pool);
+
+  const def = TASKS[taskId];
+  return { taskId, ...def, location: resolveSlot(phase, def.slot), day, week };
 }
 
 /** Can this task be discharged here, right now? */
