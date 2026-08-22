@@ -7,7 +7,8 @@
  * the strong move. Credits only pace it.
  */
 
-import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, getGift } from '../data/gifts.js';
+import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, BUYABLE_GIFTS, getGift } from '../data/gifts.js';
+import { GESTURE_EFFECT } from '../config/constants.js';
 
 /**
  * WHICH remembered line unlocks this gift, or null.
@@ -49,7 +50,7 @@ export function isUnlocked(gift, dossier) {
  * something you could give her if you knew her better is the pull that makes
  * the dossier feel like a mechanic instead of plumbing.
  */
-export function giftsFor(dossier, credits) {
+export function giftsFor(dossier, credits, usedGestures = []) {
   const entry = (g, unlocked) => ({
     ...g,
     unlocked,
@@ -57,15 +58,70 @@ export function giftsFor(dossier, credits) {
     purchasable: unlocked && credits >= g.cost,
   });
 
+  const spent = new Set(usedGestures);
+
   return {
     generic: GENERIC_GIFTS.map((g) => entry(g, true)),
-    knowledge: KNOWLEDGE_GIFTS.map((g) => entry(g, isUnlocked(g, dossier))),
+    // Only the openers that are actually an object. A gesture-only fact has no
+    // price and never belongs in the shop half.
+    knowledge: BUYABLE_GIFTS.map((g) => entry(g, isUnlocked(g, dossier))),
+
+    /**
+     * The same knowledge, spent by saying something instead of buying
+     * something. Free, weaker, and available once - see GESTURE_EFFECT.
+     *
+     * Not every way of showing you were listening is a purchase. Asking how
+     * the ankle held up, or bringing up the book she has been quoting, is the
+     * more natural move most of the time, and a knowledge economy where the
+     * only verb is BUY reads as a shop rather than as attention.
+     */
+    gesture: KNOWLEDGE_GIFTS.map((g) => ({
+      ...g,
+      cost: 0,
+      effect: GESTURE_EFFECT,
+      unlocked: isUnlocked(g, dossier),
+      used: spent.has(g.id),
+      purchasable: isUnlocked(g, dossier) && !spent.has(g.id),
+    })),
+  };
+}
+
+export function canGesture(giftId, dossier, usedGestures = []) {
+  const gift = getGift(giftId);
+  if (!gift?.requires) return false;
+  return isUnlocked(gift, dossier) && !usedGestures.includes(giftId);
+}
+
+/**
+ * Open the scene by saying something, rather than by handing something over.
+ *
+ * Named spend* rather than use*, because `use` is reserved for React hooks by
+ * lint convention and this is a pure function in systems/.
+ *
+ * The note names the fact exactly as the gift note does, because the payoff is
+ * identical: she hears that you remembered. What differs is that there is no
+ * object in her hands, so the model must not invent one.
+ */
+export function spendGesture(giftId, dossier, usedGestures, memberName) {
+  if (!canGesture(giftId, dossier, usedGestures)) return null;
+  const fact = matchedFact(getGift(giftId), dossier);
+
+  return {
+    giftId,
+    tier: 'gesture',
+    fact,
+    intimacyDelta: GESTURE_EFFECT,
+    usedGestures: [...usedGestures, giftId],
+    sceneNote:
+      `the player has brought ${memberName} nothing at all. They opened by bringing up something she once let slip: "${fact}". ` +
+      'There is no gift and no object - only that they remembered, and chose to lead with it. ' +
+      'Do not invent a present; there is not one to react to.',
   };
 }
 
 export function canPurchase(giftId, dossier, credits) {
   const gift = getGift(giftId);
-  if (!gift) return false;
+  if (!gift || gift.object === false) return false;
   return isUnlocked(gift, dossier) && credits >= gift.cost;
 }
 

@@ -949,6 +949,44 @@ knee?"*, and the second one is the product.
 colleague and from someone at `unspoken` is not the same event, and the model
 cannot know that unless the header says so.
 
+### Two ways to spend a fact
+
+**A gift is not the only way to show you were listening**, and most of the time
+it is not the natural one. Knowing about her ankle and buying tape is one move;
+knowing about her ankle and *asking how it held up* is another, and the second is
+what a person would actually do. An economy whose only verb is BUY reads as a
+shop rather than as attention.
+
+So every knowledge fact opens **two** ways into the scene, side by side in the
+same modal:
+
+| | cost | effect | limit |
+|---|---|---|---|
+| the object | credits | `+5` | repeatable |
+| **the gesture** | free | `+3` | **once per fact, per run** |
+
+Not every fact has an object behind it, and forcing one is what made the whole
+thing read as a shop. An opener marked `object: false` opens the scene by being
+**said** and nothing else - you cannot buy somebody the habit of naming
+everyone. The modal is titled for what it actually is, *how you walk in*, rather
+than for the half of it that costs money.
+
+Both are gated by the same fact and both quote it into the scene note, because
+the payoff is identical: she hears that you remembered.
+
+The two limits are what keep it honest:
+
+- **Free has to be weaker**, or credits stop meaning anything and the shop
+  becomes decoration.
+- **Once per fact.** Asking after her ankle the first time is attention; asking
+  every scene is a script. Spent gestures leave the list rather than greying out
+  - there is nothing left to reconsider.
+
+The gesture note carries one instruction the gift note does not need: *there is
+no object; do not invent one.* The opening beat is written from that note alone,
+and a model handed "she remembered something you said" will happily produce a
+present that is not in anyone's hands.
+
 Gifts are chosen in a pre-scene modal before the first LLM call, then injected as the opening line of block 5:
 `System note: the player opened the scene by giving Irene a hand warmer.`
 

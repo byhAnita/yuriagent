@@ -136,6 +136,17 @@ export const ENERGY_PER_READ = 1;
  */
 export const ENERGY_RESTORED_OVERNIGHT = 24;
 
+// --- openers (section 11) ---------------------------------------------------
+/**
+ * A knowledge fact can be spent two ways: on an object, or on saying something.
+ *
+ * The gesture is free, so it has to be weaker AND single-use, or credits stop
+ * meaning anything and the shop turns into decoration. Once is also the honest
+ * limit in fiction: asking after her ankle the first time is attention, and
+ * asking every scene is a script.
+ */
+export const GESTURE_EFFECT = 3;
+
 // --- model requests ---------------------------------------------------------
 /**
  * Nothing may hang forever.

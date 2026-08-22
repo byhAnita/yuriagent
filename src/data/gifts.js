@@ -30,7 +30,7 @@ export const GENERIC_GIFTS = [
 ];
 
 export const KNOWLEDGE_GIFTS = [
-  // --- Irene: the laundry, the notebooks, the mind maps, the cold hands ------
+  // --- Irene: the laundry, the notebooks, the mind maps, hands, the gym ------
   { id: 'fabric_softener', cost: 3, effect: 5, requires: ['softener', 'laundry'] },
   { id: 'purple_notebook', cost: 3, effect: 5, requires: ['purple notebook', 'purple'] },
   { id: 'fineliner_set', cost: 3, effect: 5, requires: ['mind map'] },
@@ -40,7 +40,7 @@ export const KNOWLEDGE_GIFTS = [
     effect: 5,
     requires: ['cold hand', 'hands are cold', 'hands are always cold', 'hands go cold'],
   },
-  { id: 'stretching_band', cost: 4, effect: 5, requires: ['flexible', 'flexibility'] },
+  { id: 'grip_chalk', cost: 3, effect: 5, requires: ['gym'] },
 
   // --- Nana: the trained artist, the figures, the ankle, the dorm, the fox ---
   { id: 'makeup_brush_set', cost: 4, effect: 5, requires: ['makeup', 'make-up', 'does her own face'] },
@@ -51,7 +51,14 @@ export const KNOWLEDGE_GIFTS = [
 
   // --- Jisoo: the film, the nicknames, the heat, the dog, the comics --------
   { id: 'film_roll', cost: 4, effect: 5, requires: ['shoots on film', 'undeveloped'] },
-  { id: 'label_maker', cost: 3, effect: 5, requires: ['nickname'] },
+  /**
+   * Gesture-only. Some facts have no object behind them - you cannot buy
+   * somebody the habit of naming everyone - and a knowledge economy that
+   * insists every fact resolve into a purchase is what made the whole thing
+   * read as a shop. `object: false` means this fact opens the scene by being
+   * SAID, and nothing else.
+   */
+  { id: 'ask_about_nicknames', effect: 5, object: false, requires: ['nickname'] },
   { id: 'spicy_ramyun_crate', cost: 3, effect: 5, requires: ['spiciest', 'instant noodles'] },
   { id: 'pet_photo_frame', cost: 3, effect: 5, requires: ['her dog'] },
   { id: 'comic_volume', cost: 3, effect: 5, requires: ['comics'] },
@@ -63,13 +70,19 @@ export const KNOWLEDGE_GIFTS = [
   { id: 'puzzle_book', cost: 3, effect: 5, requires: ['arithmetic', 'in her head'] },
   { id: 'takoyaki_pan', cost: 4, effect: 5, requires: ['takoyaki'] },
 
-  // --- Yeri: the lyrics, the perfume, the language, the mess, the kimchi ----
+  // --- Yeri: the lyrics, the perfume, the language, the pilates, the mess ---
   { id: 'lyric_notebook', cost: 3, effect: 5, requires: ['writes music', 'writes lyrics'] },
   { id: 'perfume', cost: 5, effect: 5, requires: ['perfume'] },
   { id: 'phrasebook', cost: 3, effect: 5, requires: ['third language'] },
   { id: 'desk_organiser', cost: 3, effect: 5, requires: ['messiest'] },
-  { id: 'kimchi_kit', cost: 4, effect: 5, requires: ['kimchi fried rice', 'kimchi'] },
+  { id: 'pilates_ring', cost: 4, effect: 5, requires: ['pilates'] },
 ];
+
+/**
+ * Only the ones you can actually buy. A gesture-only entry has no price and
+ * never appears in the shop half of the modal.
+ */
+export const BUYABLE_GIFTS = KNOWLEDGE_GIFTS.filter((g) => g.object !== false);
 
 export const ALL_GIFTS = [...GENERIC_GIFTS, ...KNOWLEDGE_GIFTS];
 

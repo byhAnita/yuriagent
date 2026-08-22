@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { isUnlocked, giftsFor, canPurchase, purchase, earn } from './economy.js';
+import {
+  isUnlocked,
+  giftsFor,
+  canPurchase,
+  purchase,
+  earn,
+  canGesture,
+  spendGesture,
+} from './economy.js';
+import { GESTURE_EFFECT } from '../config/constants.js';
+import { KNOWLEDGE_GIFTS } from '../data/gifts.js';
 import { getGift } from '../data/gifts.js';
 import { generateDayTask, completeTask, failTask, canAttempt, applyPlayerDeltas } from './tasks.js';
 
@@ -22,8 +32,8 @@ describe('knowledge gating', () => {
   });
 
   it('also matches things the player told her', () => {
-    const told = { known_facts: [], player_told_her: ['kimchi fried rice is her comfort food'] };
-    expect(isUnlocked(getGift('kimchi_kit'), told)).toBe(true);
+    const told = { known_facts: [], player_told_her: ['she does pilates before every shoot'] };
+    expect(isUnlocked(getGift('pilates_ring'), told)).toBe(true);
   });
 
   /** A gift id from an older catalogue must not take the modal down. */
@@ -119,5 +129,96 @@ describe('tasks', () => {
     expect(out.competence).toBe(0);
     expect(out.energy).toBe(0);
     expect(out.credits).toBe(0);
+  });
+});
+
+/**
+ * Spending knowledge by saying something. CLAUDE.md section 11.
+ *
+ * Not every way of showing you were listening is a purchase. Asking how the
+ * ankle held up is the more natural move most of the time, and an economy whose
+ * only verb is BUY reads as a shop rather than as attention.
+ */
+describe('a gesture is the other way to spend a fact', () => {
+  const knowsLaundry = {
+    known_facts: ['loves doing the laundry and is particular about which softener'],
+    player_told_her: [],
+  };
+
+  it('costs nothing and needs no credits', () => {
+    expect(canGesture('fabric_softener', knowsLaundry, [])).toBe(true);
+    const said = spendGesture('fabric_softener', knowsLaundry, [], 'Irene');
+    expect(said.intimacyDelta).toBe(GESTURE_EFFECT);
+  });
+
+  /** Free has to mean weaker, or the shop is decoration. */
+  it('lands smaller than buying the object', () => {
+    const said = spendGesture('fabric_softener', knowsLaundry, [], 'Irene');
+    const bought = purchase('fabric_softener', knowsLaundry, 99, 'Irene');
+    expect(said.intimacyDelta).toBeLessThan(bought.intimacyDelta);
+  });
+
+  /** ...and once, or it stops being attention and becomes a script. */
+  it('can only be spent once per fact', () => {
+    const said = spendGesture('fabric_softener', knowsLaundry, [], 'Irene');
+    expect(said.usedGestures).toContain('fabric_softener');
+    expect(canGesture('fabric_softener', knowsLaundry, said.usedGestures)).toBe(false);
+    expect(spendGesture('fabric_softener', knowsLaundry, said.usedGestures, 'Irene')).toBeNull();
+  });
+
+  it('is locked by the same fact the object is locked by', () => {
+    expect(canGesture('fabric_softener', { known_facts: [] }, [])).toBe(false);
+    expect(canGesture('iced_coffee', knowsLaundry, [])).toBe(false);
+  });
+
+  it('quotes the fact and names her, exactly as the gift note does', () => {
+    const said = spendGesture('fabric_softener', knowsLaundry, [], 'Irene');
+    expect(said.fact).toBe(knowsLaundry.known_facts[0]);
+    expect(said.sceneNote).toContain(said.fact);
+    expect(said.sceneNote).toContain('Irene');
+  });
+
+  /**
+   * The one thing the model must not do with a gesture is invent the present
+   * that is not there - the opening beat is written from this note alone.
+   */
+  it('tells the model there is no object to react to', () => {
+    const said = spendGesture('fabric_softener', knowsLaundry, [], 'Irene');
+    expect(said.tier).toBe('gesture');
+    expect(said.sceneNote).toMatch(/no gift and no object/i);
+    expect(said.sceneNote).toMatch(/do not invent a present/i);
+    expect(said.sceneNote).not.toMatch(/handed/i);
+  });
+
+  it('shows a spent gesture as spent, and an unlearned one as locked', () => {
+    const shown = giftsFor(knowsLaundry, 99, ['fabric_softener']);
+    const spent = shown.gesture.find((g) => g.id === 'fabric_softener');
+    const never = shown.gesture.find((g) => g.id === 'perfume');
+
+    expect(spent.unlocked).toBe(true);
+    expect(spent.used).toBe(true);
+    expect(spent.purchasable).toBe(false);
+
+    expect(never.unlocked).toBe(false);
+    expect(never.purchasable).toBe(false);
+  });
+
+  /**
+   * Every fact can be spent as a line. Only some can be spent as an object -
+   * you cannot buy somebody a fear of heights.
+   */
+  it('offers a gesture for every fact, and a purchase for only some', () => {
+    const shown = giftsFor(knowsLaundry, 0);
+    expect(shown.gesture).toHaveLength(KNOWLEDGE_GIFTS.length);
+    expect(shown.knowledge.length).toBeLessThan(shown.gesture.length);
+    expect(shown.gesture.every((g) => g.cost === 0)).toBe(true);
+    expect(shown.knowledge.every((g) => g.cost > 0)).toBe(true);
+  });
+
+  it('refuses to sell an opener that is not an object', () => {
+    const knowsNames = { known_facts: ['invents everyone nickname'], player_told_her: [] };
+    expect(canGesture('ask_about_nicknames', knowsNames, [])).toBe(true);
+    expect(canPurchase('ask_about_nicknames', knowsNames, 999)).toBe(false);
+    expect(purchase('ask_about_nicknames', knowsNames, 999, 'Jisoo')).toBeNull();
   });
 });

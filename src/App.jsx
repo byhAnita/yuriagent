@@ -27,7 +27,7 @@ import {
   applyPlayerDeltas,
 } from './systems/tasks.js';
 import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from './systems/clock.js';
-import { purchase } from './systems/economy.js';
+import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
@@ -73,6 +73,13 @@ export default function App() {
   const [screen, setScreen] = useState('day');
   const [pendingScene, setPendingScene] = useState(null);
   const [giftNote, setGiftNote] = useState(null);
+
+  /**
+   * Which knowledge gestures have been spent, for the whole run rather than the
+   * scene. Asking after her ankle is only new once; after that it is a script
+   * (CLAUDE.md section 11).
+   */
+  const [usedGestures, setUsedGestures] = useState([]);
   const [outcome, setOutcome] = useState(null);
   const [sceneNo, setSceneNo] = useState(0);
   const [solo, setSolo] = useState(null);
@@ -359,6 +366,27 @@ export default function App() {
                 ...rs,
                 [giftTarget.id]: applySceneOutcome(rs[giftTarget.id], {
                   intimacy: bought.intimacyDelta,
+                  good: true,
+                }),
+              }));
+            }
+            setScreen('scene');
+          }}
+          usedGestures={usedGestures}
+          onGesture={(giftId) => {
+            const said = spendGesture(
+              giftId,
+              memory.dossier[giftTarget.id],
+              usedGestures,
+              giftTarget.name,
+            );
+            if (said) {
+              setUsedGestures(said.usedGestures);
+              setGiftNote(said.sceneNote);
+              setRelations((rs) => ({
+                ...rs,
+                [giftTarget.id]: applySceneOutcome(rs[giftTarget.id], {
+                  intimacy: said.intimacyDelta,
                   good: true,
                 }),
               }));

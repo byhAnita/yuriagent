@@ -120,6 +120,23 @@ const OPENING = {
       ['shy', -7, 10, (it) => `"A ${it}?" *She shakes her head at you, fond about it.* "You did not have to. I am glad you did."`],
     ],
   },
+  /**
+   * She was handed nothing; the player led with something she once let slip.
+   * The offline writer must not invent an object here either - that is the
+   * whole point of the gesture note (section 11).
+   */
+  gesture: {
+    reserved: [
+      ['surprised', -13, 15, () => '*She stops what she is doing, completely.* "You remembered that."'],
+      ['shy', -12, 14, () => '*A pause, and she does not fill it.* "I only said that once, I think."'],
+      ['blush', -11, 13, () => '"That is - " *She starts again.* "You were listening."'],
+    ],
+    close: [
+      ['blush', -16, 20, () => '*She looks at you for a moment too long.* "Of course you remembered."'],
+      ['happy', -15, 19, () => '*She laughs, caught.* "You keep doing that." *Quieter.* "Do not stop."'],
+      ['shy', -14, 18, () => '*She does not answer straight away, and does not look away either.* "You always notice."'],
+    ],
+  },
   plain: {
     reserved: [
       ['neutral', -3, 4, () => '*She glances up from her phone.* "You came."'],
@@ -204,7 +221,14 @@ export function createMockClient({ seed = 7, failureRate = 0.08, delay = 260 } =
       const conversation = messages.map((m) => m.content).join('\n');
       const knowledge = /paying very close attention/i.test(conversation);
       const generic = /an ordinary, thoughtful gesture/i.test(conversation);
-      const tier = knowledge ? OPENING.knowledge : generic ? OPENING.generic : OPENING.plain;
+      const gesture = /no gift and no object/i.test(conversation);
+      const tier = gesture
+        ? OPENING.gesture
+        : knowledge
+          ? OPENING.knowledge
+          : generic
+            ? OPENING.generic
+            : OPENING.plain;
 
       item = /just handed \S+ an? ([a-z][a-z ]*?)\./i.exec(conversation)?.[1]?.trim() ?? item;
       pool = CLOSE_MARKERS.test(conversation) ? tier.close : tier.reserved;
