@@ -131,8 +131,22 @@ export default function Day({
           player={player}
           identity={identity}
           taskLocation={taskHere ? task.location : null}
-          onPick={(locationId, present) =>
-            present.length > 0 ? onEnter(locationId, present) : onEnterSolo(locationId)
+          /**
+           * Every row opens the ROOM, not a scene.
+           *
+           * A room offers what it offers - talk to whoever is here, do the job,
+           * be nosy - and the player chooses. Walking in used to commit you to a
+           * conversation the moment anybody was standing there, which meant two
+           * thirds of the map was only ever reachable when it was empty.
+           *
+           * The exception is the per-member button in a crowded row: that is
+           * the player already saying who they are walking up to, so it skips
+           * the middle step.
+           */
+          onPick={(locationId, present, addresseeId = null) =>
+            addresseeId
+              ? onEnter(locationId, present, addresseeId)
+              : onEnterSolo(locationId, present)
           }
           onOpenDorm={() => setInDorm(true)}
           t={t}

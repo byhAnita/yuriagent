@@ -22,14 +22,25 @@ function Effect({ label, value, tone }) {
   );
 }
 
-export default function SoloAction({ locationId, task, result, onChoose, onDone, t }) {
+export default function SoloAction({
+  locationId,
+  task,
+  result,
+  present = [],
+  cards = [],
+  onTalk,
+  onChoose,
+  onDone,
+  t,
+}) {
   const actions = actionsFor(locationId);
+  const here = present.map((id) => cards.find((c) => c.id === id)).filter(Boolean);
 
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-4 px-5 py-8">
       <header>
         <p className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
-          {t('solo.alone')}
+          {here.length > 0 ? t('solo.whoIsHere') : t('solo.alone')}
         </p>
         <h2 className="mt-1 font-display text-[1.5rem] leading-tight tracking-wide">
           {t(`location.${locationId}`)}
@@ -40,6 +51,39 @@ export default function SoloAction({ locationId, task, result, onChoose, onDone,
 
       {!result ? (
         <ul className="flex flex-col gap-2">
+          {/*
+            People first, because they are why you came - but the work is still
+            right underneath, so a room with somebody in it never stops offering
+            what it offers. Being locked out of a snoop because a bandmate
+            walked in is agency lost for nothing.
+          */}
+          {here.map((card) => (
+            <li key={card.id}>
+              <button
+                type="button"
+                onClick={() => onTalk(card.id)}
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-hairline px-3 py-3 text-left transition-colors hover:border-accent"
+              >
+                <span
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[0.875rem]"
+                  style={{ background: card.palette.base, color: card.palette.accent }}
+                >
+                  {card.emoji}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-body text-[0.9375rem] text-text">
+                    {t('solo.talkTo').replace('{name}', card.name)}
+                  </span>
+                  {here.length > 1 ? (
+                    <span className="mt-0.5 block font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-warn">
+                      {t('solo.watched')}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          ))}
+
           {/* The day's objective is discharged HERE, at its own location -
               never from a menu, because it has to cost the block. */}
           {task ? (

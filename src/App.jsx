@@ -196,8 +196,8 @@ export default function App() {
    * does the job, and where you learn something about a member who is not in
    * the room - the second path into known_facts and therefore into the gifts.
    */
-  const onEnterSolo = (locationId) => {
-    setSolo({ locationId, result: null });
+  const onEnterSolo = (locationId, present = []) => {
+    setSolo({ locationId, present: present.map((m) => m.id ?? m), result: null });
   };
 
   const onChooseSolo = (actionId) => {
@@ -375,6 +375,13 @@ export default function App() {
           locationId={solo.locationId}
           task={task && !taskState.done && task.location === solo.locationId ? task : null}
           result={solo.result}
+          present={solo.present ?? []}
+          cards={cards}
+          onTalk={(memberId) => {
+            const room = (solo.present ?? []).map((id) => ({ id }));
+            setSolo(null);
+            onEnter(solo.locationId, room, memberId);
+          }}
           onChoose={onChooseSolo}
           onDone={() => {
             setSolo(null);

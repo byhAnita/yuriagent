@@ -223,6 +223,9 @@ export default {
 
   solo: {
     alone: 'Nobody here',
+    whoIsHere: 'Who is here',
+    talkTo: 'Talk to {name}',
+    watched: 'The others are right there',
     secrecy: 'Discretion',
     mayLearn: 'you might find something',
     learned: 'You learned something',

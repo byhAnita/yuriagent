@@ -223,6 +223,9 @@ export default {
 
   solo: {
     alone: '这里没有人',
+    whoIsHere: '谁在这里',
+    talkTo: '找 {name} 说话',
+    watched: '其他人就在旁边',
     secrecy: '谨慎',
     mayLearn: '也许会发现什么',
     learned: '你知道了一件事',
