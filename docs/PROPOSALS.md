@@ -326,120 +326,243 @@ is the game's own thesis rather than a balance patch.
 
 ---
 
-## 10. The map should change with the phase, and some scenes should be authored
+## 10. Phase maps, dating, and five authored events
 
-**Priority: high. This is the next big content decision, and it is M5-shaped.**
-Proposed by Yuhan, 2026-08-22. Not implemented - written down for confirmation
-before any code moves.
+**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** One question is still
+open (cycles, below). This entry replaces the earlier sketch; the parts of that
+sketch that were wrong are recorded at the bottom rather than deleted, because
+both were wrong in instructive ways.
 
-### The idea
+### The map is a template of roles, not a list of rooms
 
-The map is currently one fixed set of ten locations for all nine weeks. It
-should instead change with the company phase, so that a cycle *looks* like a
-cycle:
+The earlier version of this proposal said "eight to ten locations per phase" and
+left it as a number somebody has to remember. Yuhan's version is better and is
+what we are building: **a fixed set of role slots, filled with different content
+each phase.** The map keeps one shape for the whole campaign - the player learns
+the grammar once - while the contents turn over.
 
-| Week | Phase | Map |
+A **role is a tag on a location**, and one location can carry several.
+
+| Slot | # | Roles | PREP | COMEBACK | REST |
+|---|---|---|---|---|---|
+| workroom A | 1 | chat, task, knowledge | practice room | filming location | photo studio |
+| workroom B | 1 | chat, task, knowledge | wardrobe | make-up room | recording studio |
+| social room | 1 | chat, **rumor** | canteen & drink room | green room | hair salon |
+| public venue | 1 | **public date**, part-time | bistro | cafe | Han River park |
+| event site | 1-2 | authored, whole day, fires once | meeting room | Music Bank, fan meeting hall | cruise, island |
+| dorm shared | 1 | chat, knowledge | kitchen & living room | same | same |
+| her room | x5 | **private date**, gated | routine evenings | (away) | routine evenings |
+| your room | 1 | rest | same | same | same |
+
+Eight or nine reachable at once, constant across the campaign. REST keeps its
+workrooms because the solo layer resumes fully that week (section 10) - they
+become individual-career sites rather than disappearing.
+
+**Every phase map must carry every role, and this is asserted.** Section 21: a
+design rule that is not asserted is one that gets quietly broken. "COMEBACK has
+no rumor room" is exactly the kind of hole that survives a content edit.
+
+### Dating: the two axes already say what the gate is
+
+- **Public date gates on admissibility.**
+- **Private date gates on intimacy.**
+
+This falls out of the existing model instead of being bolted onto it. A private
+date asks *how close are we*; a public one asks *how nameable is this* - being
+seen at a bistro on a Saturday with no work excuse is the most legible statement
+the game can make. The two are therefore not substitutes: a player deep in
+`confidante` gets the private date easily and cannot get the public one at all,
+which is the plateau telling them what it wants in the plainest terms available.
+
+**A refusal is not a failure.** It is the first time a hidden number becomes a
+visible yes or no, which is pillar 1 working. An early ask costs the block and
+nothing else; asking far below the bar is the only place a little strain
+belongs.
+
+A public weekend date is the **loudest rumor generator in the game** - whole
+day, maximum exposure, four members elsewhere. That is the price and it is the
+right one.
+
+**The player pays the bill in credits.** See the economy note below; this is the
+first sink that is not a shop.
+
+### Her room is a routine, not a die roll
+
+Her door stays visible and locked with its `entryIntimacy` number, because
+section 10 is right that a threshold you can see is a goal rather than a
+spoiler. What changes is what is behind it.
+
+Each member is in her room **one or two fixed evenings a week**, set by the
+seed, the same evenings all cycle. Evening blocks only, and not during COMEBACK,
+because she is not home that week.
+
+Fixed rather than random because section 10 already promises this and has never
+delivered it: *"routines are learnable - known_facts may hold 'she practises
+alone on Wednesday nights', and knowing it is how a player engineers a
+low-exposure meeting."* A random presence is a lucky knock. A routine is
+something **snooping can reveal**, which gives the knowledge economy a second
+thing to buy besides gifts and openers: *access*. A fact that tells you where
+she will be is more interesting than one that tells you what to purchase.
+
+The private weekend date opens the same door for a whole day, and
+`approachWitnessed` makes that the loudest version of the beat rather than
+retiring it.
+
+### Five authored events
+
+One weekday each. PREP 1, COMEBACK 2, REST 2.
+
+| Phase | Site | Event |
 |---|---|---|
-| 1 | PREP | **X Entertainment** as a two-step menu like the dorm: practice room (dance), recording studio (vocals), wardrobe (fitting), **meeting room** (comeback planning), **tea room** (replacing the corridor - where you overhear things). Plus X Dorm, cafe, filming location. |
-| 2 | COMEBACK | **Music Bank** (performing), **fan meeting hall**, **variety taping stage**. Plus the dorm and a bistro. |
-| 3 | REST | Dating and holiday places: **Han River bridge**, **Jeju**, a **cruise**. |
+| PREP | meeting room | comeback planning meeting |
+| COMEBACK | Music Bank | the comeback performance |
+| COMEBACK | fan meeting hall | the fansign |
+| REST | cruise | the company outing |
+| REST | island | the trip |
 
-And alongside it: **authored event scenes** injected once at specific moments -
-a comeback planning meeting, a fansign - mixed in with the ordinary generated
-ones.
+All five members and the player attend. The site is removed from that week's map
+once the event fires. It consumes the whole day and runs longer than an ordinary
+scene, from an authored prompt.
 
-### Why it is right
+**The one rule: an event may set the situation, never the outcome.** It says the
+five of you are in a meeting room and the label has moved the comeback forward
+two weeks; it does not say how she reacts to you. Standing, dossier, her voice
+and the meters still write the scene. An event that scripts her reply is a
+branching text adventure, which section 1 rules out.
 
-Three arguments, and the third is the strongest:
+**Division of labour: the map carries the weekly rhythm, the events carry the
+campaign arc.** The same practice room in week 1 and week 7 is fine - it is the
+same company. The events are the thing that must differ.
 
-1. **It makes the phase legible in the place the player spends most of their
-   time.** Section 10 already claims each week has a distinct feel - build,
-   risk, repair - and right now the only evidence for that is a word in the
-   header and a different activity label. A player who never reads the calendar
-   would not notice the cycle turning.
-2. **It answers "why is this scene different from the last one" at the level
-   above the one just fixed.** Block 4 now says what she is doing; this says the
-   world has moved on. A REST week that opens onto Jeju is a different game from
-   a PREP week in a rehearsal room, and that is free variety for the model.
-3. **It fixes an asymmetry the harness measured.** Only three locations
-   (`cafe` 60, `drama_set` 65, `broadcast_studio` 85) sit above the risk
-   threshold, and members are rarely at them - measured, only 35-40 of ~107
-   scenes in a campaign were public at all. The whole second axis runs through
-   that narrow gate. Week 2 and week 3 as proposed are *full* of public places,
-   which would let COMEBACK be the week admissibility actually moves and REST
-   be the week you can be seen together off duty. That turns the phase cycle
-   into the game's pacing rather than set dressing.
+#### OPEN: five per campaign, or five per cycle
 
-### What it costs
+`CYCLES_PER_CAMPAIGN = 3`, so PREP week is weeks 1, 4 and 7. "Removed after
+firing" needs a scope, and the three readings are not equal:
 
-Honest accounting, because this is the largest change on this list:
+| reading | consequence |
+|---|---|
+| 5 total, cycle 1 only | cycles 2-3 have no events; week 9, the end of the game, is the emptiest week in it |
+| 5, repeating verbatim | the same fansign three times; the player notices on the second |
+| **5 situations x 3 cycles** | the site recurs, the stakes escalate |
 
-- **`data/locations.js` roughly triples.** Every new location needs
-  `exposureBase`, `presence`, `zone`, an English label and a note, plus en/zh
-  strings, plus `soloActions` entries or it is dead space for the block the
-  player spends alone.
-- **`data/activities.js` needs new activity types** and their `doingLine`.
-- **`calendar.js` needs a phase-scoped location pool** for the idle layer -
-  `WEEKDAY_IDLE` / `WEEKEND_IDLE` are currently flat arrays.
-- **The map UI needs a second two-step zone.** The dorm already does this, so it
-  is a pattern to copy rather than invent.
-- **`exposure.js` needs nothing.** The numbers already do the work.
+**Recommended: the third.** It is also the fictionally correct one - each cycle
+is a different comeback, so of course there is another Music Bank recording.
+What changes is what is riding on it. Most of the variation arrives free from
+the engine (ledger, standing, dossier), so the writing is five situations plus a
+short per-cycle stakes clause, not fifteen scenes.
 
-I would do it in that order and ship it behind the existing `zone` field, which
-already exists precisely for this.
+Under this reading "fires once" means **once per cycle**.
 
-### Two things I would push back on
+### Schedule assembly
 
-**Jeju and a cruise are not day trips.** The clock is three blocks a day and a
-member's schedule is generated per block; an island is a *day*, not a morning.
-Either they become whole-day events that consume all three blocks (which the
-clock does not model), or they are quietly just "a location with high exposure
-and no witnesses", which wastes the idea. My suggestion: keep Han River and a
-few local outings on the block clock, and make Jeju/cruise the **authored
-event** kind below, where consuming a whole day is the point.
+Weekday assignment order, run at week start:
 
-**Do not let the location list outgrow the cast.** Five members across three
-blocks means at most five occupied locations at any moment. A map of twenty
-rooms in week 2 is mostly empty rooms, and empty rooms are solo work - which is
-good, but it dilutes the chance of finding anyone. Roughly eight to ten
-reachable locations per phase is the ceiling before the map becomes a search
-problem rather than a choice.
+1. place the special event day
+2. place the daily task
+3. place group activity
+4. place solo activity in what is left
 
-### Authored events: what they are, and the one rule
+Weekend: **no task, ever** (section 10 already protects this). Saturday and
+Sunday are each assembled at the start of that day rather than at week start,
+because weekend occupancy depends on whether a date happened and that is player
+input:
 
-An event scene is a prompt fragment injected **once**, at a specific
-(week, day, block), that replaces the generated opening with an authored
-situation - the comeback planning meeting, the fansign, the last night of the
-cruise.
+1. ask whether the player wants to invite someone, and where
+2. if yes: the affection check runs, and on acceptance the day jumps to the date
+   scene and is consumed
+3. if no, or refused: place members in the shared dorm, the social room, or
+   invisible in their own gated rooms
 
-`eventWindows()` already returns the six weekend blocks per week and
-`data/events/` is empty; this is the M5 line item that was always coming.
+Still deterministic - the inputs are (seed, week, day, dateChoice). The seed
+derivation has to include the day so Saturday and Sunday differ.
 
-The one rule that matters: **an event may set the situation, never the
-outcome.** It says "the five of you are in a meeting room and the label has
-just moved the comeback forward two weeks"; it does not say how she reacts to
-you. Everything the engine already does - standing, dossier, her voice, the
-meters - still writes the scene. An event that scripts her reply is a branching
-text adventure, which section 1's non-goals rule out explicitly.
+`generateWeek` already does seeded deterministic assignment, so the weekday
+ordering is a priority pass inside a function that exists. The weekend re-runs
+are new but small.
 
-Two consequences worth stating now:
+### Group scenes: rotation is client-side
 
-- Events are the natural home for **group scenes** (2+ members), which section 9
-  restricts to "scripted event nodes, where the prompt is tight". That is still
-  blocked on the two-portrait stage.
-- Events are the only place a **whole-day** cost makes sense (Jeju, the cruise),
-  so the clock would need an "event consumes the day" concept. That is small,
-  but it is new.
+Yuhan's shape: pick a member, she says a line, the player answers or skips,
+rotate. **Feasible, and architecturally the right call** for a reason worth
+stating - the model is never asked to write five people at once. Each call
+produces one member's beat, so section 9's roster rule holds at one speaker per
+call and **member bleed is prevented structurally rather than by prompting.**
+Asking a Flash-tier model for a five-way scene in a single response is the
+hardest thing we could ask it; this sidesteps it entirely.
 
-### Recommendation
+Three things to settle before it is built:
 
-Do it, in two separable pieces, and not at the same time:
+- **Latency is additive.** Each member must see what the last one said, so the
+  calls cannot be parallelised. A five-member round is roughly 8-14s of model
+  time. Beat-by-beat reveal hides some of it. Measure, do not assume.
+- **Do not prompt the player every line.** Five "say something or skip?" prompts
+  a round is a lot of decisions for little content. The rotation should run and
+  let the player interject.
+- **Do not pick the speaker at random** - it reads as arbitrary. Weight by who
+  has a stake: jealousy, intimacy, whether the last line was about them. Pure
+  function, `systems/`, deterministic, testable, no model call.
 
-1. **Phase maps first** (data + calendar + one UI zone). Pure content and
-   deterministic systems, no LLM, testable, and it delivers most of the variety.
-2. **Authored events second**, as the M5 event-anchor line item, starting with
-   one per phase - a comeback meeting in PREP, a fansign in COMEBACK, one
-   outing in REST - to prove the shape before writing nine.
+Block 3 carries all five dossiers in a group scene, about 300 tokens instead of
+60. That is inside the per-scene rebuild and costs nothing in cache terms.
 
-Piece 1 is a good session on its own. Piece 2 wants the two-portrait stage
-first, or its best material (a group scene) is unavailable.
+### Multi-portrait UI
+
+Sequenced **after** the rotation works. It is presentation for a thing that does
+not exist yet. Section 14 has the modes.
+
+### Credits and energy: settled
+
+**Credits are binding, not in surplus.** I claimed a 3x surplus in discussion
+from an income-versus-catalogue estimate, and proposal 6 - which measured a real
+campaign rather than counting the price list - says the opposite: **a campaign
+ends at 0-2 credits, with 26-41 scenes where the player wanted an opener and
+could not afford one.** The estimate went wrong by treating knowledge gifts as
+25 one-off purchases; the object is *repeatable*, and the player wants one
+nearly every scene, so demand is several hundred and not a hundred.
+
+Recorded because the correction changes what to build, not just a number.
+
+Consequences:
+
+- **The public date costs credits, and it is proposal 6's "second thing worth
+  buying".** That entry recommended leaving the economy alone until one existed.
+  It now does, and it competes for a budget that is already tight: a gift for
+  her today, or affording to take her out on Saturday. A sink that competes is
+  worth far more than a sink that absorbs a surplus.
+- **Part-time is therefore real income, not padding.** With credits binding, a
+  block traded for money is a genuine choice against a block spent with her -
+  which is the shape this game wants every choice to have.
+- **Information stays priced in secrecy, never credits.** That cost is the whole
+  point of section 10b - it is deferred, and it feeds `exposure_end`. A job that
+  buys past it switches the mechanic off. A small credit charge *on top of* a
+  secrecy price (a round of drinks in the canteen) is fine.
+- Mechanically **part-time is one `SOLO_ACTIONS` entry**: higher credits, higher
+  energy, no `learns`. No new system. Its energy cost is what gives energy teeth -
+  section 10 records that a busy day is currently energy-*positive* by 3-5 and a
+  full campaign never dropped below 77 of 100, so energy today is the Read-her
+  budget and nothing else. Do this **or** drop `ENERGY_RESTORED_OVERNIGHT` to
+  18, never both.
+
+### What the earlier sketch got wrong
+
+Kept because both errors are the same kind - reasoning about content volume
+without checking the structure it sits in:
+
+1. **"Two events per week"** was mine, and it multiplied out to 18 forced days
+   of 63, about 29% of the campaign authored. One event per site, five sites, is
+   Yuhan's correction and it is far lighter.
+2. **Events on weekend blocks** was mine, on the grounds that weekends were
+   free. Backwards: a forced event should *replace* a scheduled day, and the
+   Music Bank recording genuinely is that Thursday. Weekends belong to the
+   player, which is what section 10 wanted them for in the first place.
+   **Section 10 needs updating** - it currently says event anchors go on weekend
+   blocks.
+
+### Sequencing
+
+1. **Phase maps + roles + dating** - data, `calendar.js`, one UI zone. No LLM,
+   fully deterministic, testable. Delivers most of the variety.
+2. **Authored events** - needs the whole-day clock concept, which is new but
+   small. Write the first as a 2-member scene to prove the injection shape.
+3. **Group rotation** - `systems/` speaker weighting first, then the turn loop.
+4. **Multi-portrait** - last.
