@@ -177,6 +177,7 @@ export default {
     late_night_ramen: 'Late-night ramen, cooked for her',
     insulated_water_jug: 'A jug big enough for her',
     hot_takoyaki_box: 'A hot box of takoyaki',
+    magical_girl_figure: 'The figure she is still missing',
   },
 
   gesture: {
@@ -196,7 +197,6 @@ export default {
     speed_shopping_race: 'Race her round the shops, ten minutes flat',
     late_night_ramen: 'Offer to cook it for her, late, before the shoot',
     ask_her_to_do_yours: 'Ask her to do your face for once',
-    ask_how_removal_goes: 'Ask how the removal is going, and listen',
     insulated_water_jug: 'Remind her the jug is empty again',
     get_her_talking: 'Start her on something she loves and let her run',
     ask_for_a_vitamin: 'Ask her for something out of the pouch',
@@ -205,6 +205,7 @@ export default {
     ask_for_the_flow: 'Ask her to do the rapper voice',
     a_long_hug: 'Hug her, and do not let go first',
     ask_her_to_shoot_you: 'Hand her your phone and ask for one of you',
+    magical_girl_figure: 'Ask which one she had first',
   },
 
   solo: {

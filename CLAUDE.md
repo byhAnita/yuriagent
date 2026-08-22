@@ -1054,29 +1054,46 @@ Localized display names live in `i18n/`, not on the card, so a card stays a sing
 
 `learnableFacts` is the pool solo-work snooping draws from (section 10b).
 
-**Five per card, and the gift is written to the habit rather than the habit to
-the gift.** An earlier catalogue did the reverse - eight neutral objects, one
-matching fact per member - and the result was a fixed lookup: jisoo always meant
-the annotated script, hyewon always meant the knee brace. The snoop was already
-picking a random member and a random fact; with two facts each and one gift
-apiece there was simply nothing for the randomness to do.
+**Five per card, twenty-five in all, and the opener is written to the habit
+rather than the habit to the opener.** An earlier catalogue did the reverse -
+eight neutral objects, one matching fact per member - and the result was a fixed
+lookup: jisoo always meant the annotated script, hyewon always meant the knee
+brace. The snoop was already picking a random member and a random fact; with two
+facts each and one opener apiece there was nothing for the randomness to do.
 
-Two rules, both asserted:
+Four rules, all asserted:
 
-- **Every member reaches more than one knowledge gift**, so what you can buy
-  depends on which fact you happened to turn up first.
-- **No single fact unlocks two gifts.** That is a wording accident rather than a
-  design choice, and it hands over a second gift free.
+- **One opener per fact, never none and never two.** A fact matching two needles
+  hands over a second opener free; a fact matching none is a snoop that teaches
+  something worthless.
+- **No two members share an opener.** Not strictly required, but an opener that
+  answers two people says nothing about either.
+- **No fact repeats across the cast.** Two members with cold hands is two members
+  with the same character.
+- **Every member reaches several openers**, so what you can do depends on which
+  fact you happened to turn up first.
 
-Facts are drawn from the real member's publicly known habits - the laundry, the
-film camera, the piano, the perfume - because a gift that answers a real habit
-reads as attention paid, and an invented one reads as a fetch quest. They stay
-persona-level: preferences and routines, never a claim about a real person's
-health, relationships or private life (section 22).
+### Facts come from the real member, and stop at the persona
+
+Facts are drawn from the member's publicly known habits, because an opener that
+answers a real habit reads as attention paid and an invented one reads as a
+fetch quest. Irene's laundry and her cold hands, Jisoo balancing things on her
+head, Hyewon handing out takoyaki in other groups' waiting rooms, Yeri's
+fearlessness in a haunted house.
+
+They stay at **persona level: preferences, routines and running jokes.** Never a
+claim about a real person's health, body, relationships or private life, even a
+positively-worded or self-disclosed one (section 22). Two facts have been cut
+under this rule after being written - an invented knee injury, and a real and
+publicly discussed course of tattoo removal. Both would have played fine; both
+are somebody's body rather than somebody's habit, and the line is easier to hold
+at "not at all" than at "tastefully".
 
 `requires` carries **paraphrases**, not just the card's wording. The summarizer
-writes dossier entries in its own words, so a single tight needle means the gift
-silently never unlocks for a player whose model phrased it differently.
+writes dossier entries in its own words, so a single tight needle means the
+opener silently never unlocks for a player whose model phrased it differently.
+This has regressed twice during content rewrites; the tests that catch it are
+the ones that feed in a rephrased fact rather than the card's own string.
 
 `portraitMode` is one of `mascot` | `single` | `multi` (see section 14). MVP writes only `mascot`; the field exists now so v2 is content, not a refactor.
 
@@ -1381,6 +1398,13 @@ Carried over from `rv-simulator`, non-negotiable:
 - Fan-made, non-profit, MIT. Not affiliated with any agency or artist.
 - Characters are **fictional personas** with animal-mascot presentation. The shipped card library contains no real-person likeness art. Player-uploaded portraits (v2) stay on the player's device, are never transmitted, and are never sent to the model.
 - No negative real-world claims about real artists; no real romantic or marital assertions.
+- **Card content stays at persona level: preferences, routines and running
+  jokes.** Never a real person's health, body, relationships or private life -
+  not even positively worded, and not even something they have discussed
+  publicly themselves. Two `learnableFacts` have been cut under this rule after
+  being written (an invented knee injury, a real course of tattoo removal).
+  Both would have played fine. The line is easier to hold at "not at all" than
+  at "tastefully", and a game about five women deserves the strict version.
 - No politics, graphic violence, occult, or sexual content involving minors.
 - Adult-adult romance stays tasteful. The game is about tension, not explicitness.
 - API keys live in localStorage on the player's device only. Never logged, never committed, never sent anywhere but the chosen model endpoint.

@@ -70,7 +70,7 @@ export const KNOWLEDGE_GIFTS = [
 
   // --- Nana -----------------------------------------------------------------
   { id: 'ask_her_to_do_yours', effect: 5, object: false, requires: ['makeup artist', 'licensed'] },
-  { id: 'ask_how_removal_goes', effect: 5, object: false, requires: ['tattoo'] },
+  { id: 'magical_girl_figure', cost: 4, effect: 5, requires: ['magical-girl', 'magical girl'] },
   { id: 'insulated_water_jug', cost: 4, effect: 5, requires: ['litres of water', 'liters of water', 'five litres'] },
   { id: 'get_her_talking', effect: 5, object: false, requires: ['talks incredibly fast', 'talks fast', 'trips over her words'] },
   { id: 'ask_for_a_vitamin', effect: 5, object: false, requires: ['vitamin', 'supplement'] },

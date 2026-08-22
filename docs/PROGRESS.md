@@ -5,11 +5,24 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M4 complete, M5 next
+## Current: M0-M4 complete plus a post-M4 pass, M5 next
 
-260 tests, lint and build clean. The game is playable end to end for a day:
-map -> empty room or scene -> gift -> dialogue -> exit -> rumor -> rollover,
+**360 tests, lint and build clean.** The game is playable end to end for a day:
+map -> empty room or scene -> opener -> dialogue -> exit -> rumor -> rollover,
 with no API key required.
+
+Since M4 closed, a playtest-driven pass has landed that is worth knowing about
+before touching anything:
+
+| | |
+|---|---|
+| **Live provider works** | `llmTool.js` has now been run against DeepSeek. Prefix caching engages (~1.6k of ~1.8k tokens cached). `src/tools/live.test.js` is opt-in and skips without a key. |
+| **Written chips** | the chip label is model-written per turn; the stance underneath still comes from `chips.js`. Never awaited - the static set renders instantly and is replaced in place. |
+| **Openers, not gifts** | every knowledge fact opens a scene two ways: buy the object, or say the thing. 8 buyable, 17 gesture-only. |
+| **25 facts / 25 openers** | researched per member, one opener each, none shared. |
+| **Snooping across the map** | 8 of 9 rooms teach something, priced by secrecy. |
+| **Nothing may hang** | every model request runs under a deadline; a stalled one used to freeze a scene permanently. |
+| **jsdom harness** | `VNStage.dom.test.jsx` - both dead-chip-bar bugs were invisible to pure-function tests. |
 
 **Read "Still open" at the bottom before starting anything.**
 
@@ -237,16 +250,15 @@ The list to work from. Roughly in the order they should be picked up.
 
 ### Known gaps that are not M5
 
-- **`balanceSim` is out of date.** It does not model gifts, chips, solo work or
-  the energy economy, all of which now exist. The 2.8% figure is therefore
-  stale rather than wrong. Re-running it honestly means teaching
-  `simulateScene` about them first - real work, and worth doing before any
-  further coefficient tuning.
+- **`balanceSim` is further out of date than it was.** It does not model
+  openers, chips, solo work or the energy economy, and the opener economy has
+  since grown from 8 shared gifts to 25 per-fact openers with a free gesture
+  tier. The 2.8% balance-ending figure is stale rather than wrong. Re-running it
+  honestly means teaching `simulateScene` about all of it first - real work, and
+  worth doing before any further coefficient tuning.
 - **Group scenes.** Prompt and parser handle two members; `VNStage` renders one
   portrait, so `App` deliberately passes a roster of one. Needs the two-portrait
   stage plus the witnessed-gesture bonus in `computeDeltas`.
-- **`llmTool.js` has never talked to a live provider.** Its shape is exercised
-  only through the mock. The first real call will surface something.
 - **No retry / regenerate.** The rv-simulator snapshot pattern should be ported.
 - **`data/identities/*.json` is empty.** The identity is a literal in `App.jsx`.
   Section 13 is the schema it should move into.
@@ -255,7 +267,17 @@ The list to work from. Roughly in the order they should be picked up.
   (superseded by `Day.jsx`), `src/App.css`, `src/assets/{react,vite}.svg`,
   `src/assets/hero.png`.
 - **No `prefers-reduced-motion` audit** of the newer animations.
-- **ko / pt** are stubbed in `i18n/index.js` and fall back to `en`.
+- **ko / pt** are stubbed in `i18n/index.js` and fall back to `en`. Note that
+  `i18n/coverage.test.js` asserts en/zh parity only; adding a locale means
+  adding it there too.
+- **Only the beat call is measured live.** The chip call, summarizer and Read
+  her have been exercised, but group scenes, `zh` output and the other three
+  router entries have not. `live.test.js` covers a single-member practice-room
+  scene on DeepSeek and nothing else.
+- **The written-chip budget is provider-dependent.** A chip call measured 1.3s
+  on a quiet provider and 8.1s on a busy one. `live.test.js` reports when it
+  misses the 3s reading budget rather than failing, because that is DeepSeek's
+  load and not this repo's contract.
 
 ---
 
@@ -300,3 +322,4 @@ after being written down.
 | 2026-08-22 | Added `src/i18n/coverage.test.js`. A bulk replace had overwritten `settings.title` with the gift heading in BOTH locales, so the en/zh parity check passed - identical is not the same as correct. |
 | 2026-08-22 | Facts and openers replaced with a researched set supplied by the user: 25 facts, 25 openers, 7 buyable objects and 18 gestures. Only seven of the interactions were actually things you could buy, which is what the opener split is for. |
 | 2026-08-22 | Snooping opened up to eight of nine rooms, priced by secrecy (-7 green room down to -1 dorm living). Three rooms funnelled the entire knowledge economy through the wardrobe. |
+| 2026-08-22 | Nana's tattoo-removal fact replaced with her magical-girl figures. Publicly self-disclosed, but it is a real person's body rather than a habit - the same call as the invented knee injury. Section 22 now carries the rule so it is not re-litigated per fact. |

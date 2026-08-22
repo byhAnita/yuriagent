@@ -177,6 +177,7 @@ export default {
     late_night_ramen: '给她煮的深夜拉面',
     insulated_water_jug: '一个够她喝的大水壶',
     hot_takoyaki_box: '一盒还烫手的章鱼小丸子',
+    magical_girl_figure: '她还缺的那一只手办',
   },
 
   gesture: {
@@ -196,7 +197,6 @@ export default {
     speed_shopping_race: '和她比赛，十分钟逛完商场',
     late_night_ramen: '提议拍摄前的深夜给她煮一碗',
     ask_her_to_do_yours: '请她破例给你化一次妆',
-    ask_how_removal_goes: '问她洗纹身进行得怎么样，然后认真听',
     insulated_water_jug: '提醒她水壶又空了',
     get_her_talking: '起个她喜欢的话头，然后让她讲个够',
     ask_for_a_vitamin: '跟她要一颗小包里的维生素',
@@ -205,6 +205,7 @@ export default {
     ask_for_the_flow: '请她来一段那个说唱',
     a_long_hug: '抱住她，而且不先松手',
     ask_her_to_shoot_you: '把手机递给她，请她给你拍一张',
+    magical_girl_figure: '问她最早收的是哪一只',
   },
 
   solo: {
