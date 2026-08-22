@@ -43,6 +43,10 @@ function readEnvLocal() {
   }
 }
 
+// Straight to stdout: vitest buffers console output from a passing test, and
+// the measurements are the entire point of this file.
+const log = (...a) => process.stdout.write(`${a.join(' ')}\n`);
+
 const env = readEnvLocal();
 const apiKey = env.YURIAGENT_API_KEY || '';
 const modelId = env.YURIAGENT_MODEL_ID || 'deepseek-v4-flash';
@@ -91,7 +95,7 @@ function timedClient(report) {
         },
       });
       report.push({ preset, ttft: firstToken, total: Date.now() - t0, chars: text.length });
-      console.log('\n[live] RAW turn response:\n' + text + '\n---');
+      log('\n[live] RAW turn response:\n' + text + '\n---');
       return text;
     }
 
@@ -111,8 +115,8 @@ describe.skipIf(!live)('live provider', () => {
         modelId,
         preset: 'thought',
       });
-      console.log(`\n[live] model=${modelId} reply=${JSON.stringify(text.slice(0, 40))}`);
-      console.log(`[live] usage=${JSON.stringify(usage)}`);
+      log(`\n[live] model=${modelId} reply=${JSON.stringify(text.slice(0, 40))}`);
+      log(`[live] usage=${JSON.stringify(usage)}`);
       expect(text.length).toBeGreaterThan(0);
     },
     60000,
@@ -129,9 +133,9 @@ describe.skipIf(!live)('live provider', () => {
       let session = beginScene(args);
       session = await runTurn(session, { text: openingDirective(false), client });
 
-      console.log('\n[live] --- opening beat ---');
+      log('\n[live] --- opening beat ---');
       for (const b of session.beats) {
-        console.log(`  @${b.speaker}|${b.emotion}  ${JSON.stringify(b.text.slice(0, 90))}`);
+        log(`  @${b.speaker}|${b.emotion}  ${JSON.stringify(b.text.slice(0, 90))}`);
       }
 
       expect(session.beats.length).toBeGreaterThan(0);
@@ -153,7 +157,7 @@ describe.skipIf(!live)('live provider', () => {
       }
 
       const formatted = session.beats.filter((b) => !b.inferred).length;
-      console.log(
+      log(
         `[live] contract: ${formatted}/${session.beats.length} beats carried a metadata line`,
       );
 
@@ -174,16 +178,16 @@ describe.skipIf(!live)('live provider', () => {
         absentNames: cards.filter((c) => c.id !== 'irene').map((c) => c.name),
       });
 
-      console.log('\n[live] --- written chips ---');
-      console.log(`  raw: ${JSON.stringify(chipRaw)}`);
-      for (const c of chips) console.log(`  [${c.stance}] ${c.label}`);
+      log('\n[live] --- written chips ---');
+      log(`  raw: ${JSON.stringify(chipRaw)}`);
+      for (const c of chips) log(`  [${c.stance}] ${c.label}`);
 
       // Turn 2: warm prefix, a real stance.
       session = await runTurn(session, { stance: 'tease', text: '', client });
 
-      console.log('\n[live] --- timings (ms) ---');
+      log('\n[live] --- timings (ms) ---');
       for (const r2 of report) {
-        console.log(
+        log(
           `  ${String(r2.preset).padEnd(10)} ttft=${String(r2.ttft ?? '-').padStart(6)} total=${String(
             r2.total,
           ).padStart(6)} chars=${String(r2.chars).padStart(5)}${
@@ -195,12 +199,12 @@ describe.skipIf(!live)('live provider', () => {
       const beats = report.filter((x) => x.preset === 'turn');
       const chipCall = report.find((x) => x.preset === 'chips');
 
-      console.log(
+      log(
         `\n[live] chip call ${chipCall.total}ms, miss ${
           chipCall.usage?.prompt_cache_miss_tokens ?? '?'
         } tok, out ${chipCall.usage?.completion_tokens ?? '?'} tok`,
       );
-      console.log(`[live] beat calls ${beats.map((b) => `${b.total}ms`).join(', ')}`);
+      log(`[live] beat calls ${beats.map((b) => `${b.total}ms`).join(', ')}`);
 
       expect(chips.length).toBeGreaterThan(0);
 
@@ -216,7 +220,7 @@ describe.skipIf(!live)('live provider', () => {
        * finish inside its own deadline rather than hanging.
        */
       const BUDGET_MS = 3000;
-      console.log(
+      log(
         chipCall.total <= BUDGET_MS
           ? `[live] chip call inside the ${BUDGET_MS}ms reading budget`
           : `[live] SLOW: chip call missed the ${BUDGET_MS}ms reading budget by ${
@@ -246,8 +250,8 @@ describe.skipIf(!live)('live provider', () => {
       const first = await complete({ messages, apiKey, modelId, preset: 'thought' });
       const second = await complete({ messages, apiKey, modelId, preset: 'thought' });
 
-      console.log(`\n[live] usage 1: ${JSON.stringify(first.usage)}`);
-      console.log(`[live] usage 2: ${JSON.stringify(second.usage)}`);
+      log(`\n[live] usage 1: ${JSON.stringify(first.usage)}`);
+      log(`[live] usage 2: ${JSON.stringify(second.usage)}`);
 
       // Block 1 must exceed the provider threshold for automatic caching to
       // engage at all (section 8, invariant 4).

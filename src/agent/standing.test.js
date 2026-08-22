@@ -84,3 +84,50 @@ describe('the header says where the two of you stand', () => {
     expect(standingLine('Irene', bare)).toContain('put a name to');
   });
 });
+
+/**
+ * Her voice, repeated next to the instruction.
+ *
+ * All five cards live in block 1, roughly 1500 tokens above the thing the model
+ * is being asked to write, and picking the right one out of five is a step it
+ * does not reliably take. Given the same practice-room opening, Irene and
+ * Hyewon came back with the same line at 90% shared vocabulary while the three
+ * louder cards stayed distinct; repeating one line of card here took that to
+ * 27%. Both cards were well written - the model had collapsed the two reserved
+ * women onto the subset they share.
+ */
+describe('the header carries her voice, not only her standing', () => {
+  const withVoice = (roster) =>
+    buildSceneHeader({
+      roster,
+      absent: [],
+      week: 0,
+      day: 1,
+      block: 'evening',
+      phase: 'prep',
+      locationLabel: 'X Practice Room',
+      exposure: 20,
+      relations: { irene: rel(40), hyewon: rel(40) },
+      player: { energy: 80 },
+    });
+
+  it('quotes the speech style of everyone in the room', () => {
+    const out = withVoice([
+      { id: 'irene', name: 'Irene', speechStyle: 'Measured and short.' },
+      { id: 'hyewon', name: 'Hyewon', speechStyle: 'Soft, careful, slightly formal.' },
+    ]);
+    expect(out).toContain('Irene speaks like this: Measured and short.');
+    expect(out).toContain('Hyewon speaks like this: Soft, careful, slightly formal.');
+  });
+
+  it('says nothing at all for a card that has no speech style', () => {
+    const out = withVoice([{ id: 'irene', name: 'Irene' }]);
+    expect(out).not.toContain('speaks like this');
+  });
+
+  it('gives two adjacent cards different headers', () => {
+    const a = withVoice([{ id: 'irene', name: 'Irene', speechStyle: 'Measured and short.' }]);
+    const b = withVoice([{ id: 'hyewon', name: 'Hyewon', speechStyle: 'Soft and careful.' }]);
+    expect(a).not.toBe(b);
+  });
+});

@@ -164,15 +164,40 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
      */
     'EVERY beat needs its own metadata line, including the second and third:',
     '',
-    '@irene|neutral|guard+2|fluster+0',
+    '@irene|neutral|guard+3|fluster+0',
     '*She does not look up from the notes.* "You are early."',
     '',
-    '@irene|shy|guard-6|fluster+8',
+    '@irene|shy|guard-14|fluster+18',
     '*A pause, and then she does look up.* "That was not a complaint."',
     '',
     `Valid emotions: ${EMOTIONS.join(', ')}.`,
     'guard is her defensiveness, fluster is how much you landed. Both are per-beat',
-    'deltas, roughly -20 to +20. Report only these. Never report anything else.',
+    'deltas from -20 to +20.',
+    /**
+     * The magnitudes are not decoration.
+     *
+     * Section 6 pays intimacy for a guard drop of 15 or more across a scene and
+     * for a fluster peak of 60, and those thresholds were calibrated against
+     * the offline writer. A live scene that clearly went well - she opened up,
+     * teased back, and ended it blushing - moved guard by a net 1 and peaked
+     * fluster at 16, because the model anchored on the two example beats rather
+     * than on the stated range and reported +1 and +2 all the way through. It
+     * paid nothing.
+     *
+     * The correction has to be per-beat, not per-scene. An earlier version gave
+     * the model the scene-level target instead ("her guard should fall 15-30 in
+     * total") and it overshot to a 55-point drop with fluster pegged at 100 by
+     * turn four, because deltas are PER BEAT and the beat count per turn varies
+     * from one to three - a scene budget silently multiplies by however many
+     * beats the model felt like writing. Section 6 also still holds either way:
+     * these are micro numbers, and the client alone decides what a scene was
+     * worth.
+     */
+    'Scale matters. A beat that only keeps the conversation alive moves them by',
+    '1-3. A beat that actually gets through moves guard by 5-10 and fluster by a',
+    'similar amount. Save anything past 12 for a real breakthrough. A beat that',
+    'lands badly moves them back the other way.',
+    'Report only these. Never report anything else.',
     '',
     '## Language',
     `Write all prose and dialogue in ${language}.`,
@@ -219,6 +244,24 @@ export function buildSceneHeader({
     if (!rel) continue;
     const band = jealousyBand(rel.jealousy);
     const mods = sceneModifiers(rel);
+
+    /**
+     * Her voice, said again right next to the instruction.
+     *
+     * All five cards live in block 1, so the model has to pick the right one
+     * out of five from a system block ~1500 tokens above the thing it is being
+     * asked to write. For the loud cards that works. For two adjacent ones it
+     * does not: given the identical practice-room opening, Irene and Hyewon
+     * came back with the same line - "You are early. The others won't be here
+     * for another hour." - at 90% shared vocabulary, while Jisoo, Nana and Yeri
+     * were all distinct. Both cards are perfectly well written; the model
+     * collapsed the two reserved women onto the subset they share.
+     *
+     * Repeating one line of it here costs ~25 tokens in a block that is rebuilt
+     * every scene anyway, and puts the differentiator where the writing
+     * actually happens.
+     */
+    if (r.speechStyle) lines.push(`${r.name} speaks like this: ${r.speechStyle}`);
 
     lines.push(standingLine(r.name, rel));
 

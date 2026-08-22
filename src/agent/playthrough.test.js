@@ -630,4 +630,45 @@ describe.skipIf(!process.env.HARNESS_SWEEP)('policy sweep', () => {
   );
 });
 
+/**
+ * Is the balance ending reachable at all?
+ *
+ * Section 5b calls it "the hardest ending in the game, not the default one",
+ * and the sweep above returns 0 for every policy - but five seeds cannot tell
+ * "very rare" from "impossible", and those are completely different bugs.
+ * Opt-in (HARNESS_BALANCE=1) because it is several minutes of wall clock.
+ */
+describe.skipIf(!process.env.HARNESS_BALANCE)('balance ending reachability', () => {
+  it(
+    'says how often the best policies get all five',
+    async () => {
+      const seeds = Array.from({ length: 20 }, (_, i) => 100 + i * 7);
+
+      for (const policy of ['balanced', 'expert']) {
+        let balance = 0;
+        let allGood = 0;
+        const shortfall = {};
+
+        for (const seed of seeds) {
+          const out = await playCampaign({ seed, policy });
+          if (out.balance) balance += 1;
+          const endings = Object.values(out.endings);
+          if (endings.every((e) => GOOD_ENDINGS.has(e))) allGood += 1;
+          // What stopped it, when it was only one member short?
+          const bad = Object.entries(out.endings).filter(([, e]) => !GOOD_ENDINGS.has(e));
+          if (bad.length === 1) shortfall[bad[0][1]] = (shortfall[bad[0][1]] ?? 0) + 1;
+        }
+
+        log(
+          `${policy.padEnd(9)} balance ${balance}/${seeds.length}  all-good ${allGood}/${seeds.length}  ` +
+            `one member short: ${JSON.stringify(shortfall)}`,
+        );
+      }
+
+      expect(seeds).toHaveLength(20);
+    },
+    900000,
+  );
+});
+
 export { playCampaign, report };
