@@ -106,6 +106,24 @@ export default function VNStage({
   const rel = setup.relations[session.focusId];
 
   /**
+   * WHO IS SPEAKING and WHO THE PLAYER IS TALKING TO are not the same person,
+   * and treating them as one was a bug the player would meet every turn.
+   *
+   * The stage used to draw `focusId` - the addressee - for everything: the big
+   * portrait, the name over the dialogue, the stage light. So when somebody
+   * else joined in, her line appeared under the addressee's face with the
+   * addressee's name on it. Survivable while a second voice was rare; now that
+   * one arrives most turns, most lines in a group scene would be attributed to
+   * the wrong woman.
+   *
+   * The beat says who said it. The addressee stays where the player's attention
+   * is pointed, and the row marks it so that stays visible while somebody else
+   * has the floor.
+   */
+  const speakingId = queue.current?.speaker ?? session.addresseeId ?? session.focusId;
+  const speakingCard = setup.cards.find((c) => c.id === speakingId) ?? focusCard;
+
+  /**
    * More than one member may answer, so the stage grows a row and the bar
    * grows a pass. A one-member scene is byte-for-byte what it was.
    */
@@ -162,10 +180,10 @@ export default function VNStage({
 
   /** The stage light warms or cools with what she is feeling. */
   const stageGlow = useMemo(() => {
-    const base = focusCard.palette.base;
+    const base = speakingCard.palette.base;
     const strength = emotion === 'blush' ? 30 : emotion === 'upset' ? 8 : 18;
     return `color-mix(in srgb, ${base} ${strength}%, transparent)`;
-  }, [focusCard.palette.base, emotion]);
+  }, [speakingCard.palette.base, emotion]);
 
   /**
    * Ask for written labels for the turn the player is about to take.
@@ -437,6 +455,7 @@ export default function VNStage({
             <PortraitRow
               cards={setup.cards}
               rosterIds={session.frame.rosterIds}
+              speakingId={speakingId}
               addresseeId={session.addresseeId}
               emotion={emotion}
               pulseKey={queue.shown}
@@ -445,18 +464,24 @@ export default function VNStage({
               t={t}
             />
           ) : (
-            <Portrait card={focusCard} emotion={emotion} pulseKey={queue.shown} />
+            <Portrait card={speakingCard} emotion={emotion} pulseKey={queue.shown} />
           )}
         </div>
         <div className="grain" />
       </div>
 
-      <MeterBar meters={session.meters} exposure={session.exposure} t={t} />
+      <MeterBar
+        meters={session.meters}
+        exposure={session.exposure}
+        // Only when somebody who is not the addressee might be on screen.
+        ofName={group ? focusCard.name : null}
+        t={t}
+      />
 
       <div className="px-5">
         <DialogueBox
           beat={queue.current}
-          speakerName={focusCard.name}
+          speakerName={speakingCard.name}
           hasMore={hasMore(queue)}
           onAdvance={() => setQueue(advance)}
           pending={pending}

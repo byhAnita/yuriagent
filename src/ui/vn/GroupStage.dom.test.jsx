@@ -76,6 +76,21 @@ const turnToButtons = () =>
 const chipButtons = () =>
   screen.getAllByRole('button').filter((b) => /stance\./.test(b.textContent ?? ''));
 
+/**
+ * Tap through whatever is queued.
+ *
+ * Beats are revealed one at a time (section 9), so a turn where somebody joins
+ * in leaves two waiting and the second is not on screen until the player has
+ * read the first.
+ */
+const readThrough = async () => {
+  for (let i = 0; i < 6; i += 1) {
+    const more = screen.queryByRole('button', { name: /vn\.continue/ });
+    if (!more) break;
+    await userEvent.click(more);
+  }
+};
+
 describe('the stage shows the room', () => {
   it('offers everybody else in it as somebody to turn to', async () => {
     mount({ client: scripted(() => BEAT('irene')) });
@@ -114,9 +129,17 @@ describe('turning to somebody', () => {
    */
   it('sends the next turn to whoever the player turned to', async () => {
     const seen = [];
+    /**
+     * Answers as whoever the turn was aimed at, which is what a real model
+     * does and what the stage now depends on: the big portrait follows the
+     * BEAT's speaker, so a fixture that always answers as Nana would put Nana
+     * front and centre from the opening beat and leave no Nana in the row to
+     * turn to.
+     */
     const client = scripted((messages) => {
-      seen.push(messages.at(-1).content);
-      return BEAT('nana');
+      const last = messages.at(-1).content;
+      seen.push(last);
+      return BEAT(last.includes('(to Nana)') ? 'nana' : 'irene');
     });
 
     mount({ client });
@@ -134,6 +157,133 @@ describe('turning to somebody', () => {
       timeout: 10000,
     });
   }, 15000);
+});
+
+/**
+ * Who is SPEAKING and who the player is TALKING TO are two different people.
+ *
+ * The stage drew the addressee for everything - big portrait, name over the
+ * dialogue, stage light - so a beat from anybody else appeared under her face
+ * with her name on it. It survived while a second voice was rare; the moment
+ * chimes started arriving most turns it would have mislabelled most of a group
+ * scene.
+ */
+describe('who said that', () => {
+  const relations = () => Object.fromEntries(ids.map((id) => [id, { ...newRelation(40) }]));
+
+  /** Irene answers, then Jisoo joins in - two women, one turn. */
+  const twoVoices = () =>
+    scripted((messages) =>
+      /write one beat for Jisoo/.test(messages.at(-1).content)
+        ? '@jisoo|happy|guard40|fluster20\n*She laughs.* "That is not what happened."'
+        : '@irene|neutral|guard50|fluster10\n*She shrugs.* "It is fine."',
+    );
+
+  it('names the member who actually spoke, not the one being spoken to', async () => {
+    render(
+      <VNStage
+        setup={setup({ relations: relations() })}
+        client={twoVoices()}
+        onSceneEnd={() => {}}
+        writtenChips={false}
+        t={t}
+      />,
+    );
+
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 10000,
+    });
+    await userEvent.click(chipButtons().find((b) => !b.disabled));
+
+    // Read through to Jisoo's beat.
+    await readThrough();
+    await waitFor(() => expect(screen.queryByText(/not what happened/)).toBeTruthy(), {
+      timeout: 10000,
+    });
+
+    // Her name is on it, and Irene's is not.
+    expect(screen.getByText('Jisoo')).toBeTruthy();
+  }, 20000);
+
+  /**
+   * ...and the addressee stays marked while somebody else has the floor, or
+   * the player loses track of where their own attention is pointed - which is
+   * the state a chip, a gift and free text all silently target.
+   */
+  it('keeps the addressee marked while somebody else is talking', async () => {
+    render(
+      <VNStage
+        setup={setup({ relations: relations() })}
+        client={twoVoices()}
+        onSceneEnd={() => {}}
+        writtenChips={false}
+        t={t}
+      />,
+    );
+
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 10000,
+    });
+    await userEvent.click(chipButtons().find((b) => !b.disabled));
+    await readThrough();
+    await waitFor(() => expect(screen.queryByText(/not what happened/)).toBeTruthy(), {
+      timeout: 10000,
+    });
+
+    const marked = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-current'));
+    expect(marked).toHaveLength(1);
+    expect(marked[0].getAttribute('aria-label')).toContain('Irene');
+  }, 20000);
+
+  /**
+   * And she can be answered. She is the big portrait, so she is not in the row
+   * - without making the portrait itself a target she would be the one member
+   * in the room the player could not turn to, which is backwards: replying to
+   * whoever just spoke to you is what a second voice is for.
+   */
+  it('lets the player turn to whoever just joined in', async () => {
+    const seen = [];
+    const client = scripted((messages) => {
+      const last = messages.at(-1).content;
+      seen.push(last);
+      if (/write one beat for Jisoo/.test(last)) {
+        return '@jisoo|happy|guard40|fluster20\n*She laughs.* "That is not what happened."';
+      }
+      return '@irene|neutral|guard50|fluster10\n*She shrugs.* "It is fine."';
+    });
+
+    render(
+      <VNStage
+        setup={setup({ relations: relations() })}
+        client={client}
+        onSceneEnd={() => {}}
+        writtenChips={false}
+        t={t}
+      />,
+    );
+
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 10000,
+    });
+    await userEvent.click(chipButtons().find((b) => !b.disabled));
+    await readThrough();
+    await waitFor(() => expect(screen.queryByText(/not what happened/)).toBeTruthy(), {
+      timeout: 10000,
+    });
+
+    const toJisoo = turnToButtons().find((b) => b.getAttribute('aria-label').includes('Jisoo'));
+    expect(toJisoo).toBeTruthy();
+    await userEvent.click(toJisoo);
+
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 10000,
+    });
+    await userEvent.click(chipButtons().find((b) => !b.disabled));
+
+    await waitFor(() => expect(seen.some((c) => c.includes('(to Jisoo)'))).toBe(true), {
+      timeout: 10000,
+    });
+  }, 20000);
 });
 
 describe('letting the room carry it', () => {

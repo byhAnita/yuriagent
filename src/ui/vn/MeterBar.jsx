@@ -57,14 +57,28 @@ function Level({ label, value, colorVar, inverted = false, hint }) {
   );
 }
 
-export default function MeterBar({ meters, exposure, t }) {
+/**
+ * @param {string|null} ofName - whose guard and fluster these are, when that is
+ *   not obvious. Null in a one-to-one scene, where there is only one of her and
+ *   naming her every turn is noise.
+ *
+ *   In a group scene it is not obvious at all: the meters belong to the
+ *   ADDRESSEE, and somebody else may have the floor, so the face on screen and
+ *   the numbers under it can be two different women. Guard and fluster are
+ *   per-member readings by design (`turnTo` carries them, an interjection does
+ *   not move the addressee's), which makes labelling them the honest fix rather
+ *   than switching them to follow the speaker.
+ */
+export default function MeterBar({ meters, exposure, ofName = null, t }) {
   const exposureBand =
     exposure >= 60 ? t('exposureBand.public') : exposure >= 30 ? t('exposureBand.quiet') : t('exposureBand.private');
 
+  const label = (key) => (ofName ? `${ofName} ${t(key)}` : t(key));
+
   return (
     <div className="flex items-start gap-4 px-5 py-3">
-      <Level label={t('meter.guard')} value={meters.guard} colorVar="--meter-guard" inverted />
-      <Level label={t('meter.fluster')} value={meters.fluster} colorVar="--meter-fluster" />
+      <Level label={label('meter.guard')} value={meters.guard} colorVar="--meter-guard" inverted />
+      <Level label={label('meter.fluster')} value={meters.fluster} colorVar="--meter-fluster" />
       <Level
         label={t('meter.exposure')}
         value={exposure}
