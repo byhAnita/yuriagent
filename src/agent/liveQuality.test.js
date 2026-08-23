@@ -705,3 +705,76 @@ describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('the whole room, a whole
     expect(spoke).toBeGreaterThan(2);
   }, 900000);
 });
+
+/**
+ * Nobody assigns the player a gender.
+ *
+ * The game never states one - the name is free text and no field anywhere
+ * carries it - so a model that guesses is inventing something about the player
+ * that the player did not choose. The case only arises when one member talks to
+ * ANOTHER about them, which is neither narration nor being addressed, and it
+ * became common the day a second voice started speaking most turns.
+ *
+ * Measured before the block 1 rule existed: a cut-in came back with "He's just
+ * standing there." This is the regression check.
+ */
+describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('nobody guesses at the player', () => {
+  it('never calls the player he or she, across a whole group block', async () => {
+    const all = castIds;
+    const relations = Object.fromEntries(
+      all.map((id) => [
+        id,
+        // One member unsettled, so cut-ins fire too. The gendered line that
+        // prompted this was a cut-in, and the two directives are separate.
+        { ...newRelation(40), ...(id === 'nana' ? { intimacy: 80, jealousy: 85 } : {}) },
+      ]),
+    );
+
+    let session = beginScene({
+      cards,
+      lineup,
+      identity: { promptRole: 'an artist assistant', exposureModifier: {} },
+      player: { name: 'Yuhan', energy: 80, secrecy: 70, credits: 10 },
+      lang: 'en',
+      memory: newMemory(castIds),
+      relations,
+      scene: {
+        id: 'lg2',
+        rosterIds: all,
+        presentIds: all,
+        focusId: 'irene',
+        week: 0,
+        day: 1,
+        block: 'afternoon',
+        phase: 'prep',
+        locationId: 'practice_room',
+        locationLabel: 'practice_room',
+        seed: 3,
+        occupancy: Object.fromEntries(all.map((id) => [id, { activity: 'group_practice' }])),
+      },
+    });
+
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+    for (const stance of ['joke', 'confide', 'tease', 'press', 'reassure', 'joke']) {
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+      const out = await interject(session, { client, relations, cards });
+      session = out.session;
+    }
+
+    /**
+     * Word-boundary matched, and deliberately narrow. "she" is all over these
+     * scenes correctly - five women - so only a pronoun applied to the PLAYER
+     * counts, which in practice means one of these constructions near a verb
+     * of standing, watching or arriving.
+     */
+    const GENDERED = /\b(he|him|his)\b/i;
+    const hits = session.beats.filter((b) => GENDERED.test(b.text));
+
+    log('\n[gender] --- five members, six turns, one at corrosive ---');
+    log(`[gender] beats: ${session.beats.length}`);
+    log(`[gender] beats containing he/him/his: ${hits.length}`);
+    for (const b of hits) log(`   !! @${b.speaker} ${b.text.replace(/\s+/g, ' ')}`);
+
+    expect(hits).toHaveLength(0);
+  }, 900000);
+});

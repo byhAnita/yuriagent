@@ -190,7 +190,7 @@ describe('somebody cuts in', () => {
 
     await interject(beginScene(setup({ relations })), { client, relations, cards });
 
-    expect(sent).toContain('write one beat for Nana only');
+    expect(sent).toMatch(/write ONE beat for Nana only/i);
     expect(sent).toContain('Irene and the player were');
     expect(sent).toContain('Do not write anyone else');
   });
@@ -290,7 +290,7 @@ describe('the room joins in', () => {
 
     await interject(session, { client, relations, cards });
 
-    expect(sent).toContain('write one beat for Nana only');
+    expect(sent).toMatch(/write ONE beat for Nana only/i);
     expect(sent).toContain('joins in on what Irene and the player are talking about');
     expect(sent).toContain('easy company');
   });
@@ -308,6 +308,25 @@ describe('the room joins in', () => {
     const text = chimeDirective('Nana', 'Irene');
     expect(text).not.toMatch(/jealous|upset|resent|attention|rival/i);
     expect(text).toMatch(/agreeing|adding|teasing/);
+  });
+
+  /**
+   * One beat, said in a way the model actually obeys.
+   *
+   * "write one beat" alone did not take: measured at five members over eight
+   * turns, every chime came back as two, so a full block ran to 34 beats and
+   * an interjection was as long as the reply it cut into. Naming the FORM -
+   * one metadata line, no second one - took it to exactly one beat every time
+   * and halved the scene to 17 without making the room any quieter.
+   *
+   * Worth keeping asserted because it is the cheapest lever on how much
+   * reading a group scene costs, and it is one careless reword away from
+   * regressing invisibly.
+   */
+  it('asks for one beat in a way that names the form', () => {
+    const text = chimeDirective('Nana', 'Irene');
+    expect(text).toMatch(/ONE beat/);
+    expect(text).toMatch(/no second metadata line/);
   });
 
   it('is a different beat from a cut-in', () => {

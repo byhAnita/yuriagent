@@ -319,7 +319,8 @@ function nameOf(cast, id) {
  */
 export function interjectionDirective(name, addresseeName) {
   return (
-    `write one beat for ${name} only. ${addresseeName} and the player were ` +
+    `write ONE beat for ${name} only - a single metadata line and what follows ` +
+    `it, no second metadata line. ${addresseeName} and the player were ` +
     'talking and she cuts in - she has been standing right there. Her metadata ' +
     `line must name ${name}. Do not write anyone else.`
   );
@@ -344,7 +345,8 @@ export function interjectionDirective(name, addresseeName) {
  */
 export function chimeDirective(name, addresseeName) {
   return (
-    `write one beat for ${name} only. She joins in on what ${addresseeName} and ` +
+    `write ONE beat for ${name} only - a single metadata line and what follows ` +
+    `it, no second metadata line. She joins in on what ${addresseeName} and ` +
     'the player are talking about - agreeing, adding something, teasing, or ' +
     'taking it somewhere else. These are people who have worked together for ' +
     `years and this is easy company. Her metadata line must name ${name}. ` +

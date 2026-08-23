@@ -53,4 +53,23 @@ describe('the pronoun rule', () => {
   it('still forbids narrating the player at all', () => {
     expect(block).toContain('Never narrate the player');
   });
+
+  /**
+   * The third case, and it only exists in a group scene.
+   *
+   * One member talking to ANOTHER about the player is neither narration nor
+   * being addressed, so neither rule above reaches it - and a model with no
+   * gender to work from will pick one. Measured live: a cut-in came back with
+   * "He's just standing there", about a player the game has never assigned a
+   * gender and never will. The name is free text and nothing anywhere states
+   * one.
+   *
+   * It was always possible and it became common the day a second voice started
+   * speaking most turns.
+   */
+  it('refuses to assign the player a gender behind their back', () => {
+    expect(block).toContain('ABOUT the player');
+    expect(block).toContain('never "he" or "she"');
+    expect(block).toContain("The player's gender is never stated");
+  });
 });

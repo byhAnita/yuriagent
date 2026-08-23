@@ -168,6 +168,22 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     `- In narration, the player is "you" and "your" - never ${who}.`,
     '- In dialogue, inside quotes, she may use the player\'s name, or a nickname,',
     '  or a title. What she calls the player is her choice and it can change.',
+    /**
+     * The third case, which only exists in a group scene.
+     *
+     * One member talking to ANOTHER about the player is neither narration nor
+     * being addressed, so neither rule above reaches it - and a model with no
+     * gender to work from picks one. Measured: a cut-in came back with "He's
+     * just standing there", about a player the game has never assigned a
+     * gender and never will. The name is free text; nothing anywhere states
+     * one.
+     *
+     * Became common today rather than being new: a second voice now speaks
+     * most turns, so the case that used to arise almost never now arises
+     * constantly.
+     */
+    '- Speaking to another member ABOUT the player, use the player\'s name or',
+    '  "they" - never "he" or "she". The player\'s gender is never stated.',
     '',
     '## Format contract',
     'Every beat begins with a metadata line, then the prose on the next line:',

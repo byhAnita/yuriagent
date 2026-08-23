@@ -1150,21 +1150,66 @@ Raised 2026-08-23 while fixing the silent room.**
 
 `CHIME_THRESHOLD = 0.9` against `perSilentTurn = 0.45` means **two quiet turns
 clears the bar exactly**, and in a room with more than two bystanders somebody
-is essentially always at two. Measured live at three members: a chime on **six
-of six turns**.
+is essentially always at two.
 
-That read well - the transcript is in the commit and it is the best group prose
-this project has produced - but it is the top of the range rather than the
-middle of it, and three things about it are untested:
+### Measured, twice
 
-1. **Eight turns, not six.** Whether a second voice every single turn is still
-   pleasant at the end of a full block, or whether it turns into wallpaper.
-2. **Five members, not three.** The bar produces the same rate, so the room gets
-   no busier - but each member speaks a third as often, which may read as five
-   people who each say one thing.
-3. **Call count.** Two calls a player turn, near-always. Roughly doubles a
+| | three members, six turns | five members, eight turns |
+|---|---|---|
+| chimes | 6 of 6 | 8 of 8 |
+| cut-ins | 0 | 0 |
+| resentful lines | 0 | 0 |
+| members who spoke | 3 of 3 | 5 of 5 |
+| beats total | 21 | 34 |
+
+`LIVE_BIG_ROOM=1` runs the second one. It earned its keep immediately: the
+first pass had **Yeri say nothing at all** across the whole block, because the
+chime's silence term had copied `stakeOf`'s four-turn clamp and three bystanders
+sat at the ceiling permanently, dropping the sort through to the id tie-break.
+Fixed by uncapping; the second column above is after.
+
+Both read well, and the prose is the best this project has produced. But the
+rate is the **top** of the range rather than the middle: a second voice on
+literally every turn, in both room sizes, because the bar scales with room size
+and the counters do too.
+
+### Solved on the spot: 34 beats became 17
+
+The five-member block ran to **34 beats**, because the model wrote two beats per
+chime despite the directive asking for one - so an interjection was as long as
+the reply it cut into, and a block cost about 34 taps.
+
+"write one beat" did not take. **Naming the form did:** *"write ONE beat - a
+single metadata line and what follows it, no second metadata line."* Same scene,
+re-measured: **17 beats**, exactly one per chime, eight chimes of eight, all five
+members still speaking, and a visibly better transcript - tighter, with more
+narrative momentum, because the room moves on rather than each voice settling in.
+
+It is the cheapest lever on how much reading a group scene costs, and it is one
+careless reword away from regressing invisibly, so `groupScene.test.js` asserts
+the wording. The same form was applied to the cut-in, which had the same
+problem.
+
+**A claim written here and then withdrawn**, because it is the kind of mistake
+worth leaving visible: the same run showed the addressee's replies drop from ~2
+beats to 1, and this file briefly explained it as prompt contamination - the
+chime directive accumulating in block 5 and being generalised. Three runs say
+otherwise. The addressee came back at **9, 17 and 25 beats** across three
+identical eight-turn blocks, which is section 9's 1-to-3 range doing exactly
+what it is allowed to do. One sample looked like a mechanism.
+
+What that does establish is where the reading actually comes from: the chime is
+**8 beats of a 17-to-35 beat scene**. Scene length is dominated by the
+addressee, and no threshold in this entry touches that.
+
+### What is still open
+
+1. **Call count.** Two calls a player turn, near-always. Roughly doubles a
    campaign's request count. Money is not the constraint; free-tier rate limits
    might be.
+2. **Whether always-on is right at all.** Nobody has played nine weeks of it.
+   Six of six and eight of eight are pleasant in isolation; the question is
+   whether the room ever feeling quiet is something the game wants.
 
 ### If it does need a brake, three options, and only one of them is right
 
@@ -1187,7 +1232,12 @@ it is the same "something has to have HAPPENED" argument the interjection bar
 already runs on, applied to the room's own recent noise rather than to one
 member's state.
 
-Do not do any of them on reasoning. **This is a prose question and it needs a
+The fourth lever - making the chime reliably one beat - was tried and worked,
+and is described above. It is the reason none of (a) to (c) is urgent: the
+complaint a brake would answer was mostly about volume of reading, and that
+halved without making the room any quieter.
+
+Do not do any of the remaining three on reasoning. **This is a prose question and it needs a
 played campaign**, the same status `INTERJECT_THRESHOLD` had before 2026-08-23.
 
 ---

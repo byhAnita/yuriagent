@@ -174,7 +174,7 @@ describe('who said that', () => {
   /** Irene answers, then Jisoo joins in - two women, one turn. */
   const twoVoices = () =>
     scripted((messages) =>
-      /write one beat for Jisoo/.test(messages.at(-1).content)
+      /write one beat for Jisoo/i.test(messages.at(-1).content)
         ? '@jisoo|happy|guard40|fluster20\n*She laughs.* "That is not what happened."'
         : '@irene|neutral|guard50|fluster10\n*She shrugs.* "It is fine."',
     );
@@ -246,7 +246,7 @@ describe('who said that', () => {
     const client = scripted((messages) => {
       const last = messages.at(-1).content;
       seen.push(last);
-      if (/write one beat for Jisoo/.test(last)) {
+      if (/write one beat for Jisoo/i.test(last)) {
         return '@jisoo|happy|guard40|fluster20\n*She laughs.* "That is not what happened."';
       }
       return '@irene|neutral|guard50|fluster10\n*She shrugs.* "It is fine."';
@@ -329,7 +329,7 @@ describe('somebody cutting in', () => {
       if (preset === 'chips') return '';
       const prompt = messages.at(-1).content;
       calls.push(prompt);
-      const text = prompt.includes('write one beat for Nana only')
+      const text = /write one beat for Nana only/i.test(prompt)
         ? '@nana|upset|guard30|fluster5\n*She does not look up.* "Sure. Fine."'
         : BEAT('irene');
       onChunk?.(text);
@@ -347,7 +347,7 @@ describe('somebody cutting in', () => {
     );
 
     await waitFor(
-      () => expect(calls.some((c) => c.includes('write one beat for Nana only'))).toBe(true),
+      () => expect(calls.some((c) => /write one beat for Nana only/i.test(c))).toBe(true),
       { timeout: 10000 },
     );
 
@@ -394,7 +394,7 @@ describe('somebody cutting in', () => {
       // One beat only, so `hasMore` is false and the bar has nothing else
       // holding it - this is the exact shape that used to go live.
       const one = '@irene|neutral|guard50|fluster10\n*She nods.* "Mm."';
-      if (/write one beat for/.test(prompt)) {
+      if (/write one beat for/i.test(prompt)) {
         await held;
         onChunk?.('@nana|neutral|guard50|fluster5\n*She looks over.* "Wait."');
         return '@nana|neutral|guard50|fluster5\n*She looks over.* "Wait."';
@@ -447,6 +447,6 @@ describe('somebody cutting in', () => {
       timeout: 10000,
     });
 
-    expect(calls.every((c) => !c.includes('write one beat for'))).toBe(true);
+    expect(calls.every((c) => !/write one beat for/i.test(c))).toBe(true);
   }, 15000);
 });
