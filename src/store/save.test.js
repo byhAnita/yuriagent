@@ -9,7 +9,22 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { toSave, fromSave, save, load, peek, hasSave, clearSave, SCHEMA_VERSION } from './save.js';
+import {
+  toSave,
+  fromSave,
+  saveTo,
+  loadFrom,
+  listSlots,
+  peekSlot,
+  deleteSlot,
+  clearAuto,
+  hasAnySave,
+  isSlotId,
+  SLOT_IDS,
+  AUTO_SLOT,
+  MANUAL_SLOTS,
+  SCHEMA_VERSION,
+} from './save.js';
 import { SAVE_KEY } from '../config/constants.js';
 import { newRelation } from '../systems/relationship.js';
 import { newMemory } from '../agent/memory.js';
@@ -91,8 +106,8 @@ describe('what a save contains', () => {
 
 describe('a round trip', () => {
   it('comes back the way it went in', () => {
-    expect(save(aRun())).toBe(true);
-    const back = load(defaults());
+    expect(saveTo(AUTO_SLOT, aRun())).toBe(true);
+    const back = loadFrom(AUTO_SLOT, defaults());
 
     expect(back.run.week).toBe(4);
     expect(back.player.name).toBe('Yuhan');
@@ -105,30 +120,129 @@ describe('a round trip', () => {
   });
 
   it('reports and clears itself', () => {
-    expect(hasSave()).toBe(false);
-    save(aRun());
-    expect(hasSave()).toBe(true);
+    expect(hasAnySave()).toBe(false);
+    saveTo(AUTO_SLOT, aRun());
+    expect(hasAnySave()).toBe(true);
 
-    const header = peek();
+    const header = peekSlot(AUTO_SLOT);
     expect(header.name).toBe('Yuhan');
     expect(header.week).toBe(4);
     expect(header.savedAt).toBeGreaterThan(0);
 
-    clearSave();
-    expect(hasSave()).toBe(false);
-    expect(peek()).toBeNull();
+    clearAuto();
+    expect(hasAnySave()).toBe(false);
+    expect(peekSlot(AUTO_SLOT).empty).toBe(true);
+  });
+});
+
+/**
+ * Six slots. CLAUDE.md section 15.
+ *
+ * The assertions worth having are the ones about what a slot must NOT do to
+ * its neighbours - a save feature whose slots leak into each other is worse
+ * than one slot, because the player is relying on it.
+ */
+describe('slots', () => {
+  it('offers one auto slot and five the player writes', () => {
+    expect(SLOT_IDS).toHaveLength(MANUAL_SLOTS + 1);
+    expect(SLOT_IDS[0]).toBe(AUTO_SLOT);
+    expect(listSlots().every((s) => s.empty)).toBe(true);
+  });
+
+  it('refuses an id it does not know rather than inventing a slot', () => {
+    expect(isSlotId('7')).toBe(false);
+    expect(saveTo('7', aRun())).toBe(false);
+    expect(loadFrom('7', defaults())).toBeNull();
+    expect(deleteSlot('__proto__')).toBe(false);
+    expect(hasAnySave()).toBe(false);
+  });
+
+  it('keeps slots independent', () => {
+    saveTo('1', aRun());
+    saveTo('2', { ...aRun(), player: { ...aRun().player, name: 'Other' } });
+
+    expect(loadFrom('1', defaults()).player.name).toBe('Yuhan');
+    expect(loadFrom('2', defaults()).player.name).toBe('Other');
+
+    deleteSlot('1');
+    expect(peekSlot('1').empty).toBe(true);
+    expect(loadFrom('2', defaults()).player.name).toBe('Other');
+  });
+
+  it('overwrites a slot in place without touching the others', () => {
+    saveTo('1', aRun());
+    saveTo('2', aRun());
+    saveTo('1', { ...aRun(), run: { ...aRun().run, week: 7 } });
+
+    expect(peekSlot('1').week).toBe(7);
+    expect(peekSlot('2').week).toBe(4);
+  });
+
+  /**
+   * `restart` calls this. The single-slot build wiped the only save there was;
+   * under six that would mean starting a new run silently destroys five
+   * campaigns the player deliberately kept.
+   */
+  it('clears the autosave and leaves the player slots alone', () => {
+    saveTo(AUTO_SLOT, aRun());
+    saveTo('3', aRun());
+
+    clearAuto();
+
+    expect(peekSlot(AUTO_SLOT).empty).toBe(true);
+    expect(peekSlot('3').empty).toBe(false);
+    expect(hasAnySave()).toBe(true);
+  });
+
+  /**
+   * A slot has to be legible before it is loaded, or six saves of one campaign
+   * are indistinguishable. `focusId` is DERIVED at read time and never stored.
+   */
+  it('names whoever holds the highest intimacy without storing it', () => {
+    saveTo('1', aRun());
+
+    expect(peekSlot('1').focusId).toBe('irene');
+    expect(peekSlot('1').focusIntimacy).toBe(62);
+    expect(JSON.stringify(localStorage.getItem(SAVE_KEY))).not.toContain('focusId');
+  });
+
+  it('names nobody when nothing has started', () => {
+    saveTo('1', { ...aRun(), relations: Object.fromEntries(MVP_CAST.map((id) => [id, newRelation(0)])) });
+    expect(peekSlot('1').focusId).toBeNull();
+  });
+
+  /**
+   * The migration. A player mid-campaign when this shipped has a bare record
+   * under the same key, and must not lose the campaign to a container shape
+   * they never asked for.
+   */
+  it('adopts a single-slot save as the autosave', () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(toSave(aRun())));
+
+    expect(peekSlot(AUTO_SLOT).name).toBe('Yuhan');
+    expect(loadFrom(AUTO_SLOT, defaults()).run.week).toBe(4);
+    expect(listSlots().filter((s) => !s.empty)).toHaveLength(1);
+  });
+
+  it('keeps the adopted run when a new slot is written beside it', () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(toSave(aRun())));
+    saveTo('1', { ...aRun(), player: { ...aRun().player, name: 'Later' } });
+
+    expect(peekSlot(AUTO_SLOT).name).toBe('Yuhan');
+    expect(peekSlot('1').name).toBe('Later');
   });
 });
 
 describe('everything that can be wrong with a record', () => {
   it('loads nothing rather than throwing on garbage', () => {
     localStorage.setItem(SAVE_KEY, '{ this is not json');
-    expect(load(defaults())).toBeNull();
-    expect(peek()).toBeNull();
+    expect(loadFrom(AUTO_SLOT, defaults())).toBeNull();
+    expect(peekSlot(AUTO_SLOT).empty).toBe(true);
+    expect(listSlots()).toHaveLength(SLOT_IDS.length);
   });
 
   it('loads nothing when there is nothing', () => {
-    expect(load(defaults())).toBeNull();
+    expect(loadFrom(AUTO_SLOT, defaults())).toBeNull();
     expect(fromSave(null, defaults())).toBeNull();
     expect(fromSave('a string', defaults())).toBeNull();
   });
@@ -193,10 +307,14 @@ describe('everything that can be wrong with a record', () => {
       },
     };
 
-    expect(save(aRun())).toBe(false);
-    expect(load(defaults())).toBeNull();
-    expect(hasSave()).toBe(false);
-    expect(peek()).toBeNull();
-    expect(() => clearSave()).not.toThrow();
+    expect(saveTo(AUTO_SLOT, aRun())).toBe(false);
+    expect(loadFrom(AUTO_SLOT, defaults())).toBeNull();
+    expect(hasAnySave()).toBe(false);
+    expect(peekSlot(AUTO_SLOT).empty).toBe(true);
+    expect(() => clearAuto()).not.toThrow();
+
+    // The list still renders: the slot screen must not be the thing that
+    // breaks when storage does.
+    expect(listSlots()).toHaveLength(SLOT_IDS.length);
   });
 });

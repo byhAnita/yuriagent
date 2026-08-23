@@ -80,9 +80,12 @@ function Row({ selected, disabled, onSelect, lead, title, note, tag }) {
 export default function Start({
   cards,
   lineup,
-  /** `{ savedAt, week, day, name }` from `store/save.js`, or null. */
+  /** The auto slot's header from `store/save.js`, or null when it is empty. */
   saved = null,
+  /** Whether ANY slot holds a run - the auto one may be empty while five are not. */
+  hasSaves = false,
   onContinue,
+  onOpenSaves,
   onBegin,
   onOpenSettings,
   t,
@@ -121,22 +124,40 @@ export default function Start({
         out. Beginning is still one tap away, and it warns that it replaces
         what is there.
       */}
-      {saved ? (
-        <section className="sheet-in" style={{ '--i': 1 }}>
+      {saved || hasSaves ? (
+        <section className="sheet-in flex flex-col gap-1.5" style={{ '--i': 1 }}>
+          {saved ? (
+            <button
+              type="button"
+              onClick={onContinue}
+              className="w-full rounded-[var(--radius)] border border-accent bg-accent-soft/25 px-4 py-3 text-left"
+            >
+              <span className="block font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-accent">
+                {t('start.continue')}
+              </span>
+              <span className="mt-1 block font-body text-[0.8125rem] text-dim">
+                {t('start.savedAt')
+                  .replace('{name}', saved.name || t('start.namePlaceholder'))
+                  .replace('{week}', String(saved.week + 1))
+                  .replace('{day}', String(saved.day + 1))}
+              </span>
+            </button>
+          ) : null}
+
+          {/*
+            The autosave is one tap; everything else is one more.
+
+            Six rows on the cover would bury the common case - a player who
+            stopped yesterday is here to carry on, not to browse - so the list
+            sits behind a line of its own. It shows even when `auto` is empty,
+            because a player who restarted still has their five.
+          */}
           <button
             type="button"
-            onClick={onContinue}
-            className="w-full rounded-[var(--radius)] border border-accent bg-accent-soft/25 px-4 py-3 text-left"
+            onClick={onOpenSaves}
+            className="self-start font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
           >
-            <span className="block font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-accent">
-              {t('start.continue')}
-            </span>
-            <span className="mt-1 block font-body text-[0.8125rem] text-dim">
-              {t('start.savedAt')
-                .replace('{name}', saved.name || t('start.namePlaceholder'))
-                .replace('{week}', String(saved.week + 1))
-                .replace('{day}', String(saved.day + 1))}
-            </span>
+            {t('save.title')}
           </button>
         </section>
       ) : null}

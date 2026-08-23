@@ -49,6 +49,7 @@ export default function Day({
   onEnterSolo,
   onSkipBlock,
   onOpenSettings,
+  onOpenSaves,
   canAskOut = false,
   onAskOut,
   t,
@@ -74,6 +75,17 @@ export default function Day({
           className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
         >
           {t('map.calendar')}
+        </button>
+        {/*
+          The day screen is the only place a save can be written: section 15
+          excludes `scene` from a save, so anywhere else is the room door.
+        */}
+        <button
+          type="button"
+          onClick={onOpenSaves}
+          className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+        >
+          {t('save.open')}
         </button>
         <button
           type="button"

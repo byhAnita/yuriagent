@@ -2121,11 +2121,33 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
 
 Save key: `yuriagent_saves_v1`. On load, unknown or missing fields fill from defaults rather than throwing.
 
-**One slot, and the game saves itself at day rollover.** Not a button: there is
-nothing for the player to decide, and a save screen would be the only piece of
-bookkeeping in a game that has none. The day boundary is also the only moment
-the schema permits - a scene is ephemeral, so a save taken mid-scene is a save
-taken at the room door.
+**Six slots: one that writes itself, five the player writes.** The day boundary
+is the only moment the schema permits either of them - a scene is ephemeral, so
+a save taken mid-scene is a save taken at the room door.
+
+An earlier draft of this section argued for a single automatic slot, on the
+grounds that there was nothing for the player to decide and a save screen would
+be the only bookkeeping in a game with none. The first half of that is still
+true and the second half was wrong about what a slot is *for*. A campaign is
+nine weeks and every route is a decision that cannot be taken back; one slot
+means the player can never look at a fork twice, and the game is *about* forks.
+Branching is the content.
+
+So the autosave stays exactly as it was - `auto`, written at every day rollover,
+never a decision - and five numbered slots sit beside it that the player writes
+deliberately. Nobody has to think about saving, and anybody who wants to can.
+
+Three rules:
+
+1. **Manual slots survive a restart.** `restart` clears `auto`, because the
+   autosave belongs to the run it was taken from. The five are the player's and
+   outlive any particular campaign.
+2. **A slot is legible before it is loaded.** Week, day, player name and whoever
+   currently holds the highest intimacy - derived at read time, never stored,
+   the same rule `focusId` follows everywhere. Two saves of one campaign are
+   otherwise indistinguishable, which defeats the point of having several.
+3. **Overwrite and delete both confirm.** They are the only destructive actions
+   in the game and a mis-tap costs a campaign.
 
 `toSave` is an explicit projection rather than a spread of app state, so that
 adding a piece of UI state cannot silently start persisting it, and so reading

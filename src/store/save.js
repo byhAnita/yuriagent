@@ -1,9 +1,10 @@
 /**
  * Save and load. CLAUDE.md section 15.
  *
- * One slot, localStorage, and everything defensive: a corrupt or half-written
- * record must yield a playable state rather than throwing, because this runs
- * before the app can render anything to explain itself.
+ * Six slots in localStorage - one that writes itself at day rollover, five the
+ * player writes - and everything defensive: a corrupt or half-written record
+ * must yield a playable state rather than throwing, because this runs before
+ * the app can render anything to explain itself.
  *
  * THREE THINGS ARE DELIBERATELY NOT IN A SAVE:
  *
@@ -98,33 +99,44 @@ function mergePerMember(defaults, stored) {
   return out;
 }
 
-export function hasSave() {
-  try {
-    return Boolean(localStorage.getItem(SAVE_KEY));
-  } catch {
-    return false;
-  }
+/**
+ * The slot that writes itself, and the five the player writes.
+ *
+ * Section 15: nobody has to think about saving, and anybody who wants to can.
+ * `auto` belongs to the run and is cleared by `restart`; the numbered five are
+ * the player's and outlive any particular campaign.
+ */
+export const AUTO_SLOT = 'auto';
+export const MANUAL_SLOTS = 5;
+export const SLOT_IDS = [AUTO_SLOT, ...Array.from({ length: MANUAL_SLOTS }, (_, i) => String(i + 1))];
+
+export function isSlotId(id) {
+  return SLOT_IDS.includes(id);
 }
 
-/** The header a continue button needs, without deserialising the whole run. */
-export function peek() {
+/**
+ * Everything under one key, as `{ slots: { [id]: record } }`.
+ *
+ * A record written by the single-slot build is a bare save - it has `run` at
+ * the top level - and is adopted as the auto slot rather than discarded. A
+ * player mid-campaign when this shipped must not lose the campaign to a
+ * container shape they never asked for.
+ */
+function readAll() {
   try {
     const raw = JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null');
-    if (!isObject(raw)) return null;
-    return {
-      savedAt: raw.meta?.savedAt ?? null,
-      week: raw.run?.week ?? 0,
-      day: raw.run?.day ?? 0,
-      name: raw.player?.name ?? '',
-    };
+    if (!isObject(raw)) return {};
+    if (isObject(raw.slots)) return raw.slots;
+    if (isObject(raw.run)) return { [AUTO_SLOT]: raw };
+    return {};
   } catch {
-    return null;
+    return {};
   }
 }
 
-export function save(state) {
+function writeAll(slots) {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(toSave(state)));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, slots }));
     return true;
   } catch {
     // A full quota or a private window. A failed save must never take the run
@@ -133,19 +145,82 @@ export function save(state) {
   }
 }
 
-export function load(defaults) {
-  try {
-    return fromSave(JSON.parse(localStorage.getItem(SAVE_KEY) ?? 'null'), defaults);
-  } catch {
-    return null;
+/**
+ * Who the run is about, derived at read time.
+ *
+ * Section 15 keeps `focusId` out of a save because it is DERIVED - whoever
+ * holds the highest intimacy - and storing it would let it disagree with the
+ * relations it comes from. That argument does not change just because a slot
+ * list wants to display it, so it is computed here instead.
+ */
+function focusOf(relations) {
+  if (!isObject(relations)) return null;
+  let best = null;
+  for (const [id, rel] of Object.entries(relations)) {
+    const intimacy = rel?.intimacy ?? 0;
+    if (!best || intimacy > best.intimacy) best = { id, intimacy };
   }
+  return best && best.intimacy > 0 ? best : null;
 }
 
-export function clearSave() {
-  try {
-    localStorage.removeItem(SAVE_KEY);
-  } catch {
-    // Nothing to do. A save that cannot be cleared is a stale continue button,
-    // not a broken game.
-  }
+/** The header a slot list needs, without deserialising the whole run. */
+function headerOf(id, raw) {
+  if (!isObject(raw)) return { id, auto: id === AUTO_SLOT, empty: true };
+  const focus = focusOf(raw.relations);
+  return {
+    id,
+    auto: id === AUTO_SLOT,
+    empty: false,
+    savedAt: raw.meta?.savedAt ?? null,
+    lang: raw.meta?.lang ?? null,
+    week: raw.run?.week ?? 0,
+    day: raw.run?.day ?? 0,
+    phase: raw.run?.phase ?? null,
+    name: raw.player?.name ?? '',
+    focusId: focus?.id ?? null,
+    focusIntimacy: focus?.intimacy ?? 0,
+  };
+}
+
+/** Every slot in fixed order, empty ones included - the list is the UI. */
+export function listSlots() {
+  const slots = readAll();
+  return SLOT_IDS.map((id) => headerOf(id, slots[id]));
+}
+
+export function peekSlot(id) {
+  return headerOf(id, readAll()[id]);
+}
+
+export function hasAnySave() {
+  return listSlots().some((s) => !s.empty);
+}
+
+export function saveTo(id, state) {
+  if (!isSlotId(id)) return false;
+  return writeAll({ ...readAll(), [id]: toSave(state) });
+}
+
+export function loadFrom(id, defaults) {
+  if (!isSlotId(id)) return null;
+  return fromSave(readAll()[id], defaults);
+}
+
+export function deleteSlot(id) {
+  if (!isSlotId(id)) return false;
+  const slots = readAll();
+  if (!slots[id]) return false;
+  delete slots[id];
+  return writeAll(slots);
+}
+
+/**
+ * Drop the autosave and leave the player's own slots alone.
+ *
+ * Called by `restart`. The single-slot build wiped the only save there was,
+ * which under six slots would mean starting a new run silently destroys five
+ * campaigns the player deliberately kept.
+ */
+export function clearAuto() {
+  return deleteSlot(AUTO_SLOT);
 }

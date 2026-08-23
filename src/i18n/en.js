@@ -17,6 +17,25 @@ export default {
     beginOver: 'Start over',
   },
 
+  save: {
+    open: 'Save',
+    title: 'Saves',
+    pick: 'Pick a slot to write this day into.',
+    slot: 'Slot {n}',
+    auto: 'Auto',
+    autoNote: 'Writes itself at the start of every day',
+    empty: 'Empty',
+    focus: 'closest to {member}',
+    saveHere: 'Save here',
+    load: 'Load',
+    delete: 'Delete',
+    confirmOverwrite: 'Tap again to overwrite',
+    confirmDelete: 'Tap again to delete',
+    failed: 'Could not write it. Storage may be full or blocked.',
+    close: 'Close',
+    onlyAtDayStart: 'You can save between days, not inside a scene.',
+  },
+
   identity: {
     assistant: 'Artist Assistant',
     manager: 'Group Manager',

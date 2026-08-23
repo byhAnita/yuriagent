@@ -16,7 +16,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App.jsx';
-import { hasSave, peek } from './store/save.js';
+import { hasAnySave, peekSlot, AUTO_SLOT } from './store/save.js';
 import { SAVE_KEY, SETTINGS_KEY } from './config/constants.js';
 import { makeT } from './i18n/index.js';
 
@@ -70,16 +70,16 @@ describe('starting a run', () => {
   it('writes a save the moment the run exists', async () => {
     await startARun('Yuhan');
 
-    await waitFor(() => expect(hasSave()).toBe(true), { timeout: 10000 });
-    expect(peek().name).toBe('Yuhan');
-    expect(peek().week).toBe(0);
+    await waitFor(() => expect(hasAnySave()).toBe(true), { timeout: 10000 });
+    expect(peekSlot(AUTO_SLOT).name).toBe('Yuhan');
+    expect(peekSlot(AUTO_SLOT).week).toBe(0);
   });
 
   it('never lets the API key into it', async () => {
     localStorage.setItem('yuriagent_key_v1', 'sk-should-not-be-here');
     await startARun('Yuhan');
 
-    await waitFor(() => expect(hasSave()).toBe(true), { timeout: 10000 });
+    await waitFor(() => expect(hasAnySave()).toBe(true), { timeout: 10000 });
     expect(localStorage.getItem(SAVE_KEY)).not.toContain('sk-should-not-be-here');
   });
 });
@@ -169,7 +169,7 @@ describe('walking into a room', () => {
 describe('picking a run back up', () => {
   it('offers a continue once a save exists, and lands on the day screen', async () => {
     await startARun('Yuhan');
-    await waitFor(() => expect(hasSave()).toBe(true), { timeout: 10000 });
+    await waitFor(() => expect(hasAnySave()).toBe(true), { timeout: 10000 });
     cleanup();
 
     render(<App />);
@@ -186,7 +186,7 @@ describe('picking a run back up', () => {
   /** With a run in progress, Begin is a destructive act and has to say so. */
   it('relabels begin as starting over', async () => {
     await startARun('Yuhan');
-    await waitFor(() => expect(hasSave()).toBe(true), { timeout: 10000 });
+    await waitFor(() => expect(hasAnySave()).toBe(true), { timeout: 10000 });
     cleanup();
 
     render(<App />);
@@ -202,12 +202,99 @@ describe('settings are device-level, not run-level', () => {
    */
   it('stays out of the save file', async () => {
     await startARun('Yuhan');
-    await waitFor(() => expect(hasSave()).toBe(true), { timeout: 10000 });
+    await waitFor(() => expect(hasAnySave()).toBe(true), { timeout: 10000 });
 
-    const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY)).slots[AUTO_SLOT];
     expect(saved.settings).toBeUndefined();
     expect(saved.meta.lang).toBeTruthy();
     // ...and settings have their own key, which the save never touches.
     expect(localStorage.getItem(SETTINGS_KEY)).toBeTruthy();
+  });
+});
+
+/**
+ * Slots, end to end through the real app. CLAUDE.md section 15.
+ *
+ * Every store-level assertion above passes with the UI wired to nothing, which
+ * is exactly the failure this project keeps producing: two correct halves and
+ * no call between them. So this reaches the slot list the way a player does -
+ * from the day screen - and comes back to it from the cover.
+ */
+describe('save slots', () => {
+  const openSaves = async () => {
+    await userEvent.click(screen.getByRole('button', { name: t('save.open') }));
+    await waitFor(() => expect(screen.getByText(t('save.pick'))).toBeTruthy());
+  };
+
+  /** Slot 1 is the second row and starts empty, so one tap writes it. */
+  const saveToSlotOne = async () => {
+    await openSaves();
+    await userEvent.click(screen.getAllByText(t('save.saveHere'))[1]);
+    await waitFor(() => expect(peekSlot('1').empty).toBe(false));
+  };
+
+  it('writes the run into a slot the player picked', async () => {
+    await startARun('Yuhan');
+    await saveToSlotOne();
+
+    expect(peekSlot('1').name).toBe('Yuhan');
+    // Writing is the whole errand, so the sheet closes behind it.
+    expect(screen.queryByText(t('save.pick'))).toBeNull();
+  });
+
+  it('leaves the other slots alone', async () => {
+    await startARun('Yuhan');
+    await saveToSlotOne();
+
+    expect(peekSlot('2').empty).toBe(true);
+    expect(peekSlot('3').empty).toBe(true);
+  });
+
+  /**
+   * The other half of the join. A manual save the cover cannot reach is
+   * write-only, which is worse than not having slots at all.
+   */
+  it('loads a manual slot back from the cover', async () => {
+    await startARun('Yuhan');
+    await saveToSlotOne();
+    cleanup();
+
+    render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: t('save.title') }));
+
+    // Two rows hold a run - the autosave and slot 1 - so the second Load is it.
+    const loads = screen.getAllByText(t('save.load'));
+    expect(loads).toHaveLength(2);
+    await userEvent.click(loads[1]);
+
+    await waitFor(() => expect(screen.getByText(t('map.calendar'))).toBeTruthy(), {
+      timeout: 10000,
+    });
+  });
+
+  /** The cover offers no `save here`: there is no run to write yet. */
+  it('is read-only on the cover', async () => {
+    await startARun('Yuhan');
+    await saveToSlotOne();
+    cleanup();
+
+    render(<App />);
+    await userEvent.click(screen.getByRole('button', { name: t('save.title') }));
+
+    expect(screen.queryByText(t('save.saveHere'))).toBeNull();
+    expect(screen.queryByText(t('save.pick'))).toBeNull();
+  });
+
+  it('deletes a slot on the second tap and not the first', async () => {
+    await startARun('Yuhan');
+    await saveToSlotOne();
+    await openSaves();
+
+    const del = () => screen.getAllByText(t('save.delete'))[1];
+    await userEvent.click(del());
+    expect(peekSlot('1').empty).toBe(false);
+
+    await userEvent.click(screen.getByText(t('save.confirmDelete')));
+    await waitFor(() => expect(peekSlot('1').empty).toBe(true));
   });
 });

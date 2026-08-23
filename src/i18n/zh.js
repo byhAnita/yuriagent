@@ -17,6 +17,25 @@ export default {
     beginOver: '重新开始',
   },
 
+  save: {
+    open: '存档',
+    title: '存档',
+    pick: '选一个存档位，把今天写进去。',
+    slot: '存档 {n}',
+    auto: '自动',
+    autoNote: '每天开始时自动写入',
+    empty: '空',
+    focus: '与{member}最近',
+    saveHere: '存到这里',
+    load: '读取',
+    delete: '删除',
+    confirmOverwrite: '再点一次覆盖',
+    confirmDelete: '再点一次删除',
+    failed: '写入失败。存储空间可能已满或被禁用。',
+    close: '关闭',
+    onlyAtDayStart: '只能在两天之间存档，场景进行中不行。',
+  },
+
   identity: {
     assistant: '艺人助理',
     manager: '团队经纪人',

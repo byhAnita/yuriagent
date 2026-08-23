@@ -13,7 +13,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { applyTheme } from './config/themes.js';
 import { loadSettings, saveSettings } from './store/settings.js';
 import { loadApiKey, saveApiKey } from './store/apiKey.js';
-import { save as writeSave, load as readSave, peek, clearSave } from './store/save.js';
+import {
+  saveTo,
+  loadFrom,
+  listSlots,
+  deleteSlot,
+  clearAuto,
+  hasAnySave,
+  AUTO_SLOT,
+} from './store/save.js';
 import { makeT } from './i18n/index.js';
 import { BLOCKS } from './config/constants.js';
 import { getCast } from './data/cast.js';
@@ -42,6 +50,7 @@ import Day from './ui/screens/Day.jsx';
 import Endings from './ui/screens/Endings.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
+import SaveModal from './ui/modals/SaveModal.jsx';
 import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
@@ -59,6 +68,16 @@ export default function App() {
   const [settings, setSettings] = useState(loadSettings);
   const [apiKey, setApiKey] = useState(loadApiKey);
   const [showSettings, setShowSettings] = useState(false);
+
+  /**
+   * The slot list, held in state rather than read at render.
+   *
+   * `listSlots` touches localStorage, and a render that reads storage every
+   * pass is both wasteful and a lie - the list only changes when somebody
+   * writes, deletes, or a day rolls over, and each of those refreshes it.
+   */
+  const [showSaves, setShowSaves] = useState(false);
+  const [slots, setSlots] = useState(() => listSlots());
 
   const [run, setRun] = useState(() => newRun({ seed: SEED }));
 
@@ -690,7 +709,8 @@ export default function App() {
    */
   useEffect(() => {
     if (screen !== 'day' || !player.name) return;
-    writeSave(snapshot());
+    saveTo(AUTO_SLOT, snapshot());
+    setSlots(listSlots());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run.day, run.week, screen]);
 
@@ -701,8 +721,8 @@ export default function App() {
    * from a save because a scene is ephemeral, so the only place a run can be
    * resumed is at the top of a block.
    */
-  const onContinue = () => {
-    const loaded = readSave({
+  const onContinue = (slotId = AUTO_SLOT) => {
+    const loaded = loadFrom(slotId, {
       run: newRun({ seed: SEED }),
       player: { name: '', dishes: 0, ...identity.startStats },
       cast: castIds,
@@ -719,7 +739,33 @@ export default function App() {
     setFiredEvents(loaded.flags.firedEvents);
     setUsedGestures(loaded.flags.usedGestures);
     setFoundRumors(loaded.flags.foundRumors);
+    setShowSaves(false);
     setScreen('day');
+  };
+
+  /**
+   * Write the current day into a slot the player picked.
+   *
+   * Only reachable from the day screen, which is the only moment the schema
+   * permits: section 15 excludes `scene` from a save, so a save taken mid-scene
+   * would be a save taken at the room door.
+   */
+  const onSaveTo = (slotId) => {
+    const ok = saveTo(slotId, snapshot());
+    setSlots(listSlots());
+    if (ok) setShowSaves(false);
+    return ok;
+  };
+
+  const onDeleteSlot = (slotId) => {
+    const ok = deleteSlot(slotId);
+    setSlots(listSlots());
+    return ok;
+  };
+
+  const openSaves = () => {
+    setSlots(listSlots());
+    setShowSaves(true);
   };
 
   /**
@@ -743,7 +789,14 @@ export default function App() {
     setAskedToday(null);
     setRefusal(null);
     setPlayer({ name: '', dishes: 0, ...identity.startStats });
-    clearSave();
+    /**
+     * The autosave belongs to the run that wrote it; the player's five slots do
+     * not. Wiping everything - which is what the single-slot build did, because
+     * there was nothing else to wipe - would mean starting a new run silently
+     * destroys five campaigns somebody deliberately kept.
+     */
+    clearAuto();
+    setSlots(listSlots());
     setScreen('start');
   };
 
@@ -760,8 +813,10 @@ export default function App() {
         <Start
           cards={cards}
           lineup={lineup}
-          saved={peek()}
-          onContinue={onContinue}
+          saved={slots.find((s) => s.id === AUTO_SLOT && !s.empty) ?? null}
+          hasSaves={hasAnySave()}
+          onContinue={() => onContinue(AUTO_SLOT)}
+          onOpenSaves={openSaves}
           onBegin={onBegin}
           onOpenSettings={() => setShowSettings(true)}
           t={t}
@@ -801,6 +856,7 @@ export default function App() {
           onEnterSolo={onEnterSolo}
           onSkipBlock={() => advance()}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenSaves={openSaves}
           canAskOut={canAskOut}
           onAskOut={() => {
             setRefusal(null);
@@ -902,6 +958,23 @@ export default function App() {
                   : 1,
             })
           }
+          t={t}
+        />
+      ) : null}
+
+      {showSaves ? (
+        <SaveModal
+          slots={slots}
+          cards={cards}
+          /**
+           * No `onSave` on the cover: there is no run to write yet, so the list
+           * is read-only there and offers only load and delete.
+           */
+          onSave={screen === 'day' ? onSaveTo : null}
+          onLoad={onContinue}
+          onDelete={onDeleteSlot}
+          onClose={() => setShowSaves(false)}
+          lang={settings.lang}
           t={t}
         />
       ) : null}
