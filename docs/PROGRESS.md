@@ -7,20 +7,25 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M5 complete, two days played
 
-**953 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**955 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
 installs. In English or Chinese, with or without an API key.
 
-**One in-game day has now been played by a human** (2026-08-23). It produced
-**eight** fixes, every one of them in or around the group scene, and every one
-invisible to the 27 tests written for that feature. See "Day-one playtest
-fixes".
+**Two in-game days have been played by a human, both on 2026-08-23**, one in
+English and one in Chinese. Between them they produced **fifteen** fixes. Every
+single one was in code that had tests and passed them.
 
-**If you are picking this up cold, read "What M5 shipped", then "Day-one
-playtest fixes", then "Still open".** The design is in `CLAUDE.md`; this file is
-where it stands in code.
+| | |
+|---|---|
+| day one, `en` | 8 fixes, all in or around the group scene, invisible to its 27 tests |
+| day two, `zh` | 7 fixes, including two premises nobody had ever written down |
+
+**If you are picking this up cold, read "What M5 shipped", then the two playtest
+sections, then "Still open".** The design is in `CLAUDE.md`; this file is where
+it stands in code. `docs/PROPOSALS.md` holds arguments for changing the design
+and is worth reading before touching any coefficient.
 
 ---
 
@@ -534,113 +539,351 @@ actually runs at** (`LIVE_BIG_ROOM=1`). Both are cheap. Neither was being done.
 
 ---
 
+## Day-two playtest fixes (2026-08-23, `zh`)
+
+A second day, played in Chinese this time, one in-game day again. Seven fixes,
+and **two of them were premises the design had never written down** - not bugs
+in code so much as things everybody knew and nothing said.
+
+### The two premises
+
+**1. The player is a young WLW woman, and block 1 never said so.**
+
+This is a yuri visual novel. Every route in it is between two women. Block 1
+introduced the player by name and job and stopped, and the name is free text -
+so the model had nothing to go on and guessed. One Chinese run in three had a
+member refer to the player as `他`; an English cut-in produced *"He's just
+standing there."*
+
+It went in the **World block**, not in the pronoun rule, and that distinction is
+the whole lesson: the model was not mistaken about a pronoun, it was mistaken
+about who the player is. A pronoun rule can only patch the symptom. The words
+that follow (`her name or "she"`, never a masculine pronoun **in any language**)
+sit underneath it, because a model writing Chinese will not infer `她` from an
+English sentence about her job.
+
+Measured after: 3/3 `zh` runs and an English five-member block, zero.
+
+**2. The identity is not fixed to the assistant.** It already came from the
+chosen identity, but the phrasing said "at the agency" and the fallback
+hardcoded a second copy of the assistant line that could drift from the table.
+Roles name the company now, and the fallback is the shipped default itself.
+
+### Seven rooms with nothing to do in them
+
+Reported as *"no rumor option in the drink room"*. It was **seven rooms**: drink
+room, bistro, make-up room, green room, photo studio, hair salon and Han River -
+every room the phase maps brought onto the map after `soloActions.js` was
+written. Four of its nine entries pointed at rooms that had *left* the map. In
+PREP, two of the four working rooms offered nothing at all, empty or occupied,
+against section 10b's "almost every room can teach you something".
+
+Exactly the failure that made tasks bind to slots, one file over and a milestone
+later. It is asserted against the phase maps now rather than against a copy of
+the room list (`data/soloCoverage.test.js`, 75 assertions).
+
+### A room teaches what its SLOT says it teaches
+
+Yuhan's rule: *"get rumor should be placed and only placed in the social room."*
+
+`data/phaseMaps.js` had already said exactly that since phase maps shipped -
+`social` carries `rumor`, the workrooms and venue carry `knowledge` - and
+**nothing read it**. Every snoop drew from one pool weighted 3:1, so the rumor
+room taught facts, the wardrobe taught rumors, and the role table was
+decoration.
+
+It reads better as well as cleaner: a rumor is something people say about you,
+so you hear it where people talk; a fact is about her, so you find it where her
+work is. The player learns the grammar once and it holds in every phase.
+
+One consequence, handled: a run opens with 25 facts and **no rumors at all**, so
+the social snoop is guaranteed empty in week 1. That curve is intended - the
+early game teaches you about them, the late game teaches you what they know -
+but paying a block to discover it is not, so the room now says so. `soloWork`
+had always known, because it refuses to charge secrecy for a search that found
+nothing. The screen had never asked it.
+
+### "Irene interrupted herself"
+
+Reported twice, in two different rooms, both with exactly one member in them -
+where an interjection is impossible by construction.
+
+She never did. What the player was reading was the beat queue, framed badly: the
+whole option set rendered **dimmed and dead** with a button underneath saying
+"she is still speaking". Reported the other way round in the same message:
+*"3 options, custom text, gift, skip, read her are all not clickable, but they
+all present on the screen."* Same defect, two symptoms.
+
+The bar **is** the continue control now, the treatment a spent block already
+got, and the label is neutral - in a group scene the next beat is often somebody
+else, and the dialogue box already names whoever is talking.
+
+Turning to somebody stays live throughout, because it costs no turn and makes no
+call. That was already true and invisible; PROPOSALS 19 says it should be made
+visible rather than built again.
+
+### Scenes ended mid-thought
+
+```
+*The door closes fully. A beat later, it opens again - just a crack.*
+"对了。"
+[ this block is over ]
+```
+
+She was starting something and the budget ran out underneath her.
+
+The model cannot pace a scene whose end it cannot see, and section 6 measured
+that handing it a budget makes it *worse* - it overshot badly, because a scene
+is many replies and it cannot track its position in one. But the **client** knows
+exactly which turn is last. So it says so, once, on the turn that is.
+
+It does not script the parting: a goodbye at `colleague` and at `unspoken` are
+different scenes, the same argument section 11 makes for generating a gift
+reaction rather than authoring one. Measured live: *"She holds your gaze a second
+longer than necessary, then nods once and turns back to the mirror."*
+
+### One shape for every conversation
+
+Yuhan's proposal, built as specified (`systems/dialogue.js`):
+
+```
+count who may SPEAK
+  -> one member: no second voice. more: one per turn.
+  -> turn limit = base for the kind + 2 per extra member, capped at 16
+  -> then the ordinary turn loop
+```
+
+All five kinds read it - ordinary block, date, shared dorm evening, anchor
+event, group scene. Before, `App` picked a turn limit from a lookup keyed on
+scene kind and `sceneEngine` decided the second voice several call sites away,
+so nothing stated the two rules together and nothing could check them.
+
+Eight turns across five members is a turn and a half each, which is not a
+conversation with anybody. A five-member room now lands on **16** - exactly
+where dates and anchor events already sat by hand, so three separate decisions
+became one formula. It does not make breadth better value than depth, which is
+the thing to watch since both cost one block: 16 split five ways is ~3 turns of
+attention each against a private scene's 8.
+
+### One thing NOT fixed, and it is the one worth knowing
+
+**An English action with Chinese speech, in the same beat:**
+
+```
+She stands at the counter, hand wrapped around the cup, watching the steam rise.
+"茶水间的咖啡机今天特别慢。"
+```
+
+Two consecutive turns of it, in a run that never left Chinese.
+
+**It could not be reproduced.** 25 beats across 12 scenes against DeepSeek, with
+a realistic block 4 (activity, weather, an outstanding chore, an English ledger)
+- every action Chinese, 0/25. A first probe with a bare block 4 was also 0/9, so
+the extra English context is not it either.
+
+What that means: the harness bypasses something the app does. The leading
+suspect is a **different model selected in settings** - the app reads
+`settings.model` and the harness reads `.env.local`, and they only agree by
+coincidence. Next `zh` report should say which model was selected.
+
+Two things changed anyway:
+
+- The language rule now names **both halves of a beat** in the same words the
+  format contract uses - `the *action* between asterisks and the "speech" in
+  quotes`. Same shape of fix as the chime directive: "write one beat" did not
+  take and naming the form did.
+- `zhSmoke` measures the action and the speech **separately**. Every existing
+  `zh` check measured a whole-beat Han ratio, and a beat that is half English
+  sits near the threshold - the instrument could not see the failure it was
+  pointed at.
+
+### The lesson, and it is a different one from day one
+
+Day one's was about **size**: defects that exist only at five members, in code
+whose tests all used two or three.
+
+Day two's is about **premises**. Two of the seven were things everybody involved
+knew and no file said:
+
+- the player is a young woman, in a game where every route is between two women
+- a room teaches what its slot says it teaches, which `phaseMaps.js` had
+  literally written down and nothing read
+
+Neither is a coding mistake. Both are the same failure: **a fact so obvious it
+was never written became a fact the model, or the code, could not know.** The
+model does not share the room with us. `soloActions.js` does not read
+`phaseMaps.js` unless somebody makes it.
+
+The practical form of it, worth applying deliberately: when something is
+obvious, check whether it is obvious *to the code*. Three of the seven fixes
+were a table that already held the answer, being read for the first time.
+
+There is a corollary about locale. Seven of the fifteen fixes came from the
+`zh` day, and two of them **could not have surfaced in English at all** - a model
+writing Chinese does not inherit an English instruction. `zh` is the primary
+locale (section 19) and it should get at least half the playtesting.
+
+---
+
 ## Still open
 
-Nothing here blocks a playthrough. Roughly in the order it should be picked up.
+Nothing here blocks a playthrough. **In recommended order**, and the order is an
+argument rather than a list: each item is placed where it is because of what it
+would cost to do the ones after it first.
 
-### 1. Keep playing it by hand, then merge to `main`
+> The ordering principle, earned twice this week: **playing beats reasoning, and
+> playing at full size beats playing.** Two in-game days produced fifteen fixes,
+> every one in code that had tests and passed them. Nothing below is worth doing
+> before more of the game has been played.
 
-**One day has been played** (2026-08-23) and it produced five fixes, all in the
-group scene. The rest of the campaign has still never been played by a human,
-and the section above is the argument for why that matters more than any
-reasoning done here.
+### 1. Play the rest of it, in both languages
 
-What the one day settled, and what it did not:
+Two days of nine weeks. Days 1 and 2 produced fifteen fixes; there is no reason
+to think day 3 produces zero, and every hour of it is cheaper than any analysis
+in this file.
 
-- **`INTERJECT_THRESHOLD` and `CHIME_THRESHOLD`** now have one live pass at
-  three members over six turns. Direction confirmed - the room circulates, the
-  tone is warm, the cut-in still reads sharp. Magnitude not confirmed: the chime
-  fired **six times out of six**, which is the top of the range. Untested at
-  eight turns and at five members. PROPOSALS 16 has the brake and the reason
-  the obvious brake is the wrong one. **Do not change the number without
-  playing a full scene first.**
-- **The chime directive** reads well and does not narrate jealousy, which was
-  the risk. The cut-in directive is confirmed too.
-- **Anchor event frames.** Still untested. Sixteen turns is a long time for a
-  frame to hold a scene together. Do they wander?
-- **The dorm evenings.** Still untested. Do cooking and a film actually read
-  differently from a work scene, which is the entire argument for them?
-- **A gift, given mid-scene, in front of other people.** New as of the day-one
-  fixes. The recipient answers well; nobody else says anything about it, which
-  is PROPOSALS 17.
+**Play `zh` at least as much as `en`.** It is the primary locale (section 19)
+and it found seven of the fifteen, including two the English day could not
+surface at all - a model writing Chinese does not inherit an English
+instruction, and every locale-specific failure is invisible until somebody
+plays that locale.
 
-### 2. The plateau, measured against a real campaign
+What has still never been touched by a human:
 
-The harness reports **four `confidante_end` out of five** on both `balanced`
-seeds and on `spread`: intimacy climbs to 70-80 and admissibility stalls at
-10-40. That is the plateau doing exactly what section 5 says it does, and it is
-either correct or too harsh - and it cannot be told apart from the harness,
-because **the harness never takes a date and never spends a dorm evening**, and
-a public date is the single largest admissibility lever in the game.
+- **an anchor event** - five in the campaign, sixteen turns each, all-cast, and
+  no one has played one. The longest authored thing in the game.
+- **a date**, public or private. The largest admissibility lever there is.
+- **a weekend**, and therefore the whole dating loop and the shape of a week.
+- **the endings screen**, reached by playing rather than by test fixture.
+- **week 3 onward**: strain bands, `rift`, jealousy above `piqued`, the plateau.
+- **a save reloaded mid-campaign** and played on.
 
-So: play it by hand first (item 1), then decide. Do not move
-`RISK_PAYOFF_SCALE` on harness numbers alone.
+When it survives a full nine weeks, merge `dev` to `main` and tag it.
 
-Related and probably the same problem: **35 "facts with nothing to spend them
-on"** per campaign, with credits ending at 0-2. PROPOSALS 6 measured this
-before and it has not improved.
+### 2. The unreproduced language split
 
-### 3. Harness fidelity
+The one day-two report not fixed: an English action with Chinese speech in the
+same beat, twice in a row. 25/25 clean on DeepSeek with a realistic block 4, so
+the harness cannot see it.
+
+**The cheapest next step is one line in a bug report: which model was selected
+in settings.** The app reads `settings.model` and the harness reads
+`.env.local`, and they agree only by coincidence. If it is not DeepSeek, that is
+the whole answer and the fix is a per-model note rather than a prompt change.
+
+Ranked above the balance work because it is a **correctness** bug in the primary
+locale and it is one question away from being understood.
+
+### 3. The plateau, measured against a real campaign
+
+Measured after this week's changes, `balanced` seed 7, 189 blocks:
+
+```
+irene   I 61  A 15  S 31  J  0   nameless    -> unnamed_end     (good)
+nana    I 79  A 11  S 12  J 64   confidante  -> confidante_end
+jisoo   I 75  A 24  S 32  J 24   confidante  -> confidante_end
+hyewon  I 73  A 23  S  0  J 24   confidante  -> confidante_end
+yeri    I 73  A 31  S  5  J 28   unspoken    -> unspoken_end    (good)
+```
+
+**Two good endings and three stalls.** Intimacy reaches 61-79 and admissibility
+stalls at 11-31, which is the plateau doing exactly what section 5 says. It is
+either correct or too harsh and the harness cannot tell you which.
+
+**That is why this is item 3 and not item 1**: the harness never takes a date
+and never spends a dorm evening, and a public date is the single largest
+admissibility lever in the game. Item 1 produces the evidence. Doing this first
+means tuning against a model of the game rather than against the game.
+
+Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
+
+Related and probably the same problem: **36 "facts with nothing to spend them
+on"** per campaign, credits ending at 0.
+
+One number that moved for a known reason and is not a regression: **rumors found
+per campaign 21 -> 7**, because rumors are social-room-only now and the harness
+picks rooms without regard to what slot they fill. A player who knows the rule
+will do better than that; the harness does not know it. Fixing that belongs with
+item 5.
+
+### 4. The three questions the day-one fixes opened
+
+All written up, none blocking, all wanting a played campaign rather than an
+argument:
+
+- **PROPOSALS 16 - the chime has no brake.** A second voice on every turn, at
+  both three and five members. It reads well in isolation; nobody has read nine
+  weeks of it. The obvious brake (raise the threshold) is the wrong one and the
+  entry says why.
+- **PROPOSALS 17 - nobody reacts to a gift they watched change hands.** The
+  chime already fires on that turn, so it may be half-solved by accident. Look
+  before writing a third directive.
+- **PROPOSALS 18 - `shared` beats `singledOut`**, so a dorm evening is the cheap
+  place to spend openers. Deliberate and small; visible in the ledger if it
+  starts to matter.
+
+Plus one from day two:
+
+- **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
+  The recommendation is to make the portrait row visibly tappable during a read,
+  not to build a new move. Cheap, and it answers the feeling behind the report.
+
+### 5. Harness fidelity
 
 - **`presentIds` is unset for every ordinary harness scene**, so co-presence
   jealousy and `riskExposure` are under-modelled everywhere except at anchor
-  events, where it is now set. Fixing it would move every number in the report,
-  which is why it was not done in the same commit as events - but it should be
-  done, and attributed.
+  events. Fixing it moves every number in the report, which is why it wants
+  doing deliberately and attributed.
+- **The harness never dates and never spends a dorm evening**, which is what
+  makes item 3 unanswerable from it. This is the single most valuable harness
+  change available.
+- **The harness picks rooms without regard to slot**, so it finds a third of the
+  rumors it used to (21 -> 7 per campaign) now that rumors are social-room-only.
+  It is modelling a player who has not learned the map. Teaching it the rule
+  would also give item 3 a cleaner jealousy signal.
 - **`balanceSim` is superseded and still maintained.** It models a scene as a
   number and knows nothing about openers, chips, solo work, the calendar or
-  energy. `playthrough.test.js` answers the same questions by playing the real
-  loop. Retire it.
+  energy, and it needed a hand-patched `singledOut` this week to keep reporting
+  anything sensible. `playthrough.test.js` answers the same questions by playing
+  the real loop. Retire it.
 
-### 4. What the day-one fixes left open
+### 6. Events do not recur, and week 9 is the emptiest week in the game
 
-The opener moved into the scene (PROPOSALS 11, now DONE). Three questions came
-out of doing it, none of them blocking, all three written up:
+Five anchor events fire per **campaign**, on Yuhan's instruction, which is
+reading one of the three in PROPOSALS 10. That entry recommended reading three -
+five situations recurring across three cycles with escalating stakes - and
+warned about exactly this: cycles 2 and 3 have no authored beat, so the end of
+the game is its quietest stretch.
 
-- **PROPOSALS 16 - the chime has no brake.** A second voice on every turn read
-  well at three members over six turns. Whether that survives eight turns and
-  five members is a prose question and needs a played scene. The obvious brake
-  is the wrong one; the entry says why.
-- **PROPOSALS 17 - nobody reacts to a gift they watched change hands.** The
-  recipient answers; the other three in the room say nothing about it, in the
-  moment when a person obviously would. The chime already fires on that turn,
-  so it may already be half-solved by accident - which is worth looking at
-  before writing a third directive.
-- **PROPOSALS 18 - `shared` beats `singledOut`.** An opener handed over during
-  a shared dorm evening costs no jealousy at all, so the dorm is the cheap
-  place to spend them. Deliberate, small, and visible in the ledger if it
-  starts to matter.
+Not pre-empted, because it is a content decision and the structure underneath is
+fine. The engine already supports the escalating reading: key `firedEvents` on
+`phase:slot:cycle` and give each event a per-cycle stakes clause. A small change,
+not a redesign.
 
-### 5. Events do not recur, and week 9 is the emptiest week in the game
+**Watch for it in item 1** - it is a week-7-to-9 problem and nobody has played
+that far.
 
-Five anchor events fire per **campaign**, on Yuhan's instruction ("we have 5
-special events in total"), which is reading one of the three in PROPOSALS 10.
-That entry recommended reading three - five situations recurring across three
-cycles with escalating stakes - and warned about exactly this consequence:
-cycles 2 and 3 have no authored beat, so the end of the game is its quietest
-stretch.
-
-Not pre-empted, because it is a content decision and the structure underneath
-is fine: COMEBACK is still the co-presence week and REST still the repair week.
-But **watch for it in the first hand-played campaign**, and know the fix is
-small: key `firedEvents` on `phase:slot:cycle` instead of `phase:slot` and
-give each event a per-cycle stakes clause.
-
-### 6. Repair events
+### 7. Repair events
 
 `applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
 and **nothing calls either.** Section 5 gives it once per cycle per character
-while in `rift`. This is the sixth item on the join list waiting to happen.
+while in `rift`.
 
-### 7. Content and polish
+The classic join, still sitting there. It is item 7 rather than item 2 because
+`rift` needs sustained neglect to reach and no played day has been near it - so
+building the entry point now means building it blind.
 
-- **Card picker UI.** The cast section of the cover screen is a stub that
-  renders the fixed five. v1: choose any five from the library. v2: the custom
-  card editor, for which `data/facts.js` already takes the inline shape.
+### 8. Content and polish
+
+- **Card picker UI.** The cast section of the cover screen renders the fixed
+  five. v1: choose any five from the library. v2: the custom card editor, for
+  which `data/facts.js` already takes the inline shape.
 - **Other identities.** Three stubs in `data/identities.js`, asserted
-  well-formed, disabled in the picker. Flipping `available` is most of it.
-- **`corridor` is orphaned.** Off every phase map, still has solo actions and
-  an i18n entry.
+  well-formed, disabled in the picker. Their `promptRole` lines are written and
+  reach block 1 correctly; flipping `available` is most of the rest.
+- **`corridor` and `drama_set` are off every phase map** but keep their solo
+  actions. Harmless - the coverage test only requires the reverse - but they are
+  content nobody can reach.
 - **The block-4 language reminder is unjustified** rather than wrong. It was
   added for a cause that turned out not to be the cause. Delete it if anything
   ever needs the space.
@@ -648,10 +891,13 @@ while in `rift`. This is the sixth item on the join list waiting to happen.
 ### Deferred by design
 
 - Multi-portrait `single` / `multi` modes (section 14) - v2, and IndexedDB.
-- `ko` / `pt` (section 19) - v2. `fact.*` and every other content table now
-  needs a full set per locale, which the i18n coverage test enforces.
+- `ko` / `pt` (section 19) - v2. `fact.*` and every other content table needs a
+  full set per locale, which the i18n coverage test enforces. Note that the
+  pronoun rule is already written to survive the jump: it names masculine
+  pronouns **in any language** rather than listing English words.
 
 ---
+
 
 ## Decision log
 
