@@ -74,16 +74,14 @@ function realRumorFind() {
     subjectName: 'Irene',
     locationId: 'cafe',
   });
-  // Every fact already known, so the only thing left to find is the rumor.
-  for (const card of cards) {
-    for (const id of card.learnableFacts ?? []) {
-      dossier = addDossierEntry(dossier, card.id, 'known_facts', { text: FACTS[id], factId: id });
-    }
-  }
-
+  /**
+   * The SOCIAL room, because that is the only place rumors live now: a room
+   * teaches what its slot says it teaches (`data/soloCoverage.test.js`). The
+   * wardrobe is a workroom and can only ever hand back a fact.
+   */
   const out = resolveSoloAction({
-    locationId: 'wardrobe',
-    actionId: 'read_fitting_notes',
+    locationId: 'drink_room',
+    actionId: 'linger_by_the_urn',
     cards,
     dossier,
     rng: makeRng(1),

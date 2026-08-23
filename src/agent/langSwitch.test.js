@@ -53,7 +53,7 @@ const text = (frame) => buildMessages(frame).map((m) => m.content).join('\n');
 describe('the bug', () => {
   it('keeps the old language in a frame opened before the switch', () => {
     const frame = openScene(args('en'));
-    expect(text(frame)).toContain('Write all prose and dialogue in English');
+    expect(text(frame)).toContain('Write in English: BOTH halves of every beat');
     expect(text(frame)).not.toContain('Simplified Chinese');
   });
 });
@@ -64,7 +64,7 @@ describe('relanguage', () => {
     const switched = relanguage(opened, args('zh'));
 
     expect(text(switched)).toContain('Simplified Chinese');
-    expect(text(switched)).not.toContain('Write all prose and dialogue in English');
+    expect(text(switched)).not.toContain('Write in English: BOTH halves of every beat');
   });
 
   /**

@@ -67,9 +67,29 @@ describe('the pronoun rule', () => {
    * It was always possible and it became common the day a second voice started
    * speaking most turns.
    */
-  it('refuses to assign the player a gender behind their back', () => {
+  /**
+   * The player is a young woman, and the World block has to say so.
+   *
+   * This is a yuri visual novel and block 1 introduced the player by name and
+   * job and stopped. A name is free text, so the model had nothing to go on:
+   * one Chinese run in three referred to the player as 他, and an English
+   * cut-in produced "He's just standing there".
+   *
+   * The pronoun line below is the consequence, not the fix. A model was not
+   * mistaken about a pronoun - it was mistaken about who the player is, which
+   * is a fact about the world and belongs where the world is described.
+   */
+  it('says who the player is, in the world rather than in a pronoun rule', () => {
+    expect(block).toContain('She is a young woman');
+    expect(block).toContain('Every character in this story is a woman');
+  });
+
+  it('says which words follow from that when she is discussed in the room', () => {
     expect(block).toContain('ABOUT the player');
-    expect(block).toContain('never "he" or "she"');
-    expect(block).toContain("The player's gender is never stated");
+    expect(block).toContain('use her name or "she"');
+    // Named as a rule about masculine pronouns generally, not as two English
+    // words: a model writing Chinese will not map `he` onto the character it
+    // is about to type.
+    expect(block).toContain('Never a masculine pronoun, in any language');
   });
 });

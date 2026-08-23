@@ -128,6 +128,40 @@ export default function ChipBar({
     setOpen(false);
   };
 
+  /**
+   * While there is anything left to read, the bar is ONE control.
+   *
+   * It used to render the whole set dimmed and dead with a continue button
+   * underneath, and two separate things were reported about that:
+   *
+   * - "3 options, custom text, gift, skip, read her are all not clickable, but
+   *   they all present on the screen" - offering six controls that do nothing
+   *   is worse than offering one that does.
+   * - it read as an INTERRUPTION. A player in a one-to-one scene saw "she has
+   *   not finished speaking" and then the same woman speaking again, and
+   *   reported it twice as "Irene interrupted herself". The label was accurate
+   *   and the framing was wrong: the beat queue is her finishing a sentence,
+   *   not somebody cutting in.
+   *
+   * Same treatment `outOfTurns` already gets below, for the same reason: when
+   * exactly one move is available, the bar should BE that move. And the label
+   * is now neutral, because in a group scene the next beat is often somebody
+   * else - the dialogue box names whoever is speaking.
+   */
+  if (awaitingRead) {
+    return (
+      <div className="px-5 pb-5 pt-3">
+        <button
+          type="button"
+          onClick={onAdvance}
+          className="min-h-11 w-full rounded-[var(--radius)] border border-accent bg-surface-alt px-4 py-3 font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-accent transition-colors hover:bg-surface"
+        >
+          {t('vn.continue')} &#9656;
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="px-5 pb-5 pt-3">
       <div className="flex flex-col gap-1.5">
@@ -186,24 +220,13 @@ export default function ChipBar({
       </div>
 
       {/*
-        She has not finished speaking. The options above are already on screen
-        and already dead, and section 6 learned once that a disabled control
-        with no explanation reads as a frozen screen - so say what the move is
-        and make it a real target, rather than leaving a caret in a corner as
-        the only clue.
-      */}
-      {awaitingRead ? (
-        <button
-          type="button"
-          onClick={onAdvance}
-          className="mt-2 w-full rounded-[var(--radius-sm)] border border-accent/40 bg-surface-alt px-4 py-2 font-mono text-[0.625rem] uppercase tracking-[0.18em] text-accent transition-colors hover:bg-surface"
-        >
-          {t('vn.continue')} &#9656;
-        </button>
-      ) : null}
-
-      {/*
         Somebody else is answering, and there is nothing to tap yet.
+
+        This one keeps the bar rather than replacing it, unlike the unread-beat
+        case above, and the difference is duration: unread beats wait on the
+        PLAYER and can sit there indefinitely, so the bar becomes the one move
+        available. This waits on a call and clears in about a second, and
+        swapping the whole bar out and back in that window is a flicker.
 
         Not a button - there is no move here, only a wait - but it has to be
         SAID. Without it, a turn where the addressee replied in a single beat

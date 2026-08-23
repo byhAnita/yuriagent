@@ -81,15 +81,26 @@ export const RUMOR_WEIGHT = 1;
  *
  * Both obey the same rule: never about somebody standing in the room.
  */
-export function availableFinds({ cards, dossier, present = [], foundRumors = [] }) {
+/**
+ * @param {string|null} kind - 'fact', 'rumor', or null for both.
+ *
+ * A room teaches ONE of the two, decided by its slot on the phase map:
+ * `social` carries `rumor`, the workrooms and the venue carry `knowledge`.
+ * `data/phaseMaps.js` has said so since phase maps shipped and nothing read
+ * it, so every snoop drew from one 3:1-weighted pool and the role table was
+ * decoration. Null is still accepted because a caller with no room in hand
+ * (the balance harness) legitimately wants the whole pool.
+ */
+export function availableFinds({ cards, dossier, present = [], foundRumors = [], kind = null }) {
   const seen = new Set(foundRumors);
   const finds = [];
+  const wants = (k) => kind === null || kind === k;
 
   for (const card of cards) {
     if (present.includes(card.id)) continue;
 
-    const known = knownTexts(dossier[card.id]);
-    for (const fact of cardFacts(card)) {
+    const known = wants('fact') ? knownTexts(dossier[card.id]) : null;
+    for (const fact of wants('fact') ? cardFacts(card) : []) {
       if (known.has(fact.en.toLowerCase())) continue;
       finds.push({
         kind: 'fact',
@@ -101,7 +112,7 @@ export function availableFinds({ cards, dossier, present = [], foundRumors = [] 
       });
     }
 
-    for (const heard of dossier[card.id]?.heard_about ?? []) {
+    for (const heard of wants('rumor') ? (dossier[card.id]?.heard_about ?? []) : []) {
       const text = entryText(heard);
       if (seen.has(text)) continue;
       /**
@@ -199,7 +210,10 @@ export function resolveSoloAction({
   const dossierAdd = [];
 
   if (action.learns) {
-    const find = pickFind(rng, availableFinds({ cards, dossier, present, foundRumors }));
+    // The room decides WHICH kind. `true` is the pre-slot shape and still
+    // means "either", so an old save or an ad-hoc caller cannot break.
+    const kind = typeof action.learns === 'string' ? action.learns : null;
+    const find = pickFind(rng, availableFinds({ cards, dossier, present, foundRumors, kind }));
 
     if (find?.kind === 'fact') {
       learned = { memberId: find.memberId, name: find.name, factId: find.factId, fact: find.text };

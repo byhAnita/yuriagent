@@ -34,7 +34,7 @@ const prompt = (lang, tail) => [
       'You write one beat of a visual novel.',
       'Present: Irene (irene)',
       '## Language',
-      `Write all prose and dialogue in ${lang}.`,
+      `Write in ${lang}: BOTH halves of every beat.`,
     ].join('\n'),
   },
   { role: 'user', content: tail },

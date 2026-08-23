@@ -21,6 +21,7 @@ import {
   readHer,
   endScene,
   openingDirective,
+  closingDirective,
   interject,
   isGroupScene,
   turnTo,
@@ -301,7 +302,27 @@ export default function VNStage({
     [client, writtenChips, requestWrittenChips, setup.cards, setup.relations],
   );
 
-  const send = useCallback((args) => sendFrom(session, args), [sendFrom, session]);
+  /**
+   * The last turn of a scene says so.
+   *
+   * Only the client knows which turn is last - the model cannot see the budget,
+   * and section 6 measured that handing it one makes the pacing worse. Saying
+   * "this is the last one" once, on the turn that is, needs no budget and is
+   * exactly the fact the model is missing.
+   *
+   * Appended to whatever note the turn already carries, so an opener spent on
+   * the final turn still gets its reaction and still gets a goodbye.
+   */
+  const send = useCallback(
+    (args) => {
+      const last = turnLimit - turn <= 1 && !args.opening;
+      const note = last
+        ? [args.note, closingDirective()].filter(Boolean).join(' ')
+        : args.note;
+      return sendFrom(session, { ...args, note });
+    },
+    [sendFrom, session, turnLimit, turn],
+  );
 
   /**
    * Turn to somebody else in the room.

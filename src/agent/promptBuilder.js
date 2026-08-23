@@ -121,7 +121,21 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     '',
     '## World',
     'The five women below are the group X, under X Entertainment. They share a dorm.',
+    /**
+     * The player is a young woman, and until now nothing said so.
+     *
+     * This is a yuri visual novel - every route in it is between two women -
+     * and block 1 introduced the player by name and job and stopped. A name is
+     * free text, so the model had nothing to go on, and one Chinese run in
+     * three had a member refer to the player as `他`. In English it guessed
+     * "He's just standing there".
+     *
+     * It belongs HERE, in the world, rather than in a pronoun rule fifty lines
+     * down. A pronoun rule can only ever patch the symptom - the model was not
+     * mistaken about a pronoun, it was mistaken about who the player is.
+     */
     `The player is ${who}, ${identity?.promptRole ?? 'an artist assistant at the agency'}.`,
+    'She is a young woman. Every character in this story is a woman.',
     'They are colleagues. Everything between them happens inside that constraint.',
     '',
     '## Cast',
@@ -182,8 +196,18 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
      * most turns, so the case that used to arise almost never now arises
      * constantly.
      */
-    '- Speaking to another member ABOUT the player, use the player\'s name or',
-    '  "they" - never "he" or "she". The player\'s gender is never stated.',
+    /**
+     * The third case, which only exists in a group scene.
+     *
+     * One member talking to ANOTHER about the player is neither narration nor
+     * being addressed, so neither rule above reaches it - and it is where the
+     * model has to reach for a pronoun. The World block above now says the
+     * player is a woman, which is the fix; this says which words follow from
+     * it, because a model writing Chinese will not infer `她` from an English
+     * sentence about her job.
+     */
+    '- Speaking to another member ABOUT the player, use her name or "she".',
+    '  Never a masculine pronoun, in any language.',
     '',
     '## Format contract',
     'Every beat begins with a metadata line, then the prose on the next line:',
@@ -243,7 +267,26 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     'Report only these. Never report anything else.',
     '',
     '## Language',
-    `Write all prose and dialogue in ${language}.`,
+    /**
+     * BOTH HALVES, named with the same words the format contract uses.
+     *
+     * "all prose and dialogue" was not enough. Reported from a `zh` run: the
+     * *action* came back in English and the "speech" in Chinese, in the same
+     * beat, for two consecutive turns -
+     *
+     *   *She stands at the counter, watching the steam rise.* "咖啡机今天特别慢。"
+     *
+     * A model reading "prose and dialogue" can map both onto the quoted half
+     * and leave the stage direction in the language it was instructed in. The
+     * rule never used the words `action` or `speech`, which are the labels the
+     * format contract three lines above puts in its head.
+     *
+     * Same shape of fix as the chime directive: "write one beat" did not take
+     * and naming the form did. An instruction has to use the model's own words
+     * for the thing it is talking about.
+     */
+    `Write in ${language}: BOTH halves of every beat - the *action* between`,
+    'asterisks and the "speech" in quotes. Never leave the action in English.',
     'Metadata lines, speaker ids, emotion names and all field names remain ASCII English.',
   ].join('\n');
 }
@@ -452,8 +495,10 @@ export function buildSceneHeader({
     lines.push(
       '',
       `## Language - ${LANG_NAMES[lang] ?? lang}`,
-      `Write every line of prose and dialogue below in ${LANG_NAMES[lang] ?? lang}.`,
-      'The notes above are in English for bookkeeping. Do not answer in English.',
+      `Write every beat below in ${LANG_NAMES[lang] ?? lang} - BOTH the *action*`,
+      'between asterisks and the "speech" in quotes.',
+      'The notes above are in English for bookkeeping. Do not answer in English,',
+      'and do not leave the action in English while translating only the speech.',
       'Metadata lines, speaker ids and emotion names stay ASCII English.',
     );
   }

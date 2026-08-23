@@ -167,14 +167,16 @@ describe('snooping actually opens a gift', () => {
 
 describe('soloLedgerText', () => {
   it('writes what was learned, in English, naming her', () => {
+    // A workroom, because only those teach facts now - the corridor snoop is
+    // an overhearing one and turns up rumors, of which a fresh run has none.
     const out = resolveSoloAction({
-      locationId: 'corridor',
-      actionId: 'overhear',
+      locationId: 'practice_room',
+      actionId: 'watch_the_playback',
       cards,
       dossier: fresh(),
       rng: makeRng(5),
     });
-    const line = soloLedgerText(out, { locationLabel: 'the corridor' });
+    const line = soloLedgerText(out, { locationLabel: 'the practice room' });
     expect(line).toContain(out.learned.name);
     expect(line).toContain(out.learned.fact);
   });
@@ -443,9 +445,13 @@ describe('an empty room can also tell you what she has heard', () => {
 
   it('returns a rumor from a snoop without writing to her dossier', () => {
     // It changes what the PLAYER knows, not what she knows.
+    //
+    // The SOCIAL room, because that is the only place rumors live now: a
+    // room teaches what its slot says it teaches, and the wardrobe is a
+    // workroom. See `data/soloCoverage.test.js`.
     const result = resolveSoloAction({
-      locationId: 'wardrobe',
-      actionId: 'read_fitting_notes',
+      locationId: 'drink_room',
+      actionId: 'linger_by_the_urn',
       cards,
       dossier: withRumor,
       rng: () => 0.5,
@@ -462,7 +468,7 @@ describe('an empty room can also tell you what she has heard', () => {
      */
     expect(result.heard.rumorKind).toBeTruthy();
     expect(result.dossierAdd).toEqual([]);
-    expect(result.playerDelta.secrecy).toBe(-5);
+    expect(result.playerDelta.secrecy).toBe(-3);
   });
 
   it('re-points the sentence at the player in the ledger', () => {

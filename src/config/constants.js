@@ -106,6 +106,25 @@ export const SCENE_TURN_LIMIT = 8;
  */
 export const SCENE_TURN_LIMITS = { ordinary: SCENE_TURN_LIMIT, date: 16, event: 16 };
 
+/**
+ * What each extra person in the room is worth in turns.
+ *
+ * Eight turns across a full cast is a turn and a half each, which is not a
+ * conversation with anybody - and a group scene is the one place the player's
+ * attention is genuinely being divided. Two turns per extra member takes a
+ * five-member room to sixteen, which is exactly where a date and an anchor
+ * event already sit, so the three arrive at the same number from different
+ * directions rather than being three separate decisions.
+ *
+ * It does not make breadth better value than depth: five members at sixteen
+ * turns is ~3 turns of attention each against a 1v1's eight. Section 5b wants
+ * breadth cheap and shallow, and this keeps it that way.
+ */
+export const TURNS_PER_EXTRA_MEMBER = 2;
+
+/** A conversation longer than this stops being a scene and becomes a day. */
+export const SCENE_TURN_LIMIT_MAX = 16;
+
 // --- dating (CLAUDE.md section 10) ------------------------------------------
 /**
  * A public date gates on ADMISSIBILITY and a private one on INTIMACY, because

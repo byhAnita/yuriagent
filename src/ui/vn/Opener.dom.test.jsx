@@ -117,10 +117,17 @@ const chipButtons = () =>
  * Tapping through is what a player does; not doing it made this helper hang.
  */
 const liveChips = async () => {
-  for (let i = 0; i < 6; i += 1) {
+  /**
+   * Poll rather than tap-then-wait. The first beat has not arrived when this
+   * is called, so a loop that exits the moment there is no continue button
+   * exits before there is anything to continue - and then waits ten seconds
+   * for chips that are behind the button it stopped looking for.
+   */
+  for (let i = 0; i < 20; i += 1) {
+    if (chipButtons().some((b) => !b.disabled)) break;
     const more = screen.queryByRole('button', { name: /vn\.continue/ });
-    if (!more) break;
-    await userEvent.click(more);
+    if (more) await userEvent.click(more);
+    else await new Promise((r) => setTimeout(r, 50));
   }
   await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
     timeout: 10000,
@@ -333,4 +340,50 @@ describe('choosing who, in a room with more than one of them', () => {
       timeout: 10000,
     });
   }, 20000);
+});
+
+/**
+ * While she is still speaking, the bar is ONE control.
+ *
+ * Reported twice from play, as two bugs that were the same bug:
+ *
+ * - "3 options, custom text, gift, skip, read her are all not clickable, but
+ *   they all present on the screen". Six dead controls is worse than one live
+ *   one, and section 6 has learned this twice already - for the spent block and
+ *   for the unread beat.
+ * - "Irene interrupted herself", in a one-to-one scene where an interjection is
+ *   impossible by construction. The player saw "she has not finished speaking"
+ *   and then the same woman speaking again, and read the beat queue as somebody
+ *   cutting in. The label was accurate; the framing was wrong.
+ */
+describe('while there is still something to read', () => {
+  const twoBeats = [
+    '@irene|neutral|guard50|fluster10',
+    '*She looks up.* "One."',
+    '',
+    '@irene|happy|guard45|fluster20',
+    '*And again.* "Two."',
+  ].join('\n');
+
+  it('offers the continue control and nothing else', async () => {
+    mount({ client: scripted(() => twoBeats) });
+
+    await waitFor(
+      () => expect(screen.queryByRole('button', { name: /vn\.continue/ })).toBeTruthy(),
+      { timeout: 10000 },
+    );
+
+    // Not dimmed - gone. Nothing on screen that cannot be acted on.
+    expect(chipButtons()).toHaveLength(0);
+    expect(giveButton()).toBeNull();
+    expect(screen.queryByRole('button', { name: /vn\.readHer/ })).toBeNull();
+  }, 15000);
+
+  it('gives the options back once everything has been read', async () => {
+    mount({ client: scripted(() => twoBeats) });
+    await liveChips();
+
+    expect(chipButtons().length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /vn\.continue/ })).toBeNull();
+  }, 15000);
 });

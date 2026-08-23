@@ -20,6 +20,7 @@ import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedS
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
 import { isRiskStance, RISK_STANCES } from '../systems/chips.js';
+import { allowsSecondVoice } from '../systems/dialogue.js';
 import {
   openingAddressee,
   setAddressee,
@@ -178,7 +179,7 @@ export function beginScene({ cards, lineup, identity, player, lang, memory, rela
  * answer, which is what changes the prompt and adds the second call.
  */
 export function isGroupScene(session) {
-  return (session.frame?.rosterIds ?? []).length > 1;
+  return allowsSecondVoice((session.frame?.rosterIds ?? []).length);
 }
 
 export function turnTo(session, nextId, relations) {
@@ -485,6 +486,35 @@ export const OPENING_PLAIN =
 
 export function openingDirective() {
   return OPENING_PLAIN;
+}
+
+/**
+ * And how it ends.
+ *
+ * Reported from play: a scene ran out of turns mid-thought - she opened the
+ * door again, said "对了。" and the block ended on the notice. The player was
+ * about to hear something and instead read "this block is over".
+ *
+ * The model cannot pace a scene it cannot see the end of. It does not know how
+ * many turns are left, and section 6 already established that telling it a
+ * per-scene budget makes it worse rather than better: handed a budget it
+ * overshot badly, because a scene is many replies and it cannot track its own
+ * position in one.
+ *
+ * What it CAN do is answer "this is the last one". So the client says so, once,
+ * on the turn that is actually last - which is a thing the client knows exactly
+ * and the model cannot infer. Cheap, precise, and it needs no budget.
+ *
+ * It deliberately does not script the parting. What she says on the way out is
+ * hers, and how she says goodbye at `colleague` and at `unspoken` are different
+ * scenes - the same argument as section 11's generated gift reaction.
+ */
+export const CLOSING_NOTE =
+  'this is the last exchange before the player has to go. Let her land it rather ' +
+  'than open something new - a parting, in whatever way somebody like her parts.';
+
+export function closingDirective() {
+  return CLOSING_NOTE;
 }
 
 /** Mark that the player deliberately took a risk while visible. */

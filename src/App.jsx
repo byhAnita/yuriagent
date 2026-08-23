@@ -15,10 +15,11 @@ import { loadSettings, saveSettings } from './store/settings.js';
 import { loadApiKey, saveApiKey } from './store/apiKey.js';
 import { save as writeSave, load as readSave, peek, clearSave } from './store/save.js';
 import { makeT } from './i18n/index.js';
-import { BLOCKS, SCENE_TURN_LIMITS } from './config/constants.js';
+import { BLOCKS } from './config/constants.js';
 import { getCast } from './data/cast.js';
 import { getIdentity, DEFAULT_IDENTITY } from './data/identities.js';
 import { buildLineup } from './systems/castBuilder.js';
+import { dialogueShape } from './systems/dialogue.js';
 import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
 import { generateWeek, occupancyAt } from './systems/calendar.js';
@@ -859,12 +860,17 @@ export default function App() {
           openers={openers}
           onSceneEnd={onSceneEnd}
           writtenChips={settings.writtenChips}
+          /**
+           * One place decides the shape of every conversation in the game -
+           * ordinary block, date, shared dorm evening, anchor event. Both of
+           * its answers come from the same number, so they belong together
+           * rather than being decided here and in `sceneEngine` separately.
+           */
           turnLimit={
-            scene?.date
-              ? SCENE_TURN_LIMITS.date
-              : scene?.event
-                ? SCENE_TURN_LIMITS.event
-                : SCENE_TURN_LIMITS.ordinary
+            dialogueShape({
+              rosterIds: scene?.rosterIds ?? [],
+              kind: scene?.date ? 'date' : scene?.event ? 'event' : 'ordinary',
+            }).turnLimit
           }
           offline={offline}
           t={t}

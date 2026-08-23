@@ -65,7 +65,7 @@ describe('the language directive is repeated where the model can see it', () => 
 
   it('still carries the original directive in block 1', () => {
     const block1 = buildSystemBlock({ cards, lineup: {}, identity: {}, lang: 'zh' });
-    expect(block1).toContain('Write all prose and dialogue in Simplified Chinese');
+    expect(block1).toContain('Write in Simplified Chinese: BOTH halves of every beat');
   });
 });
 

@@ -355,6 +355,74 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
   }, 300000);
 
   /** The machine tokens must survive whatever the prose does (section 19). */
+
+  /**
+   * The reported failure, in the exact shape it was reported.
+   *
+   * Yuhan's zh run, week 1 day 2, drink room:
+   *
+   *   She stands at the counter, hand wrapped around the cup, watching the
+   *   steam rise. She does not turn around when you enter.
+   *   "茶水间的咖啡机今天特别慢。"
+   *
+   * The ACTION is English and the SPEECH is Chinese, in the same beat. Every
+   * existing zh check measures a whole-beat Han ratio, which a beat that is
+   * half Chinese passes comfortably - so none of them could see this.
+   *
+   * Measured separately here: the asterisked half and the quoted half.
+   */
+  it('writes the ACTION in Chinese too, not just the speech', async () => {
+    const samples = Number(process.env.ZH_SAMPLES ?? 4);
+    const rows = [];
+
+    for (let i = 0; i < samples; i += 1) {
+      const ids = cards.map((c) => c.id);
+      const args = setup({ intimacy: 30, memory: playedInEnglish(ids, { entries: 6 }) });
+      /**
+       * The block 4 the GAME builds, not the bare one a unit fixture builds.
+       * Activity, weather, the outstanding chore and the standing line are all
+       * English, and they sit between the dialogue and the language directive.
+       * The first version of this probe omitted them and could not reproduce
+       * the bug at all.
+       */
+      args.scene = {
+        ...args.scene,
+        seed: 100 + i,
+        locationId: 'drink_room',
+        locationLabel: '茶水间',
+        occupancy: { irene: { activity: 'group_practice' } },
+        task: { taskId: 'prep_outfits', done: false },
+      };
+      let session = beginScene(args);
+      session = await runTurn(session, { text: openingDirective(), client });
+      session = await runTurn(session, { stance: 'tease', text: '', client });
+
+      for (const b of session.beats) {
+        const actions = (b.text.match(/\*([^*]+)\*/g) ?? []).join(' ');
+        const speech = (b.text.match(/[“"]([^”"]+)[”"]/g) ?? []).join(' ');
+        rows.push({
+          action: actions ? hanRatio(actions) : null,
+          speech: speech ? hanRatio(speech) : null,
+          text: b.text.replace(/\s+/g, ' ').slice(0, 100),
+        });
+      }
+    }
+
+    log('\n[zh] --- action vs speech, per beat ---');
+    for (const r of rows) {
+      const a = r.action === null ? ' -- ' : `${(r.action * 100).toFixed(0).padStart(3)}%`;
+      const s = r.speech === null ? ' -- ' : `${(r.speech * 100).toFixed(0).padStart(3)}%`;
+      log(`  action ${a}  speech ${s}   ${r.text}`);
+    }
+
+    const withAction = rows.filter((r) => r.action !== null);
+    const englishActions = withAction.filter((r) => r.action < 0.5).length;
+    log(`\n[zh] beats with an action: ${withAction.length}`);
+    log(`[zh] actions written in ENGLISH: ${englishActions}`);
+
+    expect(englishActions).toBe(0);
+  }, 600000);
+
   it('never localizes a speaker id or an emotion', async () => {
     const { session } = await playAndMeasure(setup(), ['tease', 'press']);
     for (const b of session.beats) {
@@ -392,9 +460,16 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     }
 
     const text = session.beats.map((b) => b.text).join('\n');
-    // 他 = he. 她 = she, and is everywhere legitimately - five women - so only
-    // the masculine one is a clean signal that the player got gendered.
-    const he = (text.match(/他/g) ?? []).length;
+    /**
+     * The masculine singular only, and it has to be matched carefully.
+     *
+     * 她 is everywhere legitimately - five women - so only the masculine one
+     * signals that the player got gendered. But a bare /他/ also matches 其他
+     * ("other") and 他们 ("they"), which are ordinary words and nothing to do
+     * with the player. A first version flagged three of those and read as a
+     * regression that had not happened.
+     */
+    const he = (text.match(/(?<!其)他(?!们)/g) ?? []).length;
 
     log('\n[zh] --- group scene, gendering the player ---');
     log(`[zh] beats ${session.beats.length}, "he" characters: ${he}`);

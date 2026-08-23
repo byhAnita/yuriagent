@@ -19,6 +19,7 @@ import {
   interjectionDirective,
   chimeDirective,
   secondVoiceDirective,
+  closingDirective,
 } from './sceneEngine.js';
 import { newMemory } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
@@ -26,6 +27,7 @@ import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { getIdentity } from '../data/identities.js';
 import { INTERJECT_THRESHOLD } from '../config/constants.js';
+import { dialogueShape } from '../systems/dialogue.js';
 
 const cards = getCast();
 const ids = cards.map((c) => c.id);
@@ -380,6 +382,111 @@ describe('the room joins in', () => {
     });
 
     expect(kind).toBe('chime');
+  });
+});
+
+/**
+ * Reported twice from a played day, in a drink room and in a dorm kitchen with
+ * exactly one member in each: "Irene interrupted herself", "the same Nana
+ * interrupted herself".
+ *
+ * It was never an interjection - the engine has always returned early on a
+ * one-member roster - but it was true by accident of where the check happened
+ * to live, and nothing said so out loud. `systems/dialogue.js` says it once and
+ * both the engine and the screen read it, so a room with one person in it
+ * cannot produce a second voice under any of the five scene kinds.
+ */
+describe('a room with one person in it', () => {
+  const alone = () => {
+    const s = setup();
+    s.scene.rosterIds = ['irene'];
+    s.scene.presentIds = ['irene'];
+    return s;
+  };
+
+  it('is not a group scene at all', () => {
+    expect(dialogueShape({ rosterIds: ['irene'] }).interject).toBe(false);
+    expect(isGroupScene(beginScene(alone()))).toBe(false);
+  });
+
+  it('never makes a second call, whatever her state', async () => {
+    const s = alone();
+    // Everything that could possibly raise a stake, at once.
+    s.relations = relationsWith('irene', { intimacy: 100, jealousy: 100 });
+    const client = vi.fn(says(BEAT('irene')));
+
+    const opened = { ...beginScene(s), silentTurns: { irene: 9 }, mentioned: ['irene'] };
+    const { interjectorId, kind } = await interject(opened, {
+      client,
+      relations: s.relations,
+      cards,
+    });
+
+    expect(interjectorId).toBeNull();
+    expect(kind).toBeNull();
+    expect(client).not.toHaveBeenCalled();
+  });
+
+  it('hands a pass back to the only person there, rather than nobody', () => {
+    const s = alone();
+    expect(speakerOnPass(beginScene(s), s.relations)).toBe('irene');
+  });
+});
+
+/**
+ * How a scene ends. Reported from play:
+ *
+ *   *The door closes fully. A beat later, it opens again - just a crack.*
+ *   "对了。"
+ *   [ the block is over ]
+ *
+ * She was starting something and the budget ran out underneath her. The model
+ * cannot pace a scene whose end it cannot see, and section 6 measured that
+ * handing it a budget makes it worse - but the CLIENT knows exactly which turn
+ * is last, and saying so once costs nothing.
+ */
+describe('the last turn says it is the last turn', () => {
+  it('asks her to land it rather than open something', () => {
+    const text = closingDirective();
+    expect(text).toMatch(/last exchange/);
+    expect(text).toMatch(/rather than open something new/);
+  });
+
+  /**
+   * And does not script the parting. What she says on the way out is hers -
+   * a goodbye at `colleague` and at `unspoken` are different scenes, the same
+   * argument section 11 makes for generating a gift reaction rather than
+   * authoring one.
+   */
+  it('does not write her goodbye for her', () => {
+    const text = closingDirective();
+    expect(text).not.toMatch(/["“]/);
+    expect(text).not.toMatch(/see you|goodbye|good night|take care/i);
+  });
+
+  it('reaches the model as a note at the tail, not as a header edit', async () => {
+    let sent = null;
+    const client = async ({ messages, onChunk }) => {
+      sent = messages;
+      onChunk?.(BEAT('irene'));
+      return BEAT('irene');
+    };
+
+    const session = await runTurn(beginScene(setup()), {
+      stance: 'joke',
+      text: '',
+      note: closingDirective(),
+      client,
+      cast: cards,
+    });
+
+    // At the tail, and specifically just BEFORE the player's own move: the
+    // note is the frame the turn happens in, so it reads as context rather
+    // than as an afterthought tacked on behind what the player did.
+    expect(sent.at(-2).content).toContain('last exchange');
+    expect(sent.at(-1).content).toContain('[joke]');
+    expect(sent[0].content).not.toContain('last exchange');
+    expect(session.beats.length).toBeGreaterThan(0);
   });
 });
 

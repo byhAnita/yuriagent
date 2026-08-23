@@ -29,6 +29,20 @@ Four pillars, in priority order:
 
 The cast are five members of the girl group **X**, under **X Entertainment**. They share a dorm. The player is staff at the agency - Artist Assistant in MVP, other identities later.
 
+**The player is a young woman, and so is everyone else.** Every route in the
+game is between two women; that is what the whole thing is. Obvious enough that
+it went unwritten for six milestones, and **block 1 never said it** - the player
+was introduced by name and job, the name is free text, and the model had nothing
+else to go on. One Chinese run in three had a member refer to the player as
+`他`; an English cut-in produced *"He's just standing there."*
+
+It is a fact about the world, so it lives in the World block and not in a
+pronoun rule. A pronoun rule can only patch the symptom: the model was not
+mistaken about a pronoun, it was mistaken about who the player is. The rule
+about which words follow (`her name or "she"`, never a masculine pronoun **in
+any language**) sits underneath it, because a model writing Chinese will not
+infer `她` from an English sentence about her job.
+
 **The cast is cross-group in source, single-group in fiction.** Cards are built from members of different real groups, but inside the game world all five debuted together in X, hold roles within X, and share one comeback cycle. Each also runs an individual career alongside it - soloist, actress, host - which is what scatters them across the map outside comeback weeks.
 
 Two consequences for the code:

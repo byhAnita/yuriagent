@@ -26,6 +26,7 @@ import {
   endScene,
   openingDirective,
   readHer,
+  closingDirective,
   interject,
   turnTo,
 } from './sceneEngine.js';
@@ -777,4 +778,32 @@ describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('nobody guesses at the p
 
     expect(hits).toHaveLength(0);
   }, 900000);
+});
+
+/**
+ * How a scene ends. Reported from play: the block ran out while she was
+ * starting something, and the player read "this block is over" instead of
+ * whatever she was about to say.
+ */
+describe.skipIf(!enabled)('the last turn lands', () => {
+  it('parts rather than opening something new', async () => {
+    let session = beginScene(setup({ intimacy: 55 }));
+    session = await runTurn(session, { text: openingDirective(), client });
+    for (const stance of ['joke', 'tease', 'confide']) {
+      session = await runTurn(session, { stance, text: '', client });
+    }
+
+    const before = session.beats.length;
+    const closing = await runTurn(session, {
+      stance: 'reassure',
+      text: '',
+      note: closingDirective(),
+      client,
+    });
+
+    log('\n[quality] --- the last turn ---');
+    for (const b of closing.beats.slice(before)) log(`  @${b.speaker}|${b.emotion}  ${b.text}`);
+
+    expect(closing.beats.length).toBeGreaterThan(before);
+  }, 240000);
 });
