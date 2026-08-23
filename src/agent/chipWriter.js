@@ -30,7 +30,12 @@ const LANG_NAMES = {
  * bypassing the Read her economy and the pillar it protects. The stance may be
  * informed by everything; the label may not narrate any of it.
  */
-export function buildChipDirective({ stances, lang = 'en', absentNames = [] }) {
+export function buildChipDirective({
+  stances,
+  lang = 'en',
+  absentNames = [],
+  addresseeName = null,
+}) {
   const language = LANG_NAMES[lang] ?? LANG_NAMES.en;
 
   /**
@@ -47,6 +52,16 @@ export function buildChipDirective({ stances, lang = 'en', absentNames = [] }) {
     'Only what the player could see or hear - never her thoughts.',
     'Write what the player tries, not what happens. Never write her reply.',
   ];
+  /**
+   * Group scenes only, and one short line.
+   *
+   * The label is what the player says TO somebody. After a `turnTo` that is no
+   * longer whoever last spoke, and a model with no way to know that writes the
+   * next line at the wrong woman.
+   */
+  if (addresseeName) {
+    lines.push(`The player is speaking to ${addresseeName}.`);
+  }
   if (absentNames.length > 0) {
     lines.push(`Never mention ${absentNames.join(', ')}.`);
   }
@@ -145,6 +160,7 @@ export async function writeChips({
   available,
   fallback = [],
   absentNames = [],
+  addresseeName = null,
   lang = 'en',
   count = CHIPS_PER_TURN,
 }) {
@@ -159,7 +175,7 @@ export async function writeChips({
   let parsed = [];
   try {
     const raw = await client({
-      messages: chipMessages(frame, { stances, lang, absentNames }),
+      messages: chipMessages(frame, { stances, lang, absentNames, addresseeName }),
       preset: 'chips',
     });
     parsed = parseChips(raw, { available: stances, absentNames, count });

@@ -110,3 +110,44 @@ describe('the day job', () => {
     expect(screen.queryByText(t('task.prep_outfits'))).toBeNull();
   });
 });
+
+/**
+ * Looking has to be free, or the map stops being a search.
+ *
+ * The block is paid by the ACTION - until one is picked nothing has happened -
+ * and the room screen had no way out, so opening a door to see who was in it
+ * was a commitment. Reported on the first day anyone played a full week
+ * (CLAUDE.md section 10b).
+ */
+describe('walking back out', () => {
+  it('is offered before anything has been spent', async () => {
+    const onLeave = vi.fn();
+    show({ onLeave });
+
+    await userEvent.click(screen.getByRole('button', { name: new RegExp(t('map.back')) }));
+    expect(onLeave).toHaveBeenCalled();
+  });
+
+  /**
+   * ...and not after. Once an action has resolved the block IS spent, so the
+   * only honest way on is the next block. A back button there would read as an
+   * undo, which is the one thing it cannot be.
+   */
+  it('is gone once the block has been spent', () => {
+    show({
+      onLeave: vi.fn(),
+      result: {
+        action: { id: 'prep_fittings', learns: null },
+        playerDelta: { credits: 2, competence: 1, energy: -6, secrecy: 0 },
+      },
+    });
+
+    expect(screen.queryByRole('button', { name: new RegExp(t('map.back')) })).toBeNull();
+  });
+
+  /** A screen given no way home does not grow a dead control. */
+  it('is absent when no caller offered one', () => {
+    show();
+    expect(screen.queryByRole('button', { name: new RegExp(t('map.back')) })).toBeNull();
+  });
+});

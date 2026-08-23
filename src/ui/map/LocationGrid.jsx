@@ -22,6 +22,13 @@ export default function LocationGrid({
   identity,
   taskLocation,
   eventSlot = null,
+  /**
+   * Today is an anchor event, so the map is the site and nothing else.
+   *
+   * The dorm goes with the rest: an event takes the whole day (section 10),
+   * and a day the player can spend three blocks avoiding is not one.
+   */
+  eventOnly = false,
   onPick,
   onOpenDorm,
   t,
@@ -34,7 +41,7 @@ export default function LocationGrid({
    * dorm is not among them: it is a second step, because it holds four rooms
    * with very different meanings plus five closed doors.
    */
-  const rows = overworldFor(run.phase, { eventSlot });
+  const rows = overworldFor(run.phase, { eventSlot, eventOnly });
   const homeCards = cards.filter((c) => DORM_OCCUPANCY.includes(occupancy[c.id]?.locationId));
   const byLocation = {};
   for (const [id, where] of Object.entries(occupancy)) {
@@ -67,8 +74,15 @@ export default function LocationGrid({
          * out by company. That is the dead-space problem 10b exists to solve,
          * inverted. It bit hardest on an event day, where all five are present
          * and the row offered nothing but five faces.
+         *
+         * `eventOnly` suppresses the second layer entirely. An anchor event is
+         * the whole cast in one room by definition, so offering "talk to
+         * Jisoo, the others are nearby" at the door of one turns the loudest
+         * day in the game back into an ordinary crowded block. Choosing one of
+         * them in front of the other four is what the addressee is for, and it
+         * belongs INSIDE the scene where it costs what it should (section 10).
          */
-        if (here.length > 1) {
+        if (here.length > 1 && !eventOnly) {
           return (
             <li
               key={locId}
@@ -197,7 +211,9 @@ export default function LocationGrid({
         );
       })}
 
-      {/* the dorm is a place, not a room - it opens into its own map */}
+      {/* the dorm is a place, not a room - it opens into its own map, and on
+          an event day it is not on the map at all */}
+      {eventOnly ? null : (
       <li>
         <button
           type="button"
@@ -225,6 +241,7 @@ export default function LocationGrid({
           <span className="font-mono text-[0.75rem] text-accent">&#9656;</span>
         </button>
       </li>
+      )}
     </ul>
   );
 }

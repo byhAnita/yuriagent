@@ -221,8 +221,27 @@ describe('the directive says what may not be written', () => {
       stances: ['tease', 'reassure', 'deflect', 'press', 'joke', 'retreat'],
       lang: 'en',
       absentNames: ['Nana', 'Jisoo', 'Hyewon', 'Yeri'],
+      addresseeName: 'Irene',
     });
     expect(full.length).toBeLessThan(500);
+  });
+
+  /**
+   * Who the player is talking to, in a group scene.
+   *
+   * The label is what the player SAYS to somebody, and after a `turnTo` that
+   * is no longer whoever last spoke - so a model with no way to know it writes
+   * the next line at the wrong woman (section 6).
+   */
+  it('names the addressee when there is one', () => {
+    expect(buildChipDirective({ stances: ['tease'], addresseeName: 'Yeri' })).toContain(
+      'speaking to Yeri',
+    );
+  });
+
+  /** A 1v1 has nobody to disambiguate, so it sends nothing extra. */
+  it('says nothing extra in a one-member scene', () => {
+    expect(buildChipDirective({ stances: ['tease'] })).not.toMatch(/speaking to/i);
   });
 });
 

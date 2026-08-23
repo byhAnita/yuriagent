@@ -664,3 +664,59 @@ describe('an evening with all of them', () => {
     expect(out.rumors).toEqual([]);
   });
 });
+
+/**
+ * The last turn of a scene must not cost what a gift costs.
+ *
+ * `singledOut` was read off `Boolean(note)`, which was correct while an opener
+ * was the only thing that appended one. Then the closing directive arrived -
+ * a system note the stage adds to the LAST turn of every scene - and every
+ * group scene in the game started ending witnessed: four absent members took
+ * `WEIGHT_WITNESSED` and a dossier entry each for a conversation.
+ *
+ * No unit test could see it, because the note is chosen by `VNStage` and the
+ * flag was computed in `runTurn`; the engine tests above all play one turn and
+ * never reach the closing one. This plays the shape the stage actually sends.
+ */
+describe('the closing turn is not a gesture', () => {
+  const play = async (turnArgs) => {
+    const base = setup();
+    let session = beginScene(base);
+    session = await runTurn(session, {
+      client: says(BEAT('irene')),
+      cast: cards,
+      ...turnArgs,
+    });
+    const out = await endScene(session, {
+      client: says('{"summary":"They talked."}'),
+      memory: base.memory,
+      relations: base.relations,
+      cards,
+      scene: base.scene,
+      rng: () => 0,
+    });
+    return { base, session, out };
+  };
+
+  it('leaves nobody witnessed when the player only talked', async () => {
+    const { session, out } = await play({
+      stance: 'joke',
+      text: '',
+      note: closingDirective(),
+    });
+
+    expect(session.singledOut).toBeFalsy();
+    expect(out.rumors.filter((r) => r.witnessed)).toEqual([]);
+  });
+
+  /** ...and still charges in full for one that was. */
+  it('charges the full price when the last turn IS a gesture', async () => {
+    const { session, out } = await play({
+      note: `System note: the player has just handed Irene a rose. ${closingDirective()}`,
+      gesture: true,
+    });
+
+    expect(session.singledOut).toBe(true);
+    expect(out.rumors.some((r) => r.witnessed)).toBe(true);
+  });
+});

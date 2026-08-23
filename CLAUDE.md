@@ -395,6 +395,25 @@ she was in the room would flush its four-entry FIFO of anything that mattered.
 The group scene is still the loudest place in the game to make a move, at five
 times the price of simply being there. It now requires a move.
 
+#### A gesture is a gesture, not "a system note went out"
+
+The turn loop read `singledOut` off `Boolean(note)`, because at the time the
+only thing that appended a note mid-scene *was* an opener. Then the closing
+directive arrived - one more system note, appended to the last turn of every
+scene - and quietly made **every group scene in the game end witnessed.** Four
+absent members took `WEIGHT_WITNESSED` and a dossier entry each for a
+conversation, which is precisely the defect the three tiers above were
+introduced to fix, arriving by a different door eight weeks later.
+
+Played, it is unmissable and it is unattributable: *"Nana saw you with Irene"*,
+four times, at the end of a scene in which nothing happened. The number that
+produced it was correct; the question it was asked was wrong.
+
+**So the flag is passed, never inferred.** `runTurn` takes `gesture`, and the
+one caller that means it - handing something over - sets it. A note is a
+transport, and what a scene costs may not be read off which transport it
+happened to use.
+
 `shared` still beats `singledOut` where they disagree, so an opener handed over
 during a shared dorm evening costs nothing. That is the weaker half of the rule
 and it is deliberate - the dorm needs one thing that is unambiguously
@@ -750,6 +769,30 @@ static labels most turns and dead labels the rest.
 The misclick is prevented structurally instead: **the chip bar is always a stack
 of full-width options, labelled or not.** One geometry means a swap changes only
 the words, never the position or the size of the target under a finger.
+
+#### Turning to somebody is a new moment, so it asks for new chips
+
+Written labels belong to an addressee, not only to a turn. `chips.js` resolves
+legality from **her** stage, strain band and jealousy band, and the label is
+what the player says **to her** - so a set written for answering Nana is the
+wrong set the instant the player turns to Yeri.
+
+The bar knew half of that and not the other half. `turnTo` correctly dropped
+the written set, and nothing asked for another, so **turning to somebody
+downgraded the player to static labels until they had spent a turn** - and in a
+group scene, where turning is the commonest move there is, that is most of the
+scene. Reported in play as the options going dead on tapping a portrait, which
+is exactly what it looked like from outside.
+
+It costs one chip call, on the same prefix, at no turn - which is what the
+call was already priced at. Two consequences carried over unchanged: the static
+set is on screen the whole time, so nothing is ever awaited; and the token
+still moves, so a set for the member the player just turned *away* from is
+discarded when it lands.
+
+The directive also names the addressee in a group scene, for the same ~6 tokens
+it takes to say so. Without it the model writes the player's next line at
+whoever last spoke, which after a turn is somebody else.
 
 Do not route chips to a different, faster model. That abandons the shared prefix
 and turns a 20-token miss into 2200. Same model is what makes this cheap.
@@ -1176,6 +1219,34 @@ no banner, no separate screen. Same argument as the daily task: privileging a
 thing visually turns a choice back into an errand. The day screen says what
 today is and that it takes all of it, and stops there.
 
+### An event day is the event, and nothing else
+
+"It takes the whole day" was on the day screen from the start and **nothing in
+the game enforced it.** Played, the concept meeting was one row on a map that
+still offered four other rooms, a daily task in the wardrobe, and five
+individual chips at the meeting-room door. The whole cast was standing in a
+room the player could walk past.
+
+Three rules, and each is the same sentence said to a different part of the
+code:
+
+1. **No daily task.** Section 10's own assembly order places the event day
+   *before* the task, and `generateDayTask` never knew about it - so the
+   agency asked for the outfits on the day it had put everyone in a meeting.
+2. **The map is the site.** On an event day the overworld is one row, and the
+   dorm is not on it. Not a banner and not a modal - the way in is still
+   walking there, there is simply nowhere else to walk.
+3. **Walking in is joining them.** The site offers no 1v1 and no snoop. An
+   anchor event is the whole cast in one room by definition, and offering
+   *"talk to Jisoo, the others are nearby"* at the door of one turns the
+   loudest day in the game back into an ordinary block that happens to be
+   crowded.
+
+Rule 3 is the one with a design argument behind it rather than only a bug.
+Section 10c's addressee already lets the player spend an event on one member -
+**inside** the scene, in front of the other four, where it costs what it should.
+Picking her at the door skips the room entirely.
+
 Two joins that were missing and are worth remembering, because they are the
 `markRisk` shape again - both halves correct, nothing calling them:
 
@@ -1327,12 +1398,14 @@ reach for her hand" unlock together, which is the correct reading. A locked door
 shows her name and the number: that is a goal, not a spoiler. A dark door means
 she is not home tonight.
 
-**The dorm is a second step in the map**, not a row: living room, kitchen, your
-own room, and five closed doors. Her door opens at `intimacy >= 50` - the same
-threshold as the `touch` stance, so "you may go into her room" and "you may
-reach for her hand" unlock together, which is the correct reading. A locked door
-shows her name and the number: that is a goal, not a spoiler. A dark door means
-she is not home tonight.
+**A lit door means she is behind it**, and nothing weaker. The light was drawn
+from "is she anywhere in the dorm", so a member standing in the kitchen lit her
+own door as well - and the map showed Nana in two rooms at once on the second
+evening anybody played. The routine layer already answers the exact question:
+she is in `dorm_room` on the evenings that are hers, and in the kitchen on the
+ones that are not. Anywhere-in-the-dorm is still the right test for the dorm
+*row* on the overworld, which is why one constant served two questions for as
+long as it did.
 
 ### Private scene, public approach
 
@@ -1433,6 +1506,14 @@ Authored, deterministic, **no LLM call** - the same argument as the calendar.
 Spending a model call on "you restocked the wardrobe" is waste, and these need
 to be instant because they are the filler between scenes. `data/soloActions.js`
 holds the table; `systems/soloWork.js` resolves one.
+
+**Walking in is not spending the block, and the room has to say so.** The block
+is paid by the action, and until the player picks one nothing at all has
+happened - but the room screen had no way back, so opening a door to see who
+was in it was a commitment. That reads as the opposite of what this section is
+built on: a map is only a *search* if looking is free. The way out is a plain
+`back` in the header, the same shape the dorm already uses, and it costs
+nothing because nothing has been spent.
 
 ### The point is not the credits
 

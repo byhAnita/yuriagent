@@ -450,3 +450,90 @@ describe('somebody cutting in', () => {
     expect(calls.every((c) => !/write one beat for/i.test(c))).toBe(true);
   }, 15000);
 });
+
+/**
+ * Written chips belong to an ADDRESSEE, not only to a turn. CLAUDE.md 6.
+ *
+ * `turnTo` correctly dropped the written set and nothing asked for another, so
+ * tapping a portrait downgraded the player to static labels until they had
+ * spent a turn - in a group scene, where turning is the commonest move there
+ * is, that was most of the scene. It was reported in play as the options going
+ * dead, which is exactly what it looked like from outside.
+ */
+describe('turning to somebody asks for her chips', () => {
+  /** Records every chip request, and what it was asked about. */
+  function recording() {
+    const asks = [];
+    const client = async ({ preset, messages, onChunk }) => {
+      if (preset === 'chips') {
+        asks.push(messages.at(-1).content);
+        return 'tease|Written for her\nreassure|Also written\ndeflect|And this';
+      }
+      const text = BEAT('irene');
+      onChunk?.(text);
+      return text;
+    };
+    return { asks, client };
+  }
+
+  it('fires a fresh call naming her, at no turn', async () => {
+    const { asks, client } = recording();
+    mount({ client, writtenChips: true });
+
+    await waitFor(() => expect(turnToButtons().length).toBeGreaterThan(0), { timeout: 10000 });
+    await readThrough();
+    await waitFor(() => expect(asks.length).toBeGreaterThan(0), { timeout: 10000 });
+
+    const before = asks.length;
+    const toNana = turnToButtons().find((b) => b.getAttribute('aria-label').includes('Nana'));
+    await userEvent.click(toNana);
+
+    await waitFor(() => expect(asks.length).toBe(before + 1), { timeout: 10000 });
+    expect(asks.at(-1)).toContain('speaking to Nana');
+    // ...and it cost nothing. Turning is free; only a stance spends a turn.
+    expect(screen.getByText(/vn\.turnsLeft/)).toBeTruthy();
+  }, 20000);
+
+  /**
+   * One call per move, each about the member just turned to.
+   *
+   * The token moves with every turn, so a set written for the member the
+   * player has already turned away from is discarded when it lands - which is
+   * what stops a fast double-tap leaving Nana's labels above Jisoo's face.
+   */
+  it('follows the player around the room, one call at a time', async () => {
+    const { asks, client } = recording();
+    mount({ client, writtenChips: true });
+
+    await waitFor(() => expect(turnToButtons().length).toBeGreaterThan(0), { timeout: 10000 });
+    await readThrough();
+    await waitFor(() => expect(asks.length).toBeGreaterThan(0), { timeout: 10000 });
+
+    const before = asks.length;
+    const to = (name) =>
+      turnToButtons().find((b) => b.getAttribute('aria-label').includes(name));
+
+    await userEvent.click(to('Nana'));
+    await waitFor(() => expect(asks.at(-1)).toContain('speaking to Nana'), { timeout: 10000 });
+
+    await userEvent.click(to('Jisoo'));
+    await waitFor(() => expect(asks.at(-1)).toContain('speaking to Jisoo'), { timeout: 10000 });
+
+    expect(asks.length).toBe(before + 2);
+    // The set on screen is the written one, for the member now addressed.
+    expect(screen.getByText('Written for her')).toBeTruthy();
+  }, 20000);
+
+  /** The setting still switches the whole feature off. */
+  it('asks for nothing when written chips are disabled', async () => {
+    const { asks, client } = recording();
+    mount({ client, writtenChips: false });
+
+    await waitFor(() => expect(turnToButtons().length).toBeGreaterThan(0), { timeout: 10000 });
+    await readThrough();
+
+    const toNana = turnToButtons().find((b) => b.getAttribute('aria-label').includes('Nana'));
+    await userEvent.click(toNana);
+    expect(asks).toHaveLength(0);
+  }, 20000);
+});

@@ -151,6 +151,23 @@ export default {
   phase: { prep: 'Preparation', comeback: 'Comeback', rest: 'Rest' },
   block: { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' },
   day: { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' },
+  /**
+   * The same seven days, at full length, for the day header.
+   *
+   * Separate from `day` because that one lives in a seven-column calendar grid
+   * at 390px and has to stay one or two characters wide in every locale. The
+   * header has room, and `D5` was arithmetic the player had to do to find out
+   * whether the weekend was close.
+   */
+  dayFull: {
+    mon: 'Monday',
+    tue: 'Tuesday',
+    wed: 'Wednesday',
+    thu: 'Thursday',
+    fri: 'Friday',
+    sat: 'Saturday',
+    sun: 'Sunday',
+  },
 
   stage: {
     stranger: 'Stranger',

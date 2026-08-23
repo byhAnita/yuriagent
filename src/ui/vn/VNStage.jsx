@@ -137,12 +137,21 @@ export default function VNStage({
    * replaced in place if a written set arrives (CLAUDE.md section 6). Nothing
    * here ever waits on a model.
    */
+  /**
+   * The same roll, for whoever is asked about.
+   *
+   * A function rather than a value because `turnTo` needs the set belonging to
+   * a member this render has not seen yet - and the fallback a chip call
+   * backfills from has to be HER legal set, not the previous addressee's.
+   */
+  const stancesFor = useCallback(
+    (r) => generateChips(r, { energy: setup.player.energy, seed: setup.scene.seed ?? 1, turn }),
+    [setup.player.energy, setup.scene.seed, turn],
+  );
+
   const staticChips = useMemo(
-    () =>
-      generateChips(rel, { energy: setup.player.energy, seed: setup.scene.seed ?? 1, turn }).map(
-        (stance) => ({ stance, label: null }),
-      ),
-    [rel, setup.player.energy, setup.scene.seed, turn],
+    () => stancesFor(rel).map((stance) => ({ stance, label: null })),
+    [stancesFor, rel],
   );
 
   const [written, setWritten] = useState(null);
@@ -195,18 +204,40 @@ export default function VNStage({
    * set stands.
    */
   const requestWrittenChips = useCallback(
-    async (frame, token) => {
-      const { available } = availableStances(rel, { energy: setup.player.energy });
+    async (frame, token, { relFor = rel, addresseeId = session.addresseeId } = {}) => {
+      /**
+       * The relation is a PARAMETER because `turnTo` needs a set for somebody
+       * this render has not seen yet. `rel` follows `session.focusId`, and
+       * `setSession` has not landed when the turn handler runs - so reading it
+       * off the closure would ask for Yeri's chips using Nana's stage, strain
+       * band and jealousy band, and `parseChips` would then drop every stance
+       * that is legal for one and not the other.
+       */
+      const { available } = availableStances(relFor, { energy: setup.player.energy });
       const absentNames = setup.cards
         .filter((c) => !frame.rosterIds.includes(c.id))
         .map((c) => c.name);
+
+      /**
+       * Who the player is talking to, in a group scene only.
+       *
+       * The labels are what the player SAYS to her, so after a turn the model
+       * has to be told the room's attention moved - otherwise it writes the
+       * next line at whoever last spoke. Six tokens, and a one-member scene
+       * sends nothing extra, so an ordinary scene's directive is unchanged.
+       */
+      const toName =
+        (frame.rosterIds ?? []).length > 1
+          ? (setup.cards.find((c) => c.id === addresseeId)?.name ?? null)
+          : null;
 
       const { chips: got, ok } = await writeChips({
         frame,
         client,
         available,
-        fallback: staticRef.current,
+        fallback: relFor === rel ? staticRef.current : stancesFor(relFor),
         absentNames,
+        addresseeName: toName,
         lang: setup.lang,
       });
 
@@ -221,7 +252,7 @@ export default function VNStage({
       if (token !== turnToken.current) return;
       if (got.some((c) => c.label)) setWritten(got);
     },
-    [client, rel, setup.cards, setup.lang, setup.player.energy],
+    [client, rel, stancesFor, session.addresseeId, setup.cards, setup.lang, setup.player.energy],
   );
 
   /**
@@ -233,7 +264,10 @@ export default function VNStage({
    * the note to whoever the player was talking to before.
    */
   const sendFrom = useCallback(
-    async (from, { stance, text, note = null, opening = false, speakerId = null }) => {
+    async (
+      from,
+      { stance, text, note = null, gesture = false, opening = false, speakerId = null },
+    ) => {
       if (busy.current) return;
       busy.current = true;
       setPending(true);
@@ -247,6 +281,7 @@ export default function VNStage({
           stance,
           text,
           note,
+          gesture,
           client,
           speakerId,
           cast: setup.cards,
@@ -292,14 +327,20 @@ export default function VNStage({
         if (chipCooldown.current > 0) chipCooldown.current -= 1;
         else if (writtenChips) {
           // Deliberately not awaited. The turn is over as far as the UI cares.
-          requestWrittenChips(next.frame, token);
+          // The addressee comes off `next`, not off state, for the same reason
+          // `sendFrom` exists: an opener moves it and `setSession` has not
+          // landed yet.
+          requestWrittenChips(next.frame, token, {
+            relFor: setup.relations[next.addresseeId] ?? rel,
+            addresseeId: next.addresseeId,
+          });
         }
       } finally {
         setPending(false);
         busy.current = false;
       }
     },
-    [client, writtenChips, requestWrittenChips, setup.cards, setup.relations],
+    [client, writtenChips, requestWrittenChips, rel, setup.cards, setup.relations],
   );
 
   /**
@@ -334,10 +375,32 @@ export default function VNStage({
   const onTurnTo = useCallback(
     (id) => {
       if (busy.current) return;
+      if (id === session.addresseeId) return;
+
       setSession((sn) => turnTo(sn, id, setup.relations));
+
+      /**
+       * Drop the old set AND ask for a new one.
+       *
+       * Only the first half existed, so tapping a portrait downgraded the
+       * player to static labels until they had spent a turn - in a group
+       * scene, where turning is the commonest move there is, that was most of
+       * the scene. It read in play as the options going dead (section 6).
+       *
+       * The token moves so a set for the member the player just turned away
+       * from is discarded when it lands, and the relation is passed rather
+       * than read off the closure because `setSession` has not landed yet.
+       */
       setWritten(null);
+      const token = (turnToken.current += 1);
+      if (chipCooldown.current === 0 && writtenChips) {
+        requestWrittenChips(session.frame, token, {
+          relFor: setup.relations[id],
+          addresseeId: id,
+        });
+      }
     },
-    [setup.relations],
+    [session, setup.relations, writtenChips, requestWrittenChips],
   );
 
   /**
@@ -382,7 +445,14 @@ export default function VNStage({
       setOpenerOpen(false);
       const moved = turnTo(session, memberId, setup.relations);
       if (moved !== session) setSession(moved);
-      sendFrom(moved, { note, speakerId: memberId });
+      /**
+       * `gesture` is what lifts the scene to witnessed, and it is passed here
+       * rather than inferred from the note (section 5b). Handing something
+       * over in front of the room is the overt move; the closing directive
+       * travelling by the same door is not, and inferring it from the note
+       * made every group scene in the game end witnessed.
+       */
+      sendFrom(moved, { note, gesture: true, speakerId: memberId });
     },
     [session, setup.relations, sendFrom],
   );

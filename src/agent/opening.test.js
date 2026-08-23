@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runTurn, openingDirective } from './sceneEngine.js';
+import { beginScene, runTurn, openingDirective, closingDirective } from './sceneEngine.js';
 import { buildMessages } from './promptBuilder.js';
 import { purchase } from '../systems/economy.js';
 import { newMemory, addDossierEntry } from './memory.js';
@@ -207,8 +207,37 @@ describe('an opener is a move inside the scene', () => {
     const before = await open(args);
     expect(before.singledOut).toBeFalsy();
 
-    const after = await runTurn(before, { note: bought.sceneNote, client });
+    const after = await runTurn(before, { note: bought.sceneNote, gesture: true, client });
     expect(after.singledOut).toBe(true);
+  });
+
+  /**
+   * ...because it was PASSED, not because a note went out.
+   *
+   * `singledOut` used to read `Boolean(note)`, which was true while an opener
+   * was the only thing that appended one. Then the closing directive arrived -
+   * a system note on the last turn of EVERY scene - and quietly made every
+   * group scene in the game end witnessed: four absent members took
+   * `WEIGHT_WITNESSED` and a dossier entry each for a conversation. Played in
+   * `zh`, it read as "Nana saw you with Irene" four times at the end of a
+   * scene in which nothing happened (CLAUDE.md section 5b).
+   *
+   * A note is a transport. What a scene costs may not be read off which
+   * transport it happened to use, so the test is about the flag and not about
+   * the closing directive specifically.
+   */
+  it('does not single her out just because a system note went out', async () => {
+    const args = setup(knowsCold());
+
+    const before = await open(args);
+    const after = await runTurn(before, {
+      stance: 'joke',
+      text: '',
+      note: closingDirective(),
+      client,
+    });
+
+    expect(after.singledOut).toBeFalsy();
   });
 });
 

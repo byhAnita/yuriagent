@@ -57,6 +57,21 @@ describe('generateDayTask', () => {
     expect(generateDayTask({ ...args, phase: 'prep', day: 6 })).toBeNull();
   });
 
+  /**
+   * Nor on an anchor event day. Section 10's assembly order places the event
+   * FIRST and the task second, and this function never knew about the first
+   * step - so the agency asked for the stage outfits on the day it had put the
+   * whole cast in a concept meeting, and the wardrobe carried a task marker on
+   * a map the player was not supposed to be standing on. An event replaces the
+   * day; it does not compete for a block in it.
+   */
+  it('gives no task on an event day', () => {
+    for (const day of workDays()) {
+      expect(generateDayTask({ ...args, phase: 'prep', day, eventDay: true })).toBeNull();
+      expect(generateDayTask({ ...args, phase: 'prep', day, eventDay: false })).toBeTruthy();
+    }
+  });
+
   it('is deterministic for the same seed and moment', () => {
     const a = generateDayTask({ ...args, phase: 'prep', day: 1 });
     const b = generateDayTask({ ...args, phase: 'prep', day: 1 });

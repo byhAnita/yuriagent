@@ -42,12 +42,19 @@ export function newTaskState() {
 }
 
 /**
- * The objective for one day. Null at the weekend.
+ * The objective for one day. Null at the weekend, and null on an event day.
  *
- * @param {object} args - { identity, day, week, phase, seed }
+ * Section 10's assembly order places the event day FIRST and the task second,
+ * and this function never knew about the first step - so the agency asked for
+ * the stage outfits on the day it had put the entire cast in a concept
+ * meeting, and the wardrobe carried a task marker on a map the player was not
+ * supposed to be standing on. An event replaces the day; it does not compete
+ * for a block in it.
+ *
+ * @param {object} args - { identity, day, week, phase, seed, eventDay }
  */
-export function generateDayTask({ identity, day, week = 0, phase, seed }) {
-  if (isWeekend(day)) return null;
+export function generateDayTask({ identity, day, week = 0, phase, seed, eventDay = false }) {
+  if (isWeekend(day) || eventDay) return null;
 
   const pool = (identity?.taskPool ?? Object.keys(TASKS)).filter((id) => TASKS[id]);
   if (pool.length === 0) return null;

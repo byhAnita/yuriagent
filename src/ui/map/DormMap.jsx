@@ -10,7 +10,7 @@
  * door shows her name and the threshold: that is a goal, not a spoiler.
  */
 
-import { LOCATIONS, DORM_OCCUPANCY } from '../../data/locations.js';
+import { LOCATIONS } from '../../data/locations.js';
 
 function Room({ label, note, right, disabled, onClick, tone = 'default' }) {
   return (
@@ -38,8 +38,20 @@ function Room({ label, note, right, disabled, onClick, tone = 'default' }) {
 }
 
 export default function DormMap({ cards, relations, occupancy, onBack, onEnterRoom, onEnterSolo, t }) {
+  /**
+   * A lit door means she is BEHIND it, not that she is somewhere in the dorm.
+   *
+   * This used to read `DORM_OCCUPANCY.includes(...)`, so a member standing in
+   * the kitchen lit her own door as well and the map showed her in two rooms
+   * at once - reported on the second evening anybody played. The routine layer
+   * answers the exact question already: `occupancyAt` puts her in `dorm_room`
+   * on the evenings that are hers and in a shared room on the ones that are
+   * not. Anywhere-in-the-dorm is still right for the dorm ROW on the overworld
+   * (`LocationGrid`), which is why one constant served two questions for as
+   * long as it did.
+   */
   const homeIds = cards
-    .filter((c) => DORM_OCCUPANCY.includes(occupancy[c.id]?.locationId))
+    .filter((c) => occupancy[c.id]?.locationId === 'dorm_room')
     .map((c) => c.id);
 
   const inLiving = cards.filter((c) => occupancy[c.id]?.locationId === 'dorm_living');

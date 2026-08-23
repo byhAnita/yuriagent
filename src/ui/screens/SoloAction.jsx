@@ -41,6 +41,15 @@ export default function SoloAction({
   onChoose,
   onDone,
   /**
+   * Back to the map, having spent nothing.
+   *
+   * The block is paid by the action, so until one is picked nothing at all has
+   * happened - but there was no way out, which made opening a door to see who
+   * was in it a commitment. A map is only a SEARCH if looking is free
+   * (section 10b).
+   */
+  onLeave = null,
+  /**
    * The run language, for content that is not a UI string.
    *
    * `t` cannot answer for a fact: its canonical English lives in
@@ -83,6 +92,17 @@ export default function SoloAction({
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-4 px-5 py-8">
       <header>
+        {/* Only before an action is chosen: once one is, the block is spent
+            and the way on is `next block`, not back out of the room. */}
+        {onLeave && !result ? (
+          <button
+            type="button"
+            onClick={onLeave}
+            className="mb-1 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+          >
+            &#8592; {t('map.back')}
+          </button>
+        ) : null}
         <p className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
           {here.length > 0 ? t('solo.whoIsHere') : t('solo.alone')}
         </p>

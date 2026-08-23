@@ -11,6 +11,7 @@ import { useState } from 'react';
 import LocationGrid from '../map/LocationGrid.jsx';
 import DormMap from '../map/DormMap.jsx';
 import WeekCalendar from '../map/WeekCalendar.jsx';
+import { DAY_NAMES } from '../../systems/calendar.js';
 import { resolveStage } from '../../systems/relationship.js';
 import { jealousyBand } from '../../systems/jealousy.js';
 
@@ -59,11 +60,28 @@ export default function Day({
   const taskDone = taskState?.done;
   const taskHere = task && !taskDone;
 
+  /**
+   * An event day is the event, and nothing else (section 10).
+   *
+   * `content` may be null - a phase map is allowed to carry a slot nobody has
+   * written for yet - and that day plays as an ordinary one, which is why this
+   * tests the content rather than the placement.
+   */
+  const isEventDay = Boolean(event?.content);
+
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-3 px-5 py-4">
       <header className="flex items-baseline gap-2">
+        {/*
+          The weekday by name, not by number.
+
+          `D5` is arithmetic the player has to do before they can know whether
+          the weekend is close - and the weekend is when dating lives, so it is
+          the single most decision-relevant fact in this header. The calendar
+          has named the days since M1; only this line was still counting.
+        */}
         <span className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
-          W{run.week + 1} D{run.day + 1}
+          W{run.week + 1} {t(`dayFull.${DAY_NAMES[run.day]}`)}
         </span>
         <span className="font-display text-[1.125rem] tracking-wide text-accent">
           {t(`block.${run.block}`)}
@@ -184,6 +202,7 @@ export default function Day({
           identity={identity}
           taskLocation={taskHere ? task.location : null}
           eventSlot={event?.slot ?? null}
+          eventOnly={isEventDay}
           /**
            * Every row opens the ROOM, not a scene.
            *
@@ -192,15 +211,20 @@ export default function Day({
            * conversation the moment anybody was standing there, which meant two
            * thirds of the map was only ever reachable when it was empty.
            *
-           * The exception is the per-member button in a crowded row: that is
-           * the player already saying who they are walking up to, so it skips
-           * the middle step.
+           * Two exceptions. The per-member button in a crowded row is the
+           * player already saying who they are walking up to, so it skips the
+           * middle step. And the event site on an event day IS the event
+           * (section 10) - the room screen underneath it would offer a 1v1 and
+           * a snoop on a day that is neither.
            */
-          onPick={(locationId, present, addresseeId = null) =>
-            addresseeId
+          onPick={(locationId, present, addresseeId = null) => {
+            if (isEventDay && locationId === event.location) {
+              return onEnter(locationId, present, null, { group: true });
+            }
+            return addresseeId
               ? onEnter(locationId, present, addresseeId)
-              : onEnterSolo(locationId, present)
-          }
+              : onEnterSolo(locationId, present);
+          }}
           onOpenDorm={() => setInDorm(true)}
           t={t}
         />

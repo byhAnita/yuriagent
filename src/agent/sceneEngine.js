@@ -206,7 +206,16 @@ export function turnTo(session, nextId, relations) {
  */
 export async function runTurn(
   session,
-  { stance, text, note = null, client, onBeat = () => {}, speakerId = null, cast = [] },
+  {
+    stance,
+    text,
+    note = null,
+    gesture = false,
+    client,
+    onBeat = () => {},
+    speakerId = null,
+    cast = [],
+  },
 ) {
   const said = stance ? `[${stance}] ${text ?? ''}`.trim() : (text ?? '');
 
@@ -260,9 +269,17 @@ export async function runTurn(
    * in an empty wardrobe is still the other three watching you choose her.
    *
    * Sticky for the scene, because you cannot un-do it later in the same room.
+   *
+   * `gesture` is PASSED, never inferred from the presence of a note. It used
+   * to read `Boolean(note)`, which was true while an opener was the only thing
+   * that appended one - and then the closing directive arrived, went out as a
+   * system note on the last turn of every scene, and made every group scene in
+   * the game end with four witnessed jealousy events for a conversation. A
+   * note is a transport; what a scene costs may not be read off which
+   * transport it happened to use (section 5b).
    */
   const singledOut =
-    session.singledOut || RISK_STANCES.includes(stance) || Boolean(note);
+    session.singledOut || RISK_STANCES.includes(stance) || Boolean(gesture);
 
   const ctx = { rosterIds: frame.rosterIds, focusId: answers ?? session.focusId };
   const parser = createStreamParser(ctx);

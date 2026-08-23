@@ -178,11 +178,20 @@ export function locationsForRole(phase, role) {
  * cannot enter for four days is clutter, and unlike a locked bedroom door it
  * teaches them nothing - the door is a goal with a number on it, the meeting
  * room is just a date in the calendar they can already read.
+ *
+ * ...and on the day it fires it is the ONLY row. "It takes the whole day" was
+ * on the day screen from the first build and nothing enforced it: played, the
+ * concept meeting was one option among four rooms, a task, and the dorm, with
+ * the entire cast standing in a room the player could simply walk past
+ * (section 10). The way in is still walking there; there is now nowhere else
+ * to walk.
  */
-export function overworldFor(phase, { eventSlot = null } = {}) {
-  return Object.entries(PHASE_MAP[phase] ?? {})
-    .filter(([slot]) => !slot.startsWith('event_') || slot === eventSlot)
-    .map(([, id]) => id);
+export function overworldFor(phase, { eventSlot = null, eventOnly = false } = {}) {
+  const rows = Object.entries(PHASE_MAP[phase] ?? {}).filter(
+    ([slot]) => !slot.startsWith('event_') || slot === eventSlot,
+  );
+  const only = eventOnly && eventSlot ? rows.filter(([slot]) => slot === eventSlot) : rows;
+  return only.map(([, id]) => id);
 }
 
 /** The event sites this phase, in firing order. */

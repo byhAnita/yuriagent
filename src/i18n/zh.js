@@ -186,6 +186,15 @@ export default {
   phase: { prep: '准备期', comeback: '回归期', rest: '休整期' },
   block: { morning: '上午', afternoon: '下午', evening: '晚上' },
   day: { mon: '一', tue: '二', wed: '三', thu: '四', fri: '五', sat: '六', sun: '日' },
+  dayFull: {
+    mon: '周一',
+    tue: '周二',
+    wed: '周三',
+    thu: '周四',
+    fri: '周五',
+    sat: '周六',
+    sun: '周日',
+  },
 
   stage: {
     stranger: '陌生',

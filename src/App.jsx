@@ -206,8 +206,10 @@ export default function App() {
         week: run.week,
         phase: run.phase,
         seed: SEED,
+        // An event takes the whole day, so the agency asks for nothing on it.
+        eventDay: Boolean(todayEvent?.content),
       }),
-    [run.day, run.week, run.phase, identity],
+    [run.day, run.week, run.phase, identity, todayEvent],
   );
 
   const focusId = useMemo(
@@ -901,6 +903,8 @@ export default function App() {
           }}
           onShared={onShared}
           onChoose={onChooseSolo}
+          // Back to the map. Nothing has been spent yet, so it costs nothing.
+          onLeave={() => setSolo(null)}
           onDone={() => {
             setSolo(null);
             advance();
