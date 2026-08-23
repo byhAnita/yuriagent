@@ -20,13 +20,13 @@ import {
   runTurn,
   readHer,
   endScene,
-  openWithGift,
   openingDirective,
   interject,
   isGroupScene,
   turnTo,
   speakerOnPass,
 } from '../../agent/sceneEngine.js';
+import GiftModal from '../modals/GiftModal.jsx';
 import { generateChips, suggestedStances, availableStances } from '../../systems/chips.js';
 import { relanguage } from '../../agent/promptBuilder.js';
 import { writeChips } from '../../agent/chipWriter.js';
@@ -50,7 +50,18 @@ const PASS_DIRECTIVE = '(says nothing, and lets the room carry it)';
 export default function VNStage({
   setup,
   client,
-  giftNote,
+  /**
+   * The knowledge economy, reachable from inside the scene.
+   *
+   * `{ dossierFor, credits, stock, usedGestures, give, say }`, where `give` and
+   * `say` are App's spend functions and return the scene note to inject, or
+   * null if the spend was refused. VNStage owns WHEN it happens and App owns
+   * WHAT it costs - the same split the rest of the screen uses.
+   *
+   * Omitted, the control is simply not offered, which is what the tests that
+   * do not care about openers get.
+   */
+  openers = null,
   onSceneEnd,
   writtenChips = true,
   /**
@@ -63,16 +74,15 @@ export default function VNStage({
   offline = false,
   t,
 }) {
-  // A gift is injected at the head of block 5, before the first call, so the
-  // model opens the scene by reacting to it (CLAUDE.md section 11).
-  const [session, setSession] = useState(() => {
-    const opened = beginScene(setup);
-    return giftNote ? openWithGift(opened, giftNote) : opened;
-  });
+  const [session, setSession] = useState(() => beginScene(setup));
   const [queue, setQueue] = useState(newQueue);
   const [pending, setPending] = useState(false);
   const [thought, setThought] = useState(null);
   const [turn, setTurn] = useState(0);
+  /** The opener sheet, over the scene rather than in front of it. */
+  const [openerOpen, setOpenerOpen] = useState(false);
+  /** Somebody in the room is answering, after the addressee already has. */
+  const [roomPending, setRoomPending] = useState(false);
   const busy = useRef(false);
 
   /**
@@ -195,8 +205,16 @@ export default function VNStage({
     [client, rel, setup.cards, setup.lang, setup.player.energy],
   );
 
-  const send = useCallback(
-    async ({ stance, text, opening = false, speakerId = null }) => {
+  /**
+   * Run one turn against an EXPLICIT session, rather than the one in state.
+   *
+   * Every caller but one wants the current session and uses `send` below. The
+   * exception is an opener, which moves the addressee and then immediately
+   * sends - `setSession` has not landed by then, so reading state would send
+   * the note to whoever the player was talking to before.
+   */
+  const sendFrom = useCallback(
+    async (from, { stance, text, note = null, opening = false, speakerId = null }) => {
       if (busy.current) return;
       busy.current = true;
       setPending(true);
@@ -206,9 +224,10 @@ export default function VNStage({
       const token = (turnToken.current += 1);
 
       try {
-        let next = await runTurn(session, {
+        let next = await runTurn(from, {
           stance,
           text,
+          note,
           client,
           speakerId,
           cast: setup.cards,
@@ -218,28 +237,37 @@ export default function VNStage({
         if (!opening) setTurn((n) => n + 1);
 
         /**
-         * Somebody else may take it upon herself.
+         * Somebody else joins in, or cuts in.
          *
-         * `pending` is cleared FIRST, so her beats are readable while the
-         * second call streams - the player is reading either way, and making
-         * them wait on a call whose whole purpose is to feel spontaneous is
-         * the wrong trade. `busy` stays set, so no new turn can start on top
-         * of it.
+         * `pending` is cleared FIRST, so the addressee's beats are readable
+         * while the second call streams - the player is reading either way,
+         * and making them wait on a call whose whole purpose is to feel
+         * spontaneous is the wrong trade.
          *
-         * Nobody clears the bar on most turns, and that is the design: an
-         * interjection every turn is a scene where nobody finishes a
-         * sentence (INTERJECT_THRESHOLD).
+         * `roomPending` is what replaces it, and it is not decoration. `busy`
+         * already stopped a second turn starting on top of this one, but it is
+         * a ref: the BAR did not know, so on any turn where the addressee
+         * answered in a single beat the chips went live while the call was
+         * still running and every tap was silently swallowed. That is exactly
+         * the frozen screen section 6 keeps warning about, and it became the
+         * common case the moment a second voice started arriving most turns
+         * rather than almost never.
          */
         if (isGroupScene(next)) {
           setPending(false);
-          const { session: after } = await interject(next, {
-            client,
-            relations: setup.relations,
-            cards: setup.cards,
-            onBeat: (beat) => setQueue((q) => enqueue(q, [beat])),
-          });
-          next = after;
-          setSession(after);
+          setRoomPending(true);
+          try {
+            const { session: after } = await interject(next, {
+              client,
+              relations: setup.relations,
+              cards: setup.cards,
+              onBeat: (beat) => setQueue((q) => enqueue(q, [beat])),
+            });
+            next = after;
+            setSession(after);
+          } finally {
+            setRoomPending(false);
+          }
         }
 
         if (chipCooldown.current > 0) chipCooldown.current -= 1;
@@ -252,8 +280,10 @@ export default function VNStage({
         busy.current = false;
       }
     },
-    [session, client, writtenChips, requestWrittenChips, setup.cards, setup.relations],
+    [client, writtenChips, requestWrittenChips, setup.cards, setup.relations],
   );
+
+  const send = useCallback((args) => sendFrom(session, args), [sendFrom, session]);
 
   /**
    * Turn to somebody else in the room.
@@ -282,6 +312,41 @@ export default function VNStage({
   const onPass = useCallback(() => {
     send({ text: PASS_DIRECTIVE, speakerId: speakerOnPass(session, setup.relations) });
   }, [send, session, setup.relations]);
+
+  /**
+   * Hand something over, or bring something up, as this turn.
+   *
+   * Three things happen in one move and the order matters:
+   *
+   * 1. The addressee moves to whoever is being given to. A gift IS a way of
+   *    addressing somebody (section 10c), so choosing her in the sheet and then
+   *    still talking to the last person would be two contradictory answers to
+   *    the same question.
+   * 2. App spends the credits / the gesture / the dish and hands back the note.
+   *    It may refuse - an opener that stopped being affordable between the sheet
+   *    opening and the tap - in which case nothing at all happens, which is the
+   *    right failure: the player is out a tap and not a turn.
+   * 3. The note goes in as this turn, and she answers it.
+   *
+   * Note that `turnTo` returns a NEW session and `setSession` is asynchronous,
+   * so the send has to be given the moved session directly rather than reading
+   * it back off state - otherwise the note lands addressed to whoever the
+   * player was talking to a moment ago, which in a group scene means giving
+   * Nana's present to Irene.
+   */
+  const spendOpener = useCallback(
+    (memberId, spend) => {
+      if (busy.current) return;
+      const note = spend();
+      if (!note) return;
+
+      setOpenerOpen(false);
+      const moved = turnTo(session, memberId, setup.relations);
+      if (moved !== session) setSession(moved);
+      sendFrom(moved, { note, speakerId: memberId });
+    },
+    [session, setup.relations, sendFrom],
+  );
 
   const onReadHer = useCallback(async () => {
     if (busy.current || readHerLeft <= 0) return;
@@ -327,13 +392,36 @@ export default function VNStage({
    * explanation reads as a frozen screen.
    */
   const awaitingRead = !pending && hasMore(queue);
-  const barDisabled = pending || hasMore(queue);
+  /**
+   * Three reasons the bar is not usable and they are not the same reason.
+   *
+   * `pending` is "wait"; unread beats are "your move, after you read this";
+   * `roomPending` is "somebody else is still answering". The third one used to
+   * be invisible, which made the bar look live while it was not.
+   */
+  const roomSpeaking = roomPending && !hasMore(queue);
+  const barDisabled = pending || roomPending || hasMore(queue);
 
   // Opening beat, so the player walks into something rather than a blank room.
   useEffect(() => {
-    send({ text: openingDirective(Boolean(giftNote)), opening: true });
+    send({ text: openingDirective(), opening: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Who may be handed something: whoever may speak.
+   *
+   * The roster and not the room, deliberately. Handing a present to somebody
+   * who is standing there but cannot answer produces a gift nobody reacts to,
+   * and section 9's roster rule would drop her beat anyway.
+   */
+  const openerRoster = useMemo(
+    () => setup.cards.filter((c) => session.frame.rosterIds.includes(c.id)),
+    [setup.cards, session.frame.rosterIds],
+  );
+
+  const openerCard =
+    openerRoster.find((c) => c.id === session.addresseeId) ?? openerRoster[0] ?? focusCard;
 
   return (
     <div
@@ -403,11 +491,29 @@ export default function VNStage({
         turnsLeft={turnsLeft}
         outOfTurns={outOfTurns}
         awaitingRead={awaitingRead}
+        roomSpeaking={roomSpeaking}
         onPass={group ? onPass : null}
+        onOpener={openers ? () => setOpenerOpen(true) : null}
         onAdvance={() => setQueue(advance)}
         disabled={barDisabled}
         t={t}
       />
+
+      {openerOpen && openers ? (
+        <GiftModal
+          card={openerCard}
+          dossier={openers.dossierFor(openerCard.id)}
+          credits={openers.credits}
+          stock={openers.stock}
+          usedGestures={openers.usedGestures}
+          roster={openerRoster}
+          onChoose={onTurnTo}
+          onPick={(giftId) => spendOpener(openerCard.id, () => openers.give(giftId, openerCard))}
+          onGesture={(giftId) => spendOpener(openerCard.id, () => openers.say(giftId, openerCard))}
+          onSkip={() => setOpenerOpen(false)}
+          t={t}
+        />
+      ) : null}
     </div>
   );
 }

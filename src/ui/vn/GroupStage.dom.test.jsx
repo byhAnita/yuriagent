@@ -216,6 +216,75 @@ describe('somebody cutting in', () => {
     await waitFor(() => expect(screen.getByText(/Sure\. Fine\./)).toBeTruthy(), { timeout: 10000 });
   }, 15000);
 
+  /**
+   * The bar must not look live while she is still being written.
+   *
+   * `busy` is a ref, so it stopped a second turn starting but the BAR never
+   * knew: on any turn where the addressee answered in a single beat, the chips
+   * went enabled the instant `pending` cleared - about a second before the
+   * second call returned - and every tap in that window vanished. Section 6
+   * has learned twice that a control which does nothing has to say why.
+   *
+   * It was survivable while a second voice was rare. It stopped being
+   * survivable when chimes started arriving most turns.
+   */
+  it('holds the bar, and says why, while somebody else is answering', async () => {
+    const relations = Object.fromEntries(
+      ids.map((id) => [id, { ...newRelation(40) }]),
+    );
+
+    let release;
+    const held = new Promise((r) => {
+      release = r;
+    });
+
+    const client = async ({ preset, messages, onChunk }) => {
+      if (preset === 'chips') return '';
+      const prompt = messages.at(-1).content;
+      // One beat only, so `hasMore` is false and the bar has nothing else
+      // holding it - this is the exact shape that used to go live.
+      const one = '@irene|neutral|guard50|fluster10\n*She nods.* "Mm."';
+      if (/write one beat for/.test(prompt)) {
+        await held;
+        onChunk?.('@nana|neutral|guard50|fluster5\n*She looks over.* "Wait."');
+        return '@nana|neutral|guard50|fluster5\n*She looks over.* "Wait."';
+      }
+      onChunk?.(one);
+      return one;
+    };
+
+    render(
+      <VNStage
+        setup={setup({ relations })}
+        client={client}
+        onSceneEnd={() => {}}
+        writtenChips={false}
+        t={t}
+      />,
+    );
+
+    /**
+     * Nobody joins in on the opening beat - one turn of silence is under the
+     * bar - so the scene has to get one player turn in first. Which is also
+     * the honest shape: this is the second turn of an ordinary group scene.
+     */
+    await waitFor(() => expect(chipButtons().some((b) => !b.disabled)).toBe(true), {
+      timeout: 10000,
+    });
+    await userEvent.click(chipButtons().find((b) => !b.disabled));
+
+    // The second call is in flight and parked. The bar must be dead AND say so.
+    await waitFor(() => expect(screen.queryByText('vn.roomSpeaking')).toBeTruthy(), {
+      timeout: 10000,
+    });
+    expect(chipButtons().every((b) => b.disabled)).toBe(true);
+
+    release();
+    await waitFor(() => expect(screen.queryByText('vn.roomSpeaking')).toBeNull(), {
+      timeout: 10000,
+    });
+  }, 20000);
+
   it('does not fire when nobody has anything at stake', async () => {
     const calls = [];
     const client = scripted((messages) => {

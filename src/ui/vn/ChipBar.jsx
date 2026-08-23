@@ -12,6 +12,40 @@
 import { useState } from 'react';
 import { isRiskStance } from '../../systems/chips.js';
 
+/**
+ * Written as escapes, because section 21 keeps source ASCII.
+ * Pencil, envelope, midline ellipsis.
+ */
+const GLYPH = { say: '\u270E', give: '\u2709', pass: '\u22EF' };
+
+/**
+ * A turn-spending move that is not a stance.
+ *
+ * Lighter than a chip and unmistakably heavier than the meta row - it is a
+ * button with a border and a real touch target, so at three across on a 390px
+ * screen each one is comfortably past the 44px minimum. The glyph carries it
+ * when a `zh` label at `fontScale` 1.25 has to wrap.
+ */
+function SecondaryAction({ disabled, onClick, glyph, label, active = false, ...rest }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      title={label}
+      className={`flex min-h-11 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border px-2 py-2 font-mono text-[0.625rem] uppercase leading-tight tracking-[0.1em] transition-colors disabled:opacity-30 ${
+        active
+          ? 'border-accent bg-surface-alt text-accent'
+          : 'border-hairline bg-transparent text-dim hover:border-accent hover:text-accent'
+      }`}
+      {...rest}
+    >
+      <span aria-hidden="true">{glyph}</span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
 export default function ChipBar({
   chips,
   suggested = [],
@@ -24,12 +58,28 @@ export default function ChipBar({
   turnsLeft,
   outOfTurns,
   awaitingRead = false,
+  /** A second voice is still streaming and there is nothing to tap yet. */
+  roomSpeaking = false,
   /**
-   * Group scenes only, null otherwise. Letting the room carry it is a real
-   * move rather than a skip, so it sits beside Read her - two rationed ways of
-   * spending a turn on something other than talking.
+   * Group scenes only, null otherwise.
+   *
+   * It used to live in the thin meta row next to Read her, on the theory that
+   * both are ways of spending a turn on something other than talking. That was
+   * wrong and it was reported as a bug: a 10px link in a corner does not read
+   * as one of the things you may do, it reads as a footnote, so in practice the
+   * player never let the room breathe and every group scene was driven turn by
+   * turn off the chips. Letting the room carry it is a MOVE, so it is shaped
+   * like one.
    */
   onPass = null,
+  /**
+   * Hand something over, or bring something up. Null disables the control.
+   *
+   * Same argument, arrived at from the other direction: this used to be a modal
+   * before the scene opened, which made it a thing you did INSTEAD of talking
+   * to her rather than a thing you do while talking to her.
+   */
+  onOpener = null,
   onAdvance,
   disabled,
   t,
@@ -152,21 +202,67 @@ export default function ChipBar({
         </button>
       ) : null}
 
-      <div className="mt-2 flex items-center gap-2">
-        <button
-          type="button"
+      {/*
+        Somebody else is answering, and there is nothing to tap yet.
+
+        Not a button - there is no move here, only a wait - but it has to be
+        SAID. Without it, a turn where the addressee replied in a single beat
+        left the chips looking live while the second call was still running,
+        and every tap vanished. Same lesson as the spent block and the unread
+        beat: a control that does nothing has to explain itself.
+      */}
+      {roomSpeaking ? (
+        <p className="mt-2 text-center font-mono text-[0.625rem] uppercase tracking-[0.18em] text-dim">
+          {t('vn.roomSpeaking')}
+        </p>
+      ) : null}
+
+      {/*
+        Everything else the player may do WITH THEIR TURN, at the weight of the
+        options above it.
+
+        Both bugs this row fixes were the same mistake in two places: a move
+        that ends the player's turn was rendered as a 10px text link, so it read
+        as chrome and went unused. A stance, saying it yourself, handing
+        something over and letting the room carry it are four ways to spend the
+        same turn, and the bar should say so.
+
+        Read her and the turn counter stay in the thin row below, and that is
+        not an oversight - neither of them ends the turn. The split IS the
+        information: everything in this row costs you the turn, nothing in the
+        one below it does.
+      */}
+      <div className="mt-1.5 grid auto-cols-fr grid-flow-col gap-1.5">
+        <SecondaryAction
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-35"
-        >
-          <span aria-hidden="true">&#9998;</span>
-          {t('vn.sayIt')}
-        </button>
+          glyph={GLYPH.say}
+          label={t('vn.sayIt')}
+          active={open}
+        />
 
-        <span className="h-px flex-1 bg-hairline opacity-50" />
+        {onOpener ? (
+          <SecondaryAction
+            disabled={disabled}
+            onClick={onOpener}
+            glyph={GLYPH.give}
+            label={t('vn.give')}
+          />
+        ) : null}
 
-        {/* how much of the block is left, said plainly rather than as a bare number */}
+        {onPass ? (
+          <SecondaryAction
+            disabled={disabled}
+            onClick={onPass}
+            glyph={GLYPH.pass}
+            label={t('vn.pass')}
+          />
+        ) : null}
+      </div>
+
+      {/* Neither of these spends the turn, so neither is shaped like a move. */}
+      <div className="mt-2 flex items-center gap-2">
         <span
           className={`font-mono text-[0.625rem] uppercase tracking-[0.14em] ${
             turnsLeft <= 3 ? 'text-warn' : 'text-dim'
@@ -175,22 +271,7 @@ export default function ChipBar({
           {t('vn.turnsLeft')} {turnsLeft}
         </span>
 
-        {onPass ? (
-          <>
-            <span className="h-px w-3 bg-hairline opacity-50" />
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={onPass}
-              className="font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-25"
-              title={t('vn.pass')}
-            >
-              {t('vn.pass')}
-            </button>
-          </>
-        ) : null}
-
-        <span className="h-px w-3 bg-hairline opacity-50" />
+        <span className="h-px flex-1 bg-hairline opacity-50" />
 
         <button
           type="button"

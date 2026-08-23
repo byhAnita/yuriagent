@@ -26,6 +26,8 @@ import {
   endScene,
   openingDirective,
   readHer,
+  interject,
+  turnTo,
 } from './sceneEngine.js';
 import { newMemory } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
@@ -144,7 +146,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
 
   async function oneScene() {
     let session = beginScene(setup({ intimacy: 45 }));
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
 
     const path = [
       { turn: 0, guard: session.meters.guard, fluster: session.meters.fluster },
@@ -206,7 +208,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     const opens = {};
     for (const id of castIds) {
       let s = beginScene(setup({ memberId: id }));
-      s = await runTurn(s, { text: openingDirective(false), client });
+      s = await runTurn(s, { text: openingDirective(), client });
       opens[id] = s.beats.map((b) => b.text).join(' ');
     }
 
@@ -258,7 +260,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
    */
   it('writes Chinese prose without localizing a single machine token', async () => {
     let session = beginScene(setup({ lang: 'zh' }));
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, { stance: 'tease', text: '', client });
 
     log('\n[quality] --- zh ---');
@@ -287,7 +289,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
   it('closes a scene with a usable ledger line and real dossier entries', async () => {
     const args = setup({ intimacy: 55 });
     let session = beginScene(args);
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, { stance: 'confide', text: '', client });
     session = await runTurn(session, { stance: 'press', text: '', client });
 
@@ -324,7 +326,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
   it('records a card fact in the card wording when it actually comes up', async () => {
     const args = setup({ intimacy: 55 });
     let session = beginScene(args);
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, {
       text: 'You never sit still. Do you actually train on top of all this practice?',
       client,
@@ -372,7 +374,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     const opens = {};
     for (const activity of ['group_practice', 'late_practice', 'solo_recording']) {
       let s = beginScene(setup({ activity }));
-      s = await runTurn(s, { text: openingDirective(false), client });
+      s = await runTurn(s, { text: openingDirective(), client });
       opens[activity] = s.beats.map((b) => b.text).join(' ');
     }
 
@@ -394,7 +396,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
         task: { taskId: 'prep_outfits', done: false },
       }),
     );
-    s = await runTurn(s, { text: openingDirective(false), client });
+    s = await runTurn(s, { text: openingDirective(), client });
     s = await runTurn(s, { stance: 'deflect', text: '', client });
 
     log('\n[quality] --- wardrobe, outfits not prepped ---');
@@ -403,4 +405,214 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     expect(s.beats.length).toBeGreaterThan(0);
   }, 240000);
 
+});
+
+/**
+ * The group scene, live. Section 10c, and reported after the first day of play.
+ *
+ * This is the one thing no offline test can settle, and the docs have said so
+ * since the feature shipped: the failure mode is prose quality, not a
+ * distribution. Two questions, both about tone:
+ *
+ *   1. does a chime read as somebody joining in, or does the model reach for
+ *      the jealousy sitting in blocks 3 and 4 whatever the directive says
+ *   2. does the room circulate, or does one member answer everything
+ *
+ * The reported bug was that the cast were hostile to each other for five women
+ * who have shared a dorm for years, and that everyone but the addressee was
+ * silent. Those had the same cause - one interjection bar, priced for jealousy
+ * - and this measures whether splitting it fixed the writing and not merely
+ * the arithmetic.
+ */
+const ROOM = ['irene', 'nana', 'jisoo'];
+
+/** Words a warm chime should not be reaching for. */
+const RESENTFUL =
+  /jealous|jealousy|resent|possessive|glare|glares|coldly|icily|bitter|snap|snaps|snapped|sarcastic/i;
+
+function groupSetup({ relations, locationId = 'practice_room', activity = 'group_practice' } = {}) {
+  return {
+    cards,
+    lineup,
+    identity: { promptRole: 'an artist assistant', exposureModifier: {} },
+    player: { name: 'You', energy: 80, secrecy: 70, credits: 10 },
+    lang: 'en',
+    memory: newMemory(castIds),
+    relations:
+      relations ?? Object.fromEntries(castIds.map((id) => [id, newRelation(35)])),
+    scene: {
+      id: 'lg',
+      rosterIds: ROOM,
+      presentIds: ROOM,
+      focusId: 'irene',
+      week: 0,
+      day: 1,
+      block: 'afternoon',
+      phase: 'prep',
+      locationId,
+      locationLabel: locationId,
+      seed: 1,
+      occupancy: Object.fromEntries(ROOM.map((id) => [id, { activity }])),
+    },
+  };
+}
+
+const nameOf = (id) => cards.find((c) => c.id === id)?.name ?? id;
+
+describe.skipIf(!enabled)('a room with three of them in it', () => {
+  /**
+   * Six turns of ordinary practice-room conversation, with nobody jealous.
+   *
+   * Under the old single bar this scene produced ZERO second voices at any
+   * point - a week-1 bystander scored 0.66 against a bar of 1.0 - so the whole
+   * of it was the player and Irene while two other women stood there.
+   */
+  it('circulates, and stays warm while it does', async () => {
+    let session = beginScene(groupSetup());
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+
+    const transcript = [];
+    const voices = [];
+    let chimes = 0;
+    let cutIns = 0;
+
+    for (const stance of ['joke', 'tease', 'deflect', 'reassure', 'joke', 'press']) {
+      const before = session.beats.length;
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+      for (const b of session.beats.slice(before)) {
+        transcript.push(`  [${stance}] @${b.speaker}|${b.emotion}  ${b.text}`);
+      }
+
+      const seen = session.beats.length;
+      const out = await interject(session, {
+        client,
+        relations: groupSetup().relations,
+        cards,
+      });
+      session = out.session;
+
+      if (out.interjectorId) {
+        voices.push(out.interjectorId);
+        if (out.kind === 'chime') chimes += 1;
+        else cutIns += 1;
+        for (const b of session.beats.slice(seen)) {
+          transcript.push(`     ^-- ${out.kind} @${b.speaker}|${b.emotion}  ${b.text}`);
+        }
+      } else {
+        transcript.push('     ^-- (nobody)');
+      }
+    }
+
+    log('\n[quality] --- practice room, three of them, six turns ---');
+    for (const line of transcript) log(line);
+
+    const distinct = new Set(session.beats.map((b) => b.speaker));
+    const second = session.beats.filter((b) => b.speaker !== 'irene');
+    log(
+      `\n[quality] voices=${[...distinct].join(',')} chimes=${chimes} cut-ins=${cutIns}` +
+        ` second-voice beats=${second.length}/${session.beats.length}`,
+    );
+
+    const resentful = session.beats.filter((b) => RESENTFUL.test(b.text));
+    log(`[quality] resentful lines: ${resentful.length}`);
+    for (const b of resentful) log(`   !! @${b.speaker} ${b.text}`);
+
+    // The bug was silence. Somebody other than the addressee has to speak.
+    expect(distinct.size).toBeGreaterThan(1);
+    expect(chimes).toBeGreaterThan(0);
+    // Nobody is jealous in this fixture, so nothing should be a cut-in.
+    expect(cutIns).toBe(0);
+  }, 480000);
+
+  /**
+   * One call, one speaker - the rule that replaced section 9's two-member cap.
+   *
+   * A group scene is only as safe as a 1v1 because the CLIENT picks who speaks
+   * and asks for one beat. If the model writes two members in one reply the
+   * parser cannot help: both are rostered, so both are accepted.
+   */
+  it('never writes two of them in one reply', async () => {
+    let session = beginScene(groupSetup());
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+
+    const replies = [];
+    for (const stance of ['tease', 'confide', 'joke']) {
+      const before = session.beats.length;
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+      replies.push(session.beats.slice(before));
+
+      const seen = session.beats.length;
+      const out = await interject(session, {
+        client,
+        relations: groupSetup().relations,
+        cards,
+      });
+      session = out.session;
+      if (out.interjectorId) replies.push(session.beats.slice(seen));
+    }
+
+    log('\n[quality] --- one call, one speaker ---');
+    for (const reply of replies) {
+      const who = [...new Set(reply.map((b) => b.speaker))];
+      log(`  ${who.join(' + ')}  (${reply.length} beat${reply.length === 1 ? '' : 's'})`);
+      expect(who.length).toBeLessThanOrEqual(1);
+    }
+  }, 480000);
+
+  /**
+   * And the sharp register still exists when it is earned.
+   *
+   * The point of the split is not that nobody is ever jealous - it is that
+   * jealousy stops being the only way into the room. Nana at `corrosive`
+   * should read pointedly, and visibly differently from the warm chimes above.
+   */
+  it('still lets a genuinely unsettled member cut in, and sound like it', async () => {
+    const relations = Object.fromEntries(
+      castIds.map((id) => [
+        id,
+        { ...newRelation(35), ...(id === 'nana' ? { intimacy: 80, jealousy: 85 } : {}) },
+      ]),
+    );
+
+    let session = beginScene(groupSetup({ relations }));
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+    session = await runTurn(session, { stance: 'confide', text: '', client, cast: cards });
+
+    const seen = session.beats.length;
+    const out = await interject(session, { client, relations, cards });
+
+    log('\n[quality] --- nana at corrosive ---');
+    log(`  kind=${out.kind} who=${out.interjectorId}`);
+    for (const b of out.session.beats.slice(seen)) log(`  @${b.speaker}|${b.emotion}  ${b.text}`);
+
+    expect(out.kind).toBe('cut_in');
+    expect(out.interjectorId).toBe('nana');
+  }, 480000);
+
+  /**
+   * An opener, handed over three turns into a conversation rather than at the
+   * door - which is the whole point of moving it. The topic should TURN.
+   */
+  it('turns the conversation when the player hands somebody something', async () => {
+    let session = beginScene(groupSetup());
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+    session = await runTurn(session, { stance: 'joke', text: '', client, cast: cards });
+
+    const before = session.beats.map((b) => b.text).join(' ');
+
+    session = turnTo(session, 'jisoo', groupSetup().relations);
+    const note =
+      `the player has just handed ${nameOf('jisoo')} an iced coffee. ` +
+      'An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.';
+    const seen = session.beats.length;
+    session = await runTurn(session, { note, client, cast: cards });
+
+    log('\n[quality] --- an opener, mid-scene ---');
+    log(`  before: ${before}`);
+    for (const b of session.beats.slice(seen)) log(`  after:  @${b.speaker}|${b.emotion}  ${b.text}`);
+
+    const after = session.beats.slice(seen);
+    expect(after.length).toBeGreaterThan(0);
+    expect(after.every((b) => b.speaker === 'jisoo')).toBe(true);
+  }, 480000);
 });

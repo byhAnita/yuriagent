@@ -274,12 +274,13 @@ export default {
   },
 
   gift: {
-    title: 'How you walk in',
-    generic: 'Bring something ordinary',
-    knowledge: 'Bring something only you would know to bring',
+    title: 'Hand it over, or bring it up',
+    who: 'To whom',
+    generic: 'Something ordinary',
+    knowledge: 'Something only you would know to bring',
     locked: 'learn more',
     hint: 'These open when she tells you something worth remembering.',
-    skip: 'Just walk in',
+    skip: 'Not now',
     gesture: 'Say something only you would know to say',
     free: 'free',
     iced_coffee: 'Iced coffee',
@@ -427,6 +428,7 @@ export default {
     send: 'Send',
     readHer: 'Read her',
     pass: 'Let it be',
+    give: 'Give / bring up',
     turnTo: 'Turn to {name}',
     leave: 'Leave',
     thinking: '...',
@@ -442,6 +444,7 @@ export default {
     outOfTurns: 'The block is over.',
     risk: 'seen',
     continue: 'She is still speaking',
+    roomSpeaking: 'Somebody else is saying something',
   },
 
   dev: { scaffold: 'M0 scaffold', castLoaded: 'Cast', tokenCheck: 'Token check' },

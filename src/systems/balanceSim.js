@@ -82,6 +82,20 @@ function simulateScene({ rel, exposure, rng, takeRisks }) {
     const survives = rng() < 0.35 + (rel.intimacy / 100) * 0.4;
     if (survives) delta.admissibility = 3 + Math.floor(rng() * 4);
     else delta.strain = 10 + Math.floor(rng() * 11);
+    /**
+     * The player made an overt move, so the room saw them choose somebody.
+     *
+     * `propagate` stopped charging for mere co-presence, and without this the
+     * simulator reported a game with no in-room jealousy at all: the balance
+     * ending, which requires everyone under 50 jealousy, jumped from 2.8% to
+     * 18.5% purely because a number this file does not model went missing.
+     *
+     * It is a coarse mapping - `takeRisks` is a policy flag rather than a
+     * stance, and a gift also singles somebody out and is not modelled here at
+     * all. That is the usual `balanceSim` caveat and another reason the engine
+     * harness is the authority (see docs/PROPOSALS.md on retiring this file).
+     */
+    delta.singledOut = true;
   }
 
   if (rel.stage === 'reckless') delta.strain = (delta.strain ?? 0) + 5;
@@ -156,6 +170,7 @@ export function runPlaythrough({
             locationLabel: locationId,
             presentIds,
             dormWitnessIds,
+            singledOut: Boolean(delta.singledOut),
           },
           subject: { id: targetId, name: target.name },
           cast,

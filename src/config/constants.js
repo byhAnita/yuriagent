@@ -233,25 +233,45 @@ export const SNOOP_COST_MAX_MULTIPLIER = 2.5;
 
 // --- group scenes (CLAUDE.md section 10c) -----------------------------------
 /**
- * What it takes for somebody who is not being addressed to cut in.
+ * A second voice has two reasons to exist, and conflating them was a bug.
  *
- * A threshold rather than a probability, because the failure mode is prose and
- * not a distribution: an interjection every turn is a scene where nobody
- * finishes a sentence. Something has to have HAPPENED.
+ * The first build had exactly one bar, priced for jealousy, and the arithmetic
+ * made ordinary conversation structurally impossible: a week-1 bystander at
+ * intimacy 10 who had said nothing for four turns scored 0.66 against a bar of
+ * 1.0, so the ONLY thing that could ever produce a second voice was a jealousy
+ * band. Five women in a practice room either sat in silence or sniped at each
+ * other, and there was no third option anywhere in the number.
  *
- * UNMEASURED. This is the one number in the group-scene design that cannot be
- * reasoned to, and it needs a live pass rather than a harness one - the same
- * status RISK_PAYOFF_SCALE had before it was measured. Expect it to move.
+ * So there are two bars now, and they answer different questions:
+ *
+ *   CHIME  - does somebody have something to add? Priced on silence, because a
+ *            member who never speaks stops being in the room. Warm by default:
+ *            these are five people who have worked together for years.
+ *   CUT_IN - is somebody unsettled enough to interrupt ABOUT the player? Priced
+ *            on jealousy, and gated on actually being in a jealousy band, so it
+ *            stays the exception it was always described as.
+ *
+ * Keeping them separate is what lets the room be lively and warm without
+ * making it jealous, which is the whole complaint the split came from.
  */
 export const INTERJECT_THRESHOLD = 1.0;
+
+/**
+ * Which bands may cut in at all.
+ *
+ * `piqued` is deliberately excluded even though it scores 0.5. Section 5b calls
+ * piqued an OPPORTUNITY rather than a tax - she probes, and noticing it is one
+ * of the strongest intimacy gains in the game. Letting her interrupt about it
+ * spends the moment before the player can read it.
+ */
+export const CUT_IN_BANDS = ['sharp', 'corrosive'];
 
 /**
  * What makes a bystander want to speak.
  *
  * Four sources, not one. She cuts in because she is invested, because she is
  * unsettled, because she was just talked about, or because she has been
- * standing there saying nothing - and the last matters most for how a scene
- * reads, since a member who never speaks stops being in the room at all.
+ * standing there saying nothing.
  */
 export const INTERJECT_STAKE = {
   intimacy: 0.6,
@@ -259,6 +279,26 @@ export const INTERJECT_STAKE = {
   mentioned: 0.7,
   perSilentTurn: 0.15,
 };
+
+/**
+ * What makes a bystander want to join in - no jealousy term anywhere in it.
+ *
+ * Silence dominates, and that is what makes the room circulate on its own:
+ * whoever speaks has her counter reset, so the next chime goes to somebody
+ * else without any rota deciding it. Two quiet turns clears the bar exactly,
+ * which scales with room size for free - a five-member room nearly always has
+ * somebody at two, a two-member one alternates, and neither needed a rule.
+ *
+ * Being named is worth most of a turn of silence on its own, because being
+ * talked about is the most natural reason in the world to speak up.
+ */
+export const CHIME_STAKE = {
+  intimacy: 0.25,
+  mentioned: 0.6,
+  perSilentTurn: 0.45,
+};
+
+export const CHIME_THRESHOLD = 0.9;
 
 // --- shared dorm activities (PROPOSALS 15) ----------------------------------
 /**

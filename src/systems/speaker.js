@@ -26,7 +26,13 @@
  * No model call anywhere in this file. It decides WHO; the prompt decides what.
  */
 
-import { INTERJECT_THRESHOLD, INTERJECT_STAKE } from '../config/constants.js';
+import {
+  INTERJECT_THRESHOLD,
+  INTERJECT_STAKE,
+  CUT_IN_BANDS,
+  CHIME_STAKE,
+  CHIME_THRESHOLD,
+} from '../config/constants.js';
 import { jealousyBand } from './jealousy.js';
 
 /**
@@ -62,32 +68,86 @@ export function rankBystanders(addresseeId, presentIds = [], context = {}) {
 }
 
 /**
- * Should anybody cut in, and who?
+ * Should anybody cut in ABOUT THE PLAYER, and who?
  *
- * A threshold rather than a probability, because the failure mode here is prose
- * and not a distribution: an interjection every turn is a scene in which nobody
- * finishes a sentence. Something has to have HAPPENED for someone to speak up.
- *
- * The threshold is a named constant and belongs to a live pass, not a harness
- * one - the same status `RISK_PAYOFF_SCALE` had before it was measured.
+ * Gated on the jealousy band and not only on the score, which is the change
+ * that makes this the exception it was always described as. Before it, the
+ * jealousy term was simply the largest number in the formula and a cut-in was
+ * the only second voice the arithmetic could ever produce.
  */
 export function pickInterjector(addresseeId, presentIds = [], context = {}) {
-  const ranked = rankBystanders(addresseeId, presentIds, context);
-  const top = ranked[0];
+  const { relations = {} } = context;
+  const unsettled = (id) => CUT_IN_BANDS.includes(jealousyBand(relations[id]?.jealousy ?? 0));
+
+  const top = rankBystanders(addresseeId, presentIds, context).filter((b) => unsettled(b.id))[0];
   if (!top || top.stake < INTERJECT_THRESHOLD) return null;
   return top.id;
+}
+
+/**
+ * How much she has to ADD - as distinct from how much she has to resent.
+ *
+ * No jealousy term, on purpose. This is five people who have shared a dorm and
+ * a stage for years talking about the choreography, and the reason somebody
+ * joins in is that she has been quiet, or that she was just named, not that she
+ * is upset with anybody.
+ */
+export function chimeStake(memberId, { relations = {}, mentioned = [], silentTurns = {} } = {}) {
+  const rel = relations[memberId];
+  if (!rel) return 0;
+
+  const invested = ((rel.intimacy ?? 0) / 100) * CHIME_STAKE.intimacy;
+  const named = mentioned.includes(memberId) ? CHIME_STAKE.mentioned : 0;
+  const quiet = Math.min(silentTurns[memberId] ?? 0, 4) * CHIME_STAKE.perSilentTurn;
+
+  return invested + named + quiet;
+}
+
+/**
+ * Who, if anyone, speaks second - and in which of the two registers.
+ *
+ * Order matters and is not arbitrary: a member who is genuinely unsettled cuts
+ * in INSTEAD of chiming, because the same beat cannot be both warm and pointed
+ * and the sharper one is the rarer, more interesting event. Everything else
+ * falls through to a chime.
+ *
+ * Returns `null` when the room has nothing to add, which is a real outcome and
+ * not a failure - two people finishing an exchange without a third voice is
+ * how a conversation is supposed to sound some of the time.
+ */
+export function pickSecondVoice(addresseeId, presentIds = [], context = {}) {
+  const cutIn = pickInterjector(addresseeId, presentIds, context);
+  if (cutIn) return { id: cutIn, kind: 'cut_in' };
+
+  const top = presentIds
+    .filter((id) => id !== addresseeId)
+    .map((id) => ({ id, stake: chimeStake(id, context) }))
+    .sort((a, b) => b.stake - a.stake || (a.id < b.id ? -1 : 1))[0];
+
+  if (!top || top.stake < CHIME_THRESHOLD) return null;
+  return { id: top.id, kind: 'chime' };
 }
 
 /**
  * Who speaks when the player passes rather than saying anything.
  *
  * `pass` is not a skip button - it is the player letting the room breathe, so
- * somebody has to fill the silence, and the highest stake fills it whether or
- * not it clears the interjection bar. Falls back to the addressee in a room
- * with nobody else in it.
+ * somebody fills the silence whether or not she clears either bar.
+ *
+ * Ranked by CHIME stake, not by the jealousy-weighted one. The player stepping
+ * back is the most ordinary moment in a group scene and it should hand the
+ * floor to whoever has been quiet, not to whoever is most upset - ranking it
+ * by resentment is how "let the room carry it" turned into "let the room have
+ * a go at you". Somebody genuinely at `sharp` still takes it, because jealousy
+ * also drives the silence counter she has been sitting on.
  */
 export function pickOnPass(addresseeId, presentIds = [], context = {}) {
-  return rankBystanders(addresseeId, presentIds, context)[0]?.id ?? addresseeId;
+  const others = presentIds.filter((id) => id !== addresseeId);
+  if (others.length === 0) return addresseeId;
+
+  return others
+    .map((id) => ({ id, stake: chimeStake(id, context) }))
+    .sort((a, b) => b.stake - a.stake || (a.id < b.id ? -1 : 1))[0].id;
 }
 
 /**

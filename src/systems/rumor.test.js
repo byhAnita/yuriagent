@@ -121,7 +121,9 @@ describe('propagate', () => {
   });
 
   it('a present member witnesses directly, with no roll and a bigger hit', () => {
-    const group = { ...scene, presentIds: ['irene', 'nana'] };
+    // `singledOut` because co-presence alone no longer buys a witnessed event -
+    // see `witnessed.test.js`, which owns that rule.
+    const group = { ...scene, presentIds: ['irene', 'nana'], singledOut: true };
     const { rumors, jealousyDeltas } = propagate({
       scene: group,
       subject,

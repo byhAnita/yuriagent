@@ -309,12 +309,13 @@ export default {
   },
 
   gift: {
-    title: '你怎么进门',
-    generic: '随手带点什么',
+    title: '递过去，或者提起来',
+    who: '给谁',
+    generic: '随手带的东西',
     knowledge: '只有你会想到带的东西',
     locked: '还不够了解',
     hint: '当她说出值得记住的事，这些才会打开。',
-    skip: '就这样进去',
+    skip: '先不用',
     gesture: '只有你会想到说的话',
     free: '免费',
     iced_coffee: '冰美式',
@@ -453,6 +454,7 @@ export default {
     send: '发送',
     readHer: '读心',
     pass: '不接话',
+    give: '送礼 / 提起',
     turnTo: '转向 {name}',
     leave: '离开',
     thinking: '……',
@@ -468,6 +470,7 @@ export default {
     outOfTurns: '这个时段结束了。',
     risk: '会被看见',
     continue: '她还没说完',
+    roomSpeaking: '旁边有人接话',
   },
 
   dev: { scaffold: 'M0 脚手架', castLoaded: '角色', tokenCheck: '样式变量检查' },

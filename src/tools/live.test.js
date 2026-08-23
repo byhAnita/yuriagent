@@ -142,7 +142,7 @@ describe.skipIf(!enabled)('live provider', () => {
 
       // Turn 1: cold prefix, opening beat.
       let session = beginScene(args);
-      session = await runTurn(session, { text: openingDirective(false), client });
+      session = await runTurn(session, { text: openingDirective(), client });
 
       log('\n[live] --- opening beat ---');
       for (const b of session.beats) {

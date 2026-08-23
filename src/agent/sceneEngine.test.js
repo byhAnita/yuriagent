@@ -12,7 +12,6 @@ import {
   runTurn,
   readHer,
   endScene,
-  openWithGift,
   markRisk,
   computeDeltas,
   newMeters,
@@ -143,8 +142,11 @@ describe('a scene, end to end', () => {
 
     let session = beginScene(args);
     const prefix = prefixOf(session.frame);
-    session = openWithGift(session, 'the player gave Irene a hand warmer');
-    session = await runTurn(session, { stance: 'reassure', client });
+    session = await runTurn(session, {
+      note: 'the player gave Irene a hand warmer',
+      stance: 'reassure',
+      client,
+    });
 
     expect(prefixOf(session.frame)).toBe(prefix);
     const sent = client.seen[0].messages;

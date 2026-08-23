@@ -17,6 +17,8 @@ import {
   turnTo,
   speakerOnPass,
   interjectionDirective,
+  chimeDirective,
+  secondVoiceDirective,
 } from './sceneEngine.js';
 import { newMemory } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
@@ -243,6 +245,125 @@ describe('somebody cuts in', () => {
   });
 });
 
+/**
+ * Reported from play: "avoid becoming your chat, others are silent", and
+ * separately that the cast were too hostile to each other for five women who
+ * have shared a dorm for years.
+ *
+ * Both were the same defect. There was one bar and it was priced for jealousy,
+ * so the arithmetic made ordinary conversation impossible: a week-1 bystander
+ * at intimacy 10 who had been quiet for four turns scored 0.66 against a bar of
+ * 1.0, and the jealousy term was the only thing in the formula big enough to
+ * clear it on its own. A group scene could therefore be silent or it could be
+ * jealous, and there was no third setting anywhere in the number.
+ *
+ * Two bars now. This block is the one that did not exist.
+ */
+describe('the room joins in', () => {
+  const quiet = (memberId, turns) => {
+    const relations = relationsWith(memberId, {});
+    const opened = beginScene(setup({ relations }));
+    return { relations, session: { ...opened, silentTurns: { [memberId]: turns } } };
+  };
+
+  it('lets somebody with no jealousy at all join in on the topic', async () => {
+    const { relations, session } = quiet('nana', 2);
+
+    const { interjectorId, kind } = await interject(session, {
+      client: says(BEAT('nana')),
+      relations,
+      cards,
+    });
+
+    expect(interjectorId).toBe('nana');
+    expect(kind).toBe('chime');
+  });
+
+  it('asks for a beat about the topic, not about the player', async () => {
+    const { relations, session } = quiet('nana', 3);
+    let sent = null;
+    const client = vi.fn(async ({ messages, onChunk }) => {
+      sent = messages.map((m) => m.content).join('\n');
+      onChunk?.(BEAT('nana'));
+      return BEAT('nana');
+    });
+
+    await interject(session, { client, relations, cards });
+
+    expect(sent).toContain('write one beat for Nana only');
+    expect(sent).toContain('joins in on what Irene and the player are talking about');
+    expect(sent).toContain('easy company');
+  });
+
+  /**
+   * The whole reason the chime directive says "easy company" out loud.
+   *
+   * Block 3 carries every present member's dossier and block 4 carries her
+   * standing, so a model handed a bare "another member speaks" at a scene with
+   * any jealousy in it will reliably write the jealousy. Naming the register is
+   * what keeps a warm room warm - and it must not name the alternative, for the
+   * same reason the cut-in never says "you are jealous".
+   */
+  it('never suggests she is upset about anything', () => {
+    const text = chimeDirective('Nana', 'Irene');
+    expect(text).not.toMatch(/jealous|upset|resent|attention|rival/i);
+    expect(text).toMatch(/agreeing|adding|teasing/);
+  });
+
+  it('is a different beat from a cut-in', () => {
+    expect(chimeDirective('Nana', 'Irene')).not.toBe(interjectionDirective('Nana', 'Irene'));
+    expect(secondVoiceDirective('cut_in', 'Nana', 'Irene')).toBe(
+      interjectionDirective('Nana', 'Irene'),
+    );
+    expect(secondVoiceDirective('chime', 'Nana', 'Irene')).toBe(chimeDirective('Nana', 'Irene'));
+  });
+
+  /**
+   * The sharp one wins. A beat cannot be both warm and pointed, and the rarer
+   * event is the more interesting one, so jealousy takes precedence over a
+   * quieter member who merely had something to add.
+   */
+  it('lets a genuinely unsettled member take it instead', async () => {
+    const relations = Object.fromEntries(
+      ids.map((id) => [
+        id,
+        { ...newRelation(20), ...(id === 'jisoo' ? { intimacy: 60, jealousy: 70 } : {}) },
+      ]),
+    );
+    const opened = beginScene(setup({ relations }));
+    const session = { ...opened, silentTurns: { nana: 4, jisoo: 0 } };
+
+    const { interjectorId, kind } = await interject(session, {
+      client: says(BEAT('jisoo')),
+      relations,
+      cards,
+    });
+
+    expect(interjectorId).toBe('jisoo');
+    expect(kind).toBe('cut_in');
+  });
+
+  /**
+   * Section 5b calls `piqued` an OPPORTUNITY rather than a tax - she probes,
+   * and the player noticing it is one of the strongest intimacy gains in the
+   * game. Letting her interrupt about it spends the moment before the player
+   * can read it, so she may join in but she may not cut in.
+   */
+  it('does not let a merely piqued member cut in', async () => {
+    const relations = relationsWith('nana', { intimacy: 60, jealousy: 30 });
+    const opened = beginScene(setup({ relations }));
+    const session = { ...opened, silentTurns: { nana: 3 } };
+
+    const { kind } = await interject(session, {
+      client: says(BEAT('nana')),
+      relations,
+      cards,
+    });
+
+    expect(kind).toBe('chime');
+  });
+});
+
 describe('the room notices', () => {
   it('counts being named as a reason to speak up', async () => {
     const session = await runTurn(beginScene(setup()), {
@@ -336,10 +457,10 @@ describe('an evening with all of them', () => {
     return base;
   };
 
-  const play = async (base) => {
+  const play = async (base, stance = 'joke') => {
     let session = beginScene(base);
     session = await runTurn(session, {
-      stance: 'joke',
+      stance,
       text: '',
       client: says(BEAT('irene')),
       cast: cards,
@@ -387,13 +508,33 @@ describe('an evening with all of them', () => {
     expect(out.relations.hyewon.intimacy).toBe(base.relations.hyewon.intimacy);
   });
 
-  /** The same evening without the flag is the expensive one it always was. */
-  it('still costs the earth without the flag', async () => {
+  /**
+   * The same evening without the flag, in which the player actually makes a
+   * move, is the expensive one it always was.
+   *
+   * `confide` and not `joke`, and that is the assertion rather than a detail.
+   * Being in the room together stopped being an event of its own - what buys a
+   * witnessed hit is an overt move somebody could describe, and this test is
+   * the only place the whole join is exercised: `runTurn` sets `singledOut`
+   * from the stance, `endScene` passes it to `propagate`, `propagate` prices
+   * it. Three correct halves with nothing calling between them is this
+   * project's characteristic bug, so the test crosses all three seams.
+   */
+  it('still costs the earth when the player makes a move', async () => {
     const base = sharedSetup();
     delete base.scene.shared;
-    const out = await play(base);
+    const out = await play(base, 'confide');
 
     expect(out.rumors.length).toBeGreaterThan(0);
     expect(out.rumors.every((r) => r.witnessed)).toBe(true);
+  });
+
+  /** ...and the same room, same people, where the player only talked. */
+  it('costs nothing when the player only talked', async () => {
+    const base = sharedSetup();
+    delete base.scene.shared;
+    const out = await play(base, 'joke');
+
+    expect(out.rumors).toEqual([]);
   });
 });

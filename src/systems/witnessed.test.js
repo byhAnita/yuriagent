@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { witnessedExposure, sceneExposure } from './exposure.js';
-import { propagate, WEIGHT_WITNESSED, WEIGHT_RUMOR } from './rumor.js';
+import { propagate, WEIGHT_WITNESSED, WEIGHT_RUMOR, WEIGHT_PRESENT } from './rumor.js';
 import { newRelation } from './relationship.js';
 import { jealousyGain } from './jealousy.js';
 import { isRiskStance } from './chips.js';
@@ -61,6 +61,14 @@ describe('the others in the room take the jealousy', () => {
     phase: 'prep',
     locationId: 'practice_room',
     presentIds: ['irene', 'nana', 'jisoo'],
+    /**
+     * The player reached for her in front of the other two.
+     *
+     * Standing in a room together is no longer an event on its own - something
+     * has to have happened that the room could name. The block at the bottom of
+     * this file covers the other half.
+     */
+    singledOut: true,
   };
   const rng = () => 0.99; // no hearsay roll ever succeeds
 
@@ -102,6 +110,98 @@ describe('the others in the room take the jealousy', () => {
     expect(jealousyGain(WEIGHT_WITNESSED, deep)).toBeGreaterThan(
       jealousyGain(WEIGHT_WITNESSED, shallow),
     );
+  });
+});
+
+/**
+ * Being in the room together is not, by itself, an event.
+ *
+ * Reported from play: a practice-room scene with all five of them, in which the
+ * player did nothing but talk, handed the other four a full witnessed jealousy
+ * hit each - the heaviest event in the game, for a conversation about the
+ * choreography. Every group scene therefore ended with the cast resenting each
+ * other, which is bad fiction and the opposite of what a group scene is for.
+ *
+ * The rule that replaces it is the one section 6 already uses for what a
+ * witness can DESCRIBE: an overt move toward one of them - a risk stance, a
+ * gift, a gesture. The turn loop sets `singledOut`; this asserts both sides.
+ */
+describe('a room full of people is not itself a gesture', () => {
+  const room = {
+    exposure: 25,
+    phase: 'prep',
+    locationId: 'practice_room',
+    presentIds: ['irene', 'nana', 'jisoo'],
+  };
+  const call = (scene) =>
+    propagate({
+      scene,
+      subject: { id: 'irene', name: 'Irene' },
+      cast,
+      relations,
+      rng: () => 0.99,
+    });
+
+  /**
+   * "Should not raise jealousy, or only raise a little" - which is a third
+   * tier, not zero. Watching the player spend the evening with Irene is not
+   * nothing; it is simply not the same as watching the player reach for her.
+   */
+  it('costs a little when the player only talked', () => {
+    const out = call(room);
+    expect(out.jealousyDeltas.nana).toBe(jealousyGain(WEIGHT_PRESENT, relations.nana));
+    expect(out.jealousyDeltas.nana).toBeLessThan(jealousyGain(WEIGHT_RUMOR, relations.nana));
+  });
+
+  /**
+   * ...and writes nothing down. `heard_about` is for things she found out, and
+   * it is a four-entry FIFO - a note every group scene saying she was in the
+   * room would flush anything that actually mattered out of it.
+   */
+  it('writes no rumor for having been in the room', () => {
+    expect(call(room).rumors).toHaveLength(0);
+  });
+
+  it('gives everybody watching the full hit the moment the player picks one', () => {
+    const out = call({ ...room, singledOut: true });
+    expect(out.rumors).toHaveLength(2);
+    expect(out.jealousyDeltas.nana).toBe(jealousyGain(WEIGHT_WITNESSED, relations.nana));
+  });
+
+  it('makes the overt move several times the price of the conversation', () => {
+    const quiet = call(room).jealousyDeltas.nana;
+    const overt = call({ ...room, singledOut: true }).jealousyDeltas.nana;
+    expect(overt).toBeGreaterThan(quiet * 4);
+  });
+
+  /**
+   * The point of the rule is not to make group scenes safe. A gesture in front
+   * of the others is still the loudest single act in the game - it now simply
+   * requires an act, and the difference between the two calls above is the
+   * whole of what a player is deciding when they reach for her in company.
+   */
+  it('keeps the group scene the most expensive place to make a move', () => {
+    const alone = call({ ...room, presentIds: ['irene'], singledOut: true });
+    const watched = call({ ...room, singledOut: true });
+    expect(Object.keys(alone.jealousyDeltas)).toHaveLength(0);
+    expect(Object.keys(watched.jealousyDeltas)).toHaveLength(2);
+  });
+
+  /**
+   * Hearsay is untouched. Being SEEN at the cafe together is news whatever was
+   * said there, which is what makes exposure the outward-facing axis - the new
+   * rule is about the room, not about the world.
+   */
+  it('does not gate the outward rumor on it', () => {
+    const out = propagate({
+      scene: { exposure: 90, phase: 'comeback', locationId: 'cafe', presentIds: ['irene'] },
+      subject: { id: 'irene', name: 'Irene' },
+      cast,
+      relations,
+      rng: () => 0.01,
+    });
+    expect(out.rumors.length).toBeGreaterThan(0);
+    expect(out.rumors.every((r) => !r.witnessed)).toBe(true);
   });
 });
 

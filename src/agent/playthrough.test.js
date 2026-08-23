@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runTurn, endScene, openingDirective, openWithGift } from './sceneEngine.js';
+import { beginScene, runTurn, endScene, openingDirective } from './sceneEngine.js';
 import { newMemory, addDossierEntry, appendLedger } from './memory.js';
 import { createMockClient } from '../tools/mockClient.js';
 import { getCast } from '../data/cast.js';
@@ -359,12 +359,25 @@ async function playCampaign({
         relations,
         scene,
       });
-      if (note) session = openWithGift(session, note);
-
-      session = await runTurn(session, { text: openingDirective(Boolean(note)), client });
+      session = await runTurn(session, { text: openingDirective(), client });
 
       const turns = eventHere ? SCENE_TURN_LIMITS.event : turnsPerScene;
       for (let t = 0; t < turns; t += 1) {
+        /**
+         * The opener is a TURN now, not a thing carried in through the door.
+         *
+         * The harness has to spend it the way the game does or it stops
+         * measuring the game: an opener costs one of the eight turns, lands
+         * mid-conversation, and sets `singledOut`. Spent on the second turn
+         * rather than the first, because the whole argument for moving it is
+         * that a gift means more once the scene is about something.
+         */
+        if (note && t === 1) {
+          session = await runTurn(session, { note, client });
+          note = null;
+          continue;
+        }
+
         const { available } = availableStances(relations[targetId], { energy: player.energy });
         // A bold player takes the overt move whenever the room allows it; that
         // is the whole bet, and it is the only thing that moves admissibility.

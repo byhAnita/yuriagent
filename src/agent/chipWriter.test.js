@@ -230,7 +230,7 @@ describe('the request never touches the transcript', () => {
   it('leaves block 5 exactly as it was', async () => {
     const client = createMockClient({ seed: 4, delay: 0 });
     let session = beginScene(setup());
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
 
     const before = buildMessages(session.frame);
     const asked = chipMessages(session.frame, { stances: ['tease', 'deflect'], lang: 'en' });
@@ -250,7 +250,7 @@ describe('end to end against the offline writer', () => {
   it('comes back with three labelled, legal chips', async () => {
     const client = createMockClient({ seed: 11, delay: 0 });
     let session = beginScene(setup());
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
 
     const r = rel();
     const { available } = availableStances(r, { energy: 80 });

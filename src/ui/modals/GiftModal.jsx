@@ -1,10 +1,20 @@
 /**
- * How the scene opens. CLAUDE.md section 11.
+ * Handing something over, or bringing something up. CLAUDE.md section 11.
  *
- * Locked knowledge gifts are SHOWN, not hidden. Seeing that there is something
- * you could give her if you knew her better is the pull that makes the dossier
- * feel like a mechanic instead of plumbing - and it tells the player, without a
- * tutorial, that paying attention during dialogue is how the strong moves open.
+ * This used to be a screen that stood between the map and the scene, and it was
+ * wrong in three ways at once:
+ *
+ * 1. It fired at the door of EVERY scene, including group scenes, so the player
+ *    was asked "what are you giving her" before they had been given any reason
+ *    to want to give anybody anything.
+ * 2. In a group scene it asked WHO before showing who was in the room.
+ * 3. Whatever it produced became the first thing that happened, so the scene
+ *    could never be about anything before it was about the gift. Every knowledge
+ *    opener landed on a cold open.
+ *
+ * It is a turn now. The player talks to her, and at some point in that
+ * conversation brings up the thing she once let slip - which is when a person
+ * would actually do it, and which makes the topic TURN rather than start there.
  */
 
 import { giftsFor } from '../../systems/economy.js';
@@ -61,6 +71,21 @@ export default function GiftModal({
   stock = {},
   credits,
   usedGestures = [],
+  /**
+   * Everyone in the room who may be handed something, and how to change who.
+   *
+   * Empty in a 1v1, which is the common case and renders exactly what it always
+   * did. In a group scene the strip is the answer to "choose character first" -
+   * and it defaults to the current addressee, so the sticky choice the player
+   * already made carries over and most of the time there is nothing to pick.
+   *
+   * Handing something to somebody else also MOVES the addressee (VNStage does
+   * it), because a gift is a way of addressing someone - proposal 12's one verb,
+   * two surfaces. Choosing here and then talking to somebody else would be two
+   * different notions of who the player is with.
+   */
+  roster = [],
+  onChoose = () => {},
   onPick,
   onGesture,
   onSkip,
@@ -99,6 +124,46 @@ export default function GiftModal({
         <p className="mb-3 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
           {t('gift.title')}
         </p>
+
+        {roster.length > 1 ? (
+          <>
+            <h3 className="mb-1.5 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
+              {t('gift.who')}
+            </h3>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {roster.map((m) => {
+                const active = m.id === card.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onChoose(m.id)}
+                    aria-pressed={active}
+                    className="flex min-h-11 items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1.5 transition-colors"
+                    style={{
+                      borderColor: active ? m.palette.base : 'var(--hairline)',
+                      background: active ? 'var(--surface-alt)' : 'transparent',
+                    }}
+                  >
+                    <span
+                      className="grid h-6 w-6 place-items-center rounded-full text-[0.8125rem]"
+                      style={{ background: m.palette.base, color: m.palette.accent }}
+                    >
+                      {m.emoji}
+                    </span>
+                    <span
+                      className={`font-mono text-[0.5625rem] uppercase tracking-[0.1em] ${
+                        active ? 'text-text' : 'text-dim'
+                      }`}
+                    >
+                      {m.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : null}
 
         <h3 className="mb-1.5 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
           {t('gift.generic')}

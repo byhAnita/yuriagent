@@ -84,6 +84,46 @@ describe('starting a run', () => {
   });
 });
 
+/**
+ * Reported after the first day of play: the gift panel opened at the door of
+ * every scene, group scenes included.
+ *
+ * Walking into a room now goes straight to the scene, and the opener is a move
+ * the player makes during it - which is also when a person would actually make
+ * it. `ui/vn/Opener.dom.test.jsx` covers the inside of the scene; this asserts
+ * only that nothing stands between the map and her.
+ */
+describe('walking into a room', () => {
+  it('goes straight to her, with nothing in between', async () => {
+    await startARun('Yuhan');
+
+    const member = screen
+      .getAllByRole('button')
+      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+    expect(member).toBeTruthy();
+    await userEvent.click(member);
+
+    // The scene, not a shop. `vn.turnsLeft` is on the chip bar and nowhere else.
+    await waitFor(() => expect(screen.getByText(t('vn.turnsLeft'), { exact: false })).toBeTruthy(), {
+      timeout: 10000,
+    });
+    expect(screen.queryByText(t('gift.title'))).toBeNull();
+  }, 15000);
+
+  it('offers the opener inside the scene instead', async () => {
+    await startARun('Yuhan');
+
+    const member = screen
+      .getAllByRole('button')
+      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+    await userEvent.click(member);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: t('vn.give') })).toBeTruthy(), {
+      timeout: 10000,
+    });
+  }, 15000);
+});
+
 describe('picking a run back up', () => {
   it('offers a continue once a save exists, and lands on the day screen', async () => {
     await startARun('Yuhan');

@@ -17,7 +17,29 @@ import { LOCATIONS } from '../data/locations.js';
 import { jealousyGain } from './jealousy.js';
 import { clamp } from './rng.js';
 
-/** Direct observation is worth far more than hearsay. */
+/**
+ * Three tiers, not two, and the middle one is the one that was missing.
+ *
+ * `witnessed` used to fire on mere co-presence, so an afternoon in the practice
+ * room where the player talked to Irene about the choreography handed the other
+ * four the heaviest event in the game each. Five women who have shared a dorm
+ * for years came out of every group scene resenting one another.
+ *
+ * But zero is wrong too. Watching the player spend every evening with Irene is
+ * not nothing - it is simply not the same as watching the player reach for her.
+ * So:
+ *
+ *   PRESENT   - she was in the room while the player spent it on somebody else.
+ *               The lightest thing in the model, lighter even than hearsay,
+ *               because there is nothing furtive about it: she was right there,
+ *               and it was a conversation.
+ *   RUMOR     - she found out afterwards. More charged than watching, because
+ *               finding out is itself a small betrayal of not being told.
+ *   WITNESSED - she watched the player make an overt move: a risk stance, a
+ *               gift, a gesture. What a witness could DESCRIBE, which is the
+ *               same test section 6 uses for what may move admissibility.
+ */
+export const WEIGHT_PRESENT = 0.5;
 export const WEIGHT_RUMOR = 1;
 export const WEIGHT_WITNESSED = 2.5;
 
@@ -88,7 +110,10 @@ export function phraseApproach(subjectName) {
  * can hold the dice fixed while coefficients move.
  *
  * @param {object} args
- *   scene    - { exposure, phase, locationLabel, presentIds, locationId }
+ *   scene    - { exposure, phase, locationLabel, presentIds, locationId,
+ *                singledOut } - `singledOut` is whether the player made an
+ *                overt move toward the subject in front of the room. Without
+ *                it, being present buys nobody a witnessed event.
  *   subject  - { id, name } the member the scene was actually with
  *   cast     - [{ id, name }]
  *   relations- { [id]: relation }
@@ -115,7 +140,31 @@ export function propagate({ scene, subject, cast, relations, rng }) {
      */
     if (scene.shared && present.has(member.id)) continue;
 
-    // Present in the room: direct observation, no roll.
+    /**
+     * She was in the room, and nothing happened that she could name.
+     *
+     * A small amount of pressure and NO dossier entry. `heard_about` is for
+     * things she found out; she does not need a note reminding her she was
+     * standing there. Writing one every group scene would also flush the
+     * four-entry FIFO of anything that actually mattered.
+     *
+     * `singledOut` is set by the turn loop when the player makes an overt move
+     * toward one member in front of the others: a risk stance, a gift, or a
+     * gesture. Below that bar this is what a group scene costs.
+     */
+    if (present.has(member.id) && !scene.singledOut) {
+      jealousyDeltas[member.id] = jealousyGain(WEIGHT_PRESENT, rel);
+      continue;
+    }
+
+    /**
+     * Present in the room, and the player made a move.
+     *
+     * Section 5b's claim that a group scene is the highest-risk,
+     * highest-reward place in the game is untouched - this is still the
+     * loudest single act available, at five times the weight of simply being
+     * in the room together. It now requires an act.
+     */
     if (present.has(member.id)) {
       const exposure = Math.max(scene.exposure, WITNESS_EXPOSURE_FLOOR);
       rumors.push({

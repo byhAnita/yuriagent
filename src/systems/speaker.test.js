@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   stakeOf,
+  chimeStake,
   rankBystanders,
   pickInterjector,
+  pickSecondVoice,
   pickOnPass,
   setAddressee,
   openingAddressee,
@@ -109,10 +111,102 @@ describe('pickInterjector', () => {
 });
 
 /**
+ * Two bars, because a room has two reasons to speak.
+ *
+ * The single jealousy-priced bar could not produce ordinary conversation at
+ * any setting - see the block comment in `constants.js`. These tests exist to
+ * stop it collapsing back into one.
+ */
+describe('pickSecondVoice', () => {
+  it('says nothing when nobody has anything to add', () => {
+    const relations = { irene: rel({ intimacy: 30 }), nana: rel({ intimacy: 30 }) };
+    expect(pickSecondVoice('irene', ['irene', 'nana'], ctx(relations))).toBeNull();
+  });
+
+  it('lets a member with no jealousy whatever join in once she has been quiet', () => {
+    const relations = { irene: rel({ intimacy: 30 }), nana: rel({ intimacy: 10, jealousy: 0 }) };
+    const out = pickSecondVoice(
+      'irene',
+      ['irene', 'nana'],
+      ctx(relations, { silentTurns: { nana: 2 } }),
+    );
+    expect(out).toEqual({ id: 'nana', kind: 'chime' });
+  });
+
+  /**
+   * The number the whole complaint turned on. This exact case - week 1, no
+   * jealousy anywhere, somebody who has not spoken in four turns - scored 0.66
+   * against a bar of 1.0 under the old formula, so five people in a practice
+   * room produced one voice and four spectators.
+   */
+  it('answers the case the old single bar could not', () => {
+    const relations = { irene: rel({ intimacy: 10 }), nana: rel({ intimacy: 10 }) };
+    const context = ctx(relations, { silentTurns: { nana: 4 } });
+    expect(stakeOf('nana', context)).toBeLessThan(INTERJECT_THRESHOLD);
+    expect(pickSecondVoice('irene', ['irene', 'nana'], context).kind).toBe('chime');
+  });
+
+  it('has no jealousy term in it at all', () => {
+    const calm = { irene: rel({ intimacy: 40 }), nana: rel({ intimacy: 40, jealousy: 0 }) };
+    const sharp = { irene: rel({ intimacy: 40 }), nana: rel({ intimacy: 40, jealousy: 60 }) };
+    expect(chimeStake('nana', ctx(calm))).toBe(chimeStake('nana', ctx(sharp)));
+  });
+
+  it('circulates: whoever has been quietest takes it', () => {
+    const relations = { irene: rel(), nana: rel({ intimacy: 90 }), jisoo: rel({ intimacy: 10 }) };
+    const out = pickSecondVoice(
+      'irene',
+      room,
+      ctx(relations, { silentTurns: { nana: 0, jisoo: 3 } }),
+    );
+    expect(out.id).toBe('jisoo');
+  });
+
+  it('gives an unsettled member the sharper register instead', () => {
+    const relations = {
+      irene: rel({ intimacy: 40 }),
+      nana: rel({ intimacy: 40, jealousy: 0 }),
+      jisoo: rel({ intimacy: 60, jealousy: 70 }),
+    };
+    const out = pickSecondVoice('irene', room, ctx(relations, { silentTurns: { nana: 4 } }));
+    expect(out).toEqual({ id: 'jisoo', kind: 'cut_in' });
+  });
+
+  it('keeps piqued out of the cut-in, because piqued is an opportunity', () => {
+    const relations = { irene: rel({ intimacy: 40 }), nana: rel({ intimacy: 80, jealousy: 35 }) };
+    const context = ctx(relations, { silentTurns: { nana: 2 } });
+    expect(pickInterjector('irene', ['irene', 'nana'], context)).toBeNull();
+    expect(pickSecondVoice('irene', ['irene', 'nana'], context).kind).toBe('chime');
+  });
+
+  it('never puts a second voice in a room with one person in it', () => {
+    const relations = { irene: rel({ intimacy: 99, jealousy: 99 }) };
+    expect(pickSecondVoice('irene', ['irene'], ctx(relations))).toBeNull();
+  });
+});
+
+/**
  * `pass` is not a skip button - it is the player letting the room breathe, so
- * somebody fills the silence whether or not they cleared the interjection bar.
+ * somebody fills the silence whether or not they cleared either bar.
  */
 describe('pickOnPass', () => {
+  /**
+   * Ranked by chime stake and not by the jealousy-weighted one.
+   *
+   * The player stepping back is the most ordinary moment in a group scene, and
+   * handing the floor to whoever is angriest turns "let the room carry it" into
+   * "let the room have a go at you" - which is the tone complaint again, in the
+   * one place the player asked for the pressure to come off.
+   */
+  it('hands it to whoever has been quiet, not to whoever is angriest', () => {
+    const relations = {
+      irene: rel(),
+      nana: rel({ intimacy: 20, jealousy: 80 }),
+      jisoo: rel({ intimacy: 20 }),
+    };
+    expect(pickOnPass('irene', room, ctx(relations, { silentTurns: { jisoo: 4 } }))).toBe('jisoo');
+  });
+
   it('always returns somebody', () => {
     const relations = { irene: rel(), nana: rel(), jisoo: rel() };
     expect(room).toContain(pickOnPass('irene', room, ctx(relations)));

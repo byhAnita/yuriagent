@@ -103,7 +103,15 @@ describe('the summarizer writes twice: once for memory, once for the player', ()
 
 describe('a rumor carries its shape, so the UI never has to print memory', () => {
   const out = propagate({
-    scene: { exposure: 20, phase: 'prep', locationId: 'practice_room', presentIds: cards.map((c) => c.id) },
+    scene: {
+      exposure: 20,
+      phase: 'prep',
+      locationId: 'practice_room',
+      presentIds: cards.map((c) => c.id),
+      // Co-presence alone no longer produces a witnessed rumor; the player has
+      // to have made a move. See `witnessed.test.js`.
+      singledOut: true,
+    },
     subject: { id: 'irene', name: 'Irene' },
     cast: cards,
     relations,

@@ -129,10 +129,24 @@ describe('nobody is being singled out', () => {
     expect(out.jealousyDeltas).toEqual({});
   });
 
-  /** ...and the same evening WITHOUT the flag is exactly what it always was. */
+  /**
+   * ...and the same evening in which the player DOES single somebody out is
+   * exactly what it always was.
+   *
+   * Note that this now needs `singledOut` as well as dropping `shared`, and the
+   * two flags answer different questions: `shared` says the ACTIVITY singled
+   * nobody out, `singledOut` says the PLAYER did.
+   *
+   * `shared` wins where they disagree, so an opener handed over during the film
+   * still costs nothing. That is deliberate and it is the weaker half of the
+   * rule - the dorm needs one thing that is unambiguously restorative, and a
+   * release valve with an asterisk on it is not one. Worth watching in play: if
+   * shared evenings become the cheap place to spend every opener, the fix is to
+   * let `singledOut` override, not to take the valve away.
+   */
   it('still costs the earth when somebody is singled out', () => {
     const out = propagate({
-      scene,
+      scene: { ...scene, singledOut: true },
       subject: { id: 'irene', name: 'Irene' },
       cast: cards,
       relations,

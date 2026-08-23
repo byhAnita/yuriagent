@@ -39,7 +39,6 @@ import VNStage from './ui/vn/VNStage.jsx';
 import Start from './ui/screens/Start.jsx';
 import Day from './ui/screens/Day.jsx';
 import Endings from './ui/screens/Endings.jsx';
-import GiftModal from './ui/modals/GiftModal.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
 import DateModal from './ui/modals/DateModal.jsx';
@@ -93,7 +92,6 @@ export default function App() {
 
   const [screen, setScreen] = useState('start');
   const [pendingScene, setPendingScene] = useState(null);
-  const [giftNote, setGiftNote] = useState(null);
 
   /**
    * Which knowledge gestures have been spent, for the whole run rather than the
@@ -415,7 +413,7 @@ export default function App() {
       presentIds: [offer.memberId],
       date: offer.kind,
     });
-    setScreen('gift');
+    setScreen('scene');
   };
 
   const onEnter = (locationId, present, addresseeId = null, { group = false } = {}) => {
@@ -455,7 +453,7 @@ export default function App() {
       event: here?.content ?? null,
       eventKey: here ? eventKey(here.phase, here.slot) : null,
     });
-    setScreen('gift');
+    setScreen('scene');
   };
 
   /**
@@ -483,7 +481,7 @@ export default function App() {
         makeRng(deriveSeed(SEED, `shared:${run.week}:${run.day}:${activity.id}`)),
       ),
     });
-    setScreen('gift');
+    setScreen('scene');
   };
 
   const scene = useMemo(() => {
@@ -590,11 +588,64 @@ export default function App() {
     setOutcome({ ...result, date: scene?.date ?? null, event: scene?.event ?? null });
     setSceneNo((n) => n + 1);
     setPendingScene(null);
-    setGiftNote(null);
     setScreen('after');
   };
 
-  const giftTarget = pendingScene ? cards.find((c) => c.id === pendingScene.rosterIds[0]) : null;
+  /**
+   * The knowledge economy, handed to the scene rather than gating entry to it.
+   *
+   * App still owns every number - credits, the dish counter, which gestures
+   * have been spent, the intimacy the opener is worth - and `VNStage` owns only
+   * when the player reaches for one. Both spend functions return the scene note
+   * on success and `null` on refusal, so the scene never has to know why an
+   * opener did not go through; it simply does not spend the turn.
+   *
+   * The intimacy lands here and not at scene exit on purpose. `computeDeltas`
+   * pays for what the SCENE did to her, and an opener is paid for by what the
+   * player knew and spent - two different currencies, and adding the gift to
+   * the scene's own delta would make a bought reaction indistinguishable from
+   * an earned one.
+   */
+  const openers = useMemo(() => {
+    const pay = (memberId, delta) =>
+      setRelations((rs) => ({
+        ...rs,
+        [memberId]: applySceneOutcome(rs[memberId], { intimacy: delta, good: true }),
+      }));
+
+    return {
+      credits: player.credits,
+      stock: { dishes: player.dishes ?? 0 },
+      usedGestures,
+      dossierFor: (id) => memory.dossier[id],
+
+      give: (giftId, card) => {
+        const bought = purchase(giftId, memory.dossier[card.id], player.credits, card.name, {
+          dishes: player.dishes ?? 0,
+        });
+        if (!bought) return null;
+
+        setPlayer((p) => ({
+          ...p,
+          credits: bought.credits,
+          ...(bought.spentStock
+            ? { [bought.spentStock]: Math.max(0, (p[bought.spentStock] ?? 0) - 1) }
+            : {}),
+        }));
+        pay(card.id, bought.intimacyDelta);
+        return bought.sceneNote;
+      },
+
+      say: (giftId, card) => {
+        const said = spendGesture(giftId, memory.dossier[card.id], usedGestures, card.name);
+        if (!said) return null;
+
+        setUsedGestures(said.usedGestures);
+        pay(card.id, said.intimacyDelta);
+        return said.sceneNote;
+      },
+    };
+  }, [player.credits, player.dishes, usedGestures, memory.dossier]);
 
   /**
    * The one moment the run's fixed inputs are set.
@@ -686,7 +737,6 @@ export default function App() {
     setUsedGestures([]);
     setFoundRumors([]);
     setPendingScene(null);
-    setGiftNote(null);
     setOutcome(null);
     setSolo(null);
     setAskedToday(null);
@@ -801,71 +851,12 @@ export default function App() {
         />
       ) : null}
 
-      {screen === 'gift' && giftTarget ? (
-        <GiftModal
-          card={giftTarget}
-          dossier={memory.dossier[giftTarget.id]}
-          credits={player.credits}
-          stock={{ dishes: player.dishes ?? 0 }}
-          onPick={(giftId) => {
-            const bought = purchase(
-              giftId,
-              memory.dossier[giftTarget.id],
-              player.credits,
-              giftTarget.name,
-              { dishes: player.dishes ?? 0 },
-            );
-            if (bought) {
-              setPlayer((p) => ({
-                ...p,
-                credits: bought.credits,
-                ...(bought.spentStock
-                  ? { [bought.spentStock]: Math.max(0, (p[bought.spentStock] ?? 0) - 1) }
-                  : {}),
-              }));
-              setGiftNote(bought.sceneNote);
-              setRelations((rs) => ({
-                ...rs,
-                [giftTarget.id]: applySceneOutcome(rs[giftTarget.id], {
-                  intimacy: bought.intimacyDelta,
-                  good: true,
-                }),
-              }));
-            }
-            setScreen('scene');
-          }}
-          usedGestures={usedGestures}
-          onGesture={(giftId) => {
-            const said = spendGesture(
-              giftId,
-              memory.dossier[giftTarget.id],
-              usedGestures,
-              giftTarget.name,
-            );
-            if (said) {
-              setUsedGestures(said.usedGestures);
-              setGiftNote(said.sceneNote);
-              setRelations((rs) => ({
-                ...rs,
-                [giftTarget.id]: applySceneOutcome(rs[giftTarget.id], {
-                  intimacy: said.intimacyDelta,
-                  good: true,
-                }),
-              }));
-            }
-            setScreen('scene');
-          }}
-          onSkip={() => setScreen('scene')}
-          t={t}
-        />
-      ) : null}
-
       {screen === 'scene' && setup ? (
         <VNStage
           key={sceneNo}
           setup={setup}
           client={client}
-          giftNote={giftNote}
+          openers={openers}
           onSceneEnd={onSceneEnd}
           writtenChips={settings.writtenChips}
           turnLimit={

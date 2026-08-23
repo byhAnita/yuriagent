@@ -148,7 +148,7 @@ async function playAndMeasure(args, stances) {
   let session = beginScene(args);
   const perTurn = [];
 
-  session = await runTurn(session, { text: openingDirective(false), client });
+  session = await runTurn(session, { text: openingDirective(), client });
   perTurn.push(session.beats.map((b) => b.text).join(' '));
 
   let seen = session.beats.length;
@@ -221,16 +221,25 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
    * last thing the model reads before writing. Six turns of clean Chinese
    * without one (above) and English with one would say the note is the cause,
    * which is the same proximity argument as block 4, pointing the other way.
+   *
+   * Sharper now than when it was written. The note used to arrive with the
+   * opening beat, where the model had a whole frozen header of Chinese
+   * instruction immediately behind it; it arrives mid-scene now, on top of
+   * several turns of Chinese dialogue, and it is the ONLY English in block 5.
+   * If an English tail can pull the model out of the language, this is the
+   * shape that does it.
    */
-  it('holds Chinese when the scene opens on an English gift note', async () => {
+  it('holds Chinese when an English gift note lands mid-scene', async () => {
     const args = setup({ intimacy: 30 });
     const note =
-      'System note: the player opened the scene by asking Irene for something out of her vitamin pouch. ' +
+      'the player opened the scene by asking Irene for something out of her vitamin pouch. ' +
       'She let this slip once: "carries a pouch of vitamins everywhere". There is no object; do not invent one. ' +
       'She has never told anyone she needed one - only somebody paying very close attention would have known.';
 
     let session = beginScene(args);
-    session = await runTurn(session, { text: `${note}\n\n${openingDirective(true)}`, client });
+    session = await runTurn(session, { text: openingDirective(), client });
+    session = await runTurn(session, { stance: 'tease', text: '', client });
+    session = await runTurn(session, { note, client });
     const perTurn = [session.beats.map((b) => b.text).join(' ')];
 
     let seen = session.beats.length;
@@ -320,7 +329,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
   it('holds Chinese after Read her', async () => {
     const args = setup({ intimacy: 45 });
     let session = beginScene(args);
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, { stance: 'tease', text: '', client });
 
     const before = session.beats.map((b) => b.text).join(' ');
@@ -359,7 +368,7 @@ describe.skipIf(!enabled)('memory stays English while the player reads Chinese',
   it('writes an English ledger line and a Chinese display line', async () => {
     const args = setup({ intimacy: 55 });
     let session = beginScene(args);
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, { stance: 'confide', text: '', client });
     session = await runTurn(session, { stance: 'press', text: '', client });
 
@@ -458,7 +467,7 @@ describe.skipIf(!enabled)('a card written entirely in Chinese', () => {
   it('still writes her memory in English', async () => {
     const args = setup({ cast, memberId: 'yuna', intimacy: 50 });
     let session = beginScene(args);
-    session = await runTurn(session, { text: openingDirective(false), client });
+    session = await runTurn(session, { text: openingDirective(), client });
     session = await runTurn(session, { stance: 'confide', text: '', client });
 
     const result = await endScene(session, {

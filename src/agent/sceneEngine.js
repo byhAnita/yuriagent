@@ -19,11 +19,11 @@ import { sceneExposure, witnessedExposure } from '../systems/exposure.js';
 import { jealousyBand, sceneModifiers, convert, decay, addJealousy, unaddressedStrain } from '../systems/jealousy.js';
 import { applySceneOutcome } from '../systems/relationship.js';
 import { propagate } from '../systems/rumor.js';
-import { isRiskStance } from '../systems/chips.js';
+import { isRiskStance, RISK_STANCES } from '../systems/chips.js';
 import {
   openingAddressee,
   setAddressee,
-  pickInterjector,
+  pickSecondVoice,
   pickOnPass,
   trackSilence,
   mentionedIn,
@@ -203,7 +203,10 @@ export function turnTo(session, nextId, relations) {
  * @param {object} session
  * @param {object} args - { stance, text, client, onBeat }
  */
-export async function runTurn(session, { stance, text, client, onBeat = () => {}, speakerId = null, cast = [] }) {
+export async function runTurn(
+  session,
+  { stance, text, note = null, client, onBeat = () => {}, speakerId = null, cast = [] },
+) {
   const said = stance ? `[${stance}] ${text ?? ''}`.trim() : (text ?? '');
 
   /**
@@ -220,9 +223,23 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
    */
   const answers = speakerId ?? session.addresseeId;
   const to = isGroupScene(session) ? nameOf(cast, answers) : null;
-  const content = to ? `(to ${to}) ${said}`.trim() : said;
+  const content = to && said ? `(to ${to}) ${said}`.trim() : said;
 
-  let frame = appendTurn(session.frame, { role: 'user', content });
+  /**
+   * The player handed something over, or brought something up.
+   *
+   * It arrives as a system note at the tail rather than in the frozen header,
+   * which is section 8's invariant 3 - new information mid-scene is appended,
+   * never edited into block 4. The note is self-describing (economy.js writes
+   * it) so it needs no directive after it: her job every turn is to write the
+   * next beat, and this is the thing to write it about.
+   *
+   * A note with no words after it is a complete turn on its own. That is the
+   * player handing it over and saying nothing, which is a real way to do it.
+   */
+  let frame = session.frame;
+  if (note) frame = appendSystemNote(frame, note);
+  if (content) frame = appendTurn(frame, { role: 'user', content });
 
   /**
    * An overt move made while visible is the bet the whole second axis runs on.
@@ -231,6 +248,20 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
    * every route plateaued at `confidante`.
    */
   const risked = isRiskStance(stance, session.riskExposure ?? session.exposure);
+
+  /**
+   * Did the player visibly choose one of them, in front of the others?
+   *
+   * Not the same question as `riskTaken`, and the difference matters twice
+   * over. `riskTaken` asks whether the OUTSIDE world could see it, so it needs
+   * `exposure`; this asks whether the ROOM saw the player pick somebody, which
+   * has nothing to do with how public the room is - handing Nana a hand warmer
+   * in an empty wardrobe is still the other three watching you choose her.
+   *
+   * Sticky for the scene, because you cannot un-do it later in the same room.
+   */
+  const singledOut =
+    session.singledOut || RISK_STANCES.includes(stance) || Boolean(note);
 
   const ctx = { rosterIds: frame.rosterIds, focusId: answers ?? session.focusId };
   const parser = createStreamParser(ctx);
@@ -256,6 +287,7 @@ export async function runTurn(session, { stance, text, client, onBeat = () => {}
     frame,
     beats: [...session.beats, ...beats],
     meters: risked ? { ...meters, riskTaken: true } : meters,
+    singledOut,
     /**
      * Two inputs the interjection stake runs on, both updated here because
      * this is the only place that knows what was just said.
@@ -294,6 +326,39 @@ export function interjectionDirective(name, addresseeName) {
 }
 
 /**
+ * The other reason somebody speaks, and the one that was missing.
+ *
+ * A room where the only way in is resentment is a room full of resentment. The
+ * cast have shared a dorm and a stage for years, so the ordinary reason to
+ * speak up is having something to add about what is being discussed - and that
+ * is what this asks for.
+ *
+ * It names the TOPIC and not the player, which is the whole difference from the
+ * cut-in above. The cut-in is about who the player is paying attention to; this
+ * is about the choreography.
+ *
+ * Like the cut-in, it does not say why she is speaking or how she feels about
+ * it. Her card decides that. What it does say is that this is easy company,
+ * because without it a model handed "another member speaks" at a scene carrying
+ * jealousy in block 3 will reliably write the jealousy.
+ */
+export function chimeDirective(name, addresseeName) {
+  return (
+    `write one beat for ${name} only. She joins in on what ${addresseeName} and ` +
+    'the player are talking about - agreeing, adding something, teasing, or ' +
+    'taking it somewhere else. These are people who have worked together for ' +
+    `years and this is easy company. Her metadata line must name ${name}. ` +
+    'Do not write anyone else.'
+  );
+}
+
+export function secondVoiceDirective(kind, name, addresseeName) {
+  return kind === 'cut_in'
+    ? interjectionDirective(name, addresseeName)
+    : chimeDirective(name, addresseeName);
+}
+
+/**
  * A second, optional call: somebody in the room takes it upon herself.
  *
  * This is the whole feature. Without it the addressee always answers and a
@@ -302,12 +367,16 @@ export function interjectionDirective(name, addresseeName) {
  * game already tracks - jealousy band, intimacy, whether she was just named,
  * how long she has said nothing - so the room writes itself.
  *
- * Returns the session unchanged when nobody clears the bar, which is most
- * turns and is the point: an interjection every turn is a scene where nobody
- * finishes a sentence.
+ * Two registers, and which one fires is `speaker.js`'s call. A `chime` is
+ * somebody joining in on the topic and is the common case; a `cut_in` is
+ * somebody unsettled about where the player's attention has been, and is
+ * gated on an actual jealousy band so it stays rare. Returns the session
+ * unchanged when the room has nothing to add, which is a real outcome - two
+ * people finishing an exchange uninterrupted is how a conversation is meant
+ * to sound some of the time.
  */
 export async function interject(session, { client, relations, cards = [], onBeat = () => {} }) {
-  if (!isGroupScene(session)) return { session, interjectorId: null };
+  if (!isGroupScene(session)) return { session, interjectorId: null, kind: null };
 
   const presentIds = session.frame.rosterIds ?? [];
   const context = {
@@ -315,13 +384,14 @@ export async function interject(session, { client, relations, cards = [], onBeat
     mentioned: session.mentioned ?? [],
     silentTurns: session.silentTurns ?? {},
   };
-  const interjectorId = pickInterjector(session.addresseeId, presentIds, context);
-  if (!interjectorId) return { session, interjectorId: null };
+  const second = pickSecondVoice(session.addresseeId, presentIds, context);
+  if (!second) return { session, interjectorId: null, kind: null };
 
+  const { id: interjectorId, kind } = second;
   const name = cards.find((c) => c.id === interjectorId)?.name ?? interjectorId;
   const addresseeName = cards.find((c) => c.id === session.addresseeId)?.name ?? session.addresseeId;
 
-  let frame = appendSystemNote(session.frame, interjectionDirective(name, addresseeName));
+  let frame = appendSystemNote(session.frame, secondVoiceDirective(kind, name, addresseeName));
 
   const parser = createStreamParser({ rosterIds: frame.rosterIds, focusId: interjectorId });
   const raw = await client({
@@ -359,6 +429,7 @@ export async function interject(session, { client, relations, cards = [], onBeat
       mentioned: mentionedIn(beats.map((b) => b.text).join(' '), cards),
     },
     interjectorId,
+    kind,
   };
 }
 
@@ -388,25 +459,30 @@ export async function readHer(session, { client }) {
   };
 }
 
-export function openWithGift(session, note) {
-  return { ...session, frame: appendSystemNote(session.frame, note) };
-}
-
 /**
  * How a scene starts.
  *
  * Not a fake player action. The first beat belongs to her - the player has done
- * nothing yet except arrive, and if they arrived holding something, that is
- * what she responds to before anything else.
+ * nothing yet except arrive.
+ *
+ * There used to be a second form of this for arriving with a gift, because the
+ * opener was chosen at the door in a modal before the scene existed. That is
+ * gone: an opener is a move the player makes DURING the scene now, so the
+ * opening beat has exactly one shape again. See `runTurn`'s `note`.
+ *
+ * The reason it moved is worth keeping. Choosing at the door meant betting
+ * blind - in a group scene the player picked who to hand something to before
+ * seeing who was in the room - and it meant every gift landed as the first
+ * thing that happened, so the scene could never be ABOUT anything before it
+ * became about the gift. Handing something over three turns into a
+ * conversation is both the natural moment and the more interesting one: the
+ * topic turns, which is what a real gesture does.
  */
-export const OPENING_WITH_GIFT =
-  'System note: write her opening beat. It is her reaction to what she has just been handed, and to the person holding it. Nothing else has been said yet.';
-
 export const OPENING_PLAIN =
   'System note: write her opening beat - what she does in the moment she notices the player has walked in. Nothing has been said yet.';
 
-export function openingDirective(hasGift) {
-  return hasGift ? OPENING_WITH_GIFT : OPENING_PLAIN;
+export function openingDirective() {
+  return OPENING_PLAIN;
 }
 
 /** Mark that the player deliberately took a risk while visible. */
@@ -540,6 +616,12 @@ export async function endScene(session, { client, memory, relations, cards, scen
       presentIds: scene.presentIds ?? rosterIds,
       dormWitnessIds: scene.dormWitnessIds ?? [],
       shared: Boolean(scene.shared),
+      /**
+       * Whether anything happened that the room could name. Set by the turn
+       * loop on a risk stance or an opener; without it, co-presence alone
+       * buys nobody a witnessed jealousy event (see `rumor.js`).
+       */
+      singledOut: Boolean(session.singledOut),
     },
     subject: { id: subject.id, name: subject.name },
     cast: cards,

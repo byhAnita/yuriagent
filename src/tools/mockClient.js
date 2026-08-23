@@ -248,11 +248,27 @@ export function createMockClient({
 
     const opening = /write her opening beat/i.test(last);
 
+    /**
+     * The player just handed her something, or brought something up.
+     *
+     * This used to be reachable only through the opening beat, because an
+     * opener was chosen at the door. It is a turn now, so the mock has to
+     * recognise one in the middle of a scene or the whole knowledge economy is
+     * invisible with no API key - and section 3 treats offline as a supported
+     * mode rather than a degraded one, so "it works online" is not an answer.
+     *
+     * Matched on the LAST message rather than the whole conversation, which
+     * also fixes something the opening-only version got away with: a second
+     * gift later in the same scene would otherwise still be priced off the
+     * first note, since both are sitting in block 5 by then.
+     */
+    const handed = /^System note: the player has /i.test(last);
+
     // Occasionally ignore the format contract entirely, the way a small model
     // does. The parser must render it as prose and move nothing. Never on the
     // opening beat - swallowing a gift reaction is the one failure that reads
     // as the game being broken rather than the model being small.
-    if (!opening && rng() < failureRate) {
+    if (!opening && !handed && rng() < failureRate) {
       const text = zh
         ? '她没有马上回答。房间里很安静。'
         : 'She does not answer straight away. The room is very quiet.';
@@ -267,10 +283,13 @@ export function createMockClient({
     let item = 'thing';
     const conversation = messages.map((m) => m.content).join('\n');
 
-    if (opening) {
-      const knowledge = /paying very close attention/i.test(conversation);
-      const generic = /an ordinary, thoughtful gesture/i.test(conversation);
-      const gesture = /no gift and no object/i.test(conversation);
+    if (opening || handed) {
+      // Scoped to the note itself when there is one, so a second opener later
+      // in the same scene is not priced off the first.
+      const note = handed ? last : conversation;
+      const knowledge = /paying very close attention/i.test(note);
+      const generic = /an ordinary, thoughtful gesture/i.test(note);
+      const gesture = /no gift and no object/i.test(note);
       const tier = gesture
         ? openings.gesture
         : knowledge
@@ -279,7 +298,7 @@ export function createMockClient({
             ? openings.generic
             : openings.plain;
 
-      item = /just handed \S+ an? ([a-z][a-z ]*?)\./i.exec(conversation)?.[1]?.trim() ?? item;
+      item = /just handed \S+ an? ([a-z][a-z ]*?)\./i.exec(note)?.[1]?.trim() ?? item;
       pool = CLOSE_MARKERS.test(conversation) ? tier.close : tier.reserved;
     } else {
       pool = lines[stance] ?? null;
