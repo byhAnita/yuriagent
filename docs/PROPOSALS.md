@@ -1315,3 +1315,71 @@ screen, because a cost the player cannot see is a gotcha.
 **What would make it urgent:** a played campaign in which openers cluster on
 weekend dorm evenings. That is visible in the ledger, so it is worth looking for
 rather than guessing at.
+
+---
+
+## 19. What the player may do while somebody is still speaking
+
+**Status: PARTLY BUILT 2026-08-23, and one half of it is a real open question.**
+Raised by Yuhan after a played day: *"the interrupt button is the only button
+the player can choose... shall we allow the player other choices?"*
+
+### The half that was a bug, and is fixed
+
+The bar rendered all six controls dimmed and dead with a continue button under
+them. Two separate reports, one cause: *"they all present on the screen"* but
+nothing works, and *"Irene interrupted herself"* in a one-to-one scene where an
+interjection cannot happen. The bar is one control now, the same treatment a
+spent block gets, and the label is neutral because in a group scene the next
+beat is often somebody else. CLAUDE.md section 6.
+
+### The half that is already true and was invisible
+
+**Turning to somebody is live while reading.** It costs no turn and makes no
+call - it is pure client state - so the portrait row stays enabled the whole
+time the beats are being tapped through. Somebody cuts in, and the player can
+turn to her *before* answering, which is the natural response to being
+interrupted and the reason the second voice exists at all.
+
+Nobody could tell, because the row is dimmed portraits and gives no sign it is
+tappable while everything below it has gone. Worth making visible - a label on
+the row, or letting the addressee marker brighten - rather than worth building
+again.
+
+### The half that is open: should a TURN-SPENDING move be allowed mid-reply?
+
+No, and the reason is pillar 1 rather than implementation.
+
+The player reads hidden state and bets on it. Beats are revealed one at a time
+precisely so that reading is paced - the meters move across a reply, and acting
+on beat one of three means betting before the information the model just wrote
+has arrived. Section 6 states it directly: *"choosing a stance mid-reply would
+skip her line."*
+
+There is a real argument the other way, and it is worth writing down because it
+will come back: **a genuine interruption is exactly the moment a person cuts in
+back.** Nana cuts across Irene, and the natural move is to round on Nana
+immediately rather than politely finish reading. That is a live feeling the
+current design gives up.
+
+Three ways it could be honoured, if it turns out to matter:
+
+**(a) Nothing. Turning to her covers it.** The player CAN redirect mid-reply -
+they just cannot speak yet. Cheapest, and probably enough: the intent gets
+expressed, the words wait one tap.
+
+**(b) A "cut back in" move on the second beat only.** Available only while an
+interjection is unread, spends the turn, and tells the model the player talked
+over somebody. Expensive: a new stance, a new directive, a new failure mode
+where the player skips a beat they paid tokens for.
+
+**(c) Reveal a cut-in whole rather than beat by beat.** An interjection is one
+beat now (the one-beat directive), so in practice it already arrives whole. This
+is mostly already true.
+
+**Recommended: (a), plus making the portrait row visibly live during a read.**
+The feeling Yuhan is pointing at is *"I want to react to that now"*, and turning
+to her IS reacting - it changes who answers next, which is the only thing the
+player's response would have decided anyway. Build (b) only if a played campaign
+says the one-tap delay is what is missing, because it costs a stance and a
+directive to buy something (a) mostly already delivers.

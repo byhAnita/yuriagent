@@ -25,6 +25,10 @@ import { resolveStage } from '../systems/relationship.js';
 import { doingLine } from '../data/activities.js';
 import { displayName } from '../store/playerName.js';
 import { renderFrame } from '../data/sceneFrames.js';
+import { getIdentity } from '../data/identities.js';
+
+/** The shipped default role, so the fallback cannot drift from the table. */
+const DEFAULT_PROMPT_ROLE = getIdentity().promptRole;
 
 const LANG_NAMES = {
   en: 'English',
@@ -134,8 +138,15 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
      * down. A pronoun rule can only ever patch the symptom - the model was not
      * mistaken about a pronoun, it was mistaken about who the player is.
      */
-    `The player is ${who}, ${identity?.promptRole ?? 'an artist assistant at the agency'}.`,
-    'She is a young woman. Every character in this story is a woman.',
+    /**
+     * The role comes from the chosen identity and is NOT fixed to the
+     * assistant. The fallback is the default identity's own line rather than a
+     * copy of it, so a caller that forgets to pass one gets the shipped role
+     * instead of a second version of it that can drift.
+     */
+    `The player is ${who}, ${identity?.promptRole ?? DEFAULT_PROMPT_ROLE}.`,
+    'She is a young woman, and the women in this story are who she is drawn to.',
+    'Every character here is a woman.',
     'They are colleagues. Everything between them happens inside that constraint.',
     '',
     '## Cast',

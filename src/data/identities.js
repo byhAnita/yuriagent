@@ -45,7 +45,7 @@ export const IDENTITIES = {
   assistant: {
     id: 'assistant',
     available: true,
-    promptRole: 'an artist assistant at the agency',
+    promptRole: 'an artist assistant of X Entertainment',
     slots: ['workroom_a', 'workroom_b', 'solo_site', 'social', 'venue'],
     taskPool: [
       'prep_outfits',
@@ -61,7 +61,7 @@ export const IDENTITIES = {
   manager: {
     id: 'manager',
     available: false,
-    promptRole: 'the group manager at the agency',
+    promptRole: 'the group manager of X Entertainment',
     slots: ['workroom_a', 'workroom_b', 'solo_site', 'social', 'venue', 'event_a'],
     taskPool: ['run_schedule', 'handle_press_kit', 'stage_check'],
     startStats: { competence: 45, energy: 80, secrecy: 55, credits: 14 },
@@ -71,7 +71,7 @@ export const IDENTITIES = {
   producer: {
     id: 'producer',
     available: false,
-    promptRole: 'a producer at the agency',
+    promptRole: 'a producer of X Entertainment',
     slots: ['workroom_a', 'workroom_b', 'social'],
     taskPool: ['stage_check', 'run_schedule'],
     startStats: { competence: 55, energy: 75, secrecy: 60, credits: 20 },
@@ -81,7 +81,7 @@ export const IDENTITIES = {
   idol: {
     id: 'idol',
     available: false,
-    promptRole: 'the sixth member of the group',
+    promptRole: 'the sixth member of X, under X Entertainment',
     slots: ['workroom_a', 'workroom_b', 'solo_site', 'social', 'venue'],
     taskPool: ['stage_check', 'prep_outfits'],
     startStats: { competence: 30, energy: 70, secrecy: 35, credits: 8 },

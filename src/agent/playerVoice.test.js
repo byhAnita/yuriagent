@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { buildSystemBlock } from './promptBuilder.js';
 import { getCast } from '../data/cast.js';
 import { DEFAULT_PLAYER_NAME } from '../store/playerName.js';
+import { getIdentity } from '../data/identities.js';
 
 const cards = getCast();
-const build = (playerName) => buildSystemBlock({ cards, lineup: {}, identity: {}, playerName });
+const build = (playerName, identity = {}) =>
+  buildSystemBlock({ cards, lineup: {}, identity, playerName });
 
 describe('the player has a name', () => {
   it('puts it in block 1, where it is byte-stable for the run', () => {
@@ -81,7 +83,22 @@ describe('the pronoun rule', () => {
    */
   it('says who the player is, in the world rather than in a pronoun rule', () => {
     expect(block).toContain('She is a young woman');
-    expect(block).toContain('Every character in this story is a woman');
+    expect(block).toContain('the women in this story are who she is drawn to');
+    expect(block).toContain('Every character here is a woman');
+  });
+
+  /**
+   * And her ROLE comes from the identity, which is not fixed to the assistant.
+   * Section 13 ships one and stubs three; the block must not hardcode the one.
+   */
+  it('takes the role from the identity rather than hardcoding one', () => {
+    const producer = build('Yuhan', { promptRole: 'a producer of X Entertainment' });
+    expect(producer).toContain('a producer of X Entertainment');
+    expect(producer).not.toContain('artist assistant');
+  });
+
+  it('falls back to the shipped default rather than a second copy of it', () => {
+    expect(build('Yuhan', undefined)).toContain(getIdentity().promptRole);
   });
 
   it('says which words follow from that when she is discussed in the room', () => {

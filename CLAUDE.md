@@ -560,6 +560,59 @@ The opening beat does not count against it - nobody spent a turn walking through
 a door. When the count reaches zero the chip bar is **replaced** by a notice and
 a Leave button. Disabled chips with no explanation read as a frozen screen.
 
+### One shape for every conversation
+
+`systems/dialogue.js`, and it is the whole of it:
+
+```
+count who may SPEAK
+  -> one member:  no second voice
+     more:        one second voice per turn
+  -> turn limit = base for the kind + 2 per extra member, capped at 16
+  -> then the ordinary turn loop
+```
+
+Every dialogue in the game runs through it - an ordinary block, a date, a shared
+dorm evening, an anchor event, a group scene. Both answers come from the same
+number, which is why they belong in the same function: before this, `App` picked
+a turn limit from a lookup keyed on scene kind and `sceneEngine` decided the
+second voice several call sites away, so nothing stated the two rules together
+and nothing could be checked against them.
+
+**Eight turns across five members is a turn and a half each**, which is not a
+conversation with anybody, so a room buys length from how many people are in it.
+A five-member scene lands on 16 - exactly where dates and anchor events already
+sat by hand, so three separate decisions became one formula.
+
+It does **not** make breadth better value than depth, which is the thing to
+watch, because both cost one block: 16 turns split five ways is ~3 turns of
+attention each against a private scene's 8. Section 5b wants breadth cheap and
+shallow and this keeps it that way.
+
+### While she is still speaking, the bar is one control
+
+Beats are revealed a tap at a time, and the bar is held throughout - choosing a
+stance mid-reply would skip her line.
+
+It used to render the whole set **dimmed and dead** with a continue button
+underneath, and that was reported twice in one day as two different bugs:
+
+- *"3 options, custom text, gift, skip, read her are all not clickable, but they
+  all present on the screen."* Six dead controls is worse than one live one.
+- *"Irene interrupted herself"* - in a one-to-one scene, where an interjection
+  is impossible by construction. The player read "she has not finished speaking"
+  followed by the same woman speaking again as somebody cutting in. The label
+  was accurate and the framing was wrong.
+
+So the bar **becomes** the continue control, the same treatment a spent block
+gets, and the label is neutral rather than "she is still speaking" - in a group
+scene the next beat is often somebody else, and the dialogue box already names
+whoever is talking.
+
+**Turning to somebody stays live while reading**, because it costs no turn and
+makes no call. Answering whoever just cut in is the natural move and it should
+not have to wait.
+
 ### Player input
 
 Three **chips** per turn plus optional free text. A chip is a **stance**: the
@@ -1367,25 +1420,42 @@ through the wardrobe and left the rest of the map as credit dispensers you
 visited when the wardrobe was busy. Anywhere the player is alone, a block and
 some energy can buy a fact.
 
-| Room | Work | Snoop | secrecy |
-|---|---|---|---|
-| `broadcast_studio` | help the crew | **take the long way past the green room** | **-7** |
-| `wardrobe` | prep the fittings | **read the fitting notes** | -5 |
-| `drama_set` | wait it out | **read the call sheet properly** | -4 |
-| `practice_room` | run the setlist / tidy up | **watch the playback back** | -4 |
-| `corridor` | chase the schedule | **take your time getting through** | -3 |
-| `cafe` | buy the table coffee | **stay for another cup** | -2 |
-| `dorm_kitchen` | cook for whoever comes in | **read what is stuck to the fridge** | -2 |
-| `dorm_living` | - | **wait up** | -1 |
-| `dorm_player_room` | sleep / lie awake | - | - |
+### A room teaches what its SLOT says it teaches
 
-The spread is the point. Loitering in a corridor is nearly free; being nosy in a
-live studio green room, where everyone present is paid to watch, is the most
-expensive thing on the map. So *where* you go to learn something is a decision
-with a price attached, rather than a fixed errand at the wardrobe.
+Two kinds of find (below), and which one a room gives is **not** a die roll -
+it is the role its slot carries on the phase map. `social` carries `rumor`;
+`workroom_a`, `workroom_b` and `venue` carry `knowledge`.
 
-Your own room stays the exception. There is nothing to find out about anyone
-else in it.
+`data/phaseMaps.js` has said exactly this since phase maps shipped and nothing
+read it. Every snoop drew from one pool weighted 3:1, so the rumor room taught
+facts, the wardrobe taught rumors, and the role table was decoration.
+
+It reads better as well as cleaner. **A rumor is something people say about you,
+so you hear it where people talk; a fact is about HER, so you find it where her
+work is.** The player learns the grammar once and it holds in every phase.
+
+| Slot | Room by phase | Work | Snoop | teaches | secrecy |
+|---|---|---|---|---|---|
+| `workroom_a` | practice room / broadcast studio / practice room | run the setlist, help the crew | watch the playback, read the run order | fact | -4 / -5 |
+| `workroom_b` | wardrobe / make-up room / photo studio | prep the fittings, lay out the kit, hold the reflector | read the fitting notes, the face charts, the contact sheet | fact | -5 / -5 / -4 |
+| `social` | drink room / green room / hair salon | the drinks run, stock the green room, sweep up | linger by the urn, stay by the monitors, wait your turn | **rumor** | -3 / **-6** / -4 |
+| `venue` | bistro / cafe / Han River | work the tables, the table coffee, walk it off | clear their table, stay for another cup, sit on the steps | fact | -2 |
+| dorm shared | kitchen, living room | cook, clean up, wait up | read the fridge, wait up | fact | -2 / -1 |
+| your room | - | sleep / lie awake | - | - | - |
+
+The spread is the point. Loitering by a drinks urn is nearly free; being nosy in
+a comeback-week green room, where everybody is between takes with nothing to do
+but watch the assistant loiter, is the most expensive thing on the map.
+
+Two rooms are exceptions and only two. **Your own room** has nothing to find out
+about anybody else in it. **Her room** is reachable only as a private date and
+only when she is home, so there is no version of it the player stands in alone.
+
+**This is asserted against the phase maps**, not against a copy of the room
+list - `data/soloCoverage.test.js`. It has to be: the map rotated under this
+table once already. Seven rooms arrived on the map with no actions at all and
+four entries here pointed at rooms that had left it, so in PREP two of the four
+working rooms offered nothing, empty or occupied. Found by playing, on day 2.
 
 ### The dorm needs one thing that is unambiguously restorative
 
@@ -1455,12 +1525,20 @@ A snoop turns up one of two things, and which one depends mostly on what is left
 | **a fact** | one of her `learnableFacts` | an opener, and the dossier entry that unlocks it |
 | **a rumor** | something *another* member has already heard about the player | nothing to spend - it is the only way to see jealousy coming |
 
-Facts are weighted 3:1 over rumors, but the curve mostly draws itself: at the
+**Which one you get is decided by where you are**, not by a weighting (see the
+slot table above). The two used to compete in one pool at 3:1, which meant the
+rumor room taught facts and the wardrobe taught rumors.
+
+The curve still draws itself, and now it draws itself geographically. At the
 start of a run there are 25 facts and **no rumors at all**, because nothing has
-happened yet for anyone to have heard about. Rumors accumulate as the player
-starts being seen, and by the last cycle the facts are gone and rumors are what
-is left. So the early game teaches you about them and the late game teaches you
-about what they know - which is the right order.
+happened yet for anyone to have heard about - so the social room is worth
+nothing in week 1 and the workrooms are worth everything. As the player starts
+being seen the social room fills up and the fact pool empties. The early game
+teaches you about them and the late game teaches you about what they know, which
+is the right order, and now the map tells the player which is which.
+
+`FACT_WEIGHT` and `RUMOR_WEIGHT` still exist and still order the pool for a
+caller that asks for both, which today is only the balance harness.
 
 The rumor find is also the only window onto section 5b's `heard_about` channel.
 That data has always existed and the player has never been able to look at it,

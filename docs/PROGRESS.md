@@ -5,9 +5,9 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, one day played
+## Current: M0-M5 complete, two days played
 
-**855 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**953 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
@@ -731,3 +731,10 @@ after being written down.
 | 2026-08-23 | The chime silence term is UNCAPPED, unlike `stakeOf`. A live pass at five members over eight turns had Irene speak nine times and **Yeri not once** - three bystanders sat at the four-turn clamp permanently, so the sort fell through to the id tie-break and the alphabetically-last member could never get ahead. Uncapped: all four speak exactly four times. |
 | 2026-08-23 | Both second-voice directives name the FORM - "ONE beat, a single metadata line, no second metadata line". "Write one beat" alone did not take: every chime came back as two, so a five-member block ran to 34 beats and an interjection was as long as the reply it cut into. Now exactly one, and the transcript is tighter for it. |
 | 2026-08-23 | **Block 1 forbids assigning the player a gender.** One member talking to ANOTHER about the player is neither narration nor being addressed, so neither existing pronoun rule reached it - and a live cut-in came back with "He's just standing there", about a player the game never assigns a gender and never will. Always possible; became common the day a second voice started speaking most turns. Measured after: 22 beats, zero. |
+| 2026-08-23 | **The player is a young woman and block 1 never said so.** A yuri VN introduced the player by name and job; the name is free text, so one zh run in three had a member call the player by a masculine pronoun and an English cut-in produced "He is just standing there". Stated in the World block, because the model was not wrong about a pronoun - it was wrong about who the player is. 3/3 zh runs and an English group block clean afterwards. |
+| 2026-08-23 | The player role in block 1 comes from the chosen identity and its fallback is the shipped default rather than a copy, so it cannot drift. Roles now name the company ("of X Entertainment") instead of "the agency". |
+| 2026-08-23 | **Seven rooms on the map had nothing to do in them** - drink room, bistro, make-up room, green room, photo studio, hair salon, Han River. Phase maps rotated the map and `soloActions.js` was still keyed to the pre-rotation location ids. Same failure as tasks bound to location ids, now asserted against the phase maps rather than a copy of the room list. |
+| 2026-08-23 | **A room teaches what its slot says it teaches.** `social` carries `rumor`, workrooms and venue carry `knowledge`, and `phaseMaps.js` has said so since phase maps shipped with nothing reading it - every snoop drew one 3:1 pool, so the rumor room taught facts. Yuhan: "get rumor should be placed and only placed in social room". |
+| 2026-08-23 | While beats are unread the bar IS the continue control, rather than six dead controls with a continue button under them. Reported twice in one day: as dead options on screen, and as "Irene interrupted herself" in a one-to-one scene where an interjection cannot happen. Turning to somebody stays live throughout - it costs no turn and makes no call. |
+| 2026-08-23 | The last turn of a scene tells the model it is the last turn. Scenes ended mid-thought - she reopened the door to say one more thing and the block ended on the notice. The model cannot see the budget and section 6 measured that giving it one is worse; the client knows exactly which turn is last, so it says so once. |
+| 2026-08-23 | **One shape for every conversation** (`systems/dialogue.js`), on Yuhan proposal: count who may speak, one member means no second voice, turn limit follows the count (+2 each, capped at 16). A five-member room now runs 16 turns, which is where dates and events already sat by hand. Depth still belongs to the 1v1 - 16 split five ways is ~3 each against 8. |
