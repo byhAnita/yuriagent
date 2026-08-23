@@ -20,6 +20,7 @@ import { createMockClient } from './mockClient.js';
 import { createClient } from './client.js';
 import { STANCES } from '../systems/chips.js';
 import { LINES_ZH, PLAYER_LINES_ZH } from './mockLines.zh.js';
+import * as ZH from './mockLines.zh.js';
 
 const HAN = /[一-鿿]/;
 const hasHan = (s) => HAN.test(String(s));
@@ -144,4 +145,55 @@ describe('the fallback from a failed live call', () => {
     expect(out).toBeTruthy();
     expect(hasHan(out)).toBe(true);
   }, 60000);
+});
+
+/**
+ * No Chinese line may contain an English word. Categorical, not a ratio.
+ *
+ * Every earlier language check measured how Chinese a beat WAS, and a ratio
+ * cannot see this: ten opening beats interpolated the English gift name into
+ * Chinese prose and only five crossed a 50% threshold, because the amount of
+ * Han around the noun decided whether it was reported. The other five were the
+ * same defect, passing.
+ *
+ * The scraped item was the cause - a gift note is model-facing English by
+ * design - but the rule is the general one, because the tables are hand-edited
+ * content and this is exactly the class of thing that comes back.
+ *
+ * Machine tokens are the one exception and stay ASCII by section 19 rule 1:
+ * emotion ids sit in the same tuples as the prose.
+ */
+describe('the Chinese tables carry no English', () => {
+  const strings = [];
+
+  const walk = (node, path) => {
+    if (typeof node === 'string') return void strings.push([path, node]);
+    // A table entry may be written as a function of the handed item.
+    if (typeof node === 'function') return void strings.push([path, node('hand warmer')]);
+    if (Array.isArray(node)) return void node.forEach((n, i) => walk(n, `${path}[${i}]`));
+    if (node && typeof node === 'object') {
+      for (const k of Object.keys(node)) walk(node[k], `${path}.${k}`);
+    }
+  };
+  for (const key of Object.keys(ZH)) walk(ZH[key], key);
+
+  /** An emotion id or another machine token, which is ASCII on purpose. */
+  const isToken = (s) => /^[a-z_]+$/.test(s);
+
+  it('reads every string in the file', () => {
+    expect(strings.length).toBeGreaterThan(100);
+  });
+
+  it('has no English word in any line of Chinese prose', () => {
+    const offenders = strings
+      .filter(([, s]) => !isToken(s) && hasWords(s))
+      .map(([path, s]) => `${path}: ${s}`);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('has Chinese in every line of prose', () => {
+    const empty = strings.filter(([, s]) => !isToken(s) && !hasHan(s)).map(([p]) => p);
+    expect(empty).toEqual([]);
+  });
 });

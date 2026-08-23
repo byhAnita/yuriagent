@@ -87,26 +87,41 @@ export const FALLBACK_ZH = ['neutral', -3, 4, '*她从手机上抬起头。* “
  * depends on what she was handed and on how close the two of you already are.
  */
 export const OPENING_ZH = {
+  /**
+   * The item is NEVER named here, and the English table's `(it) =>` shape is
+   * deliberately not mirrored.
+   *
+   * `item` is scraped out of the gift note, and that note is model-facing
+   * English by design (section 8 keeps memory and every system note English).
+   * So interpolating it put a raw English noun inside Chinese prose - a player
+   * with no key, handed a hand warmer, read `*她没有马上接过a hand warmer。*`.
+   * Offline is a supported mode (section 3), not a degraded one.
+   *
+   * There is nowhere to get a Chinese name from: the gift tables are English
+   * and a fallback writer must never need a model call. Referring to it rather
+   * than naming it costs nothing - she is holding the thing, and the player
+   * just chose it.
+   */
   knowledge: {
     reserved: [
-      ['surprised', -16, 20, (it) => `*她把${it}翻过来看了一眼，脸上出现了一个她在镜头前不会有的表情。* “你怎么知道我正需要这个？”`],
-      ['blush', -14, 18, (it) => `*她没有马上接过${it}。* “这话我只说过一次。” *停顿。* “我以为没人在听。”`],
-      ['shy', -15, 16, (it) => `“${it}。” *她翻来覆去看了看，然后认真地看向你。* “你一直有在注意。”`],
+      ['surprised', -16, 20, '*她把东西翻过来看了一眼，脸上出现了一个她在镜头前不会有的表情。* “你怎么知道我正需要这个？”'],
+      ['blush', -14, 18, '*她没有马上接过去。* “这话我只说过一次。” *停顿。* “我以为没人在听。”'],
+      ['shy', -15, 16, '*她翻来覆去看了看，然后认真地看向你。* “你一直有在注意。”'],
     ],
     close: [
-      ['blush', -18, 24, (it) => `*她双手接过${it}，指尖没有马上从你手上移开。* “你记得。” *更轻。* “你当然记得。”`],
-      ['happy', -17, 22, (it) => `*她笑了一声，笑得不太稳。* “${it}。你真是——” *她停住了。* “谢谢。真的。”`],
-      ['surprised', -16, 21, (it) => `*她看看${it}，又看看你，肩膀松了下来。* “不会有别人想到这个。”`],
+      ['blush', -18, 24, '*她双手接过，指尖没有马上从你手上移开。* “你记得。” *更轻。* “你当然记得。”'],
+      ['happy', -17, 22, '*她笑了一声，笑得不太稳。* “你真是——” *她停住了。* “谢谢。真的。”'],
+      ['surprised', -16, 21, '*她低头看了看，又看看你，肩膀松了下来。* “不会有别人想到这个。”'],
     ],
   },
   generic: {
     reserved: [
-      ['happy', -6, 8, (it) => `*她接过${it}，高兴，又有点被抓包的样子。* “哎——谢谢。你不用这样的。”`],
-      ['neutral', -4, 6, (it) => `*她很规矩地双手接过${it}。* “你有心了。真的。”`],
+      ['happy', -6, 8, '*她接过去，高兴，又有点被抓包的样子。* “哎——谢谢。你不用这样的。”'],
+      ['neutral', -4, 6, '*她很规矩地双手接了过去。* “你有心了。真的。”'],
     ],
     close: [
-      ['happy', -8, 11, (it) => `*她接过${it}，没有那套客气。* “你老是这样。” *她在笑。* “谢了。”`],
-      ['shy', -7, 10, (it) => `“${it}？” *她冲你摇头，语气是纵容的。* “不用带的。带了我也高兴。”`],
+      ['happy', -8, 11, '*她接过去，没有那套客气。* “你老是这样。” *她在笑。* “谢了。”'],
+      ['shy', -7, 10, '*她冲你摇头，语气是纵容的。* “不用带的。带了我也高兴。”'],
     ],
   },
   gesture: {
