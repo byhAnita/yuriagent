@@ -122,6 +122,48 @@ describe('walking into a room', () => {
       timeout: 10000,
     });
   }, 15000);
+
+  /**
+   * The seam: App builds the `openers` object and `VNStage` calls into it.
+   *
+   * `Opener.dom.test.jsx` drives the sheet against a stub, so it proves the
+   * scene half. This proves the other half is actually connected - that
+   * `dossierFor` and `credits` reach the catalogue rather than throwing or
+   * rendering an empty list. Exactly the join this project keeps shipping
+   * broken: two correct halves and nothing calling between them.
+   *
+   * It does not complete a purchase, because the assistant starts on zero
+   * credits and an empty dossier by design, so nothing is affordable on day
+   * one. That is the game working, not the test being weak.
+   */
+  it('wires the real catalogue into the sheet', async () => {
+    await startARun('Yuhan');
+
+    const member = screen
+      .getAllByRole('button')
+      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+    await userEvent.click(member);
+
+    // Read through her opening beats - the bar is held while any are unread,
+    // so a click before that lands on a disabled control and does nothing.
+    for (let i = 0; i < 6; i += 1) {
+      const more = screen.queryByRole('button', { name: new RegExp(t('vn.continue')) });
+      if (!more) break;
+      await userEvent.click(more);
+    }
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: t('vn.give') }).disabled).toBe(false),
+      { timeout: 10000 },
+    );
+    await userEvent.click(screen.getByRole('button', { name: t('vn.give') }));
+
+    expect(screen.getByText(t('gift.title'))).toBeTruthy();
+    // A real shipped gift, from data/gifts.js through App's openers.
+    expect(screen.getByText(t('gift.rose'))).toBeTruthy();
+    // No knowledge opener yet, and the modal says why rather than showing
+    // locked rows - section 11: naming one spoils the fact it waits on.
+    expect(screen.getByText(t('gift.hint'))).toBeTruthy();
+  }, 15000);
 });
 
 describe('picking a run back up', () => {
