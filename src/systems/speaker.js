@@ -98,7 +98,24 @@ export function chimeStake(memberId, { relations = {}, mentioned = [], silentTur
 
   const invested = ((rel.intimacy ?? 0) / 100) * CHIME_STAKE.intimacy;
   const named = mentioned.includes(memberId) ? CHIME_STAKE.mentioned : 0;
-  const quiet = Math.min(silentTurns[memberId] ?? 0, 4) * CHIME_STAKE.perSilentTurn;
+
+  /**
+   * UNCAPPED, unlike `stakeOf`, and that is not an oversight.
+   *
+   * `stakeOf` clamps silence at four turns so it cannot drown the jealousy
+   * term it sits beside. Here silence IS the term, and the clamp turned out to
+   * silence somebody completely: a live pass at five members over eight turns
+   * had Irene speak nine times, three others three, two and three - and Yeri
+   * NOT ONCE. With four bystanders and one speaking per turn, three of them
+   * sit at the cap permanently, so the sort falls through to the id tie-break
+   * and the alphabetically-last member can never get ahead. She was frozen out
+   * by `Math.min`.
+   *
+   * Uncapped, whoever has waited longest always wins, which is the circulating
+   * room this whole formula exists to produce. The counters stay small in
+   * practice because somebody speaks nearly every turn.
+   */
+  const quiet = (silentTurns[memberId] ?? 0) * CHIME_STAKE.perSilentTurn;
 
   return invested + named + quiet;
 }

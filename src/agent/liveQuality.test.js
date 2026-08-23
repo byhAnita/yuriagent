@@ -622,3 +622,86 @@ describe.skipIf(!enabled)('a room with three of them in it', () => {
     expect(after.every((b) => b.speaker === 'jisoo')).toBe(true);
   }, 480000);
 });
+
+/**
+ * The two cases PROPOSALS 16 says are untested: a full eight-turn block, and
+ * five members rather than three.
+ *
+ * Gated separately from LIVE_QUALITY because it is ~20 calls on its own and
+ * the question it answers is a taste one - it reports far more than it
+ * asserts, and the report is the point.
+ */
+describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('the whole room, a whole block', () => {
+  it('holds up at five members over eight turns', async () => {
+    const all = castIds;
+    const relations = Object.fromEntries(all.map((id) => [id, newRelation(35)]));
+    const base = {
+      cards,
+      lineup,
+      identity: { promptRole: 'an artist assistant', exposureModifier: {} },
+      player: { name: 'You', energy: 80, secrecy: 70, credits: 10 },
+      lang: 'en',
+      memory: newMemory(castIds),
+      relations,
+      scene: {
+        id: 'lb',
+        rosterIds: all,
+        presentIds: all,
+        focusId: 'irene',
+        week: 0,
+        day: 1,
+        block: 'afternoon',
+        phase: 'prep',
+        locationId: 'practice_room',
+        locationLabel: 'practice_room',
+        seed: 1,
+        occupancy: Object.fromEntries(all.map((id) => [id, { activity: 'group_practice' }])),
+      },
+    };
+
+    let session = beginScene(base);
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+
+    const said = Object.fromEntries(all.map((id) => [id, 0]));
+    const kinds = [];
+    const lines = [];
+    said[session.beats.at(-1)?.speaker ?? 'irene'] += 1;
+
+    const stances = ['joke', 'tease', 'deflect', 'reassure', 'confide', 'joke', 'press', 'tease'];
+    for (const stance of stances) {
+      const before = session.beats.length;
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+      for (const b of session.beats.slice(before)) {
+        said[b.speaker] = (said[b.speaker] ?? 0) + 1;
+        lines.push(`  [${stance}] @${b.speaker}  ${b.text.replace(/\s+/g, ' ').slice(0, 110)}`);
+      }
+
+      const seen = session.beats.length;
+      const out = await interject(session, { client, relations, cards });
+      session = out.session;
+      kinds.push(out.kind ?? 'none');
+      for (const b of session.beats.slice(seen)) {
+        said[b.speaker] = (said[b.speaker] ?? 0) + 1;
+        lines.push(`     ^-- ${out.kind} @${b.speaker}  ${b.text.replace(/\s+/g, ' ').slice(0, 110)}`);
+      }
+    }
+
+    log('\n[big] --- five members, eight turns ---');
+    for (const l of lines) log(l);
+
+    const chimes = kinds.filter((k) => k === 'chime').length;
+    const quiet = kinds.filter((k) => k === 'none').length;
+    log(`\n[big] second voice: ${chimes} chime, ${kinds.filter((k) => k === 'cut_in').length} cut-in, ${quiet} silent (of ${kinds.length})`);
+    log(`[big] who spoke: ${all.map((id) => `${id}=${said[id]}`).join('  ')}`);
+    log(`[big] beats total: ${session.beats.length}`);
+
+    const spoke = all.filter((id) => said[id] > 0).length;
+    log(`[big] ${spoke}/5 members said anything at all`);
+
+    const resentful = session.beats.filter((b) => RESENTFUL.test(b.text));
+    log(`[big] resentful lines: ${resentful.length}`);
+    for (const b of resentful) log(`   !! @${b.speaker} ${b.text}`);
+
+    expect(spoke).toBeGreaterThan(2);
+  }, 900000);
+});

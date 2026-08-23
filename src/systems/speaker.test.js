@@ -162,6 +162,36 @@ describe('pickSecondVoice', () => {
     expect(out.id).toBe('jisoo');
   });
 
+  /**
+   * The silence term is UNCAPPED, and a live pass is why.
+   *
+   * `stakeOf` clamps it at four turns so it cannot drown the jealousy term
+   * beside it. Copying that clamp here froze somebody out completely: five
+   * members over eight turns gave Irene nine beats, three others two to three
+   * each, and **Yeri none at all**. With four bystanders and one speaking per
+   * turn, three sit at the cap permanently, the sort falls through to the id
+   * tie-break, and the alphabetically-last member can never get ahead.
+   *
+   * Uncapped: every one of the four spoke exactly four times.
+   */
+  it('does not freeze out the last member in a full room', () => {
+    const all = ['irene', 'nana', 'jisoo', 'hyewon', 'yeri'];
+    const relations = Object.fromEntries(all.map((id) => [id, rel({ intimacy: 35 })]));
+
+    // Three bystanders past a four-turn clamp, one further back still.
+    const silentTurns = { nana: 5, jisoo: 6, hyewon: 7, yeri: 9 };
+    expect(pickSecondVoice('irene', all, ctx(relations, { silentTurns })).id).toBe('yeri');
+  });
+
+  it('keeps the clamp on the jealousy-weighted stake, where it belongs', () => {
+    const relations = { irene: rel(), nana: rel({ intimacy: 20 }) };
+    const four = ctx(relations, { silentTurns: { nana: 4 } });
+    const forty = ctx(relations, { silentTurns: { nana: 40 } });
+
+    expect(stakeOf('nana', four)).toBe(stakeOf('nana', forty));
+    expect(chimeStake('nana', forty)).toBeGreaterThan(chimeStake('nana', four));
+  });
+
   it('gives an unsettled member the sharper register instead', () => {
     const relations = {
       irene: rel({ intimacy: 40 }),
