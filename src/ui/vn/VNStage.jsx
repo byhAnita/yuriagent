@@ -29,6 +29,7 @@ import {
 } from '../../agent/sceneEngine.js';
 import GiftModal from '../modals/GiftModal.jsx';
 import { generateChips, suggestedStances, availableStances } from '../../systems/chips.js';
+import { resolveStage } from '../../systems/relationship.js';
 import { relanguage } from '../../agent/promptBuilder.js';
 import { writeChips } from '../../agent/chipWriter.js';
 import {
@@ -566,6 +567,16 @@ export default function VNStage({
         exposure={session.exposure}
         // Only when somebody who is not the addressee might be on screen.
         ofName={group ? focusCard.name : null}
+        /**
+         * The one thing on this screen that does NOT reset at the door.
+         *
+         * Without it `fluster 0` at the top of a scene reads as her affection
+         * having gone back to zero, which is how the first played anchor event
+         * was reported: she ended the meeting at `fluster 28` and opened the
+         * next afternoon at 0. Both numbers were right; nothing said they were
+         * a different kind of thing from `intimacy`.
+         */
+        standing={t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}
         t={t}
       />
 

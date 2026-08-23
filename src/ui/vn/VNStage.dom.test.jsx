@@ -262,3 +262,24 @@ describe('unread beats say so', () => {
     expect(cont()).toBeNull();
   });
 });
+
+/**
+ * One thing on this screen does not reset at the door.
+ *
+ * Reported after the first played anchor event: Irene finished the meeting at
+ * `fluster 28` and the next afternoon's scene opened at 0, which read as her
+ * affection having been wiped. Both numbers were correct - guard and fluster
+ * are volatile by design (section 6) - and nothing on screen said they were a
+ * different kind of thing from `intimacy`.
+ */
+describe('where the two of you stand', () => {
+  it('is on the meter bar, as a word', async () => {
+    mount({ client: createMockClient({ seed: 3, delay: 0 }) });
+
+    // intimacy 45 -> good_friends. The word, not the number.
+    await waitFor(() => expect(screen.getByText(/stage\.good_friends/)).toBeTruthy(), {
+      timeout: 10000,
+    });
+    expect(screen.queryByText('45')).toBeNull();
+  }, 15000);
+});

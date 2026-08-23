@@ -463,6 +463,19 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 
 `exposure` being deterministic is what makes map choice matter romantically instead of only logistically: practice room at night is low, cafeteria at noon is high.
 
+**Volatile has to be visibly volatile.** These three were the only relationship
+numbers on the scene screen, so a player who watched `fluster` climb to 28
+through an anchor event and open the next afternoon at 0 read it as her
+affection being wiped - which is exactly how the first played event was
+reported. Both numbers were right and nothing said they were a different kind
+of thing from `intimacy`.
+
+So the meter bar carries **standing**, in a word, next to the three that move:
+the same sentence block 4 gives the model, for the same reason and under the
+same rule - words, not numbers (section 8). The number itself stays on the day
+screen for anyone who wants it. One fixed thing beside three moving ones is
+what makes the moving ones legible as scene state.
+
 ### Micro -> macro mapping (computed client-side at scene exit)
 
 ```

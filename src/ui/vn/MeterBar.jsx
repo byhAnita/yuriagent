@@ -69,22 +69,44 @@ function Level({ label, value, colorVar, inverted = false, hint }) {
  *   not move the addressee's), which makes labelling them the honest fix rather
  *   than switching them to follow the speaker.
  */
-export default function MeterBar({ meters, exposure, ofName = null, t }) {
+export default function MeterBar({ meters, exposure, ofName = null, standing = null, t }) {
   const exposureBand =
     exposure >= 60 ? t('exposureBand.public') : exposure >= 30 ? t('exposureBand.quiet') : t('exposureBand.private');
 
   const label = (key) => (ofName ? `${ofName} ${t(key)}` : t(key));
 
   return (
-    <div className="flex items-start gap-4 px-5 py-3">
-      <Level label={label('meter.guard')} value={meters.guard} colorVar="--meter-guard" inverted />
-      <Level label={label('meter.fluster')} value={meters.fluster} colorVar="--meter-fluster" />
-      <Level
-        label={t('meter.exposure')}
-        value={exposure}
-        colorVar="--meter-exposure"
-        hint={exposureBand}
-      />
+    <div className="flex flex-col gap-1 px-5 py-3">
+      {/*
+        Where the two of you stand, in a word.
+
+        The three meters below are VOLATILE - they reset at every door
+        (section 6) - and with nothing else on screen a player reasonably reads
+        `fluster 0` at the top of a new scene as her affection having gone back
+        to zero. Reported exactly that way after an anchor event that had just
+        moved her.
+
+        A word rather than a number, for section 8's reason: the sentence
+        cannot be quoted back, and the number is on the day screen for anyone
+        who wants it. It is macro state, so it is fixed for the whole scene.
+      */}
+      {standing ? (
+        <span className="font-mono text-[0.5rem] uppercase tracking-[0.16em] text-faint">
+          {ofName ? `${ofName} - ` : ''}
+          {standing}
+        </span>
+      ) : null}
+
+      <div className="flex items-start gap-4">
+        <Level label={label('meter.guard')} value={meters.guard} colorVar="--meter-guard" inverted />
+        <Level label={label('meter.fluster')} value={meters.fluster} colorVar="--meter-fluster" />
+        <Level
+          label={t('meter.exposure')}
+          value={exposure}
+          colorVar="--meter-exposure"
+          hint={exposureBand}
+        />
+      </div>
     </div>
   );
 }
