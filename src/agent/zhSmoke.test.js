@@ -21,7 +21,7 @@
 import { describe, it, expect } from 'vitest';
 import { stream, complete } from '../tools/llmTool.js';
 import { liveConfig } from '../tools/liveEnv.js';
-import { beginScene, runTurn, endScene, openingDirective, readHer } from './sceneEngine.js';
+import { beginScene, runTurn, endScene, openingDirective, readHer, interject } from './sceneEngine.js';
 import { newMemory, appendLedger, addDossierEntry } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
 import { getCast } from '../data/cast.js';
@@ -362,6 +362,48 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
       if (b.emotion) expect(/^[a-z]+$/.test(b.emotion)).toBe(true);
     }
   }, 300000);
+
+  /**
+   * The pronoun rule has to survive translation, and Chinese is where it is
+   * hardest to check.
+   *
+   * Block 1 says "never he or she" in English, about prose the model writes in
+   * Chinese. Spoken Chinese hides the problem - 他 and 她 are both `ta` - but
+   * the written character does not, and 她 assigns the player a gender exactly
+   * as "she" would. Nothing in the game states one.
+   *
+   * This is the `zh` half of the English check in `liveQuality.test.js`. It
+   * only arises in a group scene, where one member talks to another ABOUT the
+   * player, and it only became common the day a second voice started speaking
+   * most turns.
+   */
+  it('does not gender the player in Chinese either', async () => {
+    const room = ['irene', 'nana', 'jisoo'];
+    const args = setup({ intimacy: 40 });
+    args.scene = { ...args.scene, rosterIds: room, presentIds: room, focusId: 'irene' };
+
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+
+    for (const stance of ['joke', 'tease', 'confide', 'reassure']) {
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+      const out = await interject(session, { client, relations: args.relations, cards });
+      session = out.session;
+    }
+
+    const text = session.beats.map((b) => b.text).join('\n');
+    // 他 = he. 她 = she, and is everywhere legitimately - five women - so only
+    // the masculine one is a clean signal that the player got gendered.
+    const he = (text.match(/他/g) ?? []).length;
+
+    log('\n[zh] --- group scene, gendering the player ---');
+    log(`[zh] beats ${session.beats.length}, "he" characters: ${he}`);
+    for (const b of session.beats) {
+      if (/他/.test(b.text)) log(`   !! @${b.speaker} ${b.text.replace(/\s+/g, ' ')}`);
+    }
+
+    expect(he).toBe(0);
+  }, 600000);
 });
 
 describe.skipIf(!enabled)('memory stays English while the player reads Chinese', () => {
