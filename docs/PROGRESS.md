@@ -7,15 +7,16 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M5 complete, one day played
 
-**850 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**855 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
 installs. In English or Chinese, with or without an API key.
 
 **One in-game day has now been played by a human** (2026-08-23). It produced
-five fixes, every one of them in the group scene, and every one of them
-invisible to 27 tests written for that feature. See "Day-one playtest fixes".
+**eight** fixes, every one of them in or around the group scene, and every one
+invisible to the 27 tests written for that feature. See "Day-one playtest
+fixes".
 
 **If you are picking this up cold, read "What M5 shipped", then "Day-one
 playtest fixes", then "Still open".** The design is in `CLAUDE.md`; this file is
@@ -388,8 +389,8 @@ with several people lets you choose who you walk up to.
 
 ## Day-one playtest fixes (2026-08-23)
 
-Yuhan played one in-game day and reported two bugs. Fixing them turned up three
-more, and every one of the five was in the same place: **the group scene, which
+Yuhan played one in-game day and reported two bugs. Fixing them turned up six
+more, and every one of the eight was in the same place: **the group scene, which
 until that day had only ever been exercised by tests.**
 
 ### What was reported
@@ -465,20 +466,71 @@ Under the old single bar the same scene produced **no second voice at all**. A
 cut-in at `corrosive` still reads pointedly and visibly differently, which is
 the whole reason for keeping two registers rather than just softening one.
 
-The chime rate - six of six - is the top of the range rather than the middle,
-and is untested at eight turns and at five members. PROPOSALS 16 has the brake
-to fit if it turns into wallpaper, and the argument for why the obvious brake
-(raise the threshold) is the wrong one.
+### And then three more, from a bigger live probe
+
+Six turns at three members was not the hard case. `LIVE_BIG_ROOM=1` plays
+**five members over a full eight-turn block**, and it paid for itself three
+times on its first run:
+
+**6. Yeri never spoke.** Not once, in the whole block - Irene nine beats, three
+others two to three each, Yeri zero. The chime's silence term had copied
+`stakeOf`'s four-turn clamp, and with four bystanders and one speaking per turn
+three of them sit at the ceiling permanently, so the sort falls through to the
+id tie-break and the **alphabetically last member can never get ahead**.
+Uncapped, all four speak exactly four times. A defect that only exists at a room
+size no test used.
+
+**7. Every chime was two beats.** The directive said "write one beat" and the
+model wrote two, so a block ran to 34 beats and an interjection was as long as
+the reply it cut into. "Write one beat" did not take; **naming the form did** -
+*"a single metadata line and what follows it, no second metadata line"* - and
+the block halved to 17 with a visibly tighter transcript. Same fix applied to
+the cut-in.
+
+**8. The model gendered the player.** A cut-in came back with *"He's just
+standing there"*, about a player the game has never assigned a gender and never
+will: the name is free text and no field anywhere carries one. Block 1's pronoun
+rule covered narration (`you`) and being addressed (her name for the player) and
+missed the third case entirely - one member talking to **another** about the
+player. Always possible; common only once a second voice started speaking most
+turns. Checked in both locales afterwards, English and `zh`: zero.
+
+| | three members, six turns | five members, eight turns |
+|---|---|---|
+| chimes | 6 of 6 | 8 of 8 |
+| members who spoke | 3 of 3 | 5 of 5 (was 4 of 5) |
+| beats | 21 | 17 (was 34) |
+| resentful lines | 0 | 0 |
+
+The chime rate - every turn, at both room sizes - is the top of the range rather
+than the middle, and nobody has played nine weeks of it. PROPOSALS 16 holds the
+brake to fit if it turns into wallpaper, and the argument for why the obvious
+brake (raise the threshold) is the wrong one.
 
 ### The lesson, again
 
-Four of the five were joins, and the fifth was a formula that had never been
-checked against the case it would actually meet. What is new is where they were:
-**every one of them was in code that had tests and had never been played.** The
-group scene shipped with 21 engine tests and 6 DOM tests and still had the
-addressee mislabelled on screen, a jealousy model that made everyone hostile,
-and an interjection bar that could not fire. A test asserts the thing you
-thought of. One day of play found five things nobody thought of.
+Some of these were joins, which is this project's usual shape. But the more
+useful pattern is a different one, and it is worth naming because it will
+happen again:
+
+**Every one of them was in code that had tests and had never been run at full
+size.** The group scene shipped with 21 engine tests and 6 DOM tests, and still
+had the addressee mislabelled on screen, a jealousy model that made everybody
+hostile, an interjection bar that could not fire, a member who could never
+speak, and a directive the model ignored.
+
+Three of the eight are specifically **size** defects - they do not exist at the
+two or three members every test used, and appear only at five:
+
+- the silence clamp freezing out the alphabetically-last member needs four
+  bystanders to bite
+- the two-beat chime is only a problem when a second voice speaks every turn
+- one member talking to another *about* the player barely happens in a room of
+  two
+
+A test asserts the thing you thought of, at the size you happened to pick. What
+found these was **playing it, and then building a probe at the size the game
+actually runs at** (`LIVE_BIG_ROOM=1`). Both are cheap. Neither was being done.
 
 ---
 
