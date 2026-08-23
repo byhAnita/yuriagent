@@ -29,7 +29,7 @@ import {
   interject,
   turnTo,
 } from './sceneEngine.js';
-import { newMemory } from './memory.js';
+import { newMemory, entryText } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
 import { availableStances } from '../systems/chips.js';
 import { getCast } from '../data/cast.js';
@@ -351,7 +351,13 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     log(`  known_facts: ${JSON.stringify(facts)}`);
 
     const gym = 'squeezes ten-minute gym sets into the breaks between practices';
-    const matched = facts.some((f) => f.toLowerCase().includes('gym'));
+    /**
+     * `entryText`, not the entry - a dossier entry is `{ text, factId }` since
+     * facts grew ids (PROPOSALS 14). This read the entry as a bare string and
+     * threw, which nothing noticed because it only runs under LIVE_QUALITY=1.
+     * A live-only test still has to survive a refactor of the thing it reads.
+     */
+    const matched = facts.some((f) => entryText(f).toLowerCase().includes('gym'));
     log(
       matched
         ? '[quality] a gym fact was recorded'

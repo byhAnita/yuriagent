@@ -5,16 +5,21 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete
+## Current: M0-M5 complete, one day played
 
-**806 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**850 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
-A campaign now runs **cover -> nine weeks -> endings screen**, saves itself, and
+A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
 installs. In English or Chinese, with or without an API key.
 
-**If you are picking this up cold, read "What M5 shipped" and then "Still
-open".** The design is in `CLAUDE.md`; this file is where it stands in code.
+**One in-game day has now been played by a human** (2026-08-23). It produced
+five fixes, every one of them in the group scene, and every one of them
+invisible to 27 tests written for that feature. See "Day-one playtest fixes".
+
+**If you are picking this up cold, read "What M5 shipped", then "Day-one
+playtest fixes", then "Still open".** The design is in `CLAUDE.md`; this file is
+where it stands in code.
 
 ---
 
@@ -36,7 +41,8 @@ open".** The design is in `CLAUDE.md`; this file is where it stands in code.
 | **identities as data** | `data/identities.js`, one shipped and three stubs, all asserted well-formed |
 | **facts have ids** | canonical English in `data/facts.js`, display in `i18n/`; dossier entries are objects |
 | **anchor events** | five, one per event slot, each firing once in the campaign |
-| **group scenes** | addressee + interjection; section 9's two-member cap retired |
+| **group scenes** | addressee + a second voice in two registers; section 9's two-member cap retired |
+| **openers in-scene** | handing something over is a turn, and it turns to her |
 | **dorm activities** | cook together, watch a film; no 1v1, no jealousy, a small gain for everyone |
 | **the dish** | an opener paid in a block rather than in credits |
 | **endings screen** | per character, best first, balance ending called out |
@@ -380,29 +386,131 @@ with several people lets you choose who you walk up to.
 
 ---
 
+## Day-one playtest fixes (2026-08-23)
+
+Yuhan played one in-game day and reported two bugs. Fixing them turned up three
+more, and every one of the five was in the same place: **the group scene, which
+until that day had only ever been exercised by tests.**
+
+### What was reported
+
+1. **The gift panel opened at the door of every scene**, group scenes included.
+   So the player was asked what they were giving somebody before they had been
+   given any reason to want to, and in a group scene before they had seen who
+   was in the room.
+2. **Pass was a 10px text link in the corner.** The one move that lets a group
+   scene breathe read as chrome, so it went unused and every scene was driven
+   turn by turn off the chips.
+
+Both are the same mistake: **a move that ends the player's turn was not shaped
+like one.** Everything that spends the turn - say it, give, pass - is now a
+bordered control at a real touch target, in one row at the weight of the
+options. The thin row below keeps exactly what does not end the turn: the turn
+counter and Read her.
+
+The opener became a turn (PROPOSALS 11, CLAUDE.md section 11). It costs one of
+the eight, lands mid-conversation, sets `singledOut`, and moves the addressee to
+whoever it was handed to. In a group scene the sheet asks who, defaulting to the
+member the player is already talking to.
+
+### Three more, found on the way
+
+**3. A group scene could be silent or it could be jealous.** There was one
+interjection bar and it was priced for jealousy, and the arithmetic made
+ordinary conversation impossible: a week-1 bystander at intimacy 10 who had said
+nothing for four turns scored **0.66 against a bar of 1.0**, and the jealousy
+term was the only thing in the formula big enough to clear it alone. Yuhan
+reported both ends of this - "others are silent" and "characters shouldn't be
+too hostile" - as two complaints. They were one number.
+
+Split into a **chime** (priced on silence, no jealousy term, warm by default)
+and a **cut_in** (gated on an actual `sharp`/`corrosive` band). Silence
+dominates the chime, which makes the room circulate with no rota: whoever speaks
+has her counter reset. Two quiet turns clears the bar, which scales with room
+size for free.
+
+**4. Being in the room was treated as a gesture.** `propagate` charged a full
+`WEIGHT_WITNESSED` hit - the heaviest event in the game - to everybody present,
+for a conversation. Five women who have shared a dorm for years came out of
+every group scene resenting each other. Three tiers now (present 0.5, hearsay 1,
+witnessed 2.5), where witnessed requires `singledOut`. Yuhan's own phrasing was
+the specification: "should not raise jealousy, **or only raise a little**".
+
+**5. The stage named the wrong woman.** It drew the addressee for the big
+portrait, the name over the dialogue and the stage light, so a beat from anybody
+else appeared under her face with her name on it. Survivable while a second
+voice was rare; it would have mislabelled most of a group scene the moment
+chimes started arriving most turns. The beat says who spoke; the addressee is
+marked in the row instead, and the meters carry her name.
+
+Two smaller ones fell out of that: the chip bar went live while the second call
+was still running (`busy` is a ref, so the bar never knew) and swallowed every
+tap; and the speaker, being the big portrait, was the one member in the room who
+could not be turned to.
+
+### Measured live afterwards
+
+Three members, practice room, six turns, `LIVE_QUALITY=1` against DeepSeek V4
+Flash:
+
+| | |
+|---|---|
+| voices | all three |
+| chimes | 6 |
+| cut-ins | 0 |
+| resentful lines | 0 |
+| two members in one reply | 0 |
+
+Under the old single bar the same scene produced **no second voice at all**. A
+cut-in at `corrosive` still reads pointedly and visibly differently, which is
+the whole reason for keeping two registers rather than just softening one.
+
+The chime rate - six of six - is the top of the range rather than the middle,
+and is untested at eight turns and at five members. PROPOSALS 16 has the brake
+to fit if it turns into wallpaper, and the argument for why the obvious brake
+(raise the threshold) is the wrong one.
+
+### The lesson, again
+
+Four of the five were joins, and the fifth was a formula that had never been
+checked against the case it would actually meet. What is new is where they were:
+**every one of them was in code that had tests and had never been played.** The
+group scene shipped with 21 engine tests and 6 DOM tests and still had the
+addressee mislabelled on screen, a jealousy model that made everyone hostile,
+and an interjection bar that could not fire. A test asserts the thing you
+thought of. One day of play found five things nobody thought of.
+
+---
+
 ## Still open
 
 Nothing here blocks a playthrough. Roughly in the order it should be picked up.
 
-### 1. Play it by hand, then merge to `main`
+### 1. Keep playing it by hand, then merge to `main`
 
-The whole loop now exists and **no human has played it end to end.** That is
-the next thing, before any coefficient moves: nine weeks is about an hour, and
-every bug this project has had was found that way rather than by reasoning.
+**One day has been played** (2026-08-23) and it produced five fixes, all in the
+group scene. The rest of the campaign has still never been played by a human,
+and the section above is the argument for why that matters more than any
+reasoning done here.
 
-Specifically worth watching for, because these shipped on reasoning alone:
+What the one day settled, and what it did not:
 
-- **`INTERJECT_THRESHOLD = 1.0`** is unmeasured, and it is the one number in
-  the group-scene design that cannot be reasoned to. Too low and nobody
-  finishes a sentence; too high and the room is furniture. Needs a **live**
-  pass, not a harness one - the failure mode is prose quality, not a
-  distribution.
-- **The interjection directive** is the new prompt shape most likely to read
-  badly. Does she cut in like herself, or like a generic interruption?
-- **Anchor event frames.** Sixteen turns is a long time for a frame to hold a
-  scene together. Do they wander?
-- **The dorm evenings.** Do cooking and a film actually read differently from a
-  work scene, which is the entire argument for them?
+- **`INTERJECT_THRESHOLD` and `CHIME_THRESHOLD`** now have one live pass at
+  three members over six turns. Direction confirmed - the room circulates, the
+  tone is warm, the cut-in still reads sharp. Magnitude not confirmed: the chime
+  fired **six times out of six**, which is the top of the range. Untested at
+  eight turns and at five members. PROPOSALS 16 has the brake and the reason
+  the obvious brake is the wrong one. **Do not change the number without
+  playing a full scene first.**
+- **The chime directive** reads well and does not narrate jealousy, which was
+  the risk. The cut-in directive is confirmed too.
+- **Anchor event frames.** Still untested. Sixteen turns is a long time for a
+  frame to hold a scene together. Do they wander?
+- **The dorm evenings.** Still untested. Do cooking and a film actually read
+  differently from a work scene, which is the entire argument for them?
+- **A gift, given mid-scene, in front of other people.** New as of the day-one
+  fixes. The recipient answers well; nobody else says anything about it, which
+  is PROPOSALS 17.
 
 ### 2. The plateau, measured against a real campaign
 
@@ -432,18 +540,24 @@ before and it has not improved.
   energy. `playthrough.test.js` answers the same questions by playing the real
   loop. Retire it.
 
-### 4. The opener should move into the scene (PROPOSALS 11)
+### 4. What the day-one fixes left open
 
-**Now unblocked, and now a real problem rather than an anticipated one.** The
-opener is still a pre-scene modal, so in a group scene the player picks who to
-hand something to *before they have seen anybody in the room*. That is exactly
-the bet-it-blind-at-the-door failure PROPOSALS 11 describes.
+The opener moved into the scene (PROPOSALS 11, now DONE). Three questions came
+out of doing it, none of them blocking, all three written up:
 
-Half the machinery already exists: the portrait row is a row of buttons and
-tapping one moves the addressee, which is the "missing verb" that entry
-identified. What remains is routing the opener through it - one live control
-beside the portrait, one opener per scene, and the rule that interacting with
-someone makes her the next speaker.
+- **PROPOSALS 16 - the chime has no brake.** A second voice on every turn read
+  well at three members over six turns. Whether that survives eight turns and
+  five members is a prose question and needs a played scene. The obvious brake
+  is the wrong one; the entry says why.
+- **PROPOSALS 17 - nobody reacts to a gift they watched change hands.** The
+  recipient answers; the other three in the room say nothing about it, in the
+  moment when a person obviously would. The chime already fires on that turn,
+  so it may already be half-solved by accident - which is worth looking at
+  before writing a third directive.
+- **PROPOSALS 18 - `shared` beats `singledOut`.** An opener handed over during
+  a shared dorm evening costs no jealousy at all, so the dorm is the cheap
+  place to spend them. Deliberate, small, and visible in the ledger if it
+  starts to matter.
 
 ### 5. Events do not recur, and week 9 is the emptiest week in the game
 
@@ -556,3 +670,9 @@ after being written down.
 | 2026-08-23 | Save is automatic at day rollover, one slot, no save screen. The day boundary is also the only moment section 15 permits. |
 | 2026-08-23 | `base: './'` and relative paths everywhere, after checking how rv-simulator deploys to GitHub Pages. |
 | 2026-08-23 | `npm test` no longer bills a provider: `tools/live.test.js` needs `LIVE_PROVIDER=1` on top of a key, matching liveQuality and zhSmoke. |
+| 2026-08-23 | **The opener is a turn, not a door** (PROPOSALS 11). The gift panel opened at the door of every scene, so the player chose before there was any reason to want to, in a group scene before seeing the room, and it always landed as the first thing that happened. It costs a turn now, lands mid-conversation, and moves the addressee to whoever it was handed to. |
+| 2026-08-23 | Everything that spends the player turn - say it, give, pass - is a bordered control at the weight of the options. All three were 10px text links, and two of them were reported as bugs on the same day for the same reason: a move that ends the turn has to look like one. |
+| 2026-08-23 | **A group scene could be silent or jealous, with nothing in between.** One interjection bar priced for jealousy: a week-1 bystander silent for four turns scored 0.66 against a bar of 1.0, so the jealousy term was the only thing that could ever clear it. Split into a warm `chime` (priced on silence, no jealousy term) and a `cut_in` (gated on sharp/corrosive). Measured live at three members: six chimes, zero cut-ins, zero resentful lines, all three voices - where the old bar produced no second voice at all. |
+| 2026-08-23 | **Being in the room stopped counting as a gesture.** `propagate` charged the full witnessed hit to everyone present for an ordinary conversation, so every group scene ended with the cast resenting each other. Three tiers now (present 0.5, hearsay 1, witnessed 2.5); witnessed needs `singledOut` - a risk stance, a gift or a gesture. Yuhan's phrasing was the spec: "should not raise jealousy, or only raise a little". |
+| 2026-08-23 | The stage drew the addressee for the portrait, the name and the light, so a second voice appeared under the wrong face with the wrong name. It follows the beat now; the addressee is marked in the row and the meters carry her name. The big portrait is also a button, or the member who just spoke would be the only one who could not be answered. |
+| 2026-08-23 | The chip bar went live while the second call was still streaming and swallowed every tap - `busy` is a ref, so the bar never knew. Rare while a second voice was rare; the common case once chimes arrive most turns. |

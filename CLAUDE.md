@@ -312,10 +312,52 @@ The `piqued` band is the point of the system: jealousy there is an **opportunity
 
 Two members present is where jealousy becomes visible rather than inferred.
 
-- Any gesture toward one member is **witnessed** by the other at `exposure = max(sceneExposure, 80)` - direct observation, no probability roll.
-- Witnessed gestures give a larger admissibility gain and a larger jealousy hit than rumors. High-risk, high-reward is the mechanical identity of a group scene.
-- Block 4 states cross-awareness explicitly when it applies: `Irene is aware of and unsettled by your closeness to Wendy.`
-- The 2-member interactive cap and the parser roster rule (section 9) both still apply.
+- **A gesture** toward one member is **witnessed** by the others at
+  `exposure = max(sceneExposure, 80)` - direct observation, no probability roll.
+- Witnessed gestures give a larger admissibility gain and a larger jealousy hit
+  than rumors. High-risk, high-reward is the mechanical identity of a group
+  scene.
+- Block 4 states cross-awareness explicitly when it applies: `Irene is aware of
+  and unsettled by your closeness to Wendy.`
+- The parser roster rule (section 9) still applies.
+
+#### Being in the room is not a gesture
+
+The word above is *gesture*, and for a while the code did not read it that way:
+`witnessed` fired on mere co-presence, so an afternoon in the practice room in
+which the player talked to Irene about the choreography handed the other four a
+full `WEIGHT_WITNESSED` hit each - **the heaviest event in the game, for a
+conversation.** Every group scene ended with five women who have shared a dorm
+for years resenting one another, which is both bad fiction and the exact
+opposite of what a group scene is for. Found in play, on day one.
+
+Three tiers, not two:
+
+| | weight | when |
+|---|---|---|
+| `WEIGHT_PRESENT` | 0.5 | she was in the room while the player spent it on somebody else |
+| `WEIGHT_RUMOR` | 1 | she found out afterwards |
+| `WEIGHT_WITNESSED` | 2.5 | she watched the player make an overt move |
+
+Zero would have been wrong too. Watching the player spend every evening with
+Irene is not nothing - it is simply not the same as watching the player reach
+for her. Hearsay sits *above* presence rather than below it, because finding out
+later carries a small betrayal of not having been told.
+
+What lifts a scene to `witnessed` is `singledOut`, set by the turn loop on a
+**risk stance, a gift, or a gesture** - the same list section 6 uses for what a
+witness can *describe*, and the right test here for the same reason: what is
+nameable is what makes somebody jealous. Presence writes **no dossier entry**;
+`heard_about` is for things she found out, and a note every group scene saying
+she was in the room would flush its four-entry FIFO of anything that mattered.
+
+The group scene is still the loudest place in the game to make a move, at five
+times the price of simply being there. It now requires a move.
+
+`shared` still beats `singledOut` where they disagree, so an opener handed over
+during a shared dorm evening costs nothing. That is the weaker half of the rule
+and it is deliberate - the dorm needs one thing that is unambiguously
+restorative, and a release valve with an asterisk is not one.
 
 ### Balance is a simulation problem
 
@@ -371,9 +413,14 @@ risk action at exposure >= 60, failed      -> strain        += 10..20
 stage == 'reckless'                        -> strain        += 5 / scene
 daily task failed and it affected her      -> strain        += 8
 scene exit, per absent member              -> rumor roll    (section 5b)
+scene exit, per member in the room         -> jealousy      x0.5, no entry
 gesture witnessed in a group scene         -> larger admissibility gain,
                                               larger jealousy hit, no roll
 ```
+
+A **gesture** is a risk stance, a gift or a knowledge gesture - `singledOut` in
+the engine. Sharing a room without making one is the `x0.5` line above and not
+the witnessed one; section 5b has the argument.
 
 Deltas are computed by `systems/relationship.js` from accumulated per-turn metadata.
 **The LLM never reports macro deltas** - only per-turn `guard` / `fluster` movement and emotion. Fewer things for a small model to get wrong.
@@ -509,8 +556,30 @@ The baseline set is the stance names themselves, which is what ships when there
 is no key, no budget, or no response:
 
 ```
-[ Tease ]   [ Reassure ]   [ Change the subject ]        (pen) free text
+[ Tease                                        ]
+[ Reassure                                     ]
+[ Change the subject                           ]
+[ (pen) Say it ] [ (env) Give ] [ (...) Let it be ]
+   turns left 5                        (eye) Read her 2
 ```
+
+#### Everything that spends the turn looks like it does
+
+The fourth row is not chrome, and it used to be. Saying it yourself, handing
+something over and letting the room carry it were all 10px text links in a
+corner under the chips - so **two of them were reported as bugs on the first day
+of play**, in the same breath: the player never used pass, and never found the
+opener.
+
+They were the same mistake made twice. A move that ends the player's turn has to
+be shaped like one, so all of them are bordered controls at a real touch target,
+in one row, at the weight of the options above them.
+
+What stays in the thin row below is exactly what **does not** end the turn: the
+turn counter, and `Read her`. That split is the information.
+
+`Give` is absent in a scene with no opener economy attached; `Let it be` is
+group scenes only, because a one-to-one scene has no room to carry it.
 
 Stance vocabulary: `tease, reassure, deflect, press, confide, touch, retreat, joke, apologize, invite`.
 Locking: `press` / `touch` / `confide` unavailable in `rift`; `touch` requires `intimacy >= 50`.
@@ -1446,25 +1515,56 @@ un-addressed need a way in, and it must not be a rota:
 
 ```
 1. the addressee speaks
-2. the client MAY add ONE interjection from another member,
-   if her stake clears INTERJECT_THRESHOLD
-3. the player acts: chip / free text / gift / turn to someone / pass
+2. the client MAY add ONE second voice from another member:
+   a CHIME if her chime stake clears CHIME_THRESHOLD, or
+   a CUT_IN if she is in a sharp/corrosive band AND clears INTERJECT_THRESHOLD
+3. the player acts: chip / free text / opener / turn to someone / pass
 ```
 
-Stake has four sources and none of them is a die roll: how invested she is
-(intimacy), how unsettled (jealousy band), whether she was just named, and how
-long she has said nothing. The room writes itself out of state the game already
-tracks, which is what a rota structurally cannot do.
+#### Two bars, because a room has two reasons to speak
 
-The directive names who speaks and who she is cutting into, and **deliberately
-does not say why**. Handing the model "you are jealous" makes it narrate the
-jealousy - the same mistake section 8 forbids for relationship stats. The state
-is already in blocks 3 and 4, and her card decides how somebody like her
-interrupts.
+**The first build had one bar and it was priced for jealousy.** That made
+ordinary conversation structurally impossible, and the arithmetic says so
+plainly: a week-1 bystander at intimacy 10 who had said nothing for four turns
+scored **0.66 against a bar of 1.0**, and the jealousy term was the only thing
+in the formula large enough to clear it on its own. So a group scene could be
+**silent** or it could be **jealous**, and there was no third setting anywhere
+in the number. Both halves of that were reported after one day of play.
+
+| | priced on | asks |
+|---|---|---|
+| **chime** | silence, being named, a little intimacy. **No jealousy term at all.** | does somebody have something to add? |
+| **cut_in** | the jealousy band, gated on `sharp` or `corrosive` | is somebody unsettled enough to interrupt about the player? |
+
+A cut-in wins where both fire: a beat cannot be both warm and pointed, and the
+rarer one is the more interesting event. `piqued` is deliberately excluded from
+cutting in even though it scores - section 5b calls piqued an *opportunity*, and
+letting her interrupt about it spends the moment before the player can read it.
+
+**Silence dominates the chime**, and that is what makes the room circulate with
+no rota deciding it: whoever speaks has her counter reset, so the next chime
+goes to somebody else. Two quiet turns clears the bar exactly, which scales with
+room size for free - a five-member room nearly always has somebody at two, a
+two-member one alternates, and neither needed a rule.
+
+Neither directive says **why** she is speaking. Handing the model "you are
+jealous" makes it narrate the jealousy - the same mistake section 8 forbids for
+relationship stats. What the chime directive *does* say is that this is **easy
+company**: block 3 carries everyone's dossier and block 4 her standing, so a
+model handed a bare "another member speaks" at a scene with any jealousy in it
+will reliably write the jealousy.
+
+Measured live (three in a practice room, six turns, nobody jealous): all three
+voices present, **six chimes, zero cut-ins, zero resentful lines**, and one
+speaker per call throughout. Under the single bar the same scene produced no
+second voice at all.
 
 `pass` stops being a skip button: it is the player letting the room breathe, and
-the highest stake fills the silence whether or not she clears the bar. The turn
-sent is still the player's own move, never a line put in their mouth.
+somebody fills the silence whether or not she clears either bar. Ranked by
+**chime** stake, not the jealousy-weighted one - the player stepping back is the
+most ordinary moment in a group scene, and handing the floor to whoever is
+angriest turns "let the room carry it" into "let the room have a go at you".
+The turn sent is still the player's own move, never a line put in their mouth.
 
 ### What it costs
 
@@ -1476,21 +1576,53 @@ Her beat moves **her** meters and not the addressee's. `guard` and `fluster` are
 per-member readings, and letting an interjection drop somebody else's guard
 would hand the player a number they never earned.
 
-### Still unmeasured
+### Measured once, at three members
 
-`INTERJECT_THRESHOLD = 1.0` is the one number here that cannot be reasoned to,
-and it needs a **live** pass rather than a harness one, because the failure mode
-is prose quality and not a distribution. Too low and nobody finishes a sentence;
-too high and the room is furniture.
+`CHIME_THRESHOLD = 0.9` and `INTERJECT_THRESHOLD = 1.0` have had **one** live
+pass, at three members in a practice room, and it is recorded above. That
+settled the direction and not the magnitude: a chime fired on **every one of six
+turns**, which read well in the transcript but is the top of the range rather
+than the middle of it. Nothing yet says whether it stays enjoyable across a
+full eight-turn scene, or at five members, where the same bar produces the same
+rate. If it turns into wallpaper the fix is in PROPOSALS 16, not a bare number
+change.
+
+The failure mode remains prose quality and not a distribution, so this is a
+live question permanently: too low and nobody finishes a sentence, too high and
+the room is furniture.
 
 Block 3 carries every present member's dossier in a group scene - about 300
 tokens rather than 60. That sits inside the per-scene rebuild and costs nothing
 in cache terms.
 
-The multi-portrait stage is section 14's treatment, unchanged: the speaker at
-full opacity and scale, the others dimmed to 0.55 and 0.95. What this adds is
-that the dimmed ones are **buttons** - tapping one is how the player turns to
-her. So the row is not decoration: it is the only place in the game where the
+### The stage shows who spoke, not who is being spoken to
+
+Section 14's treatment, with one correction that the second voice forced.
+
+The speaker sits at full opacity and scale, the others dim to 0.55 and 0.95 -
+and **the speaker is whoever the beat says it is**, which in a group scene is
+often not the addressee. Drawing the addressee for the portrait, the name and
+the stage light put somebody else's line under her face with her name on it. It
+survived while a second voice was rare and would have mislabelled most of a
+group scene the moment chimes started arriving most turns.
+
+So two states are on screen at once, and they are different things:
+
+- **who is speaking** - the big portrait, the name over the dialogue, the light.
+- **who the player is turned to** - marked in the row, because a chip, an opener
+  and free text all silently target her. The meters are hers too, and carry her
+  name in a group scene for exactly that reason: per-member readings are
+  deliberate (`turnTo` carries them; an interjection does not move the
+  addressee's), so labelling them is the honest fix rather than making them
+  follow the face.
+
+The dimmed portraits are **buttons** - tapping one is how the player turns to
+her - and so is the big one, whenever the speaker is not already the addressee.
+Without that she would be the one member in the room who could not be answered,
+which is backwards: replying to whoever just spoke to you is what a second voice
+is for.
+
+The row is therefore not decoration. It is the only place in the game where the
 player's attention is a visible, continuously priced state. Everybody in the
 room can see where it points, and moving it is witnessed.
 
@@ -1603,12 +1735,54 @@ The two limits are what keep it honest:
   - there is nothing left to reconsider.
 
 The gesture note carries one instruction the gift note does not need: *there is
-no object; do not invent one.* The opening beat is written from that note alone,
-and a model handed "she remembered something you said" will happily produce a
-present that is not in anyone's hands.
+no object; do not invent one.* The beat is written from that note alone, and a
+model handed "she remembered something you said" will happily produce a present
+that is not in anyone's hands.
 
-Gifts are chosen in a pre-scene modal before the first LLM call, then injected as the opening line of block 5:
-`System note: the player opened the scene by giving Irene a hand warmer.`
+### An opener is a turn, not a door
+
+**It used to be a screen between the map and the scene, and that was wrong three
+times over.** Reported on the first day of play:
+
+1. It fired at the door of **every** scene, so the player was asked what they
+   were giving her before they had been given any reason to want to give her
+   anything.
+2. In a **group scene** it asked *who* before showing who was in the room. The
+   player bet blind at the door - the exact problem PROPOSALS 11 raised.
+3. Whatever it produced became **the first thing that happened**, so a scene
+   could never be about anything before it was about the gift. Every knowledge
+   opener landed on a cold open, which is the weakest possible moment for it.
+
+So it is a move the player makes *during* the scene, which is also when a person
+would actually make it: you talk to her, and at some point you bring up the
+thing she once let slip. **The topic turns**, which is what a real gesture does,
+instead of the scene starting there.
+
+Mechanically:
+
+- `runTurn` takes a `note`. It is appended as a system note at the tail -
+  section 8's invariant 3, never edited into the frozen header - and she answers
+  it as the next beat. No directive follows it: the note is self-describing, and
+  writing the next beat is her job every turn anyway.
+- **It costs a turn**, one of the eight. That is what makes it a decision.
+- A note with no words after it is a complete turn. The player handed it over
+  and said nothing, which is a real way to do it.
+- It sets `singledOut` (section 5b), because a gift is nameable by anybody
+  watching.
+- **Handing something to somebody also turns to her.** A gift is a way of
+  addressing someone (section 10c) - choosing her in the sheet and then still
+  talking to the last person would be two answers to the same question.
+- In a group scene the sheet asks **who**, defaulting to the current addressee,
+  so most of the time there is nothing to choose and changing it is one tap.
+
+There is consequently **one** opening beat shape. `openingDirective` no longer
+takes an argument, and the offline writer had to learn to recognise an opener
+mid-scene - it keyed on the opening directive, so without that change every
+gift given without an API key produced a shrug, and section 3 makes offline a
+supported mode rather than a degraded one.
+
+The note itself is unchanged:
+`System note: the player has just handed Irene a hand warmer. She let this slip once: "..."`
 
 ---
 

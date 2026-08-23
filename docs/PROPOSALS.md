@@ -599,20 +599,28 @@ without checking the structure it sits in:
 
 ## 11. The opener moves into the scene, and taking someone a gift takes the floor
 
-**Status: AGREED 2026-08-22 with Yuhan. NOT implemented, and now unblocked.**
-Raised because group scenes break the current placement - and group scenes
-shipped 2026-08-23, so the problem below is live rather than anticipated.
+**Status: IMPLEMENTED 2026-08-23**, after Yuhan hit all three of its predicted
+failures in the first day of play and reported them as one bug. CLAUDE.md
+section 11 carries what shipped.
 
-Two pieces of it arrived early with the group scene work and are worth knowing
-before picking this up:
+What was built, against what this entry proposed:
 
-- **"Turn to her" exists.** The portrait row is a row of buttons and tapping one
-  moves the addressee, so the "missing verb" this entry identifies is already
-  the primitive the scene runs on. What is missing is routing the OPENER
-  through it.
-- **The opener is still a pre-scene modal**, which in a group scene means the
-  player picks who to hand something to before they have seen anybody in the
-  room - the exact bet-it-blind-at-the-door problem in reason 2 below.
+- **The opener is a turn.** `runTurn` takes a `note`; it costs one of the eight
+  turns, appends at the tail as a system note, and sets `singledOut`. As
+  proposed.
+- **A gift takes the floor.** Handing something to somebody moves the addressee
+  to her, so choosing in the sheet and talking are one act rather than two.
+  As proposed - and the "missing verb" turned out to already exist, because the
+  portrait row shipped with group scenes.
+- **The sheet asks who**, defaulting to the current addressee. Not in the
+  original entry; it fell out of the group-scene case, and it is the direct
+  answer to reason 2 below.
+
+One thing the entry did not anticipate and the build had to handle: the offline
+writer recognised a gift only from the opening directive, so moving the opener
+mid-scene made every gift given without an API key produce a shrug. Section 3
+treats offline as a supported mode, so that was a blocker rather than a
+footnote.
 
 ### The problem
 
@@ -1132,3 +1140,128 @@ her, and section 5b's `jealousy` is pressure about where attention goes.
 Recommended: **no jealousy, and a small intimacy gain for everyone present.**
 The dorm needs one thing that is unambiguously restorative, or the tension it
 carries has no release valve.
+
+---
+
+## 16. The chime has no brake, and one day it will need one
+
+**Status: NOT a proposal yet - a measurement and a plan for if it goes wrong.
+Raised 2026-08-23 while fixing the silent room.**
+
+`CHIME_THRESHOLD = 0.9` against `perSilentTurn = 0.45` means **two quiet turns
+clears the bar exactly**, and in a room with more than two bystanders somebody
+is essentially always at two. Measured live at three members: a chime on **six
+of six turns**.
+
+That read well - the transcript is in the commit and it is the best group prose
+this project has produced - but it is the top of the range rather than the
+middle of it, and three things about it are untested:
+
+1. **Eight turns, not six.** Whether a second voice every single turn is still
+   pleasant at the end of a full block, or whether it turns into wallpaper.
+2. **Five members, not three.** The bar produces the same rate, so the room gets
+   no busier - but each member speaks a third as often, which may read as five
+   people who each say one thing.
+3. **Call count.** Two calls a player turn, near-always. Roughly doubles a
+   campaign's request count. Money is not the constraint; free-tier rate limits
+   might be.
+
+### If it does need a brake, three options, and only one of them is right
+
+**(a) Raise `CHIME_THRESHOLD`.** Cheapest, and it does not work. With four
+bystanders cycling, somebody is always at three or four, so raising the bar
+quietly turns the chime off in *two*-member rooms while barely touching
+five-member ones. It makes the feature worse where it is already weakest.
+
+**(b) A hard cooldown - no chime the turn after a chime.** Caps it at every
+other turn, and produces a visible alternating rhythm that is exactly the rota
+proposal 12 was written to avoid. A reader would notice the pattern within a
+scene.
+
+**(c) Recommended: a decaying bar.** The chime threshold rises by a fixed amount
+when somebody chimed last turn and relaxes back over the next two, so a member
+with something real to say - just named, or four turns silent - still cuts
+through, while three people talking over each other in a row costs more each
+time. It needs one field on the session (`turnsSinceChime`) and no new concept:
+it is the same "something has to have HAPPENED" argument the interjection bar
+already runs on, applied to the room's own recent noise rather than to one
+member's state.
+
+Do not do any of them on reasoning. **This is a prose question and it needs a
+played campaign**, the same status `INTERJECT_THRESHOLD` had before 2026-08-23.
+
+---
+
+## 17. Everyone in the room reacts to a gift, and only one of them can
+
+**Status: NOT implemented. Raised 2026-08-23, out of scope for the fix that
+found it.**
+
+Handing Nana a hand warmer in front of Irene and Jisoo now does three things:
+Nana answers, everybody present takes a `WEIGHT_WITNESSED` jealousy hit, and the
+scene moves on. What the other two do not do is **say anything about it**, in the
+moment when a person obviously would.
+
+The machinery is nearly all there. `singledOut` is already set on the turn, and
+a chime already fires most turns - so the beat that follows a gift is very
+likely to be somebody else speaking anyway. What is missing is that she is not
+told what just happened: the chime directive says "she joins in on what they are
+talking about", and what they are talking about is a present she watched change
+hands.
+
+Three ways to do it, in ascending order of cost:
+
+**(a) Nothing.** The chime already fires and the note is in block 5 three
+messages back, so a good model may well pick it up unprompted. Cheapest, and
+probably produces the right thing perhaps half the time.
+
+**(b) A third directive.** `witnessDirective` - she saw the player give
+something to somebody. Same shape as the other two, no new state, and it fires
+only on a turn where `note` was set. The risk is the section 8 mistake in
+miniature: told she watched a gift change hands, a model at this tier may
+narrate the jealousy rather than react like a person, which is the exact failure
+the cut-in directive is written to avoid. It would need the same discipline -
+say what happened, never say how she feels about it.
+
+**(c) Make the gift turn a two-beat exchange by construction** - recipient, then
+guaranteed witness. Rejected: it makes the loudest act in the game also the
+slowest, and it removes the possibility of nobody reacting, which is sometimes
+the more cutting outcome.
+
+**Recommended: (b), after a played campaign says (a) is not enough.** The
+question is empirical and the measurement is free - play a group scene, hand
+somebody something, read what the others say.
+
+---
+
+## 18. `shared` beats `singledOut`, so the dorm evening is the cheap place to spend openers
+
+**Status: KNOWN and deliberate. Raised 2026-08-23. Watch, do not fix yet.**
+
+Section 5b's three tiers are gated on `singledOut`, except in a shared dorm
+activity, where `rumor.js` skips the whole branch first and **nothing** costs
+anything. So handing Irene a knowledge gift during the film, in front of the
+other four, is free - where the same act in the practice room is the most
+expensive thing on the map.
+
+That is the weaker half of PROPOSALS 15's rule and it was chosen knowingly: the
+dorm needs one thing that is unambiguously restorative, and a release valve with
+an asterisk on it is not one. A player who notices will bank their openers for
+Friday night.
+
+Two reasons not to close it yet:
+
+- **The exploit is small.** An opener is worth +5 intimacy and the jealousy it
+  dodges is a one-off tick on four members, which attention decays anyway. It
+  buys a modest saving for a rigid routine.
+- **Closing it costs the valve.** The moment `singledOut` overrides `shared`,
+  the player has to think about who they are being seen favouring during the one
+  evening designed for nobody to be favoured.
+
+If it does need closing, the fix is one line in `rumor.js` - check `singledOut`
+before `shared` - and the honest version pairs it with saying so on the dorm
+screen, because a cost the player cannot see is a gotcha.
+
+**What would make it urgent:** a played campaign in which openers cluster on
+weekend dorm evenings. That is visible in the ledger, so it is worth looking for
+rather than guessing at.
