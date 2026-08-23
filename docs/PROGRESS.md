@@ -5,27 +5,117 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M4 complete, M5 underway
+## Current: M0-M5 complete
 
-**672 tests, lint and build clean.** `dev` holds everything; the M2-M4 work was
-merged 2026-08-22 and the M5 map work sits on top of it.
+**806 tests, lint and build clean.** Everything is on `dev`; `main` is well
+behind and should stay there until a full campaign has been played by hand.
 
-The game is playable end to end for a day - map -> room -> scene or solo work ->
-opener -> dialogue -> exit -> rumor -> rollover - **on the new phase map**, in
-English or Chinese, with or without an API key. Dating, witnessed 1v1, the room
-action list and the date register are all live.
+A campaign now runs **cover -> nine weeks -> endings screen**, saves itself, and
+installs. In English or Chinese, with or without an API key.
 
-**Start at "M5 in progress" below.** It has what is done, what is built but not
-reachable, and a numbered order to pick up from.
+**If you are picking this up cold, read "What M5 shipped" and then "Still
+open".** The design is in `CLAUDE.md`; this file is where it stands in code.
 
-### The balance pass, 2026-08-22
+---
 
-A second post-M4 pass, driven by a **headless campaign harness**
+## What M5 shipped
+
+| | |
+|---|---|
+| phase maps | `data/phaseMaps.js` - slots, roles, three maps, coverage asserted |
+| tasks and activities bind to a **slot** | resolved per phase, never a location id |
+| calendar | event day first, phase-scoped group density, free evenings, her-room routine |
+| the map on screen | `LocationGrid` reads `overworldFor(phase)`; a crowded row opens the room as well as the people |
+| the room screen | every action in every room; task competing in the same list |
+| witnessed 1v1 | others in the room take jealousy with no roll, and lift `riskExposure` |
+| snoop pricing | secrecy cost scales with how many people are watching |
+| dating | weekend invitation, refusal, credit bill, whole-day cost |
+| scene registers | a date or an event runs 16 turns with a literary register and a spine |
+| the pronoun rule | narration is "you"; only dialogue uses the player's name |
+| **the cover screen** | name field, identity picker, cast; the run's fixed inputs, set once |
+| **identities as data** | `data/identities.js`, one shipped and three stubs, all asserted well-formed |
+| **facts have ids** | canonical English in `data/facts.js`, display in `i18n/`; dossier entries are objects |
+| **anchor events** | five, one per event slot, each firing once in the campaign |
+| **group scenes** | addressee + interjection; section 9's two-member cap retired |
+| **dorm activities** | cook together, watch a film; no 1v1, no jealousy, a small gain for everyone |
+| **the dish** | an opener paid in a block rather than in credits |
+| **endings screen** | per character, best first, balance ending called out |
+| **save / load** | one slot, written at day rollover; continue from the cover |
+| **PWA** | relative everywhere, a real service worker, iOS/Android safe areas |
+
+### The one lesson worth carrying forward
+
+**Every serious bug this milestone was a JOIN** - two correct halves with
+nothing calling between them. Five of them, all found by writing a test that
+crossed a layer rather than by reasoning about either side:
+
+1. `markRisk` was implemented and tested for two milestones while nothing
+   called it, so `admissibility` never left 0 and every good ending was
+   unreachable in the shipped game.
+2. `eventDays()` placed event days and `overworldFor` hid event sites, and
+   nothing passed the live slot between them - so on an event day the whole
+   cast stood somewhere the player could not reach.
+3. A crowded map row rendered only per-member chips, so section 10b's "every
+   action in every room" was false whenever two members stood in one.
+4. `commitSummary` passed `add.text` alone, dropping the `factId` and the rumor
+   shape one line before they landed.
+5. `advanceBlock` returned `campaignOver` from M1 and nobody read it, so the
+   clock rolled past nine weeks and the game kept going.
+
+A sixth, caught in the tests themselves: three group-scene tests were asserting
+against an empty array, because `runTurn` and `interject` only feed the parser
+through `onChunk` and a client that merely resolves a string produces no beats.
+
+The rule this suggests, and the reason `App.dom.test.jsx` and `pwa.test.js`
+now exist: **a unit test cannot see a missing call. Test across the seam.**
+
+### The language bug, and what it cost to find
+
+Four symptoms from one `zh` session. Three were UI printing memory and are
+fixed: rumors render from `kind` + `subjectName`, the summarizer returns
+`display` beside `summary`, and facts now carry an id whose display form lives
+in `i18n/`. Memory itself stays English - section 19 rule 2 - so a language
+switch cannot corrupt a save.
+
+The fourth, "some members answer in English", took **eight live probes and two
+wrong hypotheses**, both of which looked extremely plausible:
+
+1. *The directive is too far from the dialogue.* Repeated it at the bottom of
+   block 4. Measured with it disabled: **7/7 turns still Chinese.** Not the
+   cause. The line stays because it is cheap, but it was a guess.
+2. *Accumulated English memory drags it.* Measured with 6 and then 24 English
+   ledger lines, three English dossier facts, a neglected member, an English
+   gift note, an English date frame, and Read her mid-scene. **All 100% Han.**
+
+The actual cause was `tools/client.js`: a failed live call falls back to the
+offline writer, silently, and that writer had one English table. Every probe
+missed it because they call the router directly and never take that path.
+**A harness that bypasses a layer cannot find bugs in that layer** - the same
+lesson as the joins above, from the other direction.
+
+`src/agent/zhSmoke.test.js` (`ZH_SMOKE=1`) measures the Han ratio **per turn**;
+a flicker is invisible at two turns.
+
+### The custom-card probe
+
+A card with every semantic field in Chinese played four clean turns, the parser
+held, emotions stayed ASCII - and **memory came back 0% Han.** That settled
+PROPOSALS 14's open question: the summarizer keeps memory English because its
+instruction says so, regardless of the card's language. Translate-at-import is
+a v2 convenience, not a correctness requirement, so a custom card authored
+offline is simply single-locale.
+
+---
+
+## The balance pass, 2026-08-22
+
+A post-M4 pass, driven by the headless campaign harness
 (`src/agent/playthrough.test.js`) that plays all 189 blocks through the real
-engine, and by **live quality measurement** against DeepSeek
-(`src/agent/liveQuality.test.js`, `LIVE_QUALITY=1`). Four defects, all of the
-same shape: two correct halves and a missing join, invisible to every unit test
-and to any playtest shorter than a full campaign.
+engine, and by live quality measurement against DeepSeek
+(`src/agent/liveQuality.test.js`, `LIVE_QUALITY=1`). Five defects, all of the
+same shape as the joins above: two correct halves and a missing call between
+them, invisible to every unit test and to any playtest shorter than a full
+campaign.
 
 | | |
 |---|---|
@@ -40,6 +130,19 @@ same pass that were deliberately *not* implemented, with the measurements behind
 each. Read it before tuning anything.
 
 ### Measured, so it does not have to be re-derived
+
+**2026-08-23, after events and shared activities.** `HARNESS_REPORT=1 npx
+vitest run playthrough`. All five anchor events fire once per campaign; scenes
+that paid nothing fell to 6-14 of ~95; the fact pool empties and rumors take
+over as designed.
+
+The number to look at, and the reason item 2 under "Still open" exists:
+**four `confidante_end` out of five** on both `balanced` seeds and on
+`spread` - intimacy reaches 70-80 while admissibility stalls at 10-40. Either
+the plateau is correct or it is too harsh, and the harness **cannot tell**,
+because it never takes a date and never spends a dorm evening. A public date is
+the single largest admissibility lever in the game.
+
 
 - **Endings by policy** after the balance pass, 5 seeds x 5 members: good
   endings per route are expert 88%, bold 84%, balanced 52%, spread 24%,
@@ -277,180 +380,82 @@ with several people lets you choose who you walk up to.
 
 ---
 
-## M5 in progress
-
-**672 tests, lint and build clean.** Everything is on `dev`; `main` is 41+
-commits behind and should stay there until a full loop has been played by hand.
-
-### Done and reachable in play
-
-| | |
-|---|---|
-| phase maps | `data/phaseMaps.js` - slots, roles, three maps, coverage asserted |
-| 12 new locations | `drama_set` broadened to cover all filming |
-| tasks bind to a slot | resolved per phase, never a location id |
-| activities bind to a slot | same rule; two were scheduling members into unreachable rooms |
-| calendar | event day first, phase-scoped group density, free evenings, her-room routine |
-| the map on screen | `LocationGrid` reads `overworldFor(phase)`; event sites hidden until their day |
-| the room screen | every action in every room; people first, task competing in the same list |
-| witnessed 1v1 | others in the room take jealousy with no roll, and lift `riskExposure` |
-| snoop pricing | secrecy cost scales with how many people are watching |
-| dating | weekend invitation, refusal, credit bill, whole-day cost |
-| scene registers | a date runs 16 turns with a literary register and a venue spine |
-| the pronoun rule | narration is "you"; only dialogue uses the player's name |
-| player name | sanitised at the prompt boundary; **no field to type it in yet** |
-| addressee | `systems/speaker.js` + `addresseeId`; inert until group scenes |
-| zh offline writer | `mockLines.zh.js`; the fallback no longer answers in English |
-| model-failure notice | a failed live call says so instead of pretending |
-
-### Built, tested, NOT reachable
-
-Kept as its own list because this is the shape of the worst bug this project
-has had - `markRisk` was implemented and tested for two milestones while
-nothing called it, and every good ending was unreachable in the shipped game.
-
-- **`relanguage`** - switching language mid-scene rebuilds the prefix. Correct
-  and tested, and unreachable because settings are only on the day screen.
-  Insurance for when settings move into the scene.
-- **`turnTo` / speaker weighting** - no UI addresses anybody yet.
-- **Authored events** - `eventDays()` places the day and names the site;
-  `data/events/` is empty, so the day resolves as an ordinary one.
-
-### The language bug, and what it cost to find
-
-Four symptoms were reported from one `zh` session. Three were UI printing
-memory, and are fixed: rumors render from `kind` + `subjectName` rather than
-`r.text`, and the summarizer returns `display` beside `summary`. Memory itself
-stays English - section 19 rule 2 - so a language switch cannot corrupt a save.
-
-The fourth - "some members answer in English" - took **eight live probes and
-two wrong hypotheses**, and is worth recording because both wrong answers
-looked extremely plausible:
-
-1. *The directive is too far from the dialogue.* Repeated it at the bottom of
-   block 4. Measured with it disabled: **7/7 turns still Chinese.** Not the
-   cause. The line stays because it is cheap, but it was a guess.
-2. *Accumulated English memory drags it.* Measured with 6 and then 24 English
-   ledger lines, three English dossier facts, a neglected member in the same
-   run, an English gift note, an English date frame, and Read her mid-scene.
-   **All 100% Han, every turn.**
-
-The actual cause was `tools/client.js`: a failed live call falls back to the
-offline writer, silently, and that writer had one English table. Every probe
-missed it because they call the router directly and never take that path.
-
-Two lessons worth keeping:
-
-- **A harness that bypasses a layer cannot find bugs in that layer.** Eight
-  probes of the prompt could never have found a bug in the client.
-- The probes were not wasted: they establish that the prompt is fine under
-  every condition tried, which is why no coefficient was touched.
-
-`src/agent/zhSmoke.test.js` (`ZH_SMOKE=1`) is the harness. It measures the Han
-ratio **per turn** - the existing `zh` check in `liveQuality` plays two turns,
-and a flicker is invisible at that length.
-
-### The custom-card probe
-
-A card with every semantic field in Chinese played four clean turns, the parser
-held, emotions stayed ASCII - and **memory came back 0% Han.** That settles the
-open question in PROPOSALS 14: the summarizer keeps memory English because its
-instruction says so, regardless of the card's language. Translate-at-import is
-therefore a preference, not a requirement.
-
-### Pick up here, in this order
-
-1. **Start screen** - name field, then the identity picker (assistant enabled,
-   others disabled) and the cast picker (hardcoded to five, custom stubbed).
-   Sections 12 and 13 already specify both as stubs. Build it once, with empty
-   sections for the pickers, rather than twice.
-2. **PROPOSALS 14** - fact ids and the display/canonical split. Two decisions
-   are open and stated there; the dossier-entry shape change should happen
-   **before** `save.js` exists, which is now.
-3. **Authored events** - `data/events/`, the whole-day clock, five sites. Write
-   the first as a 2-member scene to prove the injection shape.
-4. **Group scenes** - PROPOSALS 12. The pure half is done; what remains is the
-   interjection call, its directive, and a live pass on
-   `INTERJECT_THRESHOLD`, which cannot be reasoned to.
-5. **Dorm shared activities** - PROPOSALS 15 (cook together, watch a film).
-   Blocked on 4.
-6. **Endings, save/load, PWA** - the rest of M5.
-
-### Loose ends, none blocking
-
-- **`corridor` is orphaned.** Off every phase map, still has solo actions and
-  an i18n entry. `identity.locations` is worse: it names `backstage`, `van` and
-  `cafeteria`, none of which have ever existed. Identity should name slots.
-- **`npm test` spends money** while `.env.local` exists - `tools/live.test.js`
-  gates on a key alone, unlike `liveQuality` and `zhSmoke` which also need a
-  flag. Align it.
-- **`balanceSim` is superseded** and still maintained. See below.
-- **The block-4 language reminder is unjustified** rather than wrong. It was
-  added for a cause that turned out not to be the cause. Harmless, cheap, and
-  should be deleted if anything ever needs the space.
-
----
-
 ## Still open
 
-The list to work from. Roughly in the order they should be picked up.
+Nothing here blocks a playthrough. Roughly in the order it should be picked up.
 
-### M5 proper
+### 1. Play it by hand, then merge to `main`
 
-- **Save/load.** Closing the tab loses the run. `store/save.js` is an empty stub
-  and the state schema in CLAUDE.md section 15 is the contract.
-- **Endings screen.** The campaign can run past its last week without resolving.
-  `resolveEnding` and `isBalanceEnding` exist and are tested; nothing calls them.
-- **Authored events.** `eventDays()` now places one or two weekdays per phase and
-  returns where they happen; `data/events/` is still empty, so the day resolves
-  as an ordinary one. Five sites, five situations, escalating per cycle - see
-  PROPOSALS 10. Note the reversal: events go on **weekdays** now, not weekends.
-- **Group scenes.** PROPOSALS 12. The addressee primitive and the speaker
-  weighting are the next pure work; the interjection call needs a live pass.
-- **Repair events.** `applyRepair` is implemented and tested; nothing calls it,
-  and `flags.repairUsed` is unused.
-- **PWA install / service worker.** Manifest and icons exist; no SW.
+The whole loop now exists and **no human has played it end to end.** That is
+the next thing, before any coefficient moves: nine weeks is about an hour, and
+every bug this project has had was found that way rather than by reasoning.
 
-### Known gaps that are not M5
+Specifically worth watching for, because these shipped on reasoning alone:
 
-- **`balanceSim` has been superseded and should probably be retired.** It models
-  a scene as a number and knows nothing about openers, chips, solo work, the
-  calendar or energy, so its 2.8% figure has been stale since the opener economy
-  grew. `src/agent/playthrough.test.js` now answers the same questions by
-  playing the real loop, and it found two defects `balanceSim` structurally
-  could not see. Keeping both means maintaining two sets of policies that
-  disagree. Decide: teach `simulateScene` the rest of the game, or delete it and
-  move the section 5b table to harness numbers.
-- **The written-chip writer is not in the harness.** `playthrough.test.js`
-  drives `chips.js` directly, so the campaign numbers assume static chips. That
-  is the conservative direction (written chips should make a player better, not
-  worse) but it is an assumption, not a measurement.
-- **Group scenes.** Prompt and parser handle two members; `VNStage` renders one
-  portrait, so `App` deliberately passes a roster of one. Needs the two-portrait
-  stage plus the witnessed-gesture bonus in `computeDeltas`.
-- **No retry / regenerate.** The rv-simulator snapshot pattern should be ported.
-- **`data/identities/*.json` is empty.** The identity is a literal in `App.jsx`.
-  Section 13 is the schema it should move into.
-- **Mascot SVGs are placeholders**, to be replaced after a v1 pass.
-- **Dead files awaiting permission to delete:** `ui/screens/SceneSetup.jsx`
-  (superseded by `Day.jsx`), `src/App.css`, `src/assets/{react,vite}.svg`,
-  `src/assets/hero.png`.
-- **No `prefers-reduced-motion` audit** of the newer animations.
-- **ko / pt** are stubbed in `i18n/index.js` and fall back to `en`. Note that
-  `i18n/coverage.test.js` asserts en/zh parity only; adding a locale means
-  adding it there too.
-- **Only DeepSeek is measured live.** The beat call, chip call, summarizer, Read
-  her and `zh` output have all now been exercised and are good (`zh` writes
-  clean Chinese prose with ASCII metadata; Read her and the ledger lines are
-  genuinely sharp). The other three router entries in `modelConfigs.js` have
-  never been called, and neither has a group scene, because there is no way to
-  start one.
-- **The written-chip budget is provider-dependent.** A chip call measured 1.3s
-  on a quiet provider and 8.1s on a busy one. `live.test.js` reports when it
-  misses the 3s reading budget rather than failing, because that is DeepSeek's
-  load and not this repo's contract.
+- **`INTERJECT_THRESHOLD = 1.0`** is unmeasured, and it is the one number in
+  the group-scene design that cannot be reasoned to. Too low and nobody
+  finishes a sentence; too high and the room is furniture. Needs a **live**
+  pass, not a harness one - the failure mode is prose quality, not a
+  distribution.
+- **The interjection directive** is the new prompt shape most likely to read
+  badly. Does she cut in like herself, or like a generic interruption?
+- **Anchor event frames.** Sixteen turns is a long time for a frame to hold a
+  scene together. Do they wander?
+- **The dorm evenings.** Do cooking and a film actually read differently from a
+  work scene, which is the entire argument for them?
 
----
+### 2. The plateau, measured against a real campaign
+
+The harness reports **four `confidante_end` out of five** on both `balanced`
+seeds and on `spread`: intimacy climbs to 70-80 and admissibility stalls at
+10-40. That is the plateau doing exactly what section 5 says it does, and it is
+either correct or too harsh - and it cannot be told apart from the harness,
+because **the harness never takes a date and never spends a dorm evening**, and
+a public date is the single largest admissibility lever in the game.
+
+So: play it by hand first (item 1), then decide. Do not move
+`RISK_PAYOFF_SCALE` on harness numbers alone.
+
+Related and probably the same problem: **35 "facts with nothing to spend them
+on"** per campaign, with credits ending at 0-2. PROPOSALS 6 measured this
+before and it has not improved.
+
+### 3. Harness fidelity
+
+- **`presentIds` is unset for every ordinary harness scene**, so co-presence
+  jealousy and `riskExposure` are under-modelled everywhere except at anchor
+  events, where it is now set. Fixing it would move every number in the report,
+  which is why it was not done in the same commit as events - but it should be
+  done, and attributed.
+- **`balanceSim` is superseded and still maintained.** It models a scene as a
+  number and knows nothing about openers, chips, solo work, the calendar or
+  energy. `playthrough.test.js` answers the same questions by playing the real
+  loop. Retire it.
+
+### 4. Repair events
+
+`applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
+and **nothing calls either.** Section 5 gives it once per cycle per character
+while in `rift`. This is the sixth item on the join list waiting to happen.
+
+### 5. Content and polish
+
+- **Card picker UI.** The cast section of the cover screen is a stub that
+  renders the fixed five. v1: choose any five from the library. v2: the custom
+  card editor, for which `data/facts.js` already takes the inline shape.
+- **Other identities.** Three stubs in `data/identities.js`, asserted
+  well-formed, disabled in the picker. Flipping `available` is most of it.
+- **`corridor` is orphaned.** Off every phase map, still has solo actions and
+  an i18n entry.
+- **The block-4 language reminder is unjustified** rather than wrong. It was
+  added for a cause that turned out not to be the cause. Delete it if anything
+  ever needs the space.
+
+### Deferred by design
+
+- Multi-portrait `single` / `multi` modes (section 14) - v2, and IndexedDB.
+- `ko` / `pt` (section 19) - v2. `fact.*` and every other content table now
+  needs a full set per locale, which the i18n coverage test enforces.
 
 ---
 
@@ -512,3 +517,14 @@ after being written down.
 | 2026-08-22 | **A survived public risk scales with intimacy** (proposal 9): `(3..6) x (1 + I/100 x 1.2)`, failure branch flat. Escaping the plateau costs 10 admissibility at intimacy 60 and 50 at 90, so a flat payout meant getting closer to her bought a worse ending. Good endings by policy: spread 24%, devoted 20%, balanced 52%, bold 84%, expert 88%. |
 | 2026-08-22 | Added PROPOSALS 10: phase-specific maps and authored event scenes (Yuhan's design). Not implemented - written up for confirmation, with the two objections that matter (a whole-day location does not fit a three-block clock, and a map bigger than ~10 reachable rooms per phase is mostly empty). |
 | 2026-08-22 | **The metadata line reports state, not movement** (proposals 1, final form). `guard58` is where she is; `guard-8` still means she moved eight, because format failures are guaranteed. The last beat of a reply is the state, so beat count stops mattering - which no client-side arithmetic could achieve, as three earlier settings proved. Guard drops over the same twelve live scenes went from `10, 8, -7, 11, 0, -3, -10, -23, 9, 9, 9, -20` to `17, 4, 8, 10, 13, 10, 7, 11, 10, 11, 9, 17`: every scene now moves her the right way. Block 4 states her opening reading so the absolute has a scale; the offline writer emits readings too, so no-key play does not diverge. |
+| 2026-08-23 | Fact canonical text lives in `data/facts.js`, NOT `i18n/en.js`. The proposal put it in the bundle for symmetry; symmetry is the wrong thing to optimise for a string that gift needles match by substring. |
+| 2026-08-23 | English has no `fact.*` keys at all and falls back to canonical; every other locale must have all of them. Both halves asserted. |
+| 2026-08-23 | Custom cards default to single-locale rather than translate-at-import - the live probe showed memory stays English regardless, so translation buys portability, not correctness. |
+| 2026-08-23 | Section 9's two-member interactive cap RETIRED, replaced by "one call, one speaker". The roster may be the whole room; the answer may not. |
+| 2026-08-23 | Group scenes use an addressee + one optional interjection, not the rota sketched in 10c. A rota cannot say who the player was talking to. |
+| 2026-08-23 | Shared dorm activities generate no jealousy at all, and pay a small intimacy gain to everyone present. |
+| 2026-08-23 | The dorm shared rooms offer no 1v1. The one documented exception to 10b, and the whole point of the release valve. |
+| 2026-08-23 | An identity names role SLOTS, not location ids. The old inline list named three rooms that had never existed. |
+| 2026-08-23 | Save is automatic at day rollover, one slot, no save screen. The day boundary is also the only moment section 15 permits. |
+| 2026-08-23 | `base: './'` and relative paths everywhere, after checking how rv-simulator deploys to GitHub Pages. |
+| 2026-08-23 | `npm test` no longer bills a provider: `tools/live.test.js` needs `LIVE_PROVIDER=1` on top of a key, matching liveQuality and zhSmoke. |
