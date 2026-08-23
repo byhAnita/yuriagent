@@ -7,7 +7,14 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runTurn, openingDirective, closingDirective } from './sceneEngine.js';
+import {
+  beginScene,
+  runTurn,
+  openingDirective,
+  closingDirective,
+  establishingDirective,
+  establish,
+} from './sceneEngine.js';
 import { buildMessages } from './promptBuilder.js';
 import { purchase } from '../systems/economy.js';
 import { newMemory, addDossierEntry } from './memory.js';
@@ -371,5 +378,142 @@ describe('she actually reacts', () => {
     session = await runTurn(session, { note: bought.sceneNote, client: noisy });
 
     expect(session.beats.at(-1).text.toLowerCase()).toContain('mugwort pack');
+  });
+});
+
+/**
+ * The establishing beat. PROPOSALS 20 (a).
+ *
+ * An anchor event opens with the room and not with somebody noticing you.
+ * Reported after the first played concept meeting: "not distinguishable from
+ * ordinary group chat". Nothing had established that the day was a day.
+ */
+describe('an anchor event opens with the room', () => {
+  const client = createMockClient({ seed: 4, delay: 0 });
+
+  it('asks for a paragraph of room and forbids anyone speaking in it', () => {
+    const d = establishingDirective();
+    expect(d).toMatch(/establishes this room/);
+    expect(d).toMatch(/no dialogue/i);
+    expect(d).toMatch(/no metadata line/i);
+    expect(d).toMatch(/forty words/);
+  });
+
+  /**
+   * THE TRAP, and it is the language split by another door.
+   *
+   * This call is now the one with an empty block 5 - the exact condition that
+   * produced an English action with Chinese speech at the opening beat of an
+   * anchor event, which was already that bug's worst case. Everything above
+   * block 5 is English by design (section 19), so a directive that does not say
+   * the language is a directive the model answers in English.
+   */
+  it('carries the language, because it inherited the empty block 5', () => {
+    expect(establishingDirective('zh')).toContain('Simplified Chinese');
+    expect(establishingDirective('en')).not.toMatch(/Write it in/);
+    expect(establishingDirective()).toBe(establishingDirective('en'));
+  });
+
+  it('appends both halves at the tail and returns the prose', async () => {
+    const session = beginScene(setup());
+    const before = buildMessages(session.frame).length;
+
+    const { session: after, text } = await establish(session, { client });
+
+    expect(text.length).toBeGreaterThan(40);
+    expect(buildMessages(after.frame)).toHaveLength(before + 2);
+    expect(buildMessages(after.frame).at(-1).content).toContain(text.slice(0, 20));
+  });
+
+  /** Section 8, invariant 1: nothing above block 5 may move. */
+  it('changes nothing above block 5', async () => {
+    const session = beginScene(setup());
+    const prefix = buildMessages(session.frame)[0].content;
+    const { session: after } = await establish(session, { client });
+
+    expect(buildMessages(after.frame)[0].content).toBe(prefix);
+  });
+
+  /**
+   * Section 9, rule 6: a metadata line must never reach the player. This call
+   * is unparsed by design, so the rule the parser would have enforced for free
+   * has to be enforced here - and a model that has just read the format
+   * contract in block 1 and been told not to use it is exactly the model that
+   * uses it anyway.
+   */
+  it('strips a metadata line the model emitted anyway', async () => {
+    const chatty = async () =>
+      '@irene|neutral|guard50|fluster0\nThe room is full and nothing has been settled yet.';
+
+    const { text } = await establish(beginScene(setup()), { client: chatty });
+
+    expect(text).not.toContain('@irene');
+    expect(text).toContain('nothing has been settled');
+  });
+
+  /**
+   * A flatter event is an acceptable failure; a scene that will not open is
+   * not. Section 3 keeps every degraded mode playable.
+   */
+  it('gives the session back untouched when the call fails', async () => {
+    const dead = async () => {
+      throw new Error('provider down');
+    };
+    const session = beginScene(setup());
+    const { session: after, text } = await establish(session, { client: dead });
+
+    expect(after).toBe(session);
+    expect(text).toBeNull();
+  });
+
+  it('gives it back untouched when the model returns nothing usable', async () => {
+    const empty = async () => '   ';
+    const session = beginScene(setup());
+    const { session: after, text } = await establish(session, { client: empty });
+
+    expect(after).toBe(session);
+    expect(text).toBeNull();
+  });
+
+  /** Offline is a supported mode, not a degraded one (section 3). */
+  it('is answered by the offline writer in both locales', async () => {
+    const en = await createMockClient({ seed: 2, delay: 0 })({
+      messages: [{ role: 'system', content: 'Write all prose in English.' }],
+      preset: 'establish',
+    });
+    const zh = await createMockClient({ seed: 2, delay: 0 })({
+      messages: [{ role: 'system', content: 'Write all prose in Simplified Chinese.' }],
+      preset: 'establish',
+    });
+
+    expect(en.length).toBeGreaterThan(40);
+    expect(/^[\x20-\x7e\s]+$/.test(en)).toBe(true);
+    expect(/[一-鿿]/.test(zh)).toBe(true);
+  });
+});
+
+/**
+ * The other half of the agenda, on the one turn where "before this ends" is a
+ * fact rather than a guess. Only the client knows which turn is last.
+ */
+describe('a day with business on it settles it before it ends', () => {
+  it('says nothing extra for an ordinary scene', () => {
+    expect(closingDirective()).toBe(closingDirective({ settles: false }));
+    expect(closingDirective()).not.toMatch(/settle/i);
+  });
+
+  it('adds the settling clause, and keeps the parting', () => {
+    const out = closingDirective({ settles: true });
+    expect(out).toContain('settles what it came to settle');
+    expect(out).toContain('last exchange');
+  });
+
+  /**
+   * Deliberately does not repeat the items. They are in block 4, and listing
+   * four bullet points into the tail invites the model to work through them on
+   * the final turn instead of having settled them across the day.
+   */
+  it('does not re-list the agenda into the tail of the scene', () => {
+    expect(closingDirective({ settles: true })).not.toMatch(/^\s*-/m);
   });
 });

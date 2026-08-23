@@ -1386,11 +1386,21 @@ directive to buy something (a) mostly already delivers.
 
 ## 20. An anchor event has to decide something
 
-**Status: ACCEPTED 2026-08-23, not yet built. This is the next task.** Yuhan
-raised it after playing the first anchor event, marked it not urgent twice,
-then raised it a third time and asked for it ahead of further hand testing.
-The staged plan is in `docs/PROGRESS.md` "Still open" item 1; the argument for
-why it is three problems rather than one is here.
+**Status: (a) and (b) BUILT 2026-08-24. (c) is next and is being designed
+before it is implemented, at Yuhan's request. (d) is content and follows.**
+Yuhan raised it after playing the first anchor event, marked it not urgent
+twice, then raised it a third time and asked for it ahead of further hand
+testing. The staged plan and the five open questions (c) has to answer are in
+`docs/PROGRESS.md` "Still open" item 1; the argument for why it is three
+problems rather than one is here.
+
+**What shipped, and what it did not fix.** An event now opens with a paragraph
+of room (`establish`), and every event frame carries an `agenda` of two to four
+things the day must decide, restated once by the closing directive. That is the
+meeting being *about* something. It is still true that nothing records what the
+room decided, which is (c) - and the prediction written here before the build,
+that (a) and (b) would produce a livelier meeting that still forgets itself by
+Tuesday, is now an observation rather than a forecast.
 
 It was marked *not urgent* by the person who raised it, and it is nevertheless the
 largest quality lever left in the game.

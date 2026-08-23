@@ -1079,11 +1079,11 @@ it first.
 
 ---
 
-### 1. PROPOSALS 20 - make an anchor event decide something  <- PICK UP HERE
+### 1. PROPOSALS 20 - make an anchor event decide something
 
-**This is the agreed next task**, on Yuhan's instruction, ahead of further hand
-testing. The full argument is `docs/PROPOSALS.md` entry 20; what follows is the
-plan, so a cold context can execute it without re-deriving the design.
+**(a) and (b) are BUILT and merged. (c) is the next thing, and Yuhan has asked
+for a detailed design before it is implemented.** (d) is content and comes
+after. The full argument is `docs/PROPOSALS.md` entry 20.
 
 **The problem, in one line:** every scene in the game - ordinary, group, event,
 date - is pleasant small talk that advances nothing, and a campaign cannot
@@ -1092,54 +1092,56 @@ meeting: *"not distinguishable from ordinary group chat."* Fifteen turns that
 were supposed to choose a comeback concept produced a joke about ear colour and
 a plate of food, and the ledger line for the whole day was about the food.
 
-**Three deficits, and they must not be conflated.** Doing only (a) and (b)
-produces a livelier meeting that still forgets itself by Tuesday.
+**Three deficits, and they must not be conflated.** (a) and (b) have produced a
+livelier meeting that still forgets itself by Tuesday, exactly as predicted -
+which is the argument for (c) rather than a complaint about them.
 
-#### (a) Nothing establishes the day - cheap
+#### (a) Nothing establishes the day - BUILT
 
-Every scene opens with `openingDirective`: one member's beat, *what she does in
-the moment she notices the player has walked in*. Right for a wardrobe on a
-Tuesday, wrong for a room the whole cast is sitting in for a stated purpose.
+An event now opens with the room. `establishingDirective(lang)` and
+`establish(session, { client, lang })` in `agent/sceneEngine.js`; `VNStage`
+fires it from the opening effect when `scene.event` is set, enqueues the result
+as a beat with `speaker: null`, and `DialogueBox` draws no name plate over it.
 
-Add an **establishing beat** for `kind: 'event'` - one beat, no speaker, what
-the room looks like and what is about to happen in it. Then the ordinary loop.
-The `event` register already exists (`data/sceneFrames.js`, `REGISTERS.event`)
-and events already get sixteen turns.
+Four decisions worth not re-litigating:
 
-**Not** rv-simulator's 350-450 words of narration per round. Pillar 1 rules
-that out, and a story generator is what this project stopped being. One beat,
-about forty words.
+- **Its own call**, on its own preset (`establish`, 140 tokens, unstreamed). The
+  section 9 contract does not change and the parser's roster rule - the one hard
+  guarantee against member bleed - is not asked to grow a case for prose with no
+  speaker. The client knows this beat is narration because the client asked for
+  it.
+- **It carries `lang`**, which was the trap flagged before the build and was
+  real: this call now owns the empty block 5. The opening beat that follows has
+  Chinese prose above it, so the language split's own condition is gone from the
+  turn it lived on.
+- **Events only.** A date already opens on atmosphere in her own beat, and
+  `REGISTERS.event` had to *stop* asking for it - otherwise the first two beats
+  of every anchor event both open by describing the room.
+- **Every failure path returns the session untouched.** A flatter event is
+  acceptable; a scene that will not open is not.
 
-One trap, freshly learned: an establishing beat IS the opening beat, so it must
-carry `lang` the way `openingDirective(lang)` now does. This is the exact turn
-the language split lives on, and an event is its worst case.
+Cost: one extra call five times a campaign. It is enqueued the moment it lands
+rather than held, so the player reads it while the opening call is already in
+flight - the chip call's trade.
 
-#### (b) The agenda is atmosphere, not business - cheap
+#### (b) The agenda is atmosphere, not business - BUILT
 
-Look at what `data/events/index.js` actually gives the model for
-`concept_meeting`:
+`frame.agenda`, two to four items, on all five events. `renderFrame` states it
+as an obligation where movements are offered (*does not end until it has*), and
+`closingDirective({ settles })` says it once more on the turn the client knows
+is last.
 
-```
-the boards going up, and which one she reacts to before she can stop herself
-the part of the concept that asks something of her specifically
-an idea getting cut, and the room going carefully polite
-```
+The rendered block also says outright that **not everything has to go anyone's
+way**. That line is not padding: a room told to decide four things will
+otherwise agree pleasantly about all four, which is small talk wearing a suit.
 
-Every movement is an emotional situation. **Not one of them says a title track
-gets chosen today.** The model was asked for feelings in a meeting room and it
-delivered feelings in a meeting room - a content bug wearing the costume of a
-model failure.
+Two rules are asserted in `data/events/events.test.js` because this is content
+and content drifts: an agenda item names **what** gets decided and never **which
+way**, and it must be about the group and the work rather than about one member
+feeling something. The second is the one that will rot first - a "movement in
+disguise" reads fine and quietly turns the field back into atmosphere.
 
-Add an `agenda` field beside `movements`: two to four things the day must
-decide. For the concept meeting - the concept, the title track, the styling,
-the MV idea. Model-facing English, never localized (section 19). Keep the
-existing rule that a **movement sets the SITUATION and never the OUTCOME**;
-`agenda` is a separate field precisely so that rule survives intact.
-
-The closing directive for an event should say it too: *before this ends, the
-room settles what it came to settle.*
-
-#### (c) Nothing is recorded - the part with real cost
+#### (c) Nothing is recorded - NEXT, and design it first  <- PICK UP HERE
 
 Even if the room decided, there is nowhere to put it. `dossier` is per member.
 `ledger` is chronology - one sentence, compacted and eventually dropped - and
@@ -1172,6 +1174,32 @@ Three reasons it is run-level rather than one of the two stores that exist:
 **Do not implement (c) by widening the ledger.** A summary that must carry both
 a feeling and a fact will carry the feeling every time.
 
+**Open questions the design has to answer before any of it is written**, and
+they are why Yuhan asked for a design pass rather than a build:
+
+1. **What is an entry?** A sentence, or a `{ topic, decision }` pair? A sentence
+   is what the summarizer can actually produce and what block 4 wants to read
+   back. A pair is what cycle 2 needs in order to say *the title track last time
+   was X* rather than re-reading prose. Probably a sentence plus a stable topic
+   key, and the key is the part that needs deciding.
+2. **How many, and what happens when it fills?** Canon must not compact the way
+   the ledger does - that is the whole reason it exists - but three cycles times
+   four agenda items is twelve entries and block 4 cannot carry twelve lines of
+   it forever. Superseding is the likely answer (a later decision on the same
+   topic replaces the earlier one), which is another argument for the key.
+3. **Who is allowed to write it?** Events only, or any scene? Events only to
+   start - the agenda is what makes a decision identifiable, and a scene with no
+   agenda has nothing to report.
+4. **What stops it being invented?** The summarizer will happily report a
+   decision the room never reached, which is the `learnableFacts` problem again:
+   a fact awarded for nothing is worse than a fact never awarded. The agenda is
+   the obvious checklist to score against, the same shape section 11 uses for
+   dialogue-taught facts.
+5. **Where does the player see it?** If canon only ever reaches the model it is
+   invisible, which is the failure mode section 1's fourth pillar exists to
+   forbid: *memory that shows*. A day screen line, or the endings screen, or
+   both.
+
 #### (d) The second PREP event - content, do it last
 
 PREP carries only `event_a` (`meeting_room`); `comeback` and `rest` carry two
@@ -1191,15 +1219,25 @@ remembers itself.
 
 #### Order, and where it is safe to stop
 
-**(a) + (b) first**, and they ship on their own - a directive and a data field,
-no schema change, testable offline. **(c) second**, deliberately, with the save
-migration done properly. **(d) last**, as content.
+**(a) + (b) shipped together**, as predicted: a directive and a data field, no
+schema change, testable offline. **(c) is next**, designed before it is built,
+with the save migration done properly. **(d) last**, as content, because it is
+also the best possible test of canon - an MV shoot that reads back the concept
+the meeting chose is the shortest demonstration that a campaign remembers
+itself.
+
+It is safe to stop here and play. Nothing in (a) or (b) can strand a scene: the
+establishing call fails silently into an ordinary opening, and an agenda is a
+frame field that renders or does not.
 
 Ordinary scenes are the larger share of the game and the same complaint covers
 them (*"all dialogues are random and shallow small talks"*). Whatever (b)
 establishes for events is worth looking at again for ordinary blocks - section
 8's `ACTIVITY_DOING` already gives a scene a reason to exist, and it may need
-agenda-shaped sharpening rather than new machinery.
+agenda-shaped sharpening rather than new machinery. **Do not simply copy the
+establishing beat there**: it is priced at one extra call five times a campaign,
+and an ordinary block would make that ~190, for a paragraph pillar 1 does not
+want in front of a wardrobe conversation.
 
 ### 2. Play the rest of it, on the phone, in both languages
 
@@ -1414,3 +1452,9 @@ after being written down.
 | 2026-08-23 | **The speaker's portrait collapsed in every group scene**, on a phone only. The scene is a fixed viewport height; the portrait was `min-h-0 flex-1` and the card row `shrink-0`, so with a header, meters, a Chinese dialogue box and a four-row chip bar there was nothing left to divide and `flex-1` is the side that gives. The row now floats over the portrait and costs no height. `Portrait`'s small size was also a hardcoded `h-24` inside an `h-14` wrapper, making every estimate of that budget wrong by 40px in the direction that hurt. |
 | 2026-08-23 | **Presence is reported at scene exit.** Section 5b gives it no dossier entry, and the aftermath rendered only rumors, so a 1v1 in an occupied room ended completely silent while three people's jealousy moved. What SHE knows and what the PLAYER is told are different questions; `propagate` now returns `noticed` alongside `rumors`. |
 | 2026-08-23 | **`心动` -> `心乱`.** Reported as "her affection resets at the start of every scene". It does not - `心动` means *moved to love*, so a volatile scene meter was wearing the name of the persistent one. Affection is `intimacy` and it persists; guard only looks persistent because it opens at `100 - intimacy`. The word was the bug, not the number. |
+| 2026-08-24 | **An anchor event opens with the room** (PROPOSALS 20 a). `establishingDirective(lang)` + `establish()`, its own preset, one paragraph of about forty words before anybody speaks. Its OWN CALL rather than a second beat shape, so section 9's contract is untouched and the parser's roster rule is not asked to grow a case for prose with no speaker - the client knows this is narration because the client asked for it. `speaker: null` is the whole of the render, and `DialogueBox` draws no name plate over it. |
+| 2026-08-24 | **The establishing call inherited the empty block 5, so it carries `lang`.** Flagged as a trap before the build and it was the real thing: the language split lived on whichever turn has nothing above it, and that is now this call rather than the opening beat. The opening beat is no longer a scene's first generation and has this paragraph's prose above it, which is the condition under which the model continues in the right language. |
+| 2026-08-24 | **`REGISTERS.event` stopped asking for atmosphere.** With the establishing beat in front of it, "open with one or two sentences that establish the atmosphere" made the first TWO beats of every anchor event both open by describing the room. A date keeps the line, because her opening beat is still the scene's first thing. |
+| 2026-08-24 | **`frame.agenda`** (PROPOSALS 20 b): two to four things the day must decide, on all five events. A separate field from `movements` on purpose - a movement sets the situation and never the outcome, and an agenda item names WHAT gets settled and never WHICH WAY, so the section 11 rule survives intact. Rendered as an obligation where movements are offered, and repeated once by `closingDirective({ settles })` on the turn the client knows is last. |
+| 2026-08-24 | **The rendered agenda says outright that not everything has to go anyone's way.** Not padding: a room told to decide four things will otherwise agree pleasantly about all four, which is the same small talk in a suit. |
+| 2026-08-24 | **(a) and (b) do not fix (c), and shipping them is the evidence for that rather than an argument against it.** A livelier meeting still forgets itself by Tuesday: the dossier is per member and the ledger is chronology that compacts. `run.canon` is designed before it is built, on Yuhan's instruction - five open questions are written into "Still open" item 1. |

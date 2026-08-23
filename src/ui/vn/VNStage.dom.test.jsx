@@ -283,3 +283,118 @@ describe('where the two of you stand', () => {
     expect(screen.queryByText('45')).toBeNull();
   }, 15000);
 });
+
+/**
+ * The establishing beat, on screen. PROPOSALS 20 (a).
+ *
+ * This file exists for exactly this shape: `establish` is tested in
+ * `opening.test.js` and the directive is tested there too, and neither of them
+ * can tell whether anything CALLS it. That is the join the project keeps
+ * losing - `markRisk` was implemented, tested, and never called for two
+ * milestones.
+ */
+describe('an anchor event opens with the room', () => {
+  const ROOM = 'The room is already full, and nothing has been settled yet.';
+  const BEAT = '@irene|neutral|guard50|fluster0\n*She looks up from the table.* "You made it."';
+
+  /** Records every preset asked for, and answers the establishing call. */
+  const spyClient = () => {
+    const presets = [];
+    const client = ({ preset, onChunk }) => {
+      presets.push(preset ?? 'turn');
+      if (preset === 'chips') return Promise.resolve('');
+      if (preset === 'establish') return Promise.resolve(ROOM);
+      if (onChunk) onChunk(BEAT);
+      return Promise.resolve(BEAT);
+    };
+    return { client, presets };
+  };
+
+  const eventScene = () => {
+    const base = setup();
+    return {
+      ...base,
+      scene: {
+        ...base.scene,
+        event: { id: 'concept_meeting' },
+        sceneFrame: { setting: 'A long table.', movements: ['the boards going up'] },
+      },
+    };
+  };
+
+  it('puts the room on screen before anybody speaks', async () => {
+    const { client, presets } = spyClient();
+    render(
+      <StrictMode>
+        <VNStage setup={eventScene()} client={client} onSceneEnd={() => {}} t={t} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByText(new RegExp(ROOM))).toBeTruthy(), {
+      timeout: 4000,
+    });
+    expect(presets).toContain('establish');
+  });
+
+  /**
+   * Nobody said it, so nobody's name goes over it. Attributing narration to the
+   * addressee is the same defect as drawing the addressee for a second voice -
+   * her face and her name over a line she did not speak.
+   */
+  it('draws no name plate over it', async () => {
+    const { client } = spyClient();
+    render(
+      <StrictMode>
+        <VNStage setup={eventScene()} client={client} onSceneEnd={() => {}} t={t} />
+      </StrictMode>,
+    );
+
+    let box;
+    await waitFor(
+      () => {
+        box = screen.getAllByRole('button').find((b) => (b.textContent ?? '').includes(ROOM));
+        expect(box).toBeTruthy();
+      },
+      { timeout: 4000 },
+    );
+    expect(box.textContent).not.toMatch(/Irene/);
+  });
+
+  /**
+   * EVENTS ONLY. Pillar 1 is 30-50 word bursts and the contrast is the point -
+   * a game that establishes every room has stopped establishing anything. This
+   * is also the cost assertion: one extra call five times a campaign, not once
+   * per scene.
+   */
+  it('does not establish an ordinary block', async () => {
+    const { client, presets } = spyClient();
+    render(
+      <StrictMode>
+        <VNStage setup={setup()} client={client} onSceneEnd={() => {}} t={t} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/You made it/)).toBeTruthy(), { timeout: 4000 });
+    expect(presets).not.toContain('establish');
+  });
+
+  /**
+   * A flatter event is acceptable; a scene that never opens is not. Section 3
+   * keeps every degraded mode playable, and this one is degraded by definition.
+   */
+  it('opens the scene anyway when the establishing call fails', async () => {
+    const client = ({ preset, onChunk }) => {
+      if (preset === 'chips') return Promise.resolve('');
+      if (preset === 'establish') return Promise.reject(new Error('down'));
+      if (onChunk) onChunk(BEAT);
+      return Promise.resolve(BEAT);
+    };
+    render(
+      <StrictMode>
+        <VNStage setup={eventScene()} client={client} onSceneEnd={() => {}} t={t} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/You made it/)).toBeTruthy(), { timeout: 4000 });
+  });
+});

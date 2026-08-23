@@ -12,12 +12,32 @@
  * A frame carries:
  *   setting   - one or two sensory sentences the opening beat can start from
  *   movements - two to four situations the scene MAY pass through, in order
+ *   agenda    - two to four things the day MUST decide. Optional; events only.
  *
  * THE RULE, unchanged from section 11: a movement may set the SITUATION and
  * never the OUTCOME. "The walk back, and how long it takes" is a place. "She
  * takes your hand on the walk back" is a script, and section 1 rules out
  * branching text adventures explicitly. Everything the engine already does -
  * standing, dossier, her voice, the meters - still writes what happens.
+ *
+ * WHY `agenda` IS A SEPARATE FIELD AND NOT MORE MOVEMENTS
+ *
+ * Because the rule above is right and the concept meeting still came out as
+ * small talk. Read what its movements actually asked for: the boards going up
+ * and which one she reacts to, the part of the concept that asks something of
+ * her, an idea getting cut and the room going carefully polite. Every one of
+ * them is an emotional situation, and NOT ONE OF THEM SAYS A TITLE TRACK GETS
+ * CHOSEN TODAY. The model was asked for feelings in a meeting room and it
+ * delivered feelings in a meeting room - fifteen turns that produced a joke
+ * about ear colour and a plate of food, with the ledger line for the whole day
+ * going to the food.
+ *
+ * That is a content bug wearing the costume of a model failure. So `agenda`
+ * names the BUSINESS - what the room is not allowed to leave without settling -
+ * and it is a separate field precisely so that the movements stay free of
+ * outcomes and the rule survives intact. An agenda item says what gets decided,
+ * never which way it goes; which way it goes is the scene's job, the same as
+ * everything else here.
  *
  * Adapted from rv-simulator's `specialEvents.js`, which frames a scene as
  * setup -> beat -> constraint in a sentence or two. The thing deliberately not
@@ -44,10 +64,22 @@ export const REGISTERS = {
     'Open with one or two sentences that establish the atmosphere before anyone speaks.',
     'This is a whole day, not a snatched conversation. Let it breathe.',
   ].join('\n'),
+  /**
+   * An event no longer asks for atmosphere at the top, because it already got
+   * it: `establishingDirective` writes the room as its own beat before anybody
+   * speaks (PROPOSALS 20 (a)). Leaving the line in made the first two beats of
+   * every anchor event both open by describing the room, which is the padding
+   * that makes generated prose read as generated.
+   *
+   * So the register spends those words on the thing an event actually needs
+   * and a date does not: it is a working day at a company, in front of other
+   * people, and it has business to get through.
+   */
   event: [
     'Literary and sensory. Sight, sound, touch, smell.',
-    'Open with one or two sentences that establish the atmosphere before anyone speaks.',
+    'The room has already been established. Carry that atmosphere rather than describing it again.',
     'Several people are here and the day belongs to the company, not to anyone in it.',
+    'It is also a working day with things to settle, so let the work happen in the room.',
   ].join('\n'),
 };
 
@@ -113,11 +145,16 @@ export function dateFrame(kind, locationId) {
  * Movements are offered, never ordered - "may" and "in any order you like" are
  * doing real work. A model handed a numbered list will march through it, and a
  * scene that marches is the branching text adventure section 1 rules out.
+ *
+ * The agenda is the opposite and says so in the opposite words: these are not
+ * offered, the day does not end until they are settled, and the last line of it
+ * exists because a room told to decide four things will otherwise agree
+ * pleasantly about all four.
  */
 export function renderFrame(frame) {
   if (!frame) return null;
 
-  return [
+  const lines = [
     frame.setting,
     '',
     'The day may pass through any of these, in any order, or none of them:',
@@ -125,5 +162,19 @@ export function renderFrame(frame) {
     '',
     'These are situations, not instructions. What actually happens between the',
     'two of you is hers to decide, from who she is and where the two of you stand.',
-  ].join('\n');
+  ];
+
+  if (frame.agenda?.length) {
+    lines.push(
+      '',
+      'This is not only a mood. The day is here to settle these, and it does not end until it has:',
+      ...frame.agenda.map((a) => `- ${a}`),
+      '',
+      'Say what actually gets decided, in plain words, as it happens. Nothing here',
+      'has to go anyone\'s way, and a room where all of it does is a room where',
+      'nothing was at stake.',
+    );
+  }
+
+  return lines.join('\n');
 }

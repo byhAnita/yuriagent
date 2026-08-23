@@ -10,9 +10,11 @@
  * engine every other scene runs on, given three things an ordinary block does
  * not get:
  *
- *   1. a FRAME - a setting and two to four situations the day may pass through
+ *   1. a FRAME - a setting, the situations the day may pass through, and the
+ *      business it is not allowed to leave without settling
  *   2. the `event` REGISTER - literary, sensory, room for a day to breathe
  *   3. sixteen turns instead of eight (SCENE_TURN_LIMITS.event)
+ *   4. an ESTABLISHING BEAT before anyone speaks (`establishingDirective`)
  *
  * THE RULE, from `sceneFrames.js` and section 11: a movement sets the
  * SITUATION and never the OUTCOME. "The green room, and who talks to whom in
@@ -20,6 +22,17 @@
  * rules out branching text adventures explicitly. Everything the engine
  * already does - standing, dossier, her voice, the meters - writes what
  * actually happens.
+ *
+ * AND THE OTHER HALF OF IT, which took a played event to notice: every one of
+ * these days is ALSO a working day at a company, and a working day settles
+ * things. `agenda` is where that lives. The rule above is why it is a separate
+ * field rather than four more movements - an agenda item names WHAT the room
+ * decides and never WHICH WAY, so the movements stay outcome-free and the
+ * decision still belongs to the scene.
+ *
+ * An agenda is two to four items. Keep them things a later cycle could read
+ * back: a title track, a concept, who the company pushes. "Whether she is
+ * happy" is not an agenda item, it is a movement in disguise.
  *
  * All five are held in one table rather than one file each, because keeping
  * them consistent matters more than keeping them apart: they are short, they
@@ -56,6 +69,12 @@ export const EVENTS = {
         'an idea getting cut, and the room going carefully polite',
         'afterwards, in the corridor, once the door has shut behind everyone',
       ],
+      agenda: [
+        'which of the mood boards becomes the concept for this comeback',
+        'which of the demos is the title track',
+        'the styling the concept commits them to, and which member it asks the most of',
+        'who gets the centre position for the promotion',
+      ],
     },
   },
 
@@ -74,6 +93,11 @@ export const EVENTS = {
         'the three minutes themselves, from wherever the player is standing',
         'the drive back, when it is finally over and nobody has to perform',
       ],
+      agenda: [
+        'how the stage itself goes, live, with no way to take it back',
+        'whether the show gives them a win today, and what the room does with the answer either way',
+        'what the company decides about the rest of the promotion off the back of it',
+      ],
     },
   },
 
@@ -90,6 +114,11 @@ export const EVENTS = {
         'something a fan says that lands harder than it should',
         'the last stretch, and what is left of her by then',
         'the empty hall afterwards, with the chairs still out',
+      ],
+      agenda: [
+        'what the fandom has decided this cycle is about - a moment, a line, a pairing',
+        'whether the company leans into that or steers away from it',
+        'which member ends the day carrying the promotion, whether or not she wanted it',
       ],
     },
   },
@@ -109,6 +138,11 @@ export const EVENTS = {
         'somebody from the company noticing who is standing with whom',
         'the last hour, when the boat is turning back',
       ],
+      agenda: [
+        'what the executives announce about the next cycle before the speeches end',
+        'who the company has decided to push, said out loud in front of everyone',
+        'what gets noticed about who spent the evening standing with whom',
+      ],
     },
   },
 
@@ -126,6 +160,11 @@ export const EVENTS = {
         'the middle of the day, when it becomes clear nobody is coming to collect anyone',
         'the kind of talk that only happens where nobody is working',
         'the last ferry, and whether anyone wants to be on it',
+      ],
+      agenda: [
+        'what the five of them decide they want the next cycle to be, with no company in the room',
+        'something one of them finally says out loud that the group cannot un-hear',
+        'whether they go back on the last ferry or stay',
       ],
     },
   },

@@ -90,7 +90,7 @@ describe('every frame has a spine', () => {
   /** Model-facing English, like ACTIVITY_DOING and the date frames. */
   it('stays ASCII, because it is never localized', () => {
     for (const f of frames) {
-      const text = [f.setting, ...f.movements].join(' ');
+      const text = [f.setting, ...f.movements, ...(f.agenda ?? [])].join(' ');
       // eslint-disable-next-line no-control-regex
       expect(/^[\x20-\x7e]+$/.test(text)).toBe(true);
     }
@@ -98,6 +98,74 @@ describe('every frame has a spine', () => {
 
   it('is long enough to be worth sixteen turns', () => {
     expect(SCENE_TURN_LIMITS.event).toBeGreaterThan(SCENE_TURN_LIMITS.ordinary);
+  });
+});
+
+/**
+ * The agenda. PROPOSALS 20 (b).
+ *
+ * The played concept meeting is the whole argument for this block existing:
+ * fifteen turns that were supposed to choose a comeback concept produced a joke
+ * about ear colour and a plate of food, and the ledger line for the day went to
+ * the food. Nothing in the frame had said a title track gets chosen today, so
+ * nothing was wrong with the model - it wrote the feelings it was asked for.
+ *
+ * Asserted rather than reviewed, because this is content and content drifts.
+ */
+describe('every event is also a working day', () => {
+  const frames = EVENT_IDS.map((id) => EVENTS[id].frame);
+
+  it('gives every one of them two to four things the day must decide', () => {
+    for (const id of EVENT_IDS) {
+      const { agenda } = EVENTS[id].frame;
+      expect(agenda, `${id} has no agenda`).toBeTruthy();
+      expect(agenda.length, id).toBeGreaterThanOrEqual(2);
+      expect(agenda.length, id).toBeLessThanOrEqual(4);
+    }
+  });
+
+  /**
+   * An agenda item names WHAT gets settled and never WHICH WAY.
+   *
+   * This is the rule that keeps `agenda` compatible with section 11 rather than
+   * a hole in it. "Which of the demos is the title track" is business; "the
+   * ballad wins" is a script, and it would take the decision away from the
+   * scene - which is the one thing the whole feature is for.
+   */
+  it('names what gets decided, never which way it goes', () => {
+    const decided = /\b(wins|is chosen|is picked|gets picked|will be|ends up as|is decided to)\b/i;
+    for (const f of frames) {
+      for (const a of f.agenda) {
+        expect(decided.test(a), `pre-decided agenda item: "${a}"`).toBe(false);
+      }
+    }
+  });
+
+  /**
+   * And it must be BUSINESS, not a movement that wandered into the wrong field.
+   *
+   * The test for it is whether a later cycle could read the answer back: a
+   * title track, a concept, a centre position are all facts about the group.
+   * "How she feels about it" is not, and if the agenda fills up with those then
+   * the day has quietly gone back to being atmosphere with extra bullet points.
+   */
+  it('is about the group and the work, not about one member feeling something', () => {
+    const feeling = /\b(feels?|feeling|wants? to say|is scared|is happy|is upset)\b/i;
+    for (const f of frames) {
+      for (const a of f.agenda) {
+        expect(feeling.test(a), `agenda item is a movement in disguise: "${a}"`).toBe(false);
+      }
+    }
+  });
+
+  /**
+   * Long enough to be a decision. A two-word agenda item ("the concept") gives
+   * the model nothing to settle and reads as a heading.
+   */
+  it('writes each item as something a room could argue about', () => {
+    for (const f of frames) {
+      for (const a of f.agenda) expect(a.length, a).toBeGreaterThan(25);
+    }
   });
 });
 

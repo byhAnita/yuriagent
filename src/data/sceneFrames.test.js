@@ -78,6 +78,58 @@ describe('renderFrame', () => {
   });
 });
 
+/**
+ * The agenda. PROPOSALS 20 (b).
+ *
+ * A frame with no agenda must render byte-for-byte what it rendered before,
+ * because every date in the game has one and the whole argument for keeping
+ * ordinary scenes terse rests on them not quietly acquiring a business section.
+ */
+describe('renderFrame carries the day business, when there is any', () => {
+  const withAgenda = {
+    ...PRIVATE_DATE_FRAME,
+    agenda: ['which of the demos is the title track', 'who takes the centre position'],
+  };
+
+  it('adds nothing at all to a frame without one', () => {
+    expect(renderFrame(PRIVATE_DATE_FRAME)).not.toMatch(/settle/i);
+    expect(renderFrame({ ...PRIVATE_DATE_FRAME, agenda: [] })).toBe(
+      renderFrame(PRIVATE_DATE_FRAME),
+    );
+  });
+
+  it('lists every item', () => {
+    const out = renderFrame(withAgenda);
+    for (const item of withAgenda.agenda) expect(out).toContain(item);
+  });
+
+  /**
+   * The two halves have to read as different KINDS of thing, or the model
+   * treats the agenda as four more optional situations and the day goes back to
+   * being atmosphere. Movements say "may"; the agenda says "does not end until".
+   */
+  it('states the agenda as obligation where movements are offered', () => {
+    const out = renderFrame(withAgenda);
+    expect(out).toContain('may pass through any of these');
+    expect(out).toContain('does not end until it has');
+  });
+
+  /**
+   * A room told to decide four things will otherwise agree pleasantly about
+   * all four, which is the same failure as small talk wearing a suit.
+   */
+  it('says outright that not everything has to go anyone way', () => {
+    expect(renderFrame(withAgenda)).toMatch(/nothing was at stake/);
+  });
+
+  it('keeps the business below the situations, so salience runs downward', () => {
+    const out = renderFrame(withAgenda);
+    expect(out.indexOf('here to settle these')).toBeGreaterThan(
+      out.indexOf('These are situations, not instructions'),
+    );
+  });
+});
+
 describe('registers', () => {
   it('leaves the ordinary scene terse, per pillar 1', () => {
     expect(REGISTERS.ordinary).toBeNull();
@@ -88,6 +140,19 @@ describe('registers', () => {
       expect(REGISTERS[kind]).toContain('Literary and sensory');
       expect(REGISTERS[kind]).toContain('atmosphere');
     }
+  });
+
+  /**
+   * A date opens on atmosphere because her opening beat is the first thing in
+   * the scene. An event does not, because `establishingDirective` already wrote
+   * the room as its own beat - and asking twice made the first two beats of
+   * every anchor event both open by describing it, which is the padding that
+   * makes generated prose read as generated.
+   */
+  it('asks a date to open on atmosphere and an event not to open on it again', () => {
+    expect(REGISTERS.date).toContain('Open with one or two sentences');
+    expect(REGISTERS.event).not.toContain('Open with one or two sentences');
+    expect(REGISTERS.event).toContain('already been established');
   });
 
   it('gives a whole-day scene a longer budget than a block', () => {

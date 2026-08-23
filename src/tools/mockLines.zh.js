@@ -156,3 +156,9 @@ export const OPENING_ZH = {
 };
 
 export const SUMMARY_ZH = '她们说了话，而谁都没有说那件事。';
+
+/** The establishing paragraph. See `ESTABLISHING` in mockClient.js. */
+export const ESTABLISHING_ZH = [
+  '她到的时候房间里已经坐满了：椅子拉成一圈，咖啡早就凉了，有人正跟另一个人解释着什么。今天该定下来的还一件都没定，屋子里每个人都清楚这一点。',
+  '白得发冷的灯，一张坐不下这么多人的桌子，手机全都扣在桌面上。公司今天要决定的事就在这间屋子里决定，而一个知道自己是这种屋子的房间，会有一种特别的安静。',
+];

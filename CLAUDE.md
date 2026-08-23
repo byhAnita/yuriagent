@@ -1358,6 +1358,68 @@ no banner, no separate screen. Same argument as the daily task: privileging a
 thing visually turns a choice back into an errand. The day screen says what
 today is and that it takes all of it, and stops there.
 
+### A day that decides nothing is a day nobody remembers
+
+Reported after the first played concept meeting: **"not distinguishable from
+ordinary group chat."** Fifteen turns that were supposed to choose a comeback
+concept produced a joke about ear colour and a plate of food, and the ledger
+line for the whole day went to the food.
+
+Nothing about that is a model failure, which is what makes it worth writing
+down. Read what the frame actually asked for: *the boards going up, and which
+one she reacts to before she can stop herself*; *the part of the concept that
+asks something of her specifically*; *an idea getting cut, and the room going
+carefully polite.* Every movement is an emotional situation and **not one of
+them says a title track gets chosen today.** The model was asked for feelings in
+a meeting room and it delivered feelings in a meeting room.
+
+Two things were missing, and they are different things.
+
+**Nothing established the day.** Every scene in the game opens with
+`openingDirective` - one member's beat, what she does in the moment she notices
+the player has walked in. That is exactly right for a wardrobe on a Tuesday and
+wrong for a room the whole cast is already sitting in for a stated purpose. So
+an event gets an **establishing beat** first: one paragraph, about forty words,
+what the room looks like and what the day is here to do, and then the ordinary
+loop. Its own call, deliberately - nothing about the section 9 contract changes
+and the parser's roster rule is not asked to grow a case for prose with no
+speaker. `speaker: null` is the whole of what makes it narration on screen, and
+the name plate is simply not drawn, because nobody said it.
+
+**Events only.** Pillar 1 is 30-50 word bursts and the *contrast* is the point -
+a game that establishes every room has stopped establishing anything. A date
+already opens on atmosphere in her own beat, and the `event` register no longer
+asks for it a second time.
+
+It carries the language, and that is a trap rather than a nicety: **this call
+now owns the empty block 5**, which is the exact condition that produced the
+language split (section 9), and an anchor event was already that bug's worst
+case. The opening beat that follows is no longer the scene's first generation
+and has this paragraph's prose above it, which is where the model reliably
+continues in the right language.
+
+**And the frame was all mood and no business.** So a frame may carry an
+**`agenda`** beside its movements: two to four things the day must decide - the
+concept, the title track, the styling, the centre position. A separate field
+rather than four more movements, precisely so the rule above survives: a
+movement sets the situation and never the outcome, and an agenda item names
+**what** gets settled and never **which way**. Which way is still the scene's
+job, like everything else here.
+
+Block 4 says it as an obligation where the movements are offered (*the day is
+here to settle these, and it does not end until it has*), and the closing
+directive says it once more on the turn the client knows is last. The rendered
+block also states outright that not everything has to go anyone's way - a room
+told to decide four things will otherwise agree pleasantly about all four, which
+is small talk wearing a suit.
+
+**This is two of the three deficits, and doing only these two produces a
+livelier meeting that still forgets itself by Tuesday.** There is nowhere to
+record what the room decided: the dossier is per member, and the ledger is
+chronology that compacts and drops - and the played transcript is the evidence
+for what a single sentence spends itself on, because it chose the plate of food.
+That is `run.canon`, and it is designed before it is built.
+
 ### An event day is the event, and nothing else
 
 "It takes the whole day" was on the day screen from the start and **nothing in
@@ -2546,10 +2608,13 @@ to the endings screen, saves itself, and installs. It is live at
 17). Four sessions have been played by hand, the most recent on the phone the
 game is designed for.
 
-**The next task is PROPOSALS 20** - making an anchor event decide something,
-and giving a campaign somewhere to remember what it decided. It is accepted
-rather than merely argued, and the staged plan is `docs/PROGRESS.md` "Still
-open" item 1.
+**PROPOSALS 20 is half built.** An anchor event now opens with a paragraph of
+room and carries an `agenda` of things the day must settle - section 10 has the
+argument. What is still missing is the third deficit: a campaign has nowhere to
+remember what it decided, because the dossier is per member and the ledger is
+chronology that compacts. That is `run.canon`, it is a save-schema change, and
+it is **designed before it is built** - the five questions the design has to
+answer are in `docs/PROGRESS.md` "Still open" item 1.
 
 Running state, what is done and what is still open, lives in
 `docs/PROGRESS.md` - that file is updated *before* a milestone closes, and it

@@ -11,6 +11,13 @@
 
 const SEGMENT = /(\*[^*]+\*|"[^"]*"|“[^”]*”)/g;
 
+/**
+ * A zero-width space, written by code point so it cannot be an invisible
+ * character sitting in a source file. It holds the name plate's baseline on the
+ * one beat that has no speaker - see the plate itself, below.
+ */
+const NO_NAME = String.fromCharCode(0x200b);
+
 function renderProse(text) {
   return String(text)
     .split(SEGMENT)
@@ -56,10 +63,20 @@ export default function DialogueBox({
       aria-live="polite"
       className="group relative block w-full cursor-default rounded-[var(--radius)] border border-border bg-surface-warm px-5 pb-5 pt-4 text-left shadow-[var(--shadow)] disabled:cursor-default"
     >
-      {/* the name plate, set in the display serif against monospace chrome */}
+      {/*
+        The name plate, set in the display serif against monospace chrome.
+
+        `speakerName` is null for the establishing beat of an anchor event -
+        nobody says it, so nothing is named and the rule runs the full width.
+
+        The span stays and holds a zero-width space rather than being dropped,
+        because the rule is baseline-aligned to it: remove the only item with a
+        baseline and the hairline jumps to the top of the row, so the box would
+        visibly shift between the narration and the beat that follows it.
+      */}
       <div className="mb-2 flex items-baseline gap-2">
         <span className="font-display text-[1.0625rem] leading-none tracking-wide text-accent">
-          {speakerName}
+          {speakerName || NO_NAME}
         </span>
         <span className="h-px flex-1 bg-hairline opacity-60" />
       </div>

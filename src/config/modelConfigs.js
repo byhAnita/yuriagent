@@ -55,6 +55,20 @@ export const CALL_PRESETS = {
    * breaker noticing that the provider is struggling.
    */
   chips: { temperature: 0.85, maxTokens: 120, stream: false, timeoutMs: 10000 },
+  /**
+   * One paragraph of room, before an anchor event's first beat.
+   *
+   * Not streamed, because there is nothing to hide behind: it is the first
+   * thing on the screen and the player is waiting for it either way. It lands
+   * whole and is then read while the opening beat is already in flight, which
+   * is where the streaming budget actually goes.
+   *
+   * 140 rather than 80 because the directive asks for about forty words and a
+   * `zh` word costs more tokens than an English one - a budget that truncates
+   * the establishing paragraph mid-sentence in the primary locale would be the
+   * worst possible place to save four hundred tokens a campaign.
+   */
+  establish: { temperature: 0.9, maxTokens: 140, stream: false },
 };
 
 export function getModel(id) {

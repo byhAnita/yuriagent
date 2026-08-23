@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runTurn, endScene, openingDirective } from './sceneEngine.js';
+import { beginScene, runTurn, endScene, openingDirective, establish } from './sceneEngine.js';
 import { newMemory, addDossierEntry, appendLedger } from './memory.js';
 import { createMockClient } from '../tools/mockClient.js';
 import { getCast } from '../data/cast.js';
@@ -359,6 +359,15 @@ async function playCampaign({
         relations,
         scene,
       });
+      /**
+       * An anchor event opens with the room, so the harness has to as well.
+       *
+       * Not fidelity for its own sake: the establishing call is the one with an
+       * empty block 5 now, and a whole campaign is the only thing that runs it
+       * five times against five different frames with the real memory state
+       * underneath. `VNStage` owns the wiring and this owns the volume.
+       */
+      if (eventHere) ({ session } = await establish(session, { client, lang: 'en' }));
       session = await runTurn(session, { text: openingDirective(), client });
 
       const turns = eventHere ? SCENE_TURN_LIMITS.event : turnsPerScene;

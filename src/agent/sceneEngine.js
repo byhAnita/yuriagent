@@ -537,6 +537,91 @@ export function openingDirective(lang = 'en') {
 }
 
 /**
+ * The establishing beat, for a day that belongs to the company.
+ *
+ * `openingDirective` asks for one member's beat - what she does in the moment
+ * she notices the player has walked in. That is exactly right for a wardrobe on
+ * a Tuesday and wrong for a room the whole cast is already sitting in for a
+ * stated purpose. Reported after a played concept meeting: "not distinguishable
+ * from ordinary group chat". Nothing had established that the day was anything.
+ *
+ * So an event gets one paragraph of room first, and only then the ordinary
+ * loop. Deliberately narrow:
+ *
+ * - EVENTS ONLY. A date's opening atmosphere is hers and the `date` register
+ *   already asks her to open with it. An ordinary block gets nothing, because
+ *   pillar 1 is 30-50 word bursts and the CONTRAST is the whole point - a game
+ *   that establishes every room has stopped establishing anything.
+ * - ABOUT FORTY WORDS. Not rv-simulator's 350-450 of narration per round; that
+ *   is the story generator this project stopped being.
+ * - ITS OWN CALL, so nothing about the contract in section 9 changes and the
+ *   parser's roster rule - the one hard guarantee against member bleed - is not
+ *   asked to grow a case for prose with no speaker. The client knows this beat
+ *   is narration because the client is the one that asked for it.
+ *
+ * IT CARRIES THE LANGUAGE, and this is the trap rather than a nicety. This call
+ * is now the one with an empty block 5, so it inherits the exact condition that
+ * produced the language split (see `openingDirective`) - an event was already
+ * that bug's worst case. The opening beat that follows is no longer the first
+ * generation of the scene and has this paragraph's prose sitting above it,
+ * which is the condition under which the model reliably continues in the right
+ * language.
+ */
+export const ESTABLISH_PLAIN =
+  'before anyone speaks, write one short paragraph that establishes this room - what it looks ' +
+  'and sounds like right now, who is in it, and what this day is here to do. About forty words. ' +
+  'Nobody speaks yet: no dialogue, no quotation marks, no metadata line, and do not write ' +
+  "anyone's beat.";
+
+export function establishingDirective(lang = 'en') {
+  if (!lang || lang === 'en') return ESTABLISH_PLAIN;
+  const language = LANG_NAMES[lang] ?? lang;
+  return `${ESTABLISH_PLAIN} Write it in ${language}.`;
+}
+
+/**
+ * A metadata line must never reach the player (section 9, rule 6).
+ *
+ * This call is unparsed by design, so the one rule the parser would have
+ * enforced for free has to be enforced here instead. A model that has just read
+ * a format contract in block 1 and been told not to use it is precisely the
+ * model that uses it anyway.
+ */
+function stripMeta(text) {
+  return String(text ?? '')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('@'))
+    .join('\n')
+    .trim();
+}
+
+/**
+ * Run it. Returns the session with both halves appended, and the prose.
+ *
+ * A failure returns the session untouched and no text - an event that opens
+ * without its establishing paragraph is a slightly flatter event, and section 3
+ * has no room for a diagnostic-grade flourish that can take the scene down.
+ */
+export async function establish(session, { client, lang = 'en' }) {
+  const frame = appendSystemNote(session.frame, establishingDirective(lang));
+
+  let raw;
+  try {
+    raw = await client({ messages: buildMessages(frame), preset: 'establish' });
+  } catch {
+    return { session, text: null };
+  }
+
+  const text = stripMeta(raw);
+  if (!text) return { session, text: null };
+
+  return {
+    session: { ...session, frame: appendTurn(frame, { role: 'assistant', content: raw }) },
+    text,
+  };
+}
+
+/**
  * And how it ends.
  *
  * Reported from play: a scene ran out of turns mid-thought - she opened the
@@ -561,8 +646,28 @@ export const CLOSING_NOTE =
   'this is the last exchange before the player has to go. Let her land it rather ' +
   'than open something new - a parting, in whatever way somebody like her parts.';
 
-export function closingDirective() {
-  return CLOSING_NOTE;
+/**
+ * A day with business on it does not get to end without doing the business.
+ *
+ * The other half of `agenda` (see `data/sceneFrames.js`). Block 4 says what the
+ * room is here to settle, and sixteen turns later the model has read a great
+ * deal of conversation since - so the last turn says it again, at the only
+ * moment where "before this ends" is a fact rather than a guess. The client is
+ * the only thing that knows which turn is last, which is the same argument
+ * `CLOSING_NOTE` is built on.
+ *
+ * Deliberately does not name the items again. They are in block 4, and
+ * repeating four bullet points into the tail of a scene invites the model to
+ * work through them as a list on the final turn instead of having settled them
+ * across the day.
+ */
+export const CLOSING_SETTLES =
+  'Before the room breaks up, it settles what it came to settle: say plainly what ' +
+  'was decided today, and let it be something the group will still be living with ' +
+  'next week.';
+
+export function closingDirective({ settles = false } = {}) {
+  return settles ? `${CLOSING_NOTE} ${CLOSING_SETTLES}` : CLOSING_NOTE;
 }
 
 /** Mark that the player deliberately took a risk while visible. */

@@ -14,6 +14,7 @@ import {
   PLAYER_LINES_ZH,
   THOUGHTS_ZH,
   FALLBACK_ZH,
+  ESTABLISHING_ZH,
   OPENING_ZH,
   SUMMARY_ZH,
 } from './mockLines.zh.js';
@@ -92,6 +93,23 @@ const THOUGHTS = [
 ];
 
 const FALLBACK = ['neutral', -3, 4, '*She glances up from her phone.* "You came."'];
+
+/**
+ * The establishing paragraph, offline.
+ *
+ * Deliberately generic - it cannot know which event this is, and a template
+ * that guessed would be worse than one that does not pretend to. What it CAN
+ * do is the thing the establishing beat exists for: say that the day is a day
+ * with something at stake in it, in about forty words, before anyone speaks.
+ */
+const ESTABLISHING = [
+  'The room is already full when the player gets there - chairs pulled round, coffee going cold, ' +
+  'somebody halfway through explaining something to somebody else. Nothing has been settled yet, ' +
+  'and everybody in here knows it has to be by tonight.',
+  'Strip lights, a table too small for the number of people at it, phones face down. Whatever the ' +
+  'company decides today, it decides here, and there is a particular quiet that comes over a room ' +
+  'that knows that about itself.',
+];
 
 /**
  * Opening beats. A gift is answered before anything else, and the size of the
@@ -226,6 +244,10 @@ export function createMockClient({
 
     if (preset === 'thought') {
       return pick(rng, thoughts);
+    }
+
+    if (preset === 'establish') {
+      return pick(rng, zh ? ESTABLISHING_ZH : ESTABLISHING);
     }
 
     const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';

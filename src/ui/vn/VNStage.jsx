@@ -22,6 +22,7 @@ import {
   endScene,
   openingDirective,
   closingDirective,
+  establish,
   interject,
   isGroupScene,
   turnTo,
@@ -132,6 +133,24 @@ export default function VNStage({
   const group = isGroupScene(session);
 
   const emotion = queue.current?.emotion ?? 'neutral';
+
+  /**
+   * Nobody said the establishing paragraph, so nobody's name goes over it.
+   *
+   * The portrait still falls back to the addressee, which is correct - she is
+   * standing in the room being described. The name plate is the thing that
+   * would be a lie.
+   */
+  const narrating = queue.current?.narration === true;
+
+  /**
+   * Does this day have business on it? Drives the closing directive only.
+   *
+   * Read off the frame rather than off `scene.event`, so a date or a shared
+   * evening that ever grows an agenda gets the same treatment for free, and a
+   * scene whose frame has none is byte-for-byte what it was.
+   */
+  const hasAgenda = Boolean(setup.scene?.sceneFrame?.agenda?.length);
 
   /**
    * The deterministic set. Rendered instantly, every turn, no matter what, and
@@ -267,7 +286,15 @@ export default function VNStage({
   const sendFrom = useCallback(
     async (
       from,
-      { stance, text, note = null, gesture = false, opening = false, speakerId = null },
+      {
+        stance,
+        text,
+        note = null,
+        gesture = false,
+        opening = false,
+        establishing = false,
+        speakerId = null,
+      },
     ) => {
       if (busy.current) return;
       busy.current = true;
@@ -278,7 +305,37 @@ export default function VNStage({
       const token = (turnToken.current += 1);
 
       try {
-        let next = await runTurn(from, {
+        /**
+         * An anchor event opens with the room, not with somebody noticing you.
+         *
+         * Enqueued the moment it lands rather than held until the opening beat
+         * arrives, so the player reads it while that call is already in
+         * flight - the same trade the chip call makes, and the reason two calls
+         * at a scene door do not feel like two calls.
+         *
+         * `speaker: null` is the whole of what makes it narration. The stage
+         * falls back to the addressee for the portrait, which is right (she is
+         * in the room), and `DialogueBox` draws no name plate, which is the
+         * part that matters: nobody said this.
+         */
+        let base = from;
+        if (establishing) {
+          const { session: est, text: room } = await establish(from, {
+            client,
+            lang: setup.lang,
+          });
+          if (room) {
+            base = est;
+            setSession(est);
+            setQueue((q) =>
+              enqueue(q, [
+                { speaker: null, emotion: null, guard: 0, fluster: 0, text: room, narration: true },
+              ]),
+            );
+          }
+        }
+
+        let next = await runTurn(base, {
           stance,
           text,
           note,
@@ -341,7 +398,7 @@ export default function VNStage({
         busy.current = false;
       }
     },
-    [client, writtenChips, requestWrittenChips, rel, setup.cards, setup.relations],
+    [client, writtenChips, requestWrittenChips, rel, setup.cards, setup.relations, setup.lang],
   );
 
   /**
@@ -359,11 +416,11 @@ export default function VNStage({
     (args) => {
       const last = turnLimit - turn <= 1 && !args.opening;
       const note = last
-        ? [args.note, closingDirective()].filter(Boolean).join(' ')
+        ? [args.note, closingDirective({ settles: hasAgenda })].filter(Boolean).join(' ')
         : args.note;
       return sendFrom(session, { ...args, note });
     },
-    [sendFrom, session, turnLimit, turn],
+    [sendFrom, session, turnLimit, turn, hasAgenda],
   );
 
   /**
@@ -512,9 +569,20 @@ export default function VNStage({
   const roomSpeaking = roomPending && !hasMore(queue);
   const barDisabled = pending || roomPending || hasMore(queue);
 
-  // Opening beat, so the player walks into something rather than a blank room.
+  /**
+   * Opening beat, so the player walks into something rather than a blank room.
+   *
+   * An anchor event gets a paragraph of room first (`establish`). Events only,
+   * and read off the scene rather than passed in as a prop, because it is the
+   * same fact `register` and the turn limit are already derived from - a day
+   * that belongs to the company rather than to anyone in it.
+   */
   useEffect(() => {
-    send({ text: openingDirective(setup.lang), opening: true });
+    send({
+      text: openingDirective(setup.lang),
+      opening: true,
+      establishing: Boolean(setup.scene?.event),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -583,7 +651,7 @@ export default function VNStage({
       <div className="px-5">
         <DialogueBox
           beat={queue.current}
-          speakerName={speakingCard.name}
+          speakerName={narrating ? null : speakingCard.name}
           hasMore={hasMore(queue)}
           onAdvance={() => setQueue(advance)}
           pending={pending}
