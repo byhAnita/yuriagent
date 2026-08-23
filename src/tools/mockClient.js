@@ -19,13 +19,17 @@ import {
 } from './mockLines.zh.js';
 
 const LINES = {
-  tease: [
-    ['blush', -8, 14, '*She looks away, then back, and the corner of her mouth gives her away.* "You are unbelievable."'],
-    ['shy', -5, 11, '*A short exhale that is almost a laugh.* "Do not start. I have a fitting in ten minutes."'],
+  flirt: [
+    ['blush', -8, 16, '*She looks away, then back, and the corner of her mouth gives her away.* "You are unbelievable."'],
+    ['shy', -5, 13, '*A short exhale that is almost a laugh.* "Do not start. I have a fitting in ten minutes."'],
   ],
-  reassure: [
+  care: [
     ['neutral', -10, 6, '*She goes very still, the way she does when something lands.* "...Right. Okay."'],
-    ['shy', -12, 9, '"You did not have to say that." *A pause.* "Thank you."'],
+    ['shy', -12, 9, '"You did not have to notice that." *A pause.* "Thank you."'],
+  ],
+  casual: [
+    ['neutral', -4, 3, '*She keeps working while she answers, which means she does not mind you being there.* "Mm. Long one today."'],
+    ['happy', -6, 5, '"You always say that." *She sounds almost fond about it.*'],
   ],
   deflect: [
     ['neutral', 2, -3, '*She lets it go, visibly.* "Sure. The schedule, then."'],
@@ -67,8 +71,9 @@ const LINES = {
  * constraint the live directive puts on the model.
  */
 const PLAYER_LINES = {
-  tease: ['You are enjoying this', 'That is not what you said yesterday', 'Say that again'],
-  reassure: ['I am not going anywhere', 'You did fine out there', 'Take your time'],
+  flirt: ['You are enjoying this', 'Say that again, slower', 'You did that on purpose'],
+  care: ['I am not going anywhere', 'You did fine out there', 'Have you eaten?'],
+  casual: ['Ask how the day went', 'Talk about nothing', 'Just stay a while'],
   deflect: ['So. The schedule.', 'Ask about the fitting', 'Let it go for now'],
   press: ['Ask what she meant by that', 'Wait her out', 'Push once more'],
   confide: ['Tell her about the call', 'Admit you were nervous too', 'Say the true thing'],

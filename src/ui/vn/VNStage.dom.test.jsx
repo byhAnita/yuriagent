@@ -138,7 +138,7 @@ describe('written chips', () => {
     const beat = '@irene|neutral|guard+2|fluster+0\n*She glances up.* "You are early."';
     const client = ({ preset, onChunk }) => {
       if (preset === 'chips') {
-        return Promise.resolve('tease|Say that again\nreassure|I am here\ndeflect|So. The schedule.');
+        return Promise.resolve('flirt|Say that again\ncare|I am here\ndeflect|So. The schedule.');
       }
       if (onChunk) onChunk(beat);
       return Promise.resolve(beat);
@@ -152,8 +152,8 @@ describe('written chips', () => {
     );
 
     // The stance is still on the button, because every rule keys off it.
-    const teased = chipButtons().find((b) => /Say that again/.test(b.textContent ?? ''));
-    expect(teased.textContent).toContain('stance.tease');
+    const flirted = chipButtons().find((b) => /Say that again/.test(b.textContent ?? ''));
+    expect(flirted.textContent).toContain('stance.flirt');
   });
 
   it('leaves the static set alone when the writer returns nothing', async () => {
@@ -193,7 +193,7 @@ describe('written chips land in the common case', () => {
       if (preset === 'chips') {
         return new Promise((resolve) =>
           setTimeout(
-            () => resolve('tease|Say that again\nreassure|I am here\ndeflect|So. The schedule.'),
+            () => resolve('flirt|Say that again\ncare|I am here\ndeflect|So. The schedule.'),
             delayMs,
           ),
         );

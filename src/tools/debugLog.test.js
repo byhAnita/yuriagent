@@ -31,7 +31,7 @@ const zhPrompt = [
     ].join('\n'),
   },
   { role: 'user', content: '## Language - Simplified Chinese\nWrite every beat below in Simplified Chinese' },
-  { role: 'user', content: '[tease] ' },
+  { role: 'user', content: '[flirt] ' },
 ];
 
 beforeEach(() => {

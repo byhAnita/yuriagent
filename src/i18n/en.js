@@ -185,14 +185,15 @@ export default {
   jealousy: { calm: 'Calm', piqued: 'Piqued', sharp: 'Sharp', corrosive: 'Corrosive' },
 
   stance: {
-    tease: 'Tease',
-    reassure: 'Reassure',
+    flirt: 'Flirt',
+    care: 'Look after her',
+    casual: 'Small talk',
     deflect: 'Change the subject',
+    joke: 'Joke',
     press: 'Press',
     confide: 'Confide',
     touch: 'Touch',
     retreat: 'Retreat',
-    joke: 'Joke',
     apologize: 'Apologize',
     invite: 'Invite',
   },

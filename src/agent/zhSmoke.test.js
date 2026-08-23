@@ -183,8 +183,8 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
    */
   it('holds Chinese across a whole scene, not just the first reply', async () => {
     const { perTurn } = await playAndMeasure(setup(), [
-      'tease',
-      'reassure',
+      'flirt',
+      'care',
       'press',
       'confide',
       'deflect',
@@ -203,9 +203,9 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
   it('holds Chinese through a date, whose frame is English', async () => {
     const { perTurn } = await playAndMeasure(setup({ date: 'public', intimacy: 60 }), [
       'confide',
-      'tease',
+      'flirt',
       'invite',
-      'reassure',
+      'care',
       'touch',
     ]);
 
@@ -238,12 +238,12 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
 
     let session = beginScene(args);
     session = await runTurn(session, { text: openingDirective(), client });
-    session = await runTurn(session, { stance: 'tease', text: '', client });
+    session = await runTurn(session, { stance: 'flirt', text: '', client });
     session = await runTurn(session, { note, client });
     const perTurn = [session.beats.map((b) => b.text).join(' ')];
 
     let seen = session.beats.length;
-    for (const stance of ['tease', 'reassure', 'press']) {
+    for (const stance of ['flirt', 'care', 'press']) {
       session = await runTurn(session, { stance, text: '', client });
       perTurn.push(session.beats.slice(seen).map((b) => b.text).join(' '));
       seen = session.beats.length;
@@ -266,8 +266,8 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     const memory = playedInEnglish(ids, { entries: 6, factsFor: 'irene' });
 
     const { perTurn } = await playAndMeasure(setup({ memberId: 'irene', memory }), [
-      'tease',
-      'reassure',
+      'flirt',
+      'care',
       'confide',
       'press',
     ]);
@@ -289,8 +289,8 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     const memory = playedInEnglish(ids, { entries: 6, factsFor: 'irene' });
 
     const { perTurn } = await playAndMeasure(setup({ memberId: 'yeri', memory }), [
-      'tease',
-      'reassure',
+      'flirt',
+      'care',
       'confide',
       'press',
     ]);
@@ -305,7 +305,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     const memory = playedInEnglish(ids, { entries: 24, factsFor: 'irene' });
 
     const { perTurn } = await playAndMeasure(setup({ memberId: 'irene', memory }), [
-      'tease',
+      'flirt',
       'confide',
       'press',
     ]);
@@ -330,7 +330,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     const args = setup({ intimacy: 45 });
     let session = beginScene(args);
     session = await runTurn(session, { text: openingDirective(), client });
-    session = await runTurn(session, { stance: 'tease', text: '', client });
+    session = await runTurn(session, { stance: 'flirt', text: '', client });
 
     const before = session.beats.map((b) => b.text).join(' ');
 
@@ -341,7 +341,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
 
     const perTurn = [before];
     let seen = session.beats.length;
-    for (const stance of ['reassure', 'confide', 'press']) {
+    for (const stance of ['care', 'confide', 'press']) {
       session = await runTurn(session, { stance, text: '', client });
       perTurn.push(session.beats.slice(seen).map((b) => b.text).join(' '));
       seen = session.beats.length;
@@ -395,7 +395,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
       };
       let session = beginScene(args);
       session = await runTurn(session, { text: openingDirective(), client });
-      session = await runTurn(session, { stance: 'tease', text: '', client });
+      session = await runTurn(session, { stance: 'flirt', text: '', client });
 
       for (const b of session.beats) {
         const actions = (b.text.match(/\*([^*]+)\*/g) ?? []).join(' ');
@@ -424,7 +424,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
   }, 600000);
 
   it('never localizes a speaker id or an emotion', async () => {
-    const { session } = await playAndMeasure(setup(), ['tease', 'press']);
+    const { session } = await playAndMeasure(setup(), ['flirt', 'press']);
     for (const b of session.beats) {
       expect(b.speaker).toBe('irene');
       if (b.emotion) expect(/^[a-z]+$/.test(b.emotion)).toBe(true);
@@ -453,7 +453,7 @@ describe.skipIf(!enabled)('a Chinese run stays Chinese', () => {
     let session = beginScene(args);
     session = await runTurn(session, { text: openingDirective(), client, cast: cards });
 
-    for (const stance of ['joke', 'tease', 'confide', 'reassure']) {
+    for (const stance of ['joke', 'flirt', 'confide', 'care']) {
       session = await runTurn(session, { stance, text: '', client, cast: cards });
       const out = await interject(session, { client, relations: args.relations, cards });
       session = out.session;
@@ -558,7 +558,7 @@ describe.skipIf(!enabled)('a card written entirely in Chinese', () => {
   it('plays a scene at all', async () => {
     const { session, perTurn } = await playAndMeasure(
       setup({ cast, memberId: 'yuna' }),
-      ['tease', 'confide', 'press'],
+      ['flirt', 'confide', 'press'],
     );
 
     report('custom zh card, 4 turns', perTurn);

@@ -368,8 +368,8 @@ Decay: `jealousy -= 5` per scene spent with her that produces no new rumor. Atte
 | Band | Range | Effect |
 |---|---|---|
 | calm | 0-24 | none |
-| **piqued** | 25-49 | she probes about it; `reassure` or `confide` converts: `jealousy -20, intimacy +2` |
-| sharp | 50-74 | scene `guard` starts +15; `tease` and `touch` locked; `strain += 3` per unaddressed scene |
+| **piqued** | 25-49 | she probes about it; `care` or `confide` converts: `jealousy -20, intimacy +2` |
+| sharp | 50-74 | scene `guard` starts +15; `flirt` and `touch` locked; `strain += 3` per unaddressed scene |
 | corrosive | 75-100 | `strain += 8` per scene; group scenes turn hostile; unlocks a confrontation event |
 
 The `piqued` band is the point of the system: jealousy there is an **opportunity**, not a tax. Noticing it and visibly choosing her is one of the strongest intimacy gains available.
@@ -532,7 +532,7 @@ are placing a bet.
 
 Those three and not the others, because a witness has to be able to *describe*
 what they saw. Reaching for her, asking her somewhere, and saying the unsayable
-within earshot are all nameable. `tease` and `press` are loud and deniable, and
+within earshot are all nameable. `flirt` and `press` are loud and deniable, and
 deniable is precisely what cannot move admissibility.
 
 This was the largest bug the project has had. `markRisk` existed and was tested,
@@ -732,8 +732,71 @@ turn counter, and `Read her`. That split is the information.
 `Give` is absent in a scene with no opener economy attached; `Let it be` is
 group scenes only, because a one-to-one scene has no room to carry it.
 
-Stance vocabulary: `tease, reassure, deflect, press, confide, touch, retreat, joke, apologize, invite`.
+Stance vocabulary: `flirt, care, casual, deflect, joke, press, confide, touch, retreat, apologize, invite`.
 Locking: `press` / `touch` / `confide` unavailable in `rift`; `touch` requires `intimacy >= 50`.
+
+### Four of them are the everyday register, and the rest are events
+
+**`care`, `casual`, `flirt` and `deflect` are the common tones.** They are what
+an ordinary turn is made of - being warm, saying something light, being
+obvious about liking her, and moving off a subject. Everything else is a move
+somebody would notice making: pressing, confiding, reaching, leaving,
+apologising, asking her somewhere.
+
+`generateChips` weights the four accordingly. A vocabulary where every stance
+is equally likely reads as a random verb generator, because most turns in a
+conversation are not events.
+
+#### What replaced what, and why
+
+Reported after a `zh` session on a phone: *"tease, apologize, reassure don't
+give the option we want in most cases."*
+
+- **`tease` -> `flirt`.** `tease` is barbed by construction, and in a game
+  whose entire subject is two women falling for each other there was **no way
+  to simply be warm about it**: `touch` is physical and gated at `intimacy >=
+  50`, and everything else is deflection or pressure. Flirting is the register
+  the genre actually runs on, and it inherits `tease`'s mechanical role intact
+  - loud, deniable, and therefore unable to move admissibility (below), and
+  locked in the `sharp` jealousy band, where being playful about it is exactly
+  as wrong as teasing was.
+- **`reassure` -> `care`.** `reassure` only ever fit one situation - she is
+  unsettled about where your attention has been - so it had nothing to say
+  when she was simply tired or hurt. `care` covers both, keeps the `piqued`
+  conversion (section 5b), and is **safe in `rift`**, which finally gives the
+  strain bands a move that is not `apologize`. Apologising presumes fault;
+  most of the time nobody is at fault and she just needs somebody to notice.
+- **`casual` is new.** There was no low-stakes move at all. `joke` is
+  specifically humour and `deflect` is specifically evasion, so a player with
+  nothing in particular to say had to pick a tactic. Most turns are not
+  tactics.
+
+`deflect` is unchanged and already reads as *change the subject* in both
+locales - that request was already built.
+
+#### The chips were never actually shuffled
+
+The vocabulary complaint had a mechanical cause underneath it, and it is worth
+keeping written down because the code looked completely reasonable:
+
+```js
+available.filter(...).sort(() => rng() - 0.5)   // NOT a shuffle
+```
+
+`Array.prototype.sort` with a random comparator does not produce a uniform
+permutation - on a short array it barely permutes at all - so **position in the
+`STANCES` array decided how often a stance was offered.** Measured over 2400
+sets on a calm mid-game relation: `tease` (element 0) appeared in **41%**,
+`reassure` (element 1) in 33%, `apologize` (element 9) in **23%**.
+
+So the player was not tired of the vocabulary. They had been shown the top of
+an array, every turn, for an entire campaign, and reasonably concluded the game
+only had three verbs. Fixed with a seeded Fisher-Yates.
+
+**The lesson is the one this project keeps relearning**: the report named a
+symptom (*"these tones are wrong"*) and the cause was two layers down. Fixing
+only the vocabulary would have shipped a new set of three stances stuck at the
+top of a new array.
 
 `systems/chips.js` resolves which stances are legal from stage, strain band,
 jealousy band and energy, and which the situation is actively asking for. That
@@ -747,8 +810,8 @@ the middle of a fight. So the label may be **written by the model for this
 moment**, while the stance underneath stays exactly what `chips.js` decided:
 
 ```
-[ You're doing that thing with your hands again ]     -> tease
-[ I'm not going anywhere ]                            -> reassure
+[ You're doing that thing with your hands again ]     -> flirt
+[ I'm not going anywhere ]                            -> care
 [ So. The schedule. ]                                 -> deflect
 ```
 
@@ -856,8 +919,8 @@ One line per chip, pipe-delimited, same house style as section 9. Not JSON -
 more tokens, and small models break it more often.
 
 ```
-tease|You're doing that thing with your hands again
-reassure|I'm not going anywhere
+flirt|You're doing that thing with your hands again
+care|I'm not going anywhere
 deflect|So. The schedule.
 ```
 
@@ -887,7 +950,7 @@ The rule:
 > **The stance may be informed by everything the model knows. The label may only
 > contain what the player could have seen or heard.**
 
-That keeps the value - the model knowing `reassure` is the live move is the point
+That keeps the value - the model knowing `care` is the live move is the point
 of writing chips at all - while forbidding it to narrate what it knows. Two
 consequences, both enforced in code rather than hoped for:
 

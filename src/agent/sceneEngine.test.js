@@ -93,7 +93,7 @@ describe('a scene, end to end', () => {
     let session = beginScene(args);
     expect(session.meters.guard).toBe(95);
 
-    for (const stance of ['tease', 'reassure', 'confide']) {
+    for (const stance of ['flirt', 'care', 'confide']) {
       session = await runTurn(session, { stance, client });
     }
 
@@ -124,7 +124,7 @@ describe('a scene, end to end', () => {
     const prefix = prefixOf(session.frame);
 
     for (let i = 0; i < 4; i++) {
-      session = await runTurn(session, { stance: 'tease', client });
+      session = await runTurn(session, { stance: 'flirt', client });
       // mutate live state the way a real scene would
       args.relations.irene.intimacy += 10;
       args.player.energy -= 10;
@@ -144,7 +144,7 @@ describe('a scene, end to end', () => {
     const prefix = prefixOf(session.frame);
     session = await runTurn(session, {
       note: 'the player gave Irene a hand warmer',
-      stance: 'reassure',
+      stance: 'care',
       client,
     });
 
@@ -227,7 +227,7 @@ describe('resilience', () => {
     };
 
     let session = beginScene(args);
-    session = await runTurn(session, { stance: 'tease', client });
+    session = await runTurn(session, { stance: 'flirt', client });
 
     const out = await endScene(session, {
       client,
@@ -329,7 +329,7 @@ describe('taking a risk is something the player can actually do', () => {
 
   it('a deniable stance in public is not, however loud it is', async () => {
     let session = beginScene(sceneAt('cafe', 'afternoon'));
-    session = await runTurn(session, { stance: 'tease', text: '', client });
+    session = await runTurn(session, { stance: 'flirt', text: '', client });
     expect(session.meters.riskTaken).toBe(false);
   });
 
@@ -368,7 +368,7 @@ describe('rumor propagation at scene exit', () => {
     );
 
     let session = beginScene(args);
-    session = await runTurn(session, { stance: 'tease', client });
+    session = await runTurn(session, { stance: 'flirt', client });
 
     const out = await endScene(session, {
       client,

@@ -98,14 +98,14 @@ describe('addressing somebody', () => {
 
   it('says who the turn is aimed at, by name', async () => {
     const session = await runTurn(beginScene(setup()), {
-      stance: 'tease',
+      stance: 'flirt',
       text: '',
       client: says(BEAT('irene')),
       cast: cards,
     });
 
     expect(lastUser(session)).toContain('(to Irene)');
-    expect(lastUser(session)).toContain('[tease]');
+    expect(lastUser(session)).toContain('[flirt]');
   });
 
   /**
@@ -119,13 +119,13 @@ describe('addressing somebody', () => {
     solo.scene.presentIds = ['irene'];
 
     const session = await runTurn(beginScene(solo), {
-      stance: 'tease',
+      stance: 'flirt',
       text: 'hi',
       client: says(BEAT('irene')),
       cast: cards,
     });
 
-    expect(lastUser(session)).toBe('[tease] hi');
+    expect(lastUser(session)).toBe('[flirt] hi');
   });
 
   it('follows the addressee when the player turns to somebody else', async () => {

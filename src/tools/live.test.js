@@ -194,7 +194,7 @@ describe.skipIf(!enabled)('live provider', () => {
       for (const c of chips) log(`  [${c.stance}] ${c.label}`);
 
       // Turn 2: warm prefix, a real stance.
-      session = await runTurn(session, { stance: 'tease', text: '', client });
+      session = await runTurn(session, { stance: 'flirt', text: '', client });
 
       log('\n[live] --- timings (ms) ---');
       for (const r2 of report) {

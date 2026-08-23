@@ -467,7 +467,7 @@ describe('turning to somebody asks for her chips', () => {
     const client = async ({ preset, messages, onChunk }) => {
       if (preset === 'chips') {
         asks.push(messages.at(-1).content);
-        return 'tease|Written for her\nreassure|Also written\ndeflect|And this';
+        return 'flirt|Written for her\ncare|Also written\ndeflect|And this';
       }
       const text = BEAT('irene');
       onChunk?.(text);

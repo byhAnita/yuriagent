@@ -13,21 +13,44 @@ import { jealousyBand, sceneModifiers } from './jealousy.js';
 import { makeRng, deriveSeed } from './rng.js';
 import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 
+/**
+ * The verbs. CLAUDE.md section 6.
+ *
+ * ORDER IS NOT MEANING. It used to be, by accident - see `generateChips` - and
+ * the whole vocabulary read as three options because of it.
+ */
 export const STANCES = [
-  'tease',
-  'reassure',
+  'flirt',
+  'care',
+  'casual',
   'deflect',
+  'joke',
   'press',
   'confide',
   'touch',
   'retreat',
-  'joke',
   'apologize',
   'invite',
 ];
 
-/** Always available - a player must never be left without a move. */
-const SAFE_STANCES = ['deflect', 'joke', 'retreat'];
+/**
+ * The everyday register: warm, light, obvious, or off the subject.
+ *
+ * Weighted up in `generateChips`, because most turns in a conversation are not
+ * events. A vocabulary where pressing and apologising are as likely as saying
+ * something light reads as a random verb generator.
+ */
+export const COMMON_STANCES = ['care', 'casual', 'flirt', 'deflect'];
+
+/**
+ * Always available - a player must never be left without a move.
+ *
+ * `care` and `casual` belong here and `care` is the one that matters: it is
+ * safe in `rift`, which finally gives the strain bands a recovery move that is
+ * not `apologize`. Apologising presumes fault, and most of the time nobody is
+ * at fault and she just needs somebody to notice.
+ */
+const SAFE_STANCES = ['deflect', 'joke', 'retreat', 'casual', 'care'];
 
 /** Minimum intimacy before a stance is even offered. */
 const INTIMACY_GATE = { touch: 50, confide: 30, invite: 20 };
@@ -90,7 +113,7 @@ export function availableStances(rel, { energy = 100 } = {}) {
  *
  * These three and not the others: reaching for her, asking her somewhere, and
  * saying the unsayable where you can be overheard are the gestures that a
- * witness could describe. `tease` and `press` are loud but deniable, and
+ * witness could describe. `flirt` and `press` are loud but deniable, and
  * deniable is exactly what does not move admissibility.
  */
 export const RISK_STANCES = ['touch', 'invite', 'confide'];
@@ -112,10 +135,35 @@ export function isRiskStance(stance, exposure) {
  */
 export function suggestedStances(rel) {
   const out = [];
-  if (jealousyBand(rel.jealousy) === 'piqued') out.push('reassure', 'confide');
-  if (strainBand(rel.strain) === 'rift') out.push('apologize', 'retreat');
-  if (rel.stage === 'reckless') out.push('retreat', 'reassure');
+  // `care` rather than `reassure`: noticing covers both "she is unsettled about
+  // your attention" and "she is simply tired", and the second had no move at all.
+  if (jealousyBand(rel.jealousy) === 'piqued') out.push('care', 'confide');
+  if (strainBand(rel.strain) === 'rift') out.push('apologize', 'care');
+  if (rel.stage === 'reckless') out.push('retreat', 'care');
   if (rel.stage === 'confidante') out.push('press', 'invite');
+  return out;
+}
+
+/**
+ * A real shuffle, seeded.
+ *
+ * The previous line was `.sort(() => rng() - 0.5)`, which is a shuffle in the
+ * same way a coin is a random number generator: `Array.prototype.sort` with an
+ * inconsistent comparator gives no uniformity guarantee, and on a short array
+ * it barely permutes. So POSITION IN `STANCES` decided how often a stance was
+ * offered - measured over 2400 sets, element 0 appeared in 41% of them and
+ * element 9 in 23%.
+ *
+ * The player reported this as the vocabulary being wrong, which it partly was;
+ * but they had also been shown the top of an array every turn for a whole
+ * campaign and reasonably concluded the game had three verbs.
+ */
+function shuffled(rng, items) {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
   return out;
 }
 
@@ -124,6 +172,12 @@ export function suggestedStances(rel) {
  *
  * Deterministic given a seed and turn index so a re-render does not reshuffle
  * the player's options mid-decision.
+ *
+ * Order of preference, and each step has a reason:
+ *   1. what the situation is ASKING for  - the game is only legible if the
+ *      right move is reachable
+ *   2. the common register, weighted     - most turns are not events
+ *   3. anything else still legal         - so the sharp moves stay reachable
  */
 export function generateChips(rel, { energy = 100, seed = 1, turn = 0, count = 3 } = {}) {
   const { available } = availableStances(rel, { energy });
@@ -138,10 +192,36 @@ export function generateChips(rel, { energy = 100, seed = 1, turn = 0, count = 3
   }
 
   const rng = makeRng(deriveSeed(seed, `chips:${rel.stage}:${turn}`));
-  const rest = available.filter((s) => !chosen.includes(s)).sort(() => rng() - 0.5);
-  for (const s of rest) {
+
+  const rest = available.filter((s) => !chosen.includes(s));
+  const common = shuffled(rng, rest.filter((s) => COMMON_STANCES.includes(s)));
+  const sharp = shuffled(rng, rest.filter((s) => !COMMON_STANCES.includes(s)));
+
+  /**
+   * The common register takes most of the bar, but never all of it.
+   *
+   * ONE SLOT IS RESERVED for something outside it, and that reservation is
+   * load-bearing rather than cosmetic: `touch`, `invite` and `confide` are the
+   * only stances that can move admissibility (`RISK_STANCES` above), so a bar
+   * filled entirely with warm everyday verbs is a bar on which the second axis
+   * cannot move. That is precisely the shape of the `markRisk` bug - the whole
+   * second half of the relationship model quietly unreachable - arriving by a
+   * different door.
+   *
+   * So: fill to `count - 1` from the common four, leave the last slot to the
+   * rest, and top up from whatever is left if either list runs dry.
+   */
+  for (const s of common) {
+    if (chosen.length >= count - 1) break;
+    chosen.push(s);
+  }
+  for (const s of sharp) {
     if (chosen.length >= count) break;
     chosen.push(s);
+  }
+  for (const s of [...common, ...sharp]) {
+    if (chosen.length >= count) break;
+    if (!chosen.includes(s)) chosen.push(s);
   }
 
   return chosen.slice(0, count);

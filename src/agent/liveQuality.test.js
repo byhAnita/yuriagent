@@ -152,7 +152,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
     const path = [
       { turn: 0, guard: session.meters.guard, fluster: session.meters.fluster },
     ];
-    const stances = ['tease', 'confide', 'press', 'reassure', 'joke', 'invite'];
+    const stances = ['flirt', 'confide', 'press', 'care', 'joke', 'invite'];
 
     for (let i = 0; i < stances.length; i += 1) {
       const { available } = availableStances(newRelation(45), { energy: 80 });
@@ -262,7 +262,7 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
   it('writes Chinese prose without localizing a single machine token', async () => {
     let session = beginScene(setup({ lang: 'zh' }));
     session = await runTurn(session, { text: openingDirective(), client });
-    session = await runTurn(session, { stance: 'tease', text: '', client });
+    session = await runTurn(session, { stance: 'flirt', text: '', client });
 
     log('\n[quality] --- zh ---');
     for (const b of session.beats)
@@ -483,7 +483,7 @@ describe.skipIf(!enabled)('a room with three of them in it', () => {
     let chimes = 0;
     let cutIns = 0;
 
-    for (const stance of ['joke', 'tease', 'deflect', 'reassure', 'joke', 'press']) {
+    for (const stance of ['joke', 'flirt', 'deflect', 'care', 'joke', 'press']) {
       const before = session.beats.length;
       session = await runTurn(session, { stance, text: '', client, cast: cards });
       for (const b of session.beats.slice(before)) {
@@ -543,7 +543,7 @@ describe.skipIf(!enabled)('a room with three of them in it', () => {
     session = await runTurn(session, { text: openingDirective(), client, cast: cards });
 
     const replies = [];
-    for (const stance of ['tease', 'confide', 'joke']) {
+    for (const stance of ['flirt', 'confide', 'joke']) {
       const before = session.beats.length;
       session = await runTurn(session, { stance, text: '', client, cast: cards });
       replies.push(session.beats.slice(before));
@@ -668,7 +668,7 @@ describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('the whole room, a whole
     const lines = [];
     said[session.beats.at(-1)?.speaker ?? 'irene'] += 1;
 
-    const stances = ['joke', 'tease', 'deflect', 'reassure', 'confide', 'joke', 'press', 'tease'];
+    const stances = ['joke', 'flirt', 'deflect', 'care', 'confide', 'joke', 'press', 'flirt'];
     for (const stance of stances) {
       const before = session.beats.length;
       session = await runTurn(session, { stance, text: '', client, cast: cards });
@@ -756,7 +756,7 @@ describe.skipIf(!enabled || !process.env.LIVE_BIG_ROOM)('nobody guesses at the p
     });
 
     session = await runTurn(session, { text: openingDirective(), client, cast: cards });
-    for (const stance of ['joke', 'confide', 'tease', 'press', 'reassure', 'joke']) {
+    for (const stance of ['joke', 'confide', 'flirt', 'press', 'care', 'joke']) {
       session = await runTurn(session, { stance, text: '', client, cast: cards });
       const out = await interject(session, { client, relations, cards });
       session = out.session;
@@ -789,13 +789,13 @@ describe.skipIf(!enabled)('the last turn lands', () => {
   it('parts rather than opening something new', async () => {
     let session = beginScene(setup({ intimacy: 55 }));
     session = await runTurn(session, { text: openingDirective(), client });
-    for (const stance of ['joke', 'tease', 'confide']) {
+    for (const stance of ['joke', 'flirt', 'confide']) {
       session = await runTurn(session, { stance, text: '', client });
     }
 
     const before = session.beats.length;
     const closing = await runTurn(session, {
-      stance: 'reassure',
+      stance: 'care',
       text: '',
       note: closingDirective(),
       client,

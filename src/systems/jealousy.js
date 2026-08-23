@@ -90,7 +90,7 @@ export function sceneModifiers(rel) {
   const band = jealousyBand(rel.jealousy);
   return {
     guardBonus: band === 'sharp' || band === 'corrosive' ? 15 : 0,
-    lockedStances: band === 'sharp' || band === 'corrosive' ? ['tease', 'touch'] : [],
+    lockedStances: band === 'sharp' || band === 'corrosive' ? ['flirt', 'touch'] : [],
     probes: band === 'piqued',
     hostileGroupScene: band === 'corrosive',
     /** hiddenConflict is only injected from `piqued` upward (section 12). */

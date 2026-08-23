@@ -74,7 +74,7 @@ describe('relanguage', () => {
    */
   it('keeps every turn of the conversation', () => {
     let frame = openScene(args('en'));
-    frame = appendTurn(frame, { role: 'user', content: '[tease] ' });
+    frame = appendTurn(frame, { role: 'user', content: '[flirt] ' });
     frame = appendTurn(frame, { role: 'assistant', content: '@irene|happy|guard40|fluster10\n"Hi."' });
 
     const switched = relanguage(frame, args('zh'));

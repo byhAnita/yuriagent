@@ -43,12 +43,12 @@ const prompt = (lang, tail) => [
 
 describe('beats', () => {
   it('writes Chinese prose when the prompt asks for Chinese', async () => {
-    const out = await mock({ messages: prompt('Simplified Chinese', '[tease] '), preset: 'turn' });
+    const out = await mock({ messages: prompt('Simplified Chinese', '[flirt] '), preset: 'turn' });
     expect(hasHan(out)).toBe(true);
   });
 
   it('still writes English when the prompt asks for English', async () => {
-    const out = await mock({ messages: prompt('English', '[tease] '), preset: 'turn' });
+    const out = await mock({ messages: prompt('English', '[flirt] '), preset: 'turn' });
     expect(hasHan(out)).toBe(false);
     expect(hasWords(out)).toBe(true);
   });
@@ -97,7 +97,7 @@ describe('everything else the player reads', () => {
 
   it('writes chip labels in Chinese, with ASCII stance ids', async () => {
     const out = await mock({
-      messages: prompt('Simplified Chinese', 'Stances, once each: tease, reassure, deflect.'),
+      messages: prompt('Simplified Chinese', 'Stances, once each: flirt, care, deflect.'),
       preset: 'chips',
     });
 
@@ -138,7 +138,7 @@ describe('the fallback from a failed live call', () => {
   it('answers in Chinese when the router throws', async () => {
     const client = createClient({ apiKey: 'not-a-real-key', modelId: 'nope', seed: 5 });
     const out = await client({
-      messages: prompt('Simplified Chinese', '[tease] '),
+      messages: prompt('Simplified Chinese', '[flirt] '),
       preset: 'turn',
     });
 

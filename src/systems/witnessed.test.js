@@ -48,9 +48,9 @@ describe('witnessedExposure', () => {
   });
 
   it('still does not make a deniable stance count', () => {
-    // Section 6: a witness has to be able to DESCRIBE what they saw. `tease`
+    // Section 6: a witness has to be able to DESCRIBE what they saw. `flirt`
     // and `press` are loud and deniable, and deniable cannot move admissibility.
-    expect(isRiskStance('tease', witnessedExposure(20, 3))).toBe(false);
+    expect(isRiskStance('flirt', witnessedExposure(20, 3))).toBe(false);
     expect(isRiskStance('press', witnessedExposure(20, 3))).toBe(false);
   });
 });

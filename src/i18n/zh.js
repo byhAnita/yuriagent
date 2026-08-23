@@ -212,14 +212,15 @@ export default {
   jealousy: { calm: '平静', piqued: '介意', sharp: '尖锐', corrosive: '侵蚀' },
 
   stance: {
-    tease: '调侃',
-    reassure: '安抚',
+    flirt: '撩她',
+    care: '关心她',
+    casual: '闲聊',
     deflect: '岔开话题',
+    joke: '开玩笑',
     press: '追问',
     confide: '倾诉',
     touch: '触碰',
     retreat: '退开',
-    joke: '开玩笑',
     apologize: '道歉',
     invite: '邀约',
   },

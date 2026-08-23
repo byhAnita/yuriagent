@@ -16,7 +16,7 @@ import {
 } from './chipWriter.js';
 import { buildMessages } from './promptBuilder.js';
 import { beginScene, runTurn, openingDirective } from './sceneEngine.js';
-import { availableStances } from '../systems/chips.js';
+import { availableStances, STANCES } from '../systems/chips.js';
 import { newRelation } from '../systems/relationship.js';
 import { newMemory } from './memory.js';
 import { createMockClient } from '../tools/mockClient.js';
@@ -50,23 +50,23 @@ const setup = () => ({
 });
 
 describe('parsing is tolerant, validation is not', () => {
-  const available = ['tease', 'reassure', 'deflect'];
+  const available = ['flirt', 'care', 'deflect'];
 
   it('reads the contract', () => {
     const out = parseChips(
-      'tease|You are enjoying this\nreassure|I am not going anywhere\ndeflect|So. The schedule.',
+      'flirt|You are enjoying this\ncare|I am not going anywhere\ndeflect|So. The schedule.',
       { available },
     );
     expect(out).toEqual([
-      { stance: 'tease', label: 'You are enjoying this' },
-      { stance: 'reassure', label: 'I am not going anywhere' },
+      { stance: 'flirt', label: 'You are enjoying this' },
+      { stance: 'care', label: 'I am not going anywhere' },
       { stance: 'deflect', label: 'So. The schedule.' },
     ]);
   });
 
   it('survives fences, bullets, numbering and stray quotes', () => {
     const out = parseChips(
-      '```\n1. tease | "You are enjoying this"\n- reassure|  I am not going anywhere  \n```',
+      '```\n1. flirt | "You are enjoying this"\n- care|  I am not going anywhere  \n```',
       { available },
     );
     expect(out).toHaveLength(2);
@@ -83,28 +83,35 @@ describe('parsing is tolerant, validation is not', () => {
     const locked = availableStances(rel({ intimacy: 20 }), {});
     expect(locked.available).not.toContain('touch');
 
-    const out = parseChips('touch|Reach for her hand\ntease|You are enjoying this', {
+    const out = parseChips('touch|Reach for her hand\nflirt|You are enjoying this', {
       available: locked.available,
     });
-    expect(out.map((c) => c.stance)).toEqual(['tease']);
+    expect(out.map((c) => c.stance)).toEqual(['flirt']);
   });
 
+  /**
+   * `seduce` is not in `STANCES` and never has been. The name matters: this
+   * test used to say `flirt`, which was invented at the time and has since
+   * become a real stance - so the assertion quietly stopped testing anything
+   * the moment the vocabulary grew. Pick something the game will not adopt.
+   */
   it('drops an invented stance', () => {
-    expect(parseChips('flirt|Say something reckless', { available })).toEqual([]);
+    expect(parseChips('seduce|Say something reckless', { available })).toEqual([]);
+    expect(STANCES).not.toContain('seduce');
   });
 
   it('deduplicates stances', () => {
-    const out = parseChips('tease|One\ntease|Two\nreassure|Three', { available });
-    expect(out.map((c) => c.stance)).toEqual(['tease', 'reassure']);
+    const out = parseChips('flirt|One\nflirt|Two\ncare|Three', { available });
+    expect(out.map((c) => c.stance)).toEqual(['flirt', 'care']);
   });
 
   it('drops a label that is prose rather than an option', () => {
     const long = 'x'.repeat(MAX_CHIP_LABEL + 1);
-    expect(parseChips(`tease|${long}`, { available })).toEqual([]);
+    expect(parseChips(`flirt|${long}`, { available })).toEqual([]);
   });
 
   it('drops an empty label', () => {
-    expect(parseChips('tease|   \nreassure|Fine', { available })).toHaveLength(1);
+    expect(parseChips('flirt|   \ncare|Fine', { available })).toHaveLength(1);
   });
 
   it('ignores a line with no metadata at all', () => {
@@ -116,18 +123,18 @@ describe('parsing is tolerant, validation is not', () => {
    * a chip may not mention her - that would leak a rumor she never voiced.
    */
   it('drops a label naming someone who is not in the scene', () => {
-    const out = parseChips('tease|Ask about Wendy again\nreassure|I am here', {
+    const out = parseChips('flirt|Ask about Wendy again\ncare|I am here', {
       available,
       absentNames: ['Wendy', 'Yeri'],
     });
-    expect(out.map((c) => c.stance)).toEqual(['reassure']);
+    expect(out.map((c) => c.stance)).toEqual(['care']);
   });
 });
 
 describe('failure degrades chip by chip', () => {
   it('backfills a short result instead of discarding it', () => {
-    const written = [{ stance: 'tease', label: 'You are enjoying this' }];
-    const out = backfill(written, ['reassure', 'deflect', 'joke']);
+    const written = [{ stance: 'flirt', label: 'You are enjoying this' }];
+    const out = backfill(written, ['care', 'deflect', 'joke']);
 
     expect(out).toHaveLength(3);
     expect(out[0]).toEqual(written[0]);
@@ -139,8 +146,8 @@ describe('failure degrades chip by chip', () => {
    * as few buttons as it can rather than dealing a fresh hand.
    */
   it('fills from the set already on screen', () => {
-    const out = backfill([{ stance: 'tease', label: 'Say that again' }], ['deflect', 'retreat']);
-    expect(out.map((c) => c.stance)).toEqual(['tease', 'deflect', 'retreat']);
+    const out = backfill([{ stance: 'flirt', label: 'Say that again' }], ['deflect', 'retreat']);
+    expect(out.map((c) => c.stance)).toEqual(['flirt', 'deflect', 'retreat']);
   });
 
   it('never repeats a stance across written and backfilled', () => {
@@ -157,8 +164,8 @@ describe('failure degrades chip by chip', () => {
     const { chips, ok } = await writeChips({
       frame: { rosterIds: ['irene'] },
       client: dead,
-      available: ['tease', 'reassure', 'deflect'],
-      fallback: ['tease', 'reassure', 'deflect'],
+      available: ['flirt', 'care', 'deflect'],
+      fallback: ['flirt', 'care', 'deflect'],
     });
 
     expect(ok).toBe(false);
@@ -174,8 +181,8 @@ describe('failure degrades chip by chip', () => {
       writeChips({
         frame: { rosterIds: ['irene'] },
         client: boom,
-        available: ['tease', 'reassure'],
-        fallback: ['tease', 'reassure'],
+        available: ['flirt', 'care'],
+        fallback: ['flirt', 'care'],
       }),
     ).resolves.toMatchObject({ ok: false });
   });
@@ -183,13 +190,13 @@ describe('failure degrades chip by chip', () => {
 
 describe('the directive says what may not be written', () => {
   const directive = buildChipDirective({
-    stances: ['tease', 'reassure', 'deflect'],
+    stances: ['flirt', 'care', 'deflect'],
     lang: 'zh',
     absentNames: ['Wendy'],
   });
 
   it('names only the legal stances', () => {
-    expect(directive).toContain('tease, reassure, deflect');
+    expect(directive).toContain('flirt, care, deflect');
   });
 
   it('localizes the prose and keeps the ids ASCII', () => {
@@ -218,7 +225,7 @@ describe('the directive says what may not be written', () => {
    */
   it('stays short enough to be cheap to miss on', () => {
     const full = buildChipDirective({
-      stances: ['tease', 'reassure', 'deflect', 'press', 'joke', 'retreat'],
+      stances: ['flirt', 'care', 'deflect', 'press', 'joke', 'retreat'],
       lang: 'en',
       absentNames: ['Nana', 'Jisoo', 'Hyewon', 'Yeri'],
       addresseeName: 'Irene',
@@ -234,14 +241,14 @@ describe('the directive says what may not be written', () => {
    * the next line at the wrong woman (section 6).
    */
   it('names the addressee when there is one', () => {
-    expect(buildChipDirective({ stances: ['tease'], addresseeName: 'Yeri' })).toContain(
+    expect(buildChipDirective({ stances: ['flirt'], addresseeName: 'Yeri' })).toContain(
       'speaking to Yeri',
     );
   });
 
   /** A 1v1 has nobody to disambiguate, so it sends nothing extra. */
   it('says nothing extra in a one-member scene', () => {
-    expect(buildChipDirective({ stances: ['tease'] })).not.toMatch(/speaking to/i);
+    expect(buildChipDirective({ stances: ['flirt'] })).not.toMatch(/speaking to/i);
   });
 });
 
@@ -252,7 +259,7 @@ describe('the request never touches the transcript', () => {
     session = await runTurn(session, { text: openingDirective(), client });
 
     const before = buildMessages(session.frame);
-    const asked = chipMessages(session.frame, { stances: ['tease', 'deflect'], lang: 'en' });
+    const asked = chipMessages(session.frame, { stances: ['flirt', 'deflect'], lang: 'en' });
 
     // The chip call is the prefix plus one throwaway line, and the frame the
     // scene carries forward is untouched - so the next turn still hits cache.
