@@ -18,6 +18,7 @@
  */
 
 import { useState } from 'react';
+import Sheet from './Sheet.jsx';
 
 function Action({ tone = 'dim', onClick, children }) {
   const colour =
@@ -92,19 +93,19 @@ export default function SaveModal({
   };
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-bg/80 backdrop-blur-sm">
-      <div className="thought-in max-h-[88dvh] w-full max-w-[26rem] overflow-y-auto rounded-t-[var(--radius)] border-t border-hairline bg-surface px-5 pb-6 pt-4">
-        <div className="mb-1 flex items-baseline gap-2">
-          <span className="font-display text-[1.25rem] tracking-wide">{t('save.title')}</span>
-          <span className="h-px flex-1 bg-hairline opacity-60" />
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
-          >
-            {t('save.close')}
-          </button>
-        </div>
+    <Sheet
+      title={t('save.title')}
+      action={
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+        >
+          {t('save.close')}
+        </button>
+      }
+    >
+      <>
 
         {onSave ? (
           <p className="mb-3 font-body text-[0.75rem] leading-snug text-faint">{t('save.pick')}</p>
@@ -183,7 +184,7 @@ export default function SaveModal({
             );
           })}
         </ul>
-      </div>
-    </div>
+      </>
+    </Sheet>
   );
 }

@@ -2578,6 +2578,39 @@ All visual constants are CSS custom properties on `:root`, defined in `config/th
 
 Inline styles are allowed only for values that come from data at runtime: character `palette` application, and meter fill widths. Everything else uses tokens.
 
+### Every sheet is bounded, and one component enforces it
+
+**`ui/modals/Sheet.jsx` is the only bottom sheet.** Height cap, its own scroll,
+a header pinned above that scroll, and the safe-area inset - once, in one
+place, rather than four copies that drift.
+
+They did drift, and the drift was a hard stop. `DateModal` was the one of four
+that carried no `max-h` and no `overflow-y-auto`, and the date sheet is the
+longest list in the game: **five members x two kinds of date**. It is also
+bottom-anchored, so it did not overflow downward where a scroll would have
+saved it - it grew *upward*, off the top of the screen, **taking the close
+button with it**. On a 390x844 phone that is a modal with no visible way out
+and no reachable option: the run stopped there.
+
+Three rules, all in `Sheet`:
+
+1. **A cap and a scroll always.** `max-h` plus `overflow-y-auto`. Content is
+   player-sized - five members, eleven stances, six save slots - so no sheet
+   may assume its list is short.
+2. **The header does not scroll.** The other three modals were bounded and
+   still put their close button in the scrolling area, so a long list pushed
+   the way out off-screen until the player thought to scroll up. The way out of
+   a modal is not something to go looking for.
+3. **The inset is the sheet's own job.** A `position: fixed` overlay is laid
+   out against the viewport, not against the padded `body` below - so the
+   `--safe-bottom` rule in section 20 does not reach it, and a sheet that stops
+   at the viewport edge sits under the home indicator.
+
+The rule is asserted rather than reviewed: a test walks every file in
+`ui/modals/` and fails on one that builds its own `fixed inset-0` shell.
+**Verify long sheets at `fontScale` 1.25 in `zh`** - section 20 has always said
+so, and this is what it looks like when nobody does.
+
 ### Safe areas
 
 `viewport-fit=cover` plus `apple-mobile-web-app-status-bar-style:

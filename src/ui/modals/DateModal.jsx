@@ -18,6 +18,7 @@
  *   turn a bet into arithmetic.
  */
 
+import Sheet from './Sheet.jsx';
 import { DATE_KIND_IDS, REFUSAL } from '../../systems/dating.js';
 
 /** How likely she is, as a word. Never a number (section 20). */
@@ -78,27 +79,28 @@ export default function DateModal({ offers, cards, refusal, onAsk, onClose, t })
   }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-4">
-      <div className="w-full max-w-[26rem] rounded-[var(--radius)] border border-hairline bg-surface p-5">
-        <header className="flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-[1.25rem] tracking-wide">{t('date.title')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-dim"
-          >
-            {t('date.skip')}
-          </button>
-        </header>
-
-        <p className="mt-1 font-body text-[0.75rem] leading-relaxed text-dim">
-          {t('date.note')}
-        </p>
+    <Sheet
+      z="z-50"
+      title={t('date.title')}
+      action={
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+        >
+          {t('date.skip')}
+        </button>
+      }
+      lede={
+        <p className="font-body text-[0.75rem] leading-relaxed text-dim">{t('date.note')}</p>
+      }
+    >
+      <>
 
         {/* She said no. Not a failure - the first time a hidden number becomes
             a visible yes or no, which is what pillar 1 asks the player to read. */}
         {refusal ? (
-          <p className="mt-3 rounded-[var(--radius-sm)] border border-hairline px-3 py-2 font-body text-[0.8125rem] text-text">
+          <p className="mb-3 rounded-[var(--radius-sm)] border border-hairline px-3 py-2 font-body text-[0.8125rem] text-text">
             {t(`date.refused.${refusal.reason}`).replace('{name}', refusal.name)}
           </p>
         ) : null}
@@ -123,7 +125,7 @@ export default function DateModal({ offers, cards, refusal, onAsk, onClose, t })
             </section>
           ),
         )}
-      </div>
-    </div>
+      </>
+    </Sheet>
   );
 }

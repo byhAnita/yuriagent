@@ -17,6 +17,7 @@
  * would actually do it, and which makes the topic TURN rather than start there.
  */
 
+import Sheet from './Sheet.jsx';
 import { giftsFor } from '../../systems/economy.js';
 
 function Row({ gift, onPick, free = false, t }) {
@@ -106,15 +107,11 @@ export default function GiftModal({
   const sayable = gesture.filter((g) => g.unlocked && !g.used);
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-bg/80 backdrop-blur-sm">
-      <div className="thought-in max-h-[85dvh] w-full max-w-[26rem] overflow-y-auto rounded-t-[var(--radius)] border-t border-hairline bg-surface px-5 pb-6 pt-4">
-        <div className="mb-3 flex items-baseline gap-2">
-          <span className="font-display text-[1.25rem] tracking-wide text-accent">
-            {card.name}
-          </span>
-          <span className="h-px flex-1 bg-hairline opacity-60" />
-          <span className="font-mono text-[0.625rem] tabular-nums text-dim">{credits}c</span>
-        </div>
+    <Sheet
+      title={<span className="text-accent">{card.name}</span>}
+      action={<span className="shrink-0 font-mono text-[0.625rem] tabular-nums text-dim">{credits}c</span>}
+    >
+      <>
 
         {/*
           Not "gifts". An opening can be an object or a line, and naming the
@@ -216,7 +213,7 @@ export default function GiftModal({
         >
           {t('gift.skip')}
         </button>
-      </div>
-    </div>
+      </>
+    </Sheet>
   );
 }

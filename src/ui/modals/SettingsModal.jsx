@@ -10,6 +10,7 @@
  */
 
 import { useState } from 'react';
+import Sheet from './Sheet.jsx';
 import { THEMES, FONT_SCALES } from '../../config/themes.js';
 import { MODELS } from '../../config/modelConfigs.js';
 import { LANGS, LANG_LABELS } from '../../i18n/index.js';
@@ -44,19 +45,19 @@ export default function SettingsModal({ settings, onChange, apiKey, onKeyChange,
   const hasKey = Boolean(apiKey);
 
   return (
-    <div className="fixed inset-0 z-20 flex items-end justify-center bg-bg/80 backdrop-blur-sm">
-      <div className="thought-in max-h-[88dvh] w-full max-w-[26rem] overflow-y-auto rounded-t-[var(--radius)] border-t border-hairline bg-surface px-5 pb-6 pt-4">
-        <div className="mb-4 flex items-baseline gap-2">
-          <span className="font-display text-[1.25rem] tracking-wide">{t('settings.title')}</span>
-          <span className="h-px flex-1 bg-hairline opacity-60" />
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
-          >
-            {t('map.close')}
-          </button>
-        </div>
+    <Sheet
+      title={t('settings.title')}
+      action={
+        <button
+          type="button"
+          onClick={onClose}
+          className="shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+        >
+          {t('map.close')}
+        </button>
+      }
+    >
+      <>
 
         <div className="flex flex-col gap-4">
           <Group label={t('settings.theme')}>
@@ -164,7 +165,7 @@ export default function SettingsModal({ settings, onChange, apiKey, onKeyChange,
             </p>
           </section>
         </div>
-      </div>
-    </div>
+      </>
+    </Sheet>
   );
 }
