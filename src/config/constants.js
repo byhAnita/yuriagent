@@ -260,6 +260,21 @@ export const INTERJECT_STAKE = {
   perSilentTurn: 0.15,
 };
 
+// --- shared dorm activities (PROPOSALS 15) ----------------------------------
+/**
+ * What an evening spent with all of them is worth to each of them.
+ *
+ * Small on purpose. It is not a substitute for a scene with her - it is the one
+ * thing in the dorm that costs nobody anything, which is what the place needed:
+ * section 10 makes the dorm safe from scandal and dangerous for jealousy, and
+ * until this existed that tension was all cost.
+ *
+ * Paired with no jealousy at all from a shared activity. Nobody is being
+ * singled out, which is the whole point, and charging for it would put the cost
+ * straight back.
+ */
+export const SHARED_ACTIVITY_INTIMACY = 2;
+
 // --- openers (section 11) ---------------------------------------------------
 /**
  * A knowledge fact can be spent two ways: on an object, or on saying something.

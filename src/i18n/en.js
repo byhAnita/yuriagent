@@ -47,6 +47,16 @@ export default {
     island_tripBlurb: 'The first day in nine weeks with nothing scheduled on it.',
   },
 
+  /**
+   * The dorm's own group scenes. The frame the model reads is model-facing
+   * English in `data/sharedActivities.js` and never localized (section 19).
+   */
+  shared: {
+    note: 'All of you. Nobody is being singled out.',
+    cook_together: 'Cook together',
+    watch_a_film: 'Watch something together',
+  },
+
   settings: {
     title: 'Settings',
     theme: 'Theme',
@@ -226,6 +236,7 @@ export default {
     gesture: 'Say something only you would know to say',
     free: 'free',
     iced_coffee: 'Iced coffee',
+    home_cooked: 'Something you cooked yourself',
     rose: 'A single rose',
     lozenges: 'Throat lozenges',
     snack_box: 'Convenience store haul',
@@ -300,6 +311,8 @@ export default {
     coffee_run_result: 'Six drinks, two of them wrong, and nobody lets you pay next time.',
     sit_alone: 'Sit with your own coffee',
     sit_alone_result: 'You do nothing for an hour. It helps more than it should.',
+    cook_a_dish: 'Cook something for later',
+    cook_a_dish_result: 'You make more than you are going to eat, and put the rest in a box. Somebody is going to be glad of it.',
     cook_for_dorm: 'Cook enough for whoever comes in',
     cook_for_dorm_result: 'You leave it covered on the counter with a note. In the morning the pan is clean.',
     clean_up: 'Deal with the kitchen',

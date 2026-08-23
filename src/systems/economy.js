@@ -64,12 +64,23 @@ export function isUnlocked(gift, dossier) {
  * something you could give her if you knew her better is the pull that makes
  * the dossier feel like a mechanic instead of plumbing.
  */
-export function giftsFor(dossier, credits, usedGestures = []) {
+/**
+ * @param {object} dossier
+ * @param {number} credits
+ * @param {string[]} usedGestures
+ * @param {object} stock - counters for openers paid in something other than
+ *   credits, e.g. `{ dishes: 2 }`. A gift carrying `stock` is unaffordable
+ *   while its counter is zero and is not shown at all - the same rule locked
+ *   knowledge gifts follow, for the same reason: an option the player cannot
+ *   act on is clutter.
+ */
+export function giftsFor(dossier, credits, usedGestures = [], stock = {}) {
+  const inStock = (g) => !g.stock || (stock[g.stock] ?? 0) > 0;
   const entry = (g, unlocked) => ({
     ...g,
-    unlocked,
-    affordable: credits >= g.cost,
-    purchasable: unlocked && credits >= g.cost,
+    unlocked: unlocked && inStock(g),
+    affordable: credits >= g.cost && inStock(g),
+    purchasable: unlocked && credits >= g.cost && inStock(g),
   });
 
   const spent = new Set(usedGestures);
@@ -133,9 +144,11 @@ export function spendGesture(giftId, dossier, usedGestures, memberName) {
   };
 }
 
-export function canPurchase(giftId, dossier, credits) {
+export function canPurchase(giftId, dossier, credits, stock = {}) {
   const gift = getGift(giftId);
   if (!gift || gift.object === false) return false;
+  // An opener paid in something other than credits still has to be in hand.
+  if (gift.stock && (stock[gift.stock] ?? 0) <= 0) return false;
   return isUnlocked(gift, dossier) && credits >= gift.cost;
 }
 
@@ -143,8 +156,8 @@ export function canPurchase(giftId, dossier, credits) {
  * Buy and open the scene with it.
  * Returns the spend plus the note injected at the head of prompt block 5.
  */
-export function purchase(giftId, dossier, credits, memberName) {
-  if (!canPurchase(giftId, dossier, credits)) return null;
+export function purchase(giftId, dossier, credits, memberName, stock = {}) {
+  if (!canPurchase(giftId, dossier, credits, stock)) return null;
   const gift = getGift(giftId);
   const name = giftId.replace(/_/g, ' ');
   const knowledge = Boolean(gift.requires);
@@ -163,13 +176,17 @@ export function purchase(giftId, dossier, credits, memberName) {
     ? `the player has just handed ${memberName} a ${name}.${
         fact ? ` She let this slip once: "${fact}".` : ''
       } She has never told anyone she needed one - only somebody who had been paying very close attention would have known to bring it. She was not expecting this.`
-    : `the player has just handed ${memberName} a ${name}. An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.`;
+    : gift.stock === 'dishes'
+      ? `the player has just handed ${memberName} something they cooked themselves, in the dorm kitchen, earlier. Not bought - made, and carried around since.`
+      : `the player has just handed ${memberName} a ${name}. An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.`;
 
   return {
     giftId,
     tier: knowledge ? 'knowledge' : 'generic',
     fact,
     credits: credits - gift.cost,
+    /** Which player counter this opener consumed, if not credits. */
+    spentStock: gift.stock ?? null,
     intimacyDelta: gift.effect,
     sceneNote,
   };

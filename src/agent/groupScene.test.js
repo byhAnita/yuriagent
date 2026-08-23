@@ -11,6 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   beginScene,
   runTurn,
+  endScene,
   interject,
   isGroupScene,
   turnTo,
@@ -317,5 +318,82 @@ describe('the threshold', () => {
   it('is somewhere a scene can reach and does not always clear', () => {
     expect(INTERJECT_THRESHOLD).toBeGreaterThan(0.5);
     expect(INTERJECT_THRESHOLD).toBeLessThan(2.5);
+  });
+});
+
+/**
+ * A shared dorm evening. PROPOSALS 15.
+ *
+ * The group-scene machinery with one flag on it, and the flag inverts what the
+ * dorm costs: nobody is singled out, so nobody is watching anybody, and
+ * everyone present gains a little instead.
+ */
+describe('an evening with all of them', () => {
+  const sharedSetup = () => {
+    const base = setup();
+    base.scene.locationId = 'dorm_living';
+    base.scene.shared = 'watch_a_film';
+    return base;
+  };
+
+  const play = async (base) => {
+    let session = beginScene(base);
+    session = await runTurn(session, {
+      stance: 'joke',
+      text: '',
+      client: says(BEAT('irene')),
+      cast: cards,
+    });
+    return endScene(session, {
+      client: says('{"summary":"They watched a film."}'),
+      memory: base.memory,
+      relations: base.relations,
+      cards,
+      scene: base.scene,
+      rng: () => 0,
+    });
+  };
+
+  it('leaves nobody jealous and nothing overheard', async () => {
+    const base = sharedSetup();
+    const out = await play(base);
+
+    expect(out.rumors).toEqual([]);
+    for (const id of ROOM) {
+      expect(out.relations[id].jealousy, id).toBe(base.relations[id].jealousy);
+    }
+  });
+
+  it('pays everyone who was in the room', async () => {
+    const base = sharedSetup();
+    const out = await play(base);
+
+    for (const id of ROOM) {
+      if (id === 'irene') continue; // the focus is paid by the scene itself
+      expect(out.relations[id].intimacy, id).toBeGreaterThan(base.relations[id].intimacy);
+    }
+  });
+
+  /**
+   * ...and only the room. Somebody who spent the evening elsewhere gets
+   * nothing, which is the difference between a shared evening and a free
+   * intimacy tick for the whole cast.
+   */
+  it('pays nobody who was not there', async () => {
+    const base = sharedSetup();
+    const out = await play(base);
+
+    expect(out.relations.yeri.intimacy).toBe(base.relations.yeri.intimacy);
+    expect(out.relations.hyewon.intimacy).toBe(base.relations.hyewon.intimacy);
+  });
+
+  /** The same evening without the flag is the expensive one it always was. */
+  it('still costs the earth without the flag', async () => {
+    const base = sharedSetup();
+    delete base.scene.shared;
+    const out = await play(base);
+
+    expect(out.rumors.length).toBeGreaterThan(0);
+    expect(out.rumors.every((r) => r.witnessed)).toBe(true);
   });
 });

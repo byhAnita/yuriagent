@@ -9,6 +9,7 @@
 
 import { actionsFor } from '../../data/soloActions.js';
 import { factDisplay } from '../../data/facts.js';
+import { sharedActivityFor } from '../../data/sharedActivities.js';
 
 export const TASK_ACTION = '__task';
 
@@ -31,6 +32,8 @@ export default function SoloAction({
   onTalk,
   /** Talk to all of them at once. Group scenes, proposal 12. */
   onJoin = null,
+  /** The dorm's own group scene - cooking, or a film. PROPOSALS 15. */
+  onShared = null,
   onChoose,
   onDone,
   /**
@@ -45,6 +48,17 @@ export default function SoloAction({
 }) {
   const actions = actionsFor(locationId);
   const here = present.map((id) => cards.find((c) => c.id === id)).filter(Boolean);
+
+  /**
+   * The two shared dorm rooms offer the group and NOT the individuals.
+   *
+   * That is the rule rather than a limitation (PROPOSALS 15). The dorm is where
+   * an unchosen 1v1 costs the most - nearly invisible outside, watched by
+   * everyone who lives there - so removing the option is what turns the place
+   * from a trap into somewhere the pressure comes off.
+   */
+  const shared = here.length > 0 ? sharedActivityFor(locationId) : null;
+  const oneOnOne = shared ? [] : here;
 
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-4 px-5 py-8">
@@ -67,7 +81,7 @@ export default function SoloAction({
             what it offers. Being locked out of a snoop because a bandmate
             walked in is agency lost for nothing.
           */}
-          {here.map((card) => (
+          {oneOnOne.map((card) => (
             <li key={card.id}>
               <button
                 type="button"
@@ -103,7 +117,43 @@ export default function SoloAction({
             in the room - "join them" with one person in it is just talking to
             her.
           */}
-          {here.length > 1 && onJoin ? (
+          {/*
+            Cooking, or a film. Concrete, which is what makes it read
+            differently from a work scene: "what is in the fridge" and "this
+            film is terrible" are topics five people can actually have, and
+            neither is available anywhere else on the map.
+          */}
+          {shared && onShared ? (
+            <li>
+              <button
+                type="button"
+                onClick={() => onShared(shared)}
+                className="flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border border-accent bg-accent-soft/20 px-3 py-3 text-left transition-colors"
+              >
+                <span className="flex -space-x-2">
+                  {here.map((card) => (
+                    <span
+                      key={card.id}
+                      className="grid h-6 w-6 place-items-center rounded-full text-[0.75rem]"
+                      style={{ background: card.palette.base, color: card.palette.accent }}
+                    >
+                      {card.emoji}
+                    </span>
+                  ))}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-body text-[0.9375rem] text-text">
+                    {t(`shared.${shared.id}`)}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-accent">
+                    {t('shared.note')}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ) : null}
+
+          {oneOnOne.length > 1 && onJoin ? (
             <li>
               <button
                 type="button"

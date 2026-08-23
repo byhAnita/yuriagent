@@ -1013,7 +1013,9 @@ The card-editor half is v2 and only needs the resolver to exist now.
 
 ## 15. The dorm needs something to do together
 
-**Status: AGREED 2026-08-22 with Yuhan. Blocked on PROPOSALS 12 (group scenes).**
+**Status: IMPLEMENTED 2026-08-23.** CLAUDE.md section 10b now carries the rule.
+The open question at the bottom was decided as recommended: **no jealousy, and a
+small intimacy gain for everyone present.**
 
 ### The gap
 

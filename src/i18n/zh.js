@@ -84,6 +84,16 @@ export default {
     island_tripBlurb: '九周以来第一个什么都没安排的日子。',
   },
 
+  /**
+   * 宿舍里的群体场景。模型读到的场景框架是英文，写在
+   * `data/sharedActivities.js` 里，永远不翻译（第 19 节）。
+   */
+  shared: {
+    note: '所有人一起，没有谁被单独挑出来。',
+    cook_together: '一起做饭',
+    watch_a_film: '一起看点什么',
+  },
+
   settings: {
     title: '设置',
     theme: '主题',
@@ -263,6 +273,7 @@ export default {
     gesture: '只有你会想到说的话',
     free: '免费',
     iced_coffee: '冰美式',
+    home_cooked: '你自己做的一份',
     rose: '一支玫瑰',
     lozenges: '润喉糖',
     snack_box: '便利店零食袋',
@@ -337,6 +348,8 @@ export default {
     coffee_run_result: '六杯，其中两杯做错了，而且下次没人肯让你付钱。',
     sit_alone: '自己坐着喝一杯',
     sit_alone_result: '你什么都没做，坐了一个小时。比想象中管用。',
+    cook_a_dish: '多做一份留着',
+    cook_a_dish_result: '你做的比自己能吃的多，剩下的装进保鲜盒。总会有人用得上。',
     cook_for_dorm: '做够所有人份的饭',
     cook_for_dorm_result: '你盖好放在台面上，压了张纸条。第二天早上锅是干净的。',
     clean_up: '收拾厨房',

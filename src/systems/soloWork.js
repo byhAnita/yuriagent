@@ -237,6 +237,7 @@ export function resolveSoloAction({
     learned,
     heard,
     goodwill: Boolean(action.goodwill),
+    dish: Boolean(action.dish),
     rest: Boolean(action.rest),
     ledgerKey: `solo.${actionId}`,
   };
@@ -260,6 +261,9 @@ export function soloLedgerText(result, { locationLabel, playerName = 'The player
   }
   if (result.rest) {
     return `${playerName} slept.`;
+  }
+  if (result.dish) {
+    return `${playerName} cooked something, and put it aside for later.`;
   }
   if (result.goodwill) {
     return `${playerName} did something small for the others at ${locationLabel}.`;

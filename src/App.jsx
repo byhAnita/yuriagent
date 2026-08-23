@@ -45,6 +45,7 @@ import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js'
 import { isWeekend } from './systems/calendar.js';
 import { dateFrame, REGISTERS } from './data/sceneFrames.js';
 import { eventFor, eventKey } from './data/events/index.js';
+import { sharedFrame } from './data/sharedActivities.js';
 
 const SEED = 20260821;
 
@@ -74,6 +75,12 @@ export default function App() {
    */
   const [player, setPlayer] = useState(() => ({
     name: '',
+    /**
+     * What the player is carrying that was not bought. Section 15 has credits;
+     * this is the counter behind `gift.stock` (PROPOSALS 15) - cooking alone in
+     * the dorm kitchen makes one, and handing it over spends it.
+     */
+    dishes: 0,
     ...getIdentity(DEFAULT_IDENTITY).startStats,
   }));
   const [relations, setRelations] = useState(() =>
@@ -306,7 +313,10 @@ export default function App() {
     if (!result) return;
     if (result.heard) setFoundRumors((f) => [...f, result.heard.text]);
 
-    setPlayer((p) => applySoloPlayerDelta(p, result.playerDelta));
+    setPlayer((p) => {
+      const next = applySoloPlayerDelta(p, result.playerDelta);
+      return result.dish ? { ...next, dishes: (next.dishes ?? 0) + 1 } : next;
+    });
 
     setMemory((m) => {
       let dossier = m.dossier;
@@ -435,6 +445,34 @@ export default function App() {
     setScreen('gift');
   };
 
+  /**
+   * Cooking together, or a film. PROPOSALS 15.
+   *
+   * A group scene with a frame and, crucially, `shared` - which is what stops
+   * it generating four witnessed jealousy events for an evening in which
+   * nothing happened to anyone in particular, and what pays everyone present a
+   * little intimacy instead. The dorm needed one thing that is unambiguously
+   * restorative.
+   */
+  const onShared = (activity) => {
+    const ids = (solo?.present ?? []).slice();
+    if (ids.length === 0) return;
+    setSolo(null);
+    setPendingScene({
+      locationId: activity.locationId,
+      rosterIds: ids,
+      presentIds: ids,
+      shared: activity.id,
+      // Seeded on the evening, so the film does not change if the player backs
+      // out of the gift modal and walks in again.
+      sceneFrame: sharedFrame(
+        activity,
+        makeRng(deriveSeed(SEED, `shared:${run.week}:${run.day}:${activity.id}`)),
+      ),
+    });
+    setScreen('gift');
+  };
+
   const scene = useMemo(() => {
     if (!pendingScene) return null;
     const dormWitnessIds = Object.entries(occupancy)
@@ -475,14 +513,24 @@ export default function App() {
        * `presentIds` already drives witnessed jealousy and `riskExposure`.
        */
       event: pendingScene.event ?? null,
-      sceneFrame: pendingScene.date
-        ? dateFrame(pendingScene.date, pendingScene.locationId)
-        : (pendingScene.event?.frame ?? null),
-      register: pendingScene.date
-        ? REGISTERS.date
-        : pendingScene.event
-          ? REGISTERS.event
-          : REGISTERS.ordinary,
+
+      /**
+       * A shared dorm evening. Nobody is singled out, so `rumor.js` skips the
+       * witnessed branch entirely and `endScene` pays everyone present instead.
+       */
+      shared: pendingScene.shared ?? null,
+
+      sceneFrame:
+        pendingScene.sceneFrame ??
+        (pendingScene.date
+          ? dateFrame(pendingScene.date, pendingScene.locationId)
+          : (pendingScene.event?.frame ?? null)),
+      register:
+        pendingScene.date || pendingScene.shared
+          ? REGISTERS.date
+          : pendingScene.event
+            ? REGISTERS.event
+            : REGISTERS.ordinary,
 
       /**
        * What she is here for, and what the player still owes today.
@@ -546,7 +594,7 @@ export default function App() {
   const onBegin = ({ name, identityId: chosen }) => {
     const picked = getIdentity(chosen);
     setIdentityId(picked.id);
-    setPlayer({ name, ...picked.startStats });
+    setPlayer({ name, dishes: 0, ...picked.startStats });
     setScreen('day');
   };
 
@@ -618,6 +666,7 @@ export default function App() {
             setSolo(null);
             onEnter(solo.locationId, room, null, { group: true });
           }}
+          onShared={onShared}
           onChoose={onChooseSolo}
           onDone={() => {
             setSolo(null);
@@ -633,15 +682,23 @@ export default function App() {
           card={giftTarget}
           dossier={memory.dossier[giftTarget.id]}
           credits={player.credits}
+          stock={{ dishes: player.dishes ?? 0 }}
           onPick={(giftId) => {
             const bought = purchase(
               giftId,
               memory.dossier[giftTarget.id],
               player.credits,
               giftTarget.name,
+              { dishes: player.dishes ?? 0 },
             );
             if (bought) {
-              setPlayer((p) => ({ ...p, credits: bought.credits }));
+              setPlayer((p) => ({
+                ...p,
+                credits: bought.credits,
+                ...(bought.spentStock
+                  ? { [bought.spentStock]: Math.max(0, (p[bought.spentStock] ?? 0) - 1) }
+                  : {}),
+              }));
               setGiftNote(bought.sceneNote);
               setRelations((rs) => ({
                 ...rs,

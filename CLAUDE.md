@@ -1294,6 +1294,54 @@ with a price attached, rather than a fixed errand at the wardrobe.
 Your own room stays the exception. There is nothing to find out about anyone
 else in it.
 
+### The dorm needs one thing that is unambiguously restorative
+
+The dorm is safe from scandal and dangerous for jealousy, and that was **all
+cost**: nothing in it spent time with the whole cast at once, so every dorm
+visit was a choice of one member in front of four, priced accordingly. The
+place the cast actually lives was the place it was most expensive to be.
+
+Two shared activities fix it, one per shared room:
+
+| Room | Alone | Together |
+|---|---|---|
+| `dorm_kitchen` | cook for later - produces a dish | **cook together** |
+| `dorm_living` | wait up | **watch something together** |
+
+Three rules, all asserted:
+
+1. **No 1v1 is offered in either room.** The rule, not a limitation. The dorm
+   is where an unchosen 1v1 costs the most, and removing the option is what
+   turns it from a trap into somewhere the pressure comes off. This is the one
+   documented exception to 10b's "every action in every room" - the work and
+   the snoop are still there.
+2. **No jealousy at all.** Nobody is singled out, so `rumor.js` skips the
+   witnessed branch entirely. Without this the release valve is its own tax:
+   five people watching a film would generate four witnessed jealousy events at
+   a group scene's exposure floor, for an evening in which nothing happened to
+   anyone in particular.
+3. **A small intimacy gain for everyone present** (`SHARED_ACTIVITY_INTIMACY`),
+   except the focus, who is already paid by the scene itself.
+
+They are **concrete**, which is what makes them read differently from a work
+scene: "what is in the fridge" and "this film is terrible" are topics five
+people can actually have, and neither is available anywhere else on the map -
+every other location produces conversation about the job. Section 8's argument
+for `ACTIVITY_DOING` is that a scene needs a reason to exist, and a shared meal
+and a bad film are two the workplace cannot supply.
+
+Mechanically it is a group scene (section 10c) with a frame (section 10's date
+register) and one flag. No new machinery.
+
+**The dish is a gift that is not a purchase.** Cooking alone produces an object
+the player can hand over later: generic tier, because anybody can cook, so it
+stays weaker than an opener bought on a fact - but it costs a *block* instead
+of credits, which makes it slightly stronger than what is in the shop. It is
+the one use for a dorm evening that is neither a snoop nor a scene. Openers
+paid in something other than credits declare it as `gift.stock`, and one whose
+counter is empty is not shown at all, the same rule locked knowledge gifts
+follow.
+
 Snooping trades **`secrecy`** for a fact. Low secrecy amplifies scene exposure
 and feeds `exposure_end`, so the cost is real and it lands later - which is the
 right shape for a cost that buys knowledge.

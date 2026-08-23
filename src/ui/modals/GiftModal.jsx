@@ -53,6 +53,12 @@ function Row({ gift, onPick, free = false, t }) {
 export default function GiftModal({
   card,
   dossier,
+  /**
+   * Openers paid in something other than credits, e.g. `{ dishes: 1 }`.
+   * A gift whose counter is empty is not offered at all, the same rule locked
+   * knowledge gifts follow: an option the player cannot act on is clutter.
+   */
+  stock = {},
   credits,
   usedGestures = [],
   onPick,
@@ -60,7 +66,7 @@ export default function GiftModal({
   onSkip,
   t,
 }) {
-  const { generic, knowledge, gesture } = giftsFor(dossier, credits, usedGestures);
+  const { generic, knowledge, gesture } = giftsFor(dossier, credits, usedGestures, stock);
 
   // Locked gifts are not shown. Naming a gift the player cannot buy spoils the
   // fact it is waiting on, and clutters the list with things they cannot act on.
@@ -98,9 +104,12 @@ export default function GiftModal({
           {t('gift.generic')}
         </h3>
         <div className="flex flex-col gap-1">
-          {generic.map((g) => (
-            <Row key={g.id} gift={g} onPick={onPick} t={t} />
-          ))}
+          {/* A generic gift the player is not carrying is not shown at all. */}
+          {generic
+            .filter((g) => !g.stock || g.unlocked)
+            .map((g) => (
+              <Row key={g.id} gift={g} onPick={onPick} t={t} />
+            ))}
         </div>
 
         {unlocked.length > 0 ? (

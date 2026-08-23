@@ -105,6 +105,16 @@ export function propagate({ scene, subject, cast, relations, rng }) {
     const rel = relations[member.id];
     if (!rel) continue;
 
+    /**
+     * A shared activity singles nobody out, so nobody is watching anybody.
+     *
+     * Without this the dorm's release valve is its own tax: five people cooking
+     * together would generate four witnessed jealousy events, at the exposure
+     * floor of a group scene, for an evening in which nothing happened to
+     * anyone in particular. PROPOSALS 15.
+     */
+    if (scene.shared && present.has(member.id)) continue;
+
     // Present in the room: direct observation, no roll.
     if (present.has(member.id)) {
       const exposure = Math.max(scene.exposure, WITNESS_EXPOSURE_FLOOR);

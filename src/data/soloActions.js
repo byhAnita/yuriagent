@@ -61,6 +61,15 @@ export const SOLO_ACTIONS = {
     { id: 'listen_in', secrecy: -2, energy: -1, learns: true },
   ],
   dorm_kitchen: [
+    /**
+     * Cooking alone produces an OBJECT rather than credits.
+     *
+     * A gift that is not a purchase, and the one use for a dorm evening that
+     * is neither a snoop nor a scene. Generic tier - anybody can cook - so it
+     * stays weaker than an opener bought on a fact; what it costs is a block
+     * instead of money (PROPOSALS 15).
+     */
+    { id: 'cook_a_dish', energy: -3, dish: true },
     { id: 'cook_for_dorm', credits: 1, energy: -3, goodwill: true },
     { id: 'clean_up', credits: 1, energy: -2 },
     { id: 'read_the_fridge', secrecy: -2, energy: -1, learns: true },

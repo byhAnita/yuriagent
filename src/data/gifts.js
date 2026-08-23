@@ -37,6 +37,16 @@
  */
 
 export const GENERIC_GIFTS = [
+  /**
+   * The one opener that is not bought.
+   *
+   * It costs a block in the dorm kitchen instead of credits, so it is offered
+   * only while the player is carrying one - `stock` names the counter on the
+   * player that gates and pays for it. Slightly better than a shop gift,
+   * because a block is dearer than two credits and somebody made it
+   * (PROPOSALS 15).
+   */
+  { id: 'home_cooked', cost: 0, effect: 2, stock: 'dishes' },
   { id: 'iced_coffee', cost: 1, effect: 1 },
   { id: 'rose', cost: 1, effect: 1 },
   { id: 'lozenges', cost: 2, effect: 1 },

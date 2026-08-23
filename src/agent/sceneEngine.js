@@ -32,6 +32,7 @@ import {
   RISK_EXPOSURE_THRESHOLD,
   GUARD_DROP_TO_PAY,
   FLUSTER_PEAK_TO_PAY,
+  SHARED_ACTIVITY_INTIMACY,
 } from '../config/constants.js';
 import { clamp } from '../systems/rng.js';
 
@@ -538,6 +539,7 @@ export async function endScene(session, { client, memory, relations, cards, scen
       locationLabel: scene.locationLabel,
       presentIds: scene.presentIds ?? rosterIds,
       dormWitnessIds: scene.dormWitnessIds ?? [],
+      shared: Boolean(scene.shared),
     },
     subject: { id: subject.id, name: subject.name },
     cast: cards,
@@ -547,6 +549,23 @@ export async function endScene(session, { client, memory, relations, cards, scen
 
   for (const [id, amount] of Object.entries(jealousyDeltas)) {
     nextRelations[id] = addJealousy(nextRelations[id], amount);
+  }
+
+  /**
+   * An evening with all of them is worth something to all of them.
+   *
+   * Applied to everyone present EXCEPT the focus, who has already been paid by
+   * `computeDeltas` for the scene itself - paying her twice would make the
+   * shared activity the strongest move in the dorm rather than the gentlest.
+   */
+  if (scene.shared) {
+    for (const id of scene.presentIds ?? rosterIds) {
+      if (id === session.focusId || !nextRelations[id]) continue;
+      nextRelations[id] = applySceneOutcome(nextRelations[id], {
+        intimacy: SHARED_ACTIVITY_INTIMACY,
+        good: true,
+      });
+    }
   }
 
   let finalMemory = nextMemory;
