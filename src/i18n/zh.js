@@ -370,6 +370,7 @@ export default {
     watched: '其他人就在旁边',
     secrecy: '谨慎',
     mayLearn: '也许会发现什么',
+    nothingHere: '这里暂时没什么可打听的',
     learned: '你知道了一件事',
     heard: '她听说了',
     learnedNothing: '没有你还不知道的事。',

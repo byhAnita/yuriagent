@@ -335,6 +335,7 @@ export default {
     watched: 'The others are right there',
     secrecy: 'Discretion',
     mayLearn: 'you might find something',
+    nothingHere: 'nothing here right now',
     learned: 'You learned something',
     heard: 'She has heard',
     learnedNothing: 'Nothing you did not already know.',

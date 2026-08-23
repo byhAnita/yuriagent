@@ -8,6 +8,7 @@
  */
 
 import { actionsFor } from '../../data/soloActions.js';
+import { availableFinds } from '../../systems/soloWork.js';
 import { factDisplay } from '../../data/facts.js';
 import { sharedActivityFor } from '../../data/sharedActivities.js';
 
@@ -29,6 +30,9 @@ export default function SoloAction({
   result,
   present = [],
   cards = [],
+  /** What the player already knows, so the screen can say when a room is spent. */
+  dossier = {},
+  foundRumors = [],
   onTalk,
   /** Talk to all of them at once. Group scenes, proposal 12. */
   onJoin = null,
@@ -48,6 +52,22 @@ export default function SoloAction({
 }) {
   const actions = actionsFor(locationId);
   const here = present.map((id) => cards.find((c) => c.id === id)).filter(Boolean);
+
+  /**
+   * Is there anything for this snoop to turn up, right now?
+   *
+   * The same call `resolveSoloAction` makes, so the screen and the outcome
+   * cannot disagree - including the rule that you never learn about somebody
+   * standing in the room, which is why `present` goes in.
+   */
+  const hasFinds = (action) =>
+    availableFinds({
+      cards,
+      dossier,
+      present,
+      foundRumors,
+      kind: typeof action.learns === 'string' ? action.learns : null,
+    }).length > 0;
 
   /**
    * The two shared dorm rooms offer the group and NOT the individuals.
@@ -220,9 +240,28 @@ export default function SoloAction({
                   <Effect label={t('game.competence')} value={a.competence} tone="text-accent" />
                   <Effect label={t('game.energy')} value={a.energy} tone="text-dim" />
                   <Effect label={t('solo.secrecy')} value={a.secrecy} tone="text-danger" />
+                  {/*
+                    Say when there is nothing here to find.
+
+                    `soloWork` has always known - it refuses to charge secrecy
+                    for a search that turned up nothing - and the screen never
+                    asked, so the player could only learn it by spending the
+                    block. That got worse when rumors became social-room-only:
+                    a run opens with 25 facts and NO rumors, because nothing has
+                    happened yet for anyone to have heard about, so the social
+                    room's snoop is guaranteed empty in week 1.
+                    That is the intended curve (CLAUDE.md section 10b) and the
+                    player should be able to see it rather than pay to discover
+                    it. Still clickable: it costs energy and a block, never
+                    secrecy, and walking in to check is a legitimate move.
+                  */}
                   {a.learns ? (
-                    <span className="font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-warn">
-                      {t('solo.mayLearn')}
+                    <span
+                      className={`font-mono text-[0.5625rem] uppercase tracking-[0.12em] ${
+                        hasFinds(a) ? 'text-warn' : 'text-faint'
+                      }`}
+                    >
+                      {t(hasFinds(a) ? 'solo.mayLearn' : 'solo.nothingHere')}
                     </span>
                   ) : null}
                 </span>

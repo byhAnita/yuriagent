@@ -133,3 +133,44 @@ describe('a snoop, in English', () => {
     expect(screen.getByText(new RegExp(FACTS.cold_hands))).toBeTruthy();
   });
 });
+
+/**
+ * A room that has nothing left to teach says so, instead of charging a block
+ * to find out.
+ *
+ * `soloWork` has always known - it refuses to charge secrecy for a search that
+ * turned up nothing - and the screen never asked. It got sharper when rumors
+ * became social-room-only: a run opens with 25 facts and NO rumors, so the
+ * social snoop is guaranteed empty in week 1. That curve is intended; paying a
+ * block to discover it is not.
+ */
+describe('a spent room says it is spent', () => {
+  const room = (dossier) =>
+    render(
+      <SoloAction
+        locationId="drink_room"
+        cards={cards}
+        dossier={dossier}
+        onTalk={() => {}}
+        onChoose={() => {}}
+        onDone={() => {}}
+        lang="en"
+        t={makeT('en')}
+      />,
+    );
+
+  it('offers no promise when there is nothing to overhear yet', () => {
+    room(Object.fromEntries(cards.map((c) => [c.id, { known_facts: [], heard_about: [] }])));
+    expect(screen.getByText(makeT('en')('solo.nothingHere'))).toBeTruthy();
+    expect(screen.queryByText(makeT('en')('solo.mayLearn'))).toBeNull();
+  });
+
+  it('promises something once a rumor exists to find', () => {
+    const dossier = Object.fromEntries(
+      cards.map((c) => [c.id, { known_facts: [], heard_about: [] }]),
+    );
+    dossier.yeri.heard_about = [{ text: 'you heard the player was at Cafe with Irene', kind: 'heard' }];
+    room(dossier);
+    expect(screen.getByText(makeT('en')('solo.mayLearn'))).toBeTruthy();
+  });
+});

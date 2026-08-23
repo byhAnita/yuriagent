@@ -831,6 +831,8 @@ export default function App() {
           result={solo.result}
           present={solo.present ?? []}
           cards={cards}
+          dossier={memory.dossier}
+          foundRumors={foundRumors}
           onTalk={(memberId) => {
             const room = (solo.present ?? []).map((id) => ({ id }));
             setSolo(null);
