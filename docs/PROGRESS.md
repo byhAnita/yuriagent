@@ -432,13 +432,41 @@ before and it has not improved.
   energy. `playthrough.test.js` answers the same questions by playing the real
   loop. Retire it.
 
-### 4. Repair events
+### 4. The opener should move into the scene (PROPOSALS 11)
+
+**Now unblocked, and now a real problem rather than an anticipated one.** The
+opener is still a pre-scene modal, so in a group scene the player picks who to
+hand something to *before they have seen anybody in the room*. That is exactly
+the bet-it-blind-at-the-door failure PROPOSALS 11 describes.
+
+Half the machinery already exists: the portrait row is a row of buttons and
+tapping one moves the addressee, which is the "missing verb" that entry
+identified. What remains is routing the opener through it - one live control
+beside the portrait, one opener per scene, and the rule that interacting with
+someone makes her the next speaker.
+
+### 5. Events do not recur, and week 9 is the emptiest week in the game
+
+Five anchor events fire per **campaign**, on Yuhan's instruction ("we have 5
+special events in total"), which is reading one of the three in PROPOSALS 10.
+That entry recommended reading three - five situations recurring across three
+cycles with escalating stakes - and warned about exactly this consequence:
+cycles 2 and 3 have no authored beat, so the end of the game is its quietest
+stretch.
+
+Not pre-empted, because it is a content decision and the structure underneath
+is fine: COMEBACK is still the co-presence week and REST still the repair week.
+But **watch for it in the first hand-played campaign**, and know the fix is
+small: key `firedEvents` on `phase:slot:cycle` instead of `phase:slot` and
+give each event a per-cycle stakes clause.
+
+### 6. Repair events
 
 `applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
 and **nothing calls either.** Section 5 gives it once per cycle per character
 while in `rift`. This is the sixth item on the join list waiting to happen.
 
-### 5. Content and polish
+### 7. Content and polish
 
 - **Card picker UI.** The cast section of the cover screen is a stub that
   renders the fixed five. v1: choose any five from the library. v2: the custom

@@ -328,10 +328,15 @@ is the game's own thesis rather than a balance patch.
 
 ## 10. Phase maps, dating, and five authored events
 
-**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** One question is still
-open (cycles, below). This entry replaces the earlier sketch; the parts of that
-sketch that were wrong are recorded at the bottom rather than deleted, because
-both were wrong in instructive ways.
+**Status: IMPLEMENTED 2026-08-23**, except the escalation question below, which
+was resolved AGAINST this entry's own recommendation. CLAUDE.md sections 10 and
+10b carry what shipped. The parts of the earlier sketch that were wrong are
+still recorded at the bottom rather than deleted, because both were wrong in
+instructive ways.
+
+**The one place the build differs from what is written here: events are five
+per CAMPAIGN, not five per cycle.** See "OPEN: five per campaign, or five per
+cycle" below, which now records why.
 
 ### The map is a template of roles, not a list of rooms
 
@@ -453,6 +458,29 @@ short per-cycle stakes clause, not fifteen scenes.
 
 Under this reading "fires once" means **once per cycle**.
 
+#### RESOLVED 2026-08-23: the first, on Yuhan's instruction
+
+> "Each special event occurs only once and removed event and place, each cost 1
+> weekday... So we have 5 special events in total."
+
+That is reading one, and it is what shipped: `flags.firedEvents` persists for
+the whole campaign, so a fired event never returns. It overrides the
+recommendation above, which was mine.
+
+**The consequence this entry warned about is real and has not been addressed:**
+cycles 2 and 3 have no anchor events, so week 9 - the end of the game - is the
+emptiest week in it. Two things to know if that turns out to matter in play:
+
+- The engine already supports the escalating reading. `eventDays` filters on
+  `fired`, so keying it `phase:slot:cycle` instead of `phase:slot` would make
+  events recur, and `data/events/` would gain a per-cycle stakes clause. It is
+  a small change, not a redesign.
+- Weeks 2-3 of every cycle already have a shape without events - COMEBACK is
+  the co-presence week and REST is the repair week. It is specifically the
+  authored beat that is missing, not the structure.
+
+Worth watching for in the first hand-played campaign rather than pre-empting.
+
 ### Schedule assembly
 
 Weekday assignment order, run at week start:
@@ -571,8 +599,20 @@ without checking the structure it sits in:
 
 ## 11. The opener moves into the scene, and taking someone a gift takes the floor
 
-**Status: AGREED 2026-08-22 with Yuhan, recommendation below. Not implemented.**
-Raised because group scenes break the current placement.
+**Status: AGREED 2026-08-22 with Yuhan. NOT implemented, and now unblocked.**
+Raised because group scenes break the current placement - and group scenes
+shipped 2026-08-23, so the problem below is live rather than anticipated.
+
+Two pieces of it arrived early with the group scene work and are worth knowing
+before picking this up:
+
+- **"Turn to her" exists.** The portrait row is a row of buttons and tapping one
+  moves the addressee, so the "missing verb" this entry identifies is already
+  the primitive the scene runs on. What is missing is routing the OPENER
+  through it.
+- **The opener is still a pre-scene modal**, which in a group scene means the
+  player picks who to hand something to before they have seen anybody in the
+  room - the exact bet-it-blind-at-the-door problem in reason 2 below.
 
 ### The problem
 
@@ -751,8 +791,16 @@ rather than a distribution.
 
 ## 13. Dates and events need a different register, and the player needs a name
 
-**Status: AGREED 2026-08-22 with Yuhan. Not implemented.** Raised by Yuhan while
-planning dating: a whole-day scene played at ordinary-chat register will drift.
+**Status: IMPLEMENTED 2026-08-23.** Raised by Yuhan while planning dating: a
+whole-day scene played at ordinary-chat register will drift. All three registers
+ship (`data/sceneFrames.js`), dates and anchor events both use the literary one
+at sixteen turns, the pronoun rule is in block 1, and the name field is on the
+cover screen.
+
+Two things the build added beyond this entry: the shared dorm evenings borrow
+the same register (PROPOSALS 15), and every frame has a smell test asserting a
+movement never writes her reaction - which caught a scripted movement in an
+event frame on its first run.
 
 ### Three registers, and the contrast is the point
 
