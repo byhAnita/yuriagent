@@ -2539,12 +2539,23 @@ shape for this particular rule.
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
 | **M5** | Run layer: full 3x3 campaign, event anchors on weekend blocks, endings screen, save/load, PWA install | full playthrough reaches an ending |
 
-**Status: M0-M5 complete.** A campaign now runs from the cover screen to the
-endings screen, saves itself, and installs. Running state, what is done and what is
-still open, lives in `docs/PROGRESS.md` - that file is updated *before* a
-milestone closes, and it is what makes compacting this session safe.
-Design changes that have been argued for but not made live in
-`docs/PROPOSALS.md`; read it before touching a coefficient.
+**Status: M0-M5 complete, and deployed.** A campaign runs from the cover screen
+to the endings screen, saves itself, and installs. It is live at
+`https://byhAnita.github.io/yuriagent/` - published from `dev` by
+`bash deploy.sh`, which is the hand-test build and not the release (section
+17). Four sessions have been played by hand, the most recent on the phone the
+game is designed for.
+
+**The next task is PROPOSALS 20** - making an anchor event decide something,
+and giving a campaign somewhere to remember what it decided. It is accepted
+rather than merely argued, and the staged plan is `docs/PROGRESS.md` "Still
+open" item 1.
+
+Running state, what is done and what is still open, lives in
+`docs/PROGRESS.md` - that file is updated *before* a milestone closes, and it
+is what makes compacting this session safe. Design changes that have been
+argued for but not made live in `docs/PROPOSALS.md`; read it before touching a
+coefficient.
 
 M1 before M2 is deliberate: the relationship model is the product, and it must be correct before a single token is spent on it.
 

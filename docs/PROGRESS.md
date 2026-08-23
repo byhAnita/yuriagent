@@ -5,34 +5,41 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, the first anchor event played
+## Current: M0-M5 complete, deployed, four sessions played
 
-**1021 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1062 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
+
+**It is live and playable on a phone:** https://byhAnita.github.io/yuriagent/
+Published from `dev` by `bash deploy.sh` (section 17: the Pages site is the
+hand-test build, a tag from `main` is what players get). Add `?debug=1` for an
+in-page console on iOS, where no browser has devtools.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
 installs. In English or Chinese, with or without an API key.
 
-**Three in-game sessions have been played by a human, all on 2026-08-23**, one
-in English and two in Chinese. Between them they produced **twenty-three**
-fixes. Every single one was in code that had tests and passed them.
+**Four sessions have been played by a human, all on 2026-08-23**, one in
+English and three in Chinese. Between them they produced **thirty-one** fixes.
+Every single one was in code that had tests and passed them.
 
 | | |
 |---|---|
-| day one, `en` | 8 fixes, all in or around the group scene, invisible to its 27 tests |
-| day two, `zh` | 7 fixes, including two premises nobody had ever written down |
+| day one, `en`, desktop | 8 fixes, all in or around the group scene, invisible to its 27 tests |
+| day two, `zh`, desktop | 7 fixes, including two premises nobody had ever written down |
 | the first anchor event, `zh` | 8 fixes, four of them the missing-join shape again |
+| **the first phone session, `zh`** | 8 fixes, and **the language split finally reproduced** |
 
-Between the second and third: three of the four suspects for the one unfixed
-day-two bug were **eliminated from the code**, a real language defect was found
-in the offline writer while looking, the game grew a **call record** so the next
-hand-played bug arrives with evidence, and save became **six slots**. See
-"Between days".
+The phone session is the one that changes what to trust. Three of its eight
+were invisible on a desktop by construction - they are what a fixed viewport
+height does to a layout when the text is Chinese - and one of them ended the
+run outright. **Playing on the target device is not the same as playing.**
 
-**If you are picking this up cold, read "What M5 shipped", then the three playtest
-sections, then "Still open".** The design is in `CLAUDE.md`; this file is where
-it stands in code. `docs/PROPOSALS.md` holds arguments for changing the design
-and is worth reading before touching any coefficient.
+**Picking this up cold?** Read **"Still open" first** - item 1 is a live
+instruction with a plan attached, not a survey. Then "What M5 shipped" for the
+shape of the thing, and the playtest sections for why it is shaped that way.
+The design is in `CLAUDE.md`; this file is where it stands in code.
+`docs/PROPOSALS.md` holds arguments for changing the design and is worth
+reading before touching any coefficient.
 
 ---
 
@@ -936,222 +943,368 @@ written up rather than implemented:
 
 ---
 
+## The first phone session (2026-08-23, `zh`, iPhone, live DeepSeek V4 Flash)
+
+The first time the game was played on the device it is designed for. **Eight
+fixes**, and the shape of them is different from every session before it:
+**three were invisible on a desktop by construction**, one ended the run
+outright, and one was the bug that has been open since day two.
+
+### The language split, reproduced and fixed
+
+Opening beat of the concept meeting, in a `zh` run that had never switched
+language:
+
+```
+She is already at the table, a printout held at an angle, and it takes her a
+second to look up. "坐吧。咖啡刚倒的，还热。"
+```
+
+English action, Chinese speech - the exact reported shape. **And then it never
+recurred in that scene**, which is the whole diagnosis rather than a footnote.
+
+**Block 5 is empty on the opening beat and on no other turn.** Every later
+generation has her last beat and the player's line sitting immediately above it
+in the right language, and the model continues in what it can see. On turn one
+there is nothing to continue: everything above block 5 is English *by design*
+(section 19 keeps memory language-agnostic), and the last thing read is an
+English instruction asking for an opening beat.
+
+An anchor event is the worst case, which is why it surfaced there - block 4
+also carries `## The day` and `## How to write this one`.
+
+Block 4's `## Language` reminder was written for exactly this failure and
+**cannot reach it**: it sits above the frame, above the register, and above the
+opening directive. So `openingDirective` takes the language and states it
+inline. One turn has the problem; one turn gets the fix.
+
+Worth keeping: eight live probes and a 25/25 harness pass could not find this,
+because none of them opened a scene with an event frame in a non-English run.
+**The reproduction needed a real anchor event, in `zh`, played by hand.**
+
+### What a fixed viewport height does to a layout
+
+Three fixes exist only on a phone, and they are the same mistake in three
+places: something was allowed to take the height it wanted, and something else
+was the side that gave.
+
+- **The speaker's portrait vanished in every group scene.** The scene is a
+  fixed viewport height, the portrait was `min-h-0 flex-1` and the card row
+  `shrink-0`; with a header, three meters, a Chinese dialogue box and a
+  four-row chip bar all taking their fixed share, `flex-1` had nothing left to
+  divide. The row now floats over the portrait and costs no height at all.
+- **`Portrait`'s small size was a hardcoded `h-24` inside an `h-14` wrapper**,
+  so the row was ~96px while its markup claimed 56px. Every estimate of that
+  budget was wrong by 40px, in the direction that hurt.
+- **The date sheet had no height cap and no scroll.** Bottom-anchored, so it
+  did not overflow downward where a scrollbar would have rescued it - it grew
+  *upward*, off the top of the screen, taking the close button with it. Five
+  members times two kinds of date, on a 390x844 screen: **no reachable option
+  and no way out.** The session stopped there.
+
+`ui/modals/Sheet.jsx` is now the only bottom sheet - cap, scroll, a header
+pinned above that scroll, and the safe-area inset, once. Asserted structurally,
+and the assertion was run against the pre-fix file to confirm it fails.
+
+Section 20 has said "verify at `fontScale` 1.25 with `zh` strings" since M0.
+This is what it looks like when nobody does.
+
+### The vocabulary complaint that was a distribution bug
+
+*"tease, apologize, reassure don't give the option we want in most cases."*
+Both halves of that were true and the second was mechanical:
+
+```js
+available.filter(...).sort(() => rng() - 0.5)   // not a shuffle
+```
+
+`Array.prototype.sort` with a random comparator has no uniformity guarantee and
+barely permutes a short array, so **position in `STANCES` decided how often a
+stance was offered**. Measured over 2400 sets: element 0 in **41%**, element 9
+in **23%**. The player had been shown the top of an array every turn for a
+campaign and reasonably concluded the game had three verbs.
+
+Fixed with seeded Fisher-Yates, and the vocabulary was rewritten on top of it:
+`tease -> flirt`, `reassure -> care`, `+casual`. One slot on every bar is
+**reserved** for something outside the common four, because `touch`, `invite`
+and `confide` are the only stances that move admissibility - an all-common bar
+is the `markRisk` bug arriving by a different door.
+
+**The lesson, and it is new:** the report named a symptom two layers above the
+cause. Fixing only what was reported would have shipped three *new* stances
+stuck at the top of a *new* array.
+
+### The rest
+
+- **Presence is now reported at scene exit.** Section 5b gives it no dossier
+  entry, the aftermath rendered only rumors, so a 1v1 in an occupied room ended
+  silent while three people's jealousy moved. What she knows and what the
+  player is told are different questions.
+- **The chip bar names the addressee** in a group scene. A chip, free text and
+  an opener all silently target her while the labels say "her".
+- **`心动` -> `心乱`.** Reported as "her affection resets every scene". It does
+  not: `心动` means *moved to love*, so a momentary meter was wearing the name
+  of the persistent one. Affection is `intimacy` and it does persist. The word
+  was the bug.
+- The scene header names the weekday, as the day screen already did.
+
+---
+
 ## Still open
 
-Nothing here blocks a playthrough. **In recommended order**, and the order is an
-argument rather than a list: each item is placed where it is because of what it
-would cost to do the ones after it first.
+**In recommended order**, and the order is an argument rather than a list: each
+item is placed where it is because of what it would cost to do the ones after
+it first.
 
-> The ordering principle, earned three times now: **playing beats reasoning, and
-> playing at full size beats playing.** Three played sessions produced
-> twenty-three fixes, every one in code that had tests and passed them. Nothing
-> below is worth doing before more of the game has been played.
+> The ordering principle, earned four times now: **playing beats reasoning, and
+> playing at full size beats playing.** Four sessions produced thirty-one
+> fixes, every one in code that had tests and passed them.
 >
-> The corollary, earned since: **reasoning that eliminates a suspect is worth
-> doing while nobody is playing, and it is not a substitute for playing.** Three
-> of the four candidates for the language split were closed from the code in an
-> afternoon. None of that found the bug; it found a different one.
+> The corollary: **reasoning that eliminates a suspect is worth doing while
+> nobody is playing, and it is not a substitute for playing.** Three of the
+> four candidates for the language split were closed from the code in an
+> afternoon. None of that found the bug; a played anchor event did.
 >
-> And the newest one, from the anchor event: **a rule stated on screen and
-> nowhere else is not a rule.** "It takes the whole day" was written on the day
-> screen from the first build, and the day it named offered four other rooms, a
-> task, and the dorm.
+> From the anchor event: **a rule stated on screen and nowhere else is not a
+> rule.** "It takes the whole day" was on the day screen from the first build,
+> and the day it named offered four other rooms, a task, and the dorm.
+>
+> From the phone: **the target device is not a detail of the test, it is the
+> test.** Three defects existed only at 390x844, and one of them ended the run.
+>
+> And the newest: **a report names a symptom, and the cause is often two layers
+> below it.** "These stances are wrong" was a broken shuffle. "Her affection
+> resets" was one Chinese word. Fix what was reported and you ship the same bug
+> wearing different clothes.
 
-### 1. Play the rest of it, in both languages
+---
 
-Three sessions of nine weeks. They produced twenty-three fixes; there is no
-reason to think the fourth produces zero, and every hour of it is cheaper than
-any analysis in this file.
+### 1. PROPOSALS 20 - make an anchor event decide something  <- PICK UP HERE
 
-**Play `zh` at least as much as `en`.** It is the primary locale (section 19)
-and it has found fifteen of the twenty-three, including two premises the English
-day could not surface at all - a model writing Chinese does not inherit an
-English instruction, and every locale-specific failure is invisible until
-somebody plays that locale.
+**This is the agreed next task**, on Yuhan's instruction, ahead of further hand
+testing. The full argument is `docs/PROPOSALS.md` entry 20; what follows is the
+plan, so a cold context can execute it without re-deriving the design.
 
-**When anything looks wrong, run `yuri.dump()` in the Chrome console before
-doing anything else** and keep the output with the report. It earned this on the
-anchor-event session: all eight fixes arrived with `source`, the model, the
-prompt tail and the raw pre-parser text, and none of them needed a reproduction
-step. The recording is unconditional - it is already there whether or not
-logging was switched on.
+**The problem, in one line:** every scene in the game - ordinary, group, event,
+date - is pleasant small talk that advances nothing, and a campaign cannot
+remember anything it decided. Reported three times, most sharply of the concept
+meeting: *"not distinguishable from ordinary group chat."* Fifteen turns that
+were supposed to choose a comeback concept produced a joke about ear colour and
+a plate of food, and the ledger line for the whole day was about the food.
+
+**Three deficits, and they must not be conflated.** Doing only (a) and (b)
+produces a livelier meeting that still forgets itself by Tuesday.
+
+#### (a) Nothing establishes the day - cheap
+
+Every scene opens with `openingDirective`: one member's beat, *what she does in
+the moment she notices the player has walked in*. Right for a wardrobe on a
+Tuesday, wrong for a room the whole cast is sitting in for a stated purpose.
+
+Add an **establishing beat** for `kind: 'event'` - one beat, no speaker, what
+the room looks like and what is about to happen in it. Then the ordinary loop.
+The `event` register already exists (`data/sceneFrames.js`, `REGISTERS.event`)
+and events already get sixteen turns.
+
+**Not** rv-simulator's 350-450 words of narration per round. Pillar 1 rules
+that out, and a story generator is what this project stopped being. One beat,
+about forty words.
+
+One trap, freshly learned: an establishing beat IS the opening beat, so it must
+carry `lang` the way `openingDirective(lang)` now does. This is the exact turn
+the language split lives on, and an event is its worst case.
+
+#### (b) The agenda is atmosphere, not business - cheap
+
+Look at what `data/events/index.js` actually gives the model for
+`concept_meeting`:
+
+```
+the boards going up, and which one she reacts to before she can stop herself
+the part of the concept that asks something of her specifically
+an idea getting cut, and the room going carefully polite
+```
+
+Every movement is an emotional situation. **Not one of them says a title track
+gets chosen today.** The model was asked for feelings in a meeting room and it
+delivered feelings in a meeting room - a content bug wearing the costume of a
+model failure.
+
+Add an `agenda` field beside `movements`: two to four things the day must
+decide. For the concept meeting - the concept, the title track, the styling,
+the MV idea. Model-facing English, never localized (section 19). Keep the
+existing rule that a **movement sets the SITUATION and never the OUTCOME**;
+`agenda` is a separate field precisely so that rule survives intact.
+
+The closing directive for an event should say it too: *before this ends, the
+room settles what it came to settle.*
+
+#### (c) Nothing is recorded - the part with real cost
+
+Even if the room decided, there is nowhere to put it. `dossier` is per member.
+`ledger` is chronology - one sentence, compacted and eventually dropped - and
+the summarizer spends that sentence on whatever the scene was emotionally
+about. The played transcript is the evidence: it chose the plate of food.
+
+Add a run-level **canon**: `run.canon`, a short list of decided facts, each
+with the cycle it was decided in.
+
+- Written by an extra field on the **event** scene-exit call (`decisions[]`),
+  parsed through the same four-level tolerant fallback as the rest of the
+  summarizer (section 9) - a failure returns no decisions and never throws.
+- Injected into **block 4** as one or two lines. Block 4 is rebuilt at every
+  scene start anyway, so it is free in cache terms (section 8).
+- **English**, like all memory (section 19 rule 2), so a language switch cannot
+  corrupt it.
+- `schemaVersion` bump plus a `fromSave` default, so an existing save loads
+  with an empty canon rather than `undefined`.
+
+Three reasons it is run-level rather than one of the two stores that exist:
+
+1. **It is not chronology.** "The title track is X" is true from the moment it
+   is decided until the campaign ends. The ledger compacts and drops; canon
+   must not.
+2. **It is not per member**, so the dossier's roster scoping is the wrong shape
+   - everybody knows what the group decided.
+3. It is the missing input for **cycles 2 and 3** (item 7). An event that can
+   read what the last cycle decided is an event that can escalate.
+
+**Do not implement (c) by widening the ledger.** A summary that must carry both
+a feeling and a fact will carry the feeling every time.
+
+#### (d) The second PREP event - content, do it last
+
+PREP carries only `event_a` (`meeting_room`); `comeback` and `rest` carry two
+each, so this is a hole rather than a preference. The group activity `mv_shoot`
+has been on the calendar since M1 with no authored day behind it, and Yuhan
+asked for it by name.
+
+Needs `event_b: 'mv_set'` on the prep map, a location with a high
+`exposureBase` and full `presence`, an entry in `data/events/index.js`,
+`event.*` keys in **both** locales, and a pass against the map assertions -
+`data/soloCoverage.test.js` and `data/phaseMaps.test.js` are what will catch a
+mistake here, which is what they are for.
+
+It is also the best possible test of canon: an MV shoot that reads back the
+concept the meeting chose is the shortest demonstration that a campaign
+remembers itself.
+
+#### Order, and where it is safe to stop
+
+**(a) + (b) first**, and they ship on their own - a directive and a data field,
+no schema change, testable offline. **(c) second**, deliberately, with the save
+migration done properly. **(d) last**, as content.
+
+Ordinary scenes are the larger share of the game and the same complaint covers
+them (*"all dialogues are random and shallow small talks"*). Whatever (b)
+establishes for events is worth looking at again for ordinary blocks - section
+8's `ACTIVITY_DOING` already gives a scene a reason to exist, and it may need
+agenda-shaped sharpening rather than new machinery.
+
+### 2. Play the rest of it, on the phone, in both languages
+
+Four sessions of nine weeks, and the last one changed what "played" means:
+three of its eight defects could not exist on a desktop. **Play on the phone.**
+
+**Play `zh` at least as much as `en`.** It is the primary locale and has found
+twenty-three of the thirty-one fixes, including several the English day could
+not surface at all.
+
+**When anything looks wrong, tap `yuri.dump()` in the Snippets tab** and keep
+the output with the report. Two things about the ring: it is **per page load**,
+so a reload wipes it, and bare `yuri.dump()` prints only the last 10 - the
+Snippets button asks for 40.
 
 What has still never been touched by a human:
 
-- **a date**, public or private. The largest admissibility lever there is, and
-  the one thing the last session set out to reach and could not - see item 3 and
-  PROPOSALS 21 for why that is probably the game working.
-- **a weekend**, and therefore the whole dating loop and the shape of a week.
-- **the endings screen**, reached by playing rather than by test fixture.
+- **a date**, public or private, and therefore the whole weekend loop. The date
+  sheet was unreachable until this session; it is fixed and untested.
+- **the endings screen**, reached by playing rather than by fixture.
 - **week 3 onward**: strain bands, `rift`, jealousy above `piqued`, the plateau.
-- **a save reloaded mid-campaign** and played on. The slot UI itself now passes.
-- **a devoted week** - three blocks a day on one member, five days running. It
-  is the run neither the harness nor any player has ever made, it is what the
-  dating gate is tuned for, and it is the cheapest way to settle both item 3 and
-  PROPOSALS 21.
-
-**An anchor event has now been played**, and produced eight fixes on its own.
-Four remain unplayed, and the two in `rest` sit in weeks nobody has reached.
+- **a save reloaded mid-campaign** and played on.
+- **a devoted week** - three blocks a day on one member, five days running. The
+  run neither the harness nor any player has ever made, and the one the dating
+  gate is tuned for. It settles item 4 and PROPOSALS 21 at the same time.
 
 When it survives a full nine weeks, merge `dev` to `main` and tag it.
 
-### 2. The unreproduced language split
+### 3. The four proposals still open
 
-The one day-two report not fixed: an English action with Chinese speech in the
-same beat, twice in a row. 25/25 clean on DeepSeek with a realistic block 4, so
-the harness cannot see it.
+- **PROPOSALS 21 - dating is unreachable in week 1.** Right observation, wrong
+  fix: `intimacy >= 50` is deliberately the same number as the `touch` stance
+  and her bedroom door. Test a devoted week first.
+- **PROPOSALS 16 - the chime has no brake.** A second voice on every turn, at
+  three members and at five. Nobody has read nine weeks of it.
+- **PROPOSALS 17 - nobody reacts to a gift they watched change hands.** The
+  chime already fires on that turn, so it may be half-solved by accident.
+- **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
+  Partly answered since: the chip bar now names the addressee.
 
-**Three of four suspects are now eliminated from the code** (see "Between
-days"), and the fourth - the offline writer - turned out to hold a real language
-defect of its own, since fixed. That is not the reported shape, but it is the
-same family and it is in the one path no live probe can reach.
-
-**So this stops being a question to ask and becomes a dump to read.** If the
-split beat came from a `fallback`, it lands in a path that demonstrably had a
-language bug in it. If it came from `live`, the record carries the model, the
-prompt and whether block 4 repeated the directive.
-
-Ranked directly under playing because it is a **correctness** bug in the primary
-locale, and it is now one artifact away from being understood - but that
-artifact can only come from item 1.
-
-### 3. The plateau, measured against a real campaign
+### 4. The plateau, measured against a real campaign
 
 The harness reports **three `confidante_end` of five** on the balanced seed:
-intimacy climbs to 80-90 and admissibility stalls at 26-36. That is the plateau
-doing what section 5 says, and it is either correct or too harsh.
-
-**The harness cannot settle it, and this is why it is item 3 rather than item
-1**: it never takes a date and never spends a dorm evening, and a public date is
-the single largest admissibility lever in the game. Item 1 produces the
-evidence; doing this first means tuning against a model of the game rather than
-the game.
-
-Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
+intimacy climbs to 80-90 and admissibility stalls at 26-36. Either correct or
+too harsh, and **the harness cannot settle it** - it never takes a date and
+never spends a dorm evening, and a public date is the largest admissibility
+lever in the game. Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
 
 Related and probably the same problem: **36 "facts with nothing to spend them
 on"** per campaign, with credits ending at 0-2.
 
-### 4. The six proposals the playtests opened
-
-All written up, none blocking, all wanting a played campaign rather than an
-argument. **20 is the one to read first** - it is the largest quality lever left
-in the game, and the only entry here a player has actually complained about.
-
-- **PROPOSALS 20 - an anchor event has to decide something.** The concept
-  meeting read as ordinary group chat, and the diagnosis is three deficits, not
-  one: nothing establishes the day, the authored movements are all emotional
-  situations with no agenda among them, and nothing a room decides can be
-  recorded anywhere. The first two are a directive and a data field. The third
-  is a run-level canon and a save-schema change, and it is also what would give
-  cycles 2 and 3 something to escalate from (item 6).
-- **PROPOSALS 21 - dating is unreachable in week 1.** Right observation, and
-  scaling the gate by week is the wrong fix: `intimacy >= 50` is deliberately
-  the same number as the `touch` stance and her bedroom door. Test a devoted
-  week first (item 1); the entry says what to build if that still cannot reach
-  it.
-- **PROPOSALS 16 - the chime has no brake.** A second voice on every turn, at
-  both three and five members. It reads well in isolation; nobody has read nine
-  weeks of it. The obvious brake (raise the threshold) is the wrong one and the
-  entry says why.
-- **PROPOSALS 17 - nobody reacts to a gift they watched change hands.** The
-  chime already fires on that turn, so it may be half-solved by accident. Look
-  before writing a third directive.
-- **PROPOSALS 18 - `shared` beats `singledOut`**, so a dorm evening is the cheap
-  place to spend openers. Deliberate and small; visible in the ledger if it
-  starts to matter.
-- **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
-  The recommendation is to make the portrait row visibly tappable during a read,
-  not to build a new move. Cheap, and it answers the feeling behind the report.
-
 ### 5. Harness fidelity
 
 - **`presentIds` is unset for every ordinary harness scene**, so co-presence
-  jealousy and `riskExposure` are under-modelled everywhere except at anchor
-  events. Fixing it moves every number in the report, which is why it wants
-  doing deliberately and attributed.
-- **The harness never dates and never spends a dorm evening**, which is what
-  makes item 3 unanswerable from it. This is the single most valuable harness
-  change available.
+  jealousy and `riskExposure` are under-modelled everywhere except at events.
+- **It never dates and never spends a dorm evening**, which is what makes item
+  4 unanswerable from it. The single most valuable harness change available.
 - **It picks rooms without knowing rumors are social-room-only.** Rumors found
-  per campaign fell 21 -> 7 when that rule landed. Not a regression - a player
-  who learns the grammar will do better - but the harness now models a worse
-  player than it used to.
-- **`balanceSim` is superseded and still maintained.** It models a scene as a
-  number and knows nothing about openers, chips, solo work, the calendar or
-  energy, and it needed a hand-patched `singledOut` to keep reporting anything
-  sensible. `playthrough.test.js` answers the same questions by playing the real
-  loop. Retire it.
+  per campaign fell 21 -> 7 when that rule landed; it now models a worse player
+  than it used to.
+- **`balanceSim` is superseded and still maintained.** `playthrough.test.js`
+  answers the same questions by playing the real loop. Retire it.
 
-### 6. Events do not recur, and week 9 is the emptiest week in the game
-
-Five anchor events fire per **campaign**, on Yuhan's instruction, which is
-reading one of the three in PROPOSALS 10. That entry recommended reading three -
-five situations recurring across three cycles with escalating stakes - and
-warned about exactly this: cycles 2 and 3 have no authored beat, so the end of
-the game is its quietest stretch.
-
-Not pre-empted, because it is a content decision and the structure underneath is
-fine. The engine already supports the escalating reading: key `firedEvents` on
-`phase:slot:cycle` and give each event a per-cycle stakes clause. A small change,
-not a redesign.
-
-**Watch for it in item 1** - it is a week-7-to-9 problem and nobody has played
-that far.
-
-Two things moved this since it was written. **PREP has only one event slot**
-(`event_a`, the meeting room) where comeback and rest carry two, which is a hole
-rather than a preference - the group activity `mv_shoot` has been on the
-calendar since M1 with no authored day behind it, and Yuhan has asked for that
-day specifically. And **PROPOSALS 20's canon is the missing input for the
-escalating reading**: an event that can read what the last cycle decided is an
-event that can raise the stakes, which is the thing this item wants and does not
-currently have.
-
-### 7. Repair events
+### 6. Repair events
 
 `applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
-and **nothing calls either.** Section 5 gives it once per cycle per character
-while in `rift`.
+and **nothing calls either.** The classic join, still sitting there. It is here
+rather than higher because `rift` needs sustained neglect to reach and no
+played day has been near it - building the entry point now means building it
+blind.
 
-The classic join, still sitting there. It is item 7 rather than item 2 because
-`rift` needs sustained neglect to reach and no played day has been near it - so
-building the entry point now means building it blind.
+### 7. Events do not recur, and week 9 is the emptiest week in the game
+
+Five anchor events fire per **campaign**, so cycles 2 and 3 have no authored
+beat and the end of the game is its quietest stretch. The engine already
+supports the escalating reading: key `firedEvents` on `phase:slot:cycle` and
+give each event a per-cycle stakes clause.
+
+**Item 1's canon is the missing input.** An event that can read what the last
+cycle decided is an event that can raise the stakes.
 
 ### 8. Content and polish
 
-- **Card picker UI.** The cast section of the cover screen renders the fixed
-  five. v1: choose any five from the library. v2: the custom card editor, for
-  which `data/facts.js` already takes the inline shape.
-- **Other identities.** Three stubs in `data/identities.js`, asserted
-  well-formed, disabled in the picker. Their `promptRole` lines are written and
-  reach block 1 correctly; flipping `available` is most of the rest.
+- **Card picker UI.** The cover renders the fixed five. v1: choose any five.
+- **Other identities.** Three stubs, asserted well-formed, disabled in the
+  picker. Their `promptRole` lines already reach block 1 correctly.
 - **`corridor` and `drama_set` are off every phase map** but keep their solo
-  actions. Harmless - the coverage test only requires the reverse - but they are
-  content nobody can reach.
-- **The block-4 language reminder is unjustified** rather than wrong. It was
-  added for a cause that turned out not to be the cause. Delete it if anything
-  ever needs the space.
+  actions. Harmless, and content nobody can reach.
+- **The block-4 language reminder is unjustified rather than wrong.** It was
+  added for a cause that turned out not to be the cause - the real one was the
+  opening beat. Delete it if anything ever needs the space.
 
-Three dangling halves, all small, all the shape this project keeps producing -
-two correct pieces and nothing calling between them:
+Three dangling halves, all small, all the shape this project keeps producing:
 
-- **`meta.lang` is written into every save and read by nobody.** Either restore
-  the language a save was written in, or stop writing it.
+- **`meta.lang` is written into every save and read by nobody.**
 - **`promptBuilder` spreads `...scene` after `lang`**, so `scene.lang` silently
-  overrides the argument. Both come from `settings.lang` today so they agree; it
-  is a footgun, not a bug. A two-word reorder plus a test.
-- **Save slots have no names and no export.** A player who wants to keep a fork
-  identifies it by week and by whoever is closest, which is enough for six slots
-  and would not be for twenty.
+  overrides the argument. A footgun, not a bug.
+- **Save slots have no names and no export.**
 
 ### Deferred by design
 
 - Multi-portrait `single` / `multi` modes (section 14) - v2, and IndexedDB.
-- `ko` / `pt` (section 19) - v2. `fact.*` and every other content table needs a
-  full set per locale, which the i18n coverage test enforces. Note that the
-  pronoun rule is already written to survive the jump: it names masculine
-  pronouns **in any language** rather than listing English words.
+- `ko` / `pt` (section 19) - v2. The pronoun rule already survives the jump: it
+  names masculine pronouns **in any language** rather than listing English
+  words.
 
 ---
 
@@ -1252,3 +1405,12 @@ after being written down.
 | 2026-08-23 | A room can be left without spending the block. The block is paid by the action, so opening a door to see who was in it was a commitment - and a map is only a search if looking is free (section 10b). |
 | 2026-08-23 | **The scene meter bar carries `standing`.** Reported as "her affection shows 0" the morning after an anchor event: she ended at `fluster 28` and opened the next scene at 0, which is the design working. The defect was that three volatile meters were the only relationship numbers on screen, so nothing said they were a different kind of thing from intimacy. A word, not a number, under section 8's rule. **A correct number can still be a defect if nothing says what kind of number it is.** |
 | 2026-08-23 | Day header names the weekday instead of counting (`W1 Friday` / `W1 周五`). `dayFull` is a separate key set from `day`, which lives in a seven-column grid and must stay one or two characters wide. |
+| 2026-08-23 | **Deployed.** `bash deploy.sh` publishes `dev` to GitHub Pages from a `gh-pages` branch. Not Actions: that route needs Pages enabled, a `pages: write` token, AND a `github-pages` environment whose branch policy permits the branch - GitHub hardcodes that policy to `main`, so deploying `dev` failed at environment resolution in two seconds, before step one, with nothing in the log, while `configure-pages` above it reported success. Section 17 now names the two deployments separately: the Pages site is the hand-test build, a tag from `main` is what players get. |
+| 2026-08-23 | **A console on the phone** (`tools/eruda.js`, `?debug=1`). The call record had been desktop-only since it shipped, on a mobile-first PWA: iOS runs WebKit under every browser, so Chrome on an iPhone has no devtools and no way to call `yuri.dump()`. Dynamic import, its own 491KB chunk, sticky flag (an installed PWA opens at `start_url` and drops query strings), every failure path silent. |
+| 2026-08-23 | **The chip shuffle was not a shuffle.** `.sort(() => rng() - 0.5)` gives no uniformity guarantee and barely permutes a short array, so position in `STANCES` decided how often a stance was offered: element 0 in 41% of 2400 sets, element 9 in 23%. Reported as the vocabulary being wrong - the player had been shown the top of an array every turn for a campaign. Seeded Fisher-Yates. **A report names a symptom; the cause can be two layers below it.** |
+| 2026-08-23 | **Stance vocabulary rewritten** on Yuhan's report: `tease -> flirt` (barbed by construction, and a game about two women falling for each other had no way to simply be warm - `touch` is gated at 50), `reassure -> care` (fit one situation only; `care` keeps the piqued conversion and is safe in `rift`, which finally gives the strain bands a recovery move that is not `apologize`), and `casual` added. One bar slot is RESERVED for a non-common stance, because `touch`/`invite`/`confide` are the only stances that move admissibility - an all-common bar is `markRisk` by another door. |
+| 2026-08-23 | **One bounded `Sheet` for every modal.** The date sheet had no height cap and no scroll, and being bottom-anchored it grew UPWARD off the top of the screen, taking the close button with it - five members times two kinds of date on a 390x844 phone, no reachable option and no way out. The run stopped there. Header now sits above the scroll; the safe-area inset belongs to the sheet because a `fixed` overlay is laid out against the viewport, not the padded body. Asserted structurally and verified against the pre-fix file. |
+| 2026-08-23 | **The language split, reproduced and fixed.** Opening beat of an anchor event in `zh`: English action, Chinese speech, then perfectly Chinese for the rest of the scene. Block 5 is EMPTY on the opening beat and on no other turn - every later generation has Chinese immediately above it and the model continues; on turn one there is nothing to continue and everything above is English by design. Block 4's `## Language` reminder cannot reach it (it sits above the frame, the register and the English directive), so `openingDirective` takes the language and states it inline. Eight live probes and a 25/25 harness could not find this: none of them opened a scene with an event frame in a non-English run. |
+| 2026-08-23 | **The speaker's portrait collapsed in every group scene**, on a phone only. The scene is a fixed viewport height; the portrait was `min-h-0 flex-1` and the card row `shrink-0`, so with a header, meters, a Chinese dialogue box and a four-row chip bar there was nothing left to divide and `flex-1` is the side that gives. The row now floats over the portrait and costs no height. `Portrait`'s small size was also a hardcoded `h-24` inside an `h-14` wrapper, making every estimate of that budget wrong by 40px in the direction that hurt. |
+| 2026-08-23 | **Presence is reported at scene exit.** Section 5b gives it no dossier entry, and the aftermath rendered only rumors, so a 1v1 in an occupied room ended completely silent while three people's jealousy moved. What SHE knows and what the PLAYER is told are different questions; `propagate` now returns `noticed` alongside `rumors`. |
+| 2026-08-23 | **`心动` -> `心乱`.** Reported as "her affection resets at the start of every scene". It does not - `心动` means *moved to love*, so a volatile scene meter was wearing the name of the persistent one. Affection is `intimacy` and it persists; guard only looks persistent because it opens at `100 - intimacy`. The word was the bug, not the number. |

@@ -1386,8 +1386,13 @@ directive to buy something (a) mostly already delivers.
 
 ## 20. An anchor event has to decide something
 
-**Status: OPEN, raised by Yuhan 2026-08-23 after playing the first one.**
-Marked *not urgent* by the person who raised it, and it is nevertheless the
+**Status: ACCEPTED 2026-08-23, not yet built. This is the next task.** Yuhan
+raised it after playing the first anchor event, marked it not urgent twice,
+then raised it a third time and asked for it ahead of further hand testing.
+The staged plan is in `docs/PROGRESS.md` "Still open" item 1; the argument for
+why it is three problems rather than one is here.
+
+It was marked *not urgent* by the person who raised it, and it is nevertheless the
 largest quality lever left in the game.
 
 The report, on the concept meeting: *"talks too general and random - not
@@ -1509,6 +1514,25 @@ save-schema change done deliberately rather than mid-playtest.
 Do not do (c) by widening the ledger. A summary that must carry both a feeling
 and a fact will carry the feeling, every time - the played transcript is the
 evidence, and it chose the plate of food.
+
+### Two things learned since this was written, both of which change the build
+
+**The establishing beat is an OPENING beat, so it carries the language.** The
+language split was reproduced after this entry was drafted, and it lives on
+exactly this turn: block 5 is empty, everything above it is English, and the
+model has nothing in the target language to continue from. An anchor event is
+the worst case because block 4 also carries the frame and the register.
+`openingDirective(lang)` now states the language inline, and anything that
+replaces or precedes it at an event must do the same. Getting this wrong would
+reintroduce a bug that took four sessions to reproduce.
+
+**The complaint is not confined to events.** The third report widened it: *"all
+dialogues (1v1, group, special group, 1v1 dating) are random and shallow small
+talks with nearly no advancing."* Events are the sharpest case and the right
+place to start - they are authored, they already have a frame, and they are
+where a decision has somewhere to go - but (b) should be looked at again for
+ordinary blocks once it is working. `ACTIVITY_DOING` already tells the model
+what she is doing there; what it does not say is what the scene is FOR.
 
 ## 21. Dating is unreachable in week 1, and the fix is not a lower gate
 
