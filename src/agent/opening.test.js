@@ -129,8 +129,43 @@ describe('the opening turn is an instruction, not a fake player action', () => {
    * anything before it was about the gift.
    */
   it('has one shape, because nobody arrives holding anything any more', () => {
-    expect(openingDirective()).toBe(openingDirective(true));
+    expect(openingDirective()).toBe(openingDirective('en'));
     expect(openingDirective()).not.toContain('just been handed');
+  });
+
+  /**
+   * THE LANGUAGE SPLIT, and this is the turn it lives on.
+   *
+   * Reproduced in play, `zh`, opening an anchor event: an English action with
+   * Chinese speech in the same beat, then perfectly Chinese for the rest of the
+   * scene. Block 5 is empty on the opening beat and on no other turn - every
+   * later generation has her last beat and the player's line sitting above it
+   * in the right language, and the model simply continues. On turn one there is
+   * nothing to continue and everything above is English by design (section 19).
+   *
+   * Block 4's `## Language` reminder does not reach this: it sits above the
+   * frame, the register and this directive.
+   */
+  it('carries the language on the one turn with nothing behind it', () => {
+    const zh = openingDirective('zh');
+
+    expect(zh).toContain('Simplified Chinese');
+    // Both halves, because the failure was an English action with Chinese
+    // speech - not a wholly English beat.
+    expect(zh).toContain('*action*');
+    expect(zh).toContain('"speech"');
+    // ...and the machine tokens still do not localize (section 9).
+    expect(zh).toMatch(/ASCII English/);
+  });
+
+  it('says nothing extra in English, where there is nothing to say', () => {
+    expect(openingDirective('en')).not.toMatch(/Write it in/);
+  });
+
+  it('still asks for her opening beat in every language', () => {
+    for (const lang of ['en', 'zh', 'ko', 'pt']) {
+      expect(openingDirective(lang)).toContain('opening beat');
+    }
   });
 });
 

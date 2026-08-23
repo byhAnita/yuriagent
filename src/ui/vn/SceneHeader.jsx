@@ -6,11 +6,13 @@
  * saying it plainly is what lets the dialogue box be the only warm surface.
  */
 
+import { DAY_NAMES } from '../../systems/calendar.js';
+
 export default function SceneHeader({ week, day, block, phase, locationLabel, turnsLeft, onExit, t }) {
   return (
     <header className="flex items-center gap-3 px-5 pb-2 pt-3">
       <span className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
-        W{week + 1} D{day + 1}
+        W{week + 1} {t(`dayFull.${DAY_NAMES[day]}`)}
       </span>
       <span className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
         {t(`block.${block}`)}

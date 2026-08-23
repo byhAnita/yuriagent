@@ -998,7 +998,7 @@ export default function App() {
 }
 
 function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
-  const { delta, rumors } = outcome;
+  const { delta, rumors, noticed = [] } = outcome;
 
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-5 px-5 py-8">
@@ -1015,6 +1015,25 @@ function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
           </li>
         ))}
       </ul>
+
+      {/*
+        Who was standing there. Section 5b: presence writes NO dossier entry,
+        so it produces no rumor - and the aftermath rendered only rumors, which
+        meant a 1v1 in an occupied room ended completely silent while three
+        people's jealousy moved. What she knows and what the player is told are
+        different questions.
+      */}
+      {noticed.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {noticed.map((n, i) => (
+            <li key={i} className="font-body text-[0.8125rem] italic text-faint">
+              {t('rumorLine.present')
+                .replace('{name}', cards.find((c) => c.id === n.memberId)?.name ?? '')
+                .replace('{subject}', n.subjectName ?? '')}
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {rumors.length > 0 ? (
         <section>

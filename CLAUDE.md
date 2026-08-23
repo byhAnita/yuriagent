@@ -1205,6 +1205,44 @@ The gift note itself is appended ahead of that instruction and **carries its
 tier** (section 11), because an iced coffee and a hand warmer she never told
 anyone she needed are otherwise the same sentence to the model.
 
+#### ...and it carries the language, because it is the one beat with nothing behind it
+
+**This is where the language split lives.** Reproduced on a phone, in `zh`, at
+the opening beat of an anchor event:
+
+```
+She is already at the table, a printout held at an angle, and it takes her a
+second to look up. "坐吧。咖啡刚倒的，还热。"
+```
+
+English action, Chinese speech - the exact reported shape, and the player had
+never switched language. One tap later, every following beat was Chinese and it
+never recurred in that scene.
+
+That last detail is the whole diagnosis. **Block 5 is empty on the opening
+beat**, and it is the only turn in the game for which that is true. Every later
+turn has Chinese sitting immediately above the generation - her last beat, the
+player's chip - and the model simply continues in the language it can see. On
+turn one there is nothing to continue: the model's entire recent context is
+English, because everything above block 5 is English *by design* (section 19
+keeps memory language-agnostic), and the last thing it reads is an English
+instruction telling it to write an opening beat.
+
+An anchor event is the worst case and that is why it surfaced there: block 4
+gains `## The day` and `## How to write this one`, so there is even more
+English immediately before the turn.
+
+The `## Language` reminder in block 4 was aimed at this and does not reach it -
+it sits above the frame, the register, and the English directive. So
+**`openingDirective` takes the language and states it inline.** It is the last
+thing the model reads before the only generation with no prose behind it, which
+is exactly where the instruction has to be.
+
+Note what this does *not* do: it does not add the reminder to every system
+note. Mid-scene notes are followed by generations that have plenty of Chinese
+above them, and section 8's cost argument still applies. One turn has the
+problem; one turn gets the fix.
+
 ### Parser rules (`agent/responseParser.js`)
 
 Streaming state machine. Format failures are guaranteed at this model tier, so:

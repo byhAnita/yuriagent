@@ -12,14 +12,7 @@
  */
 
 import { CHIPS_PER_TURN, MAX_CHIP_LABEL } from '../config/constants.js';
-import { buildMessages } from './promptBuilder.js';
-
-const LANG_NAMES = {
-  en: 'English',
-  zh: 'Simplified Chinese',
-  ko: 'Korean',
-  pt: 'Portuguese',
-};
+import { buildMessages, LANG_NAMES } from './promptBuilder.js';
 
 /**
  * The instruction, appended at the tail of the current prefix.

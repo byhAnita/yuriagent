@@ -30,7 +30,16 @@ import { getIdentity } from '../data/identities.js';
 /** The shipped default role, so the fallback cannot drift from the table. */
 const DEFAULT_PROMPT_ROLE = getIdentity().promptRole;
 
-const LANG_NAMES = {
+/**
+ * What the MODEL is told the language is called.
+ *
+ * Deliberately not `i18n/LANG_LABELS`, which is what the PLAYER reads in the
+ * settings picker and is written in the language it names. These are the names
+ * used inside an English instruction, so they stay English - and they live in
+ * one place because three separate copies is three places to forget a locale
+ * when `ko` and `pt` land (section 19).
+ */
+export const LANG_NAMES = {
   en: 'English',
   zh: 'Simplified Chinese',
   ko: 'Korean',

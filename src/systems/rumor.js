@@ -118,10 +118,14 @@ export function phraseApproach(subjectName) {
  *   cast     - [{ id, name }]
  *   relations- { [id]: relation }
  *   rng      - () => [0,1)
- * @returns {{ rumors: Array, jealousyDeltas: Object }}
+ * @returns {{ rumors: Array, noticed: Array, jealousyDeltas: Object }}
+ *   `noticed` is who was in the room while the player spent it on somebody
+ *   else. It carries no dossier entry (section 5b) but the player is told, or
+ *   the scene ends silent while three people's jealousy moves.
  */
 export function propagate({ scene, subject, cast, relations, rng }) {
   const rumors = [];
+  const noticed = [];
   const jealousyDeltas = {};
   const present = new Set(scene.presentIds ?? [subject.id]);
 
@@ -154,6 +158,18 @@ export function propagate({ scene, subject, cast, relations, rng }) {
      */
     if (present.has(member.id) && !scene.singledOut) {
       jealousyDeltas[member.id] = jealousyGain(WEIGHT_PRESENT, rel);
+      /**
+       * Reported separately from `rumors`, and still writes no dossier entry.
+       *
+       * The two rules are not in tension, they answer different questions.
+       * `heard_about` is what SHE knows and a note every group scene saying she
+       * was in the room would flush its four-entry FIFO of anything that
+       * mattered. This is what the PLAYER is told at scene exit, and without it
+       * a 1v1 in an occupied room ends completely silent while three people's
+       * jealousy moves - which is how it was reported: "missing witness info
+       * displayed in ending of the scene".
+       */
+      noticed.push({ memberId: member.id, subjectId: subject.id, subjectName: subject.name });
       continue;
     }
 
@@ -214,5 +230,5 @@ export function propagate({ scene, subject, cast, relations, rng }) {
     }
   }
 
-  return { rumors, jealousyDeltas };
+  return { rumors, noticed, jealousyDeltas };
 }

@@ -47,9 +47,29 @@ export default function PortraitRow({
    */
   const canTurnToSpeaker = Boolean(front && addresseeId && front !== addresseeId);
 
+  /**
+   * The row FLOATS over the portrait rather than sitting under it.
+   *
+   * It used to be a flex column: the portrait `min-h-0 flex-1`, the row
+   * `shrink-0`. The scene is a fixed viewport height (`.stage-fill`), so on a
+   * 390x844 phone - with a header, three meters, a Chinese dialogue box and a
+   * four-row chip bar all taking their fixed share - `flex-1` had almost
+   * nothing left to divide, and it is the side that gives. The row kept its
+   * height and **the speaker's portrait collapsed to nothing**, which is
+   * exactly what a player sees as "the big portrait is missing while the
+   * meters show her name".
+   *
+   * Invisible on a desktop, where there is height to spare. Reported twice in
+   * one session on a phone, in both a two-member and a three-member room.
+   *
+   * Overlaying costs no vertical space at all, so there is nothing left for
+   * the squeeze to take. The portraits are mascot SVGs drawn with
+   * `object-contain`, so the strip sits over the empty lower edge rather than
+   * over a face.
+   */
   return (
-    <div className="flex h-full flex-col">
-      <div className="min-h-0 flex-1">
+    <div className="relative h-full">
+      <div className="h-full">
         {canTurnToSpeaker ? (
           <button
             type="button"
@@ -66,7 +86,7 @@ export default function PortraitRow({
       </div>
 
       {others.length > 0 ? (
-        <ul className="flex shrink-0 items-end justify-center gap-2 pb-1">
+        <ul className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-1.5 pb-0.5">
           {others.map((id) => {
             const card = cards.find((c) => c.id === id);
             if (!card) return null;
@@ -87,12 +107,15 @@ export default function PortraitRow({
                   onClick={() => onTurnTo(id)}
                   aria-label={t('vn.turnTo').replace('{name}', card.name)}
                   aria-current={pointedAt ? 'true' : undefined}
-                  className={`flex w-[3.75rem] flex-col items-center gap-0.5 rounded-[var(--radius-sm)] border px-1 pb-1 pt-0.5 transition-colors enabled:hover:border-accent disabled:opacity-60 ${
-                    pointedAt ? 'border-accent bg-surface-alt' : 'border-transparent'
+                  /* Its own backdrop, because it now sits ON the portrait
+                     rather than in a strip below it and would otherwise be a
+                     face floating on a face. */
+                  className={`flex w-[3.25rem] flex-col items-center gap-0.5 rounded-[var(--radius-sm)] border bg-bg/70 px-1 pb-1 pt-0.5 backdrop-blur-sm transition-colors enabled:hover:border-accent disabled:opacity-60 ${
+                    pointedAt ? 'border-accent bg-surface-alt/90' : 'border-hairline/60'
                   }`}
                 >
-                  <span className="h-14 w-full">
-                    <Portrait card={card} emotion="neutral" speaking={false} size="small" />
+                  <span className="h-10 w-full">
+                    <Portrait card={card} emotion="neutral" speaking={false} />
                   </span>
                   <span
                     className={`w-full truncate text-center font-mono text-[0.5rem] uppercase tracking-[0.1em] ${

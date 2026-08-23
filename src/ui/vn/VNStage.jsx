@@ -514,7 +514,7 @@ export default function VNStage({
 
   // Opening beat, so the player walks into something rather than a blank room.
   useEffect(() => {
-    send({ text: openingDirective(), opening: true });
+    send({ text: openingDirective(setup.lang), opening: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -616,6 +616,7 @@ export default function VNStage({
         onLeave={leave}
         readHerLeft={readHerLeft}
         turnsLeft={turnsLeft}
+        toName={group ? focusCard?.name ?? null : null}
         outOfTurns={outOfTurns}
         awaitingRead={awaitingRead}
         roomSpeaking={roomSpeaking}

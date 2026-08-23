@@ -56,6 +56,19 @@ export default function ChipBar({
   onLeave,
   readHerLeft,
   turnsLeft,
+  /**
+   * Who these options are aimed at. Group scenes only, null otherwise.
+   *
+   * A chip, free text and an opener all silently target the addressee, and the
+   * labels say "flirt with HER" - so after tapping a portrait the player was
+   * choosing lines for Jisoo while Hyewon's beat was still the one on screen.
+   * Reported exactly that way: "add a whom field ... to be clear the following
+   * options are to act to the newly picked one, not the current speaker."
+   *
+   * On the bar rather than inside each label, because a written chip carries
+   * its own sentence and appending a name to it would mangle the writing.
+   */
+  toName = null,
   outOfTurns,
   awaitingRead = false,
   /** A second voice is still streaming and there is nothing to tap yet. */
@@ -293,6 +306,12 @@ export default function ChipBar({
         >
           {t('vn.turnsLeft')} {turnsLeft}
         </span>
+
+        {toName ? (
+          <span className="truncate font-mono text-[0.625rem] uppercase tracking-[0.14em] text-accent">
+            {t('vn.speakingTo').replace('{name}', toName)}
+          </span>
+        ) : null}
 
         <span className="h-px flex-1 bg-hairline opacity-50" />
 

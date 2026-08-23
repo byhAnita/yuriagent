@@ -464,6 +464,8 @@ export default {
     witnessed: '{name} saw you with {subject}.',
     approach: "{name} watched you go into {subject}'s room.",
     heard: '{name} heard you were at {where} with {subject}.',
+    /* Presence, not hearsay. No dossier entry behind it - section 5b. */
+    present: '{name} was in the room while you spent it on {subject}.',
   },
 
   date: {
@@ -509,6 +511,7 @@ export default {
     sceneOver: 'Scene over',
     again: 'Another scene',
     turnsLeft: 'left',
+    speakingTo: 'to {name}',
     outOfTurns: 'The block is over.',
     risk: 'seen',
     continue: 'Continue',

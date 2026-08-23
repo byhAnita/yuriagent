@@ -226,7 +226,7 @@ export default {
   },
 
   exposureBand: { private: '无人', quiet: '安静', public: '被看见' },
-  meter: { guard: '戒备', fluster: '心动', exposure: '曝光' },
+  meter: { guard: '戒备', fluster: '心乱', exposure: '曝光' },
 
   role: {
     leader: '队长',
@@ -482,6 +482,7 @@ export default {
     witnessed: '{name} 当场看见你和 {subject} 在一起。',
     approach: '{name} 看着你走进 {subject} 的房间。',
     heard: '{name} 听说你和 {subject} 在{where}。',
+    present: '{name} 就在旁边，看着你把这段时间给了 {subject}。',
   },
 
   date: {
@@ -527,6 +528,7 @@ export default {
     sceneOver: '这一幕结束了',
     again: '再来一幕',
     turnsLeft: '剩余',
+    speakingTo: '对 {name} 说',
     outOfTurns: '这个时段结束了。',
     risk: '会被看见',
     continue: '继续',

@@ -23,7 +23,6 @@ export default function Portrait({
   card,
   emotion = 'neutral',
   speaking = true,
-  size = 'full',
   /** Bump this to replay a one-shot keyframe for a repeated emotion. */
   pulseKey = 0,
 }) {
@@ -32,9 +31,15 @@ export default function Portrait({
 
   return (
     <div
-      className={`relative flex items-end justify-center transition-all duration-500 ${
-        size === 'full' ? 'h-full' : 'h-24'
-      }`}
+      /**
+       * Both sizes fill their wrapper; the CALLER decides how tall that is.
+       *
+       * `small` was a hardcoded `h-24`, which silently overflowed the `h-14`
+       * span `PortraitRow` puts it in - so the row was ~96px tall while its
+       * markup claimed 56px, and every calculation about the vertical budget
+       * of a group scene was wrong by 40px in the direction that hurt.
+       */
+      className="relative flex h-full items-end justify-center transition-all duration-500"
       style={{
         opacity: speaking ? 1 : 0.55,
         transform: speaking ? 'scale(1)' : 'scale(0.95)',

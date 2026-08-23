@@ -10,7 +10,14 @@
  * pipeline be exercised in a console harness with no network and no key.
  */
 
-import { openScene, appendTurn, appendSystemNote, requestThought, buildMessages } from './promptBuilder.js';
+import {
+  openScene,
+  appendTurn,
+  appendSystemNote,
+  requestThought,
+  buildMessages,
+  LANG_NAMES,
+} from './promptBuilder.js';
 import { createStreamParser, parseResponse } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
 import { commitSummary, entryText } from './memory.js';
@@ -501,8 +508,32 @@ export async function readHer(session, { client }) {
 export const OPENING_PLAIN =
   'System note: write her opening beat - what she does in the moment she notices the player has walked in. Nothing has been said yet.';
 
-export function openingDirective() {
-  return OPENING_PLAIN;
+/**
+ * The opening beat, in the player's language.
+ *
+ * THE ONE TURN THAT NEEDS TO BE TOLD. Block 5 is empty here and nowhere else:
+ * every later turn has her last beat and the player's line sitting immediately
+ * above the generation, so the model continues in the language it can see. On
+ * turn one there is nothing to continue - everything above block 5 is English
+ * by design (section 19 keeps memory language-agnostic), and the last thing it
+ * reads is this instruction.
+ *
+ * Reproduced in play, `zh`, opening an anchor event: an English action with
+ * Chinese speech in the same beat, then perfectly Chinese for the rest of the
+ * scene once there was Chinese above it. An event is the worst case because
+ * block 4 also carries `## The day` and `## How to write this one`, adding
+ * English right before the turn.
+ *
+ * Block 4's `## Language` reminder does not reach this - it sits above the
+ * frame, the register, and this directive.
+ */
+export function openingDirective(lang = 'en') {
+  if (!lang || lang === 'en') return OPENING_PLAIN;
+  const language = LANG_NAMES[lang] ?? lang;
+  return (
+    `${OPENING_PLAIN} Write it in ${language} - BOTH the *action* between ` +
+    'asterisks and the "speech" in quotes. The metadata line stays ASCII English.'
+  );
 }
 
 /**
@@ -656,7 +687,7 @@ export async function endScene(session, { client, memory, relations, cards, scen
       : decay(nextRelations[session.focusId]);
 
   const subject = cards.find((c) => c.id === session.focusId);
-  const { rumors, jealousyDeltas } = propagate({
+  const { rumors, noticed, jealousyDeltas } = propagate({
     scene: {
       exposure: session.exposure,
       phase: scene.phase,
@@ -717,7 +748,7 @@ export async function endScene(session, { client, memory, relations, cards, scen
   }
 
   // Block 5 is discarded by simply not carrying the frame forward.
-  return { memory: finalMemory, relations: nextRelations, delta, rumors, summary: parsed };
+  return { memory: finalMemory, relations: nextRelations, delta, rumors, noticed, summary: parsed };
 }
 
 export { parseResponse };
