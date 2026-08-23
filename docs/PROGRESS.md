@@ -7,7 +7,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ## Current: M0-M5 complete, two days played
 
-**955 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1001 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
@@ -21,6 +21,12 @@ single one was in code that had tests and passed them.
 |---|---|
 | day one, `en` | 8 fixes, all in or around the group scene, invisible to its 27 tests |
 | day two, `zh` | 7 fixes, including two premises nobody had ever written down |
+
+Since then, without new play: three of the four suspects for the one unfixed
+day-two bug were **eliminated from the code**, a real language defect was found
+in the offline writer while looking, the game grew a **call record** so the next
+hand-played bug arrives with evidence, and save became **six slots**. See
+"Between days".
 
 **If you are picking this up cold, read "What M5 shipped", then the two playtest
 sections, then "Still open".** The design is in `CLAUDE.md`; this file is where
@@ -725,6 +731,111 @@ locale (section 19) and it should get at least half the playtesting.
 
 ---
 
+## Between days: chasing the language split, and what fell out
+
+No new play happened here. This is what came of working item 2 from the code
+side while the game was not being played, and it is recorded because two of the
+three results are things a playtest would never have produced.
+
+### Three suspects eliminated from the code, not by guessing
+
+Yuhan's hypothesis was that the UI starts in English, the player switches to
+`zh` on the cover, and something keeps the English. It is a good hypothesis and
+it is wrong, in three separate places:
+
+| suspect | verdict |
+|---|---|
+| a render happens before settings load | **no.** `App` is `useState(loadSettings)` - a *lazy* initializer, so the very first render already has `zh`. There is no English frame to leak, even on a reload |
+| blocks 1 and 4 disagree | **no.** Both `lang` inputs come from the same `settings.lang` |
+| a load drags an old language back | **no**, and this was the sharpest version of it: `meta.lang` IS in every save and the game autosaves at day rollover, so a load that pushed it into settings would produce English on **day 2**, exactly when it was seen. `onContinue` does not touch settings |
+
+Worth keeping from that last one: **`meta.lang` is written into every save and
+read by nobody.** Harmless today, and the same dangling-half shape as
+`campaignOver` and `applyRepair`.
+
+The fourth suspect - the default model - is weaker than it was, because
+`DEFAULT_SETTINGS.model` is DeepSeek, the same one the harness uses.
+
+### The offline writer had a real language defect
+
+Not the reported shape, and in the one path no live probe can reach.
+
+`mockClient` scrapes the gift name out of the note, and the note is
+**model-facing English by design** (section 8 keeps every system note English).
+Ten `zh` opening beats interpolated it:
+
+```
+*她没有马上接过hand warmer。*
+```
+
+A Chinese player with no key, handed a gift, read that - and section 3 calls
+offline a supported mode rather than a degraded one. There is nowhere to get a
+Chinese name from: the gift tables are English and a fallback writer must never
+need a model call. She is holding the thing and the player just chose it, so the
+lines refer to it instead of naming it.
+
+**The part worth remembering is why it survived.** Every language check in the
+project measures *how Chinese a beat is*. All ten lines had the defect and only
+**five** crossed a 50% threshold, because the amount of Han around the noun
+decided whether it got reported. The new guard is categorical - no string in the
+Chinese tables may contain an English word, machine tokens excepted - and it was
+run against the pre-fix file to confirm it catches all ten rather than trusting
+a green test.
+
+> A ratio hides half of any defect that is local to part of a string. Where a
+> rule is absolute, assert it absolutely.
+
+### The instrument: every model call is now recorded
+
+`tools/debugLog.js`. Two facts decide most of this project's bugs and neither
+reaches the screen: **which writer answered**, and **the raw text before the
+parser touched it**. A player cannot see either, so a hand-played report cannot
+contain them.
+
+`client.js` is the only layer that knows, so it is the only layer that records.
+`source` is `live` / `mock` / `fallback`, and the third is invisible in play for
+every preset except chips.
+
+**Recording is unconditional; printing is opt-in.** That way round because a bug
+found by hand is found once, and asking the player to switch logging on and hit
+it again is asking for what they cannot promise. `yuri.dump()` renders the last
+forty calls as pasteable text; `yuri.debug()` also prints each as it happens.
+
+The key is never in a record - it travels as its own argument and is not in
+`messages` - and `redact()` is a belt on top, tested harder than the feature,
+because a log written to be pasted is the likeliest way a key leaves a device.
+
+### Save slots
+
+Section 15 used to argue for one automatic slot: nothing for the player to
+decide, and a save screen would be the only bookkeeping in a game with none. The
+first half is still true. The second was wrong about what a slot is **for** - a
+campaign is nine weeks and every route is a decision that cannot be taken back,
+so one slot means never looking at a fork twice, in a game whose content is
+forks.
+
+Six now: `auto`, unchanged and still never a decision, plus five the player
+writes from the day screen - the only moment the schema permits, since a save
+taken mid-scene is a save taken at the room door.
+
+Three rules, all asserted:
+
+1. **Manual slots survive a restart.** `restart` clears only `auto`, which
+   belongs to the run that wrote it. The single-slot build wiped the only save
+   there was; under six that would silently destroy five kept campaigns.
+2. **A slot is legible before it is loaded** - name, week, day, and whoever
+   holds the highest intimacy, derived at read time and never stored. Without it
+   six saves of one campaign are indistinguishable.
+3. **Overwrite and delete arm on the first tap and act on the second.** They are
+   the only destructive actions in the game. Writing into an empty slot destroys
+   nothing and takes one tap.
+
+A save from the single-slot build is **adopted as the auto slot** rather than
+discarded, so a run in progress survives the change.
+
+---
+
+
 ## Still open
 
 Nothing here blocks a playthrough. **In recommended order**, and the order is an
@@ -735,6 +846,11 @@ would cost to do the ones after it first.
 > playing at full size beats playing.** Two in-game days produced fifteen fixes,
 > every one in code that had tests and passed them. Nothing below is worth doing
 > before more of the game has been played.
+>
+> The corollary, earned since: **reasoning that eliminates a suspect is worth
+> doing while nobody is playing, and it is not a substitute for playing.** Three
+> of the four candidates for the language split were closed from the code in an
+> afternoon. None of that found the bug; it found a different one.
 
 ### 1. Play the rest of it, in both languages
 
@@ -745,8 +861,13 @@ in this file.
 **Play `zh` at least as much as `en`.** It is the primary locale (section 19)
 and it found seven of the fifteen, including two the English day could not
 surface at all - a model writing Chinese does not inherit an English
-instruction, and every locale-specific failure is invisible until somebody
-plays that locale.
+instruction, and every locale-specific failure is invisible until somebody plays
+that locale.
+
+**When anything looks wrong, run `yuri.dump()` in the Chrome console before
+doing anything else** and keep the output with the report. It is the only place
+`live` / `mock` / `fallback` is visible, and the recording is unconditional - it
+is already there whether or not logging was switched on.
 
 What has still never been touched by a human:
 
@@ -756,7 +877,8 @@ What has still never been touched by a human:
 - **a weekend**, and therefore the whole dating loop and the shape of a week.
 - **the endings screen**, reached by playing rather than by test fixture.
 - **week 3 onward**: strain bands, `rift`, jealousy above `piqued`, the plateau.
-- **a save reloaded mid-campaign** and played on.
+- **a save reloaded mid-campaign** and played on - now across six slots, and the
+  slot UI itself has never been used in anger.
 
 When it survives a full nine weeks, merge `dev` to `main` and tag it.
 
@@ -766,69 +888,38 @@ The one day-two report not fixed: an English action with Chinese speech in the
 same beat, twice in a row. 25/25 clean on DeepSeek with a realistic block 4, so
 the harness cannot see it.
 
-**Three of the four suspects are now eliminated from the code, and the fourth
-has a defect in it.**
+**Three of four suspects are now eliminated from the code** (see "Between
+days"), and the fourth - the offline writer - turned out to hold a real language
+defect of its own, since fixed. That is not the reported shape, but it is the
+same family and it is in the one path no live probe can reach.
 
-- **Settings threading is clean.** `App` is `useState(loadSettings)` - a lazy
-  initializer, so the very first render already has `zh` and there is no English
-  frame to leak, even on a reload. Both `lang` inputs to the prompt come from
-  the same `settings.lang`, so blocks 1 and 4 cannot disagree.
-- **A load never overrides the language.** This was the best version of the
-  guess: `meta.lang` is in the save and the game auto-saves at day rollover, so
-  a load that pushed it back into settings would drag English in on day 2 -
-  exactly when it was seen. `onContinue` does not touch settings. (`meta.lang`
-  is therefore **written and read by nobody** - harmless, another dangling
-  half.)
-- **The default model is DeepSeek**, the same one the harness uses, so the
-  original "a different provider was selected" theory is weaker than it was. It
-  is still worth confirming from a report rather than assumed.
-- **The offline writer had a real language defect** - ten `zh` opening beats
-  interpolating the English gift name. Fixed. It is not the reported shape, but
-  it is the same family, and it is in the one path no live probe can reach.
+**So this stops being a question to ask and becomes a dump to read.** If the
+split beat came from a `fallback`, it lands in a path that demonstrably had a
+language bug in it. If it came from `live`, the record carries the model, the
+prompt and whether block 4 repeated the directive.
 
-**So the next step is now a call record rather than a question.**
-`tools/debugLog.js` records which writer answered every call - `live`, `mock` or
-`fallback` - with the raw text before the parser touched it, and `yuri.dump()`
-renders the last forty as pasteable text. If the split beat came from a
-`fallback`, that narrows it to a path we now know had a language bug in it; if
-it came from `live`, the record carries the model and the exact prompt.
-
-Ranked above the balance work because it is a **correctness** bug in the primary
-locale, and it is now one *dump* away from being understood.
+Ranked directly under playing because it is a **correctness** bug in the primary
+locale, and it is now one artifact away from being understood - but that
+artifact can only come from item 1.
 
 ### 3. The plateau, measured against a real campaign
 
-Measured after this week's changes, `balanced` seed 7, 189 blocks:
+The harness reports **three `confidante_end` of five** on the balanced seed:
+intimacy climbs to 80-90 and admissibility stalls at 26-36. That is the plateau
+doing what section 5 says, and it is either correct or too harsh.
 
-```
-irene   I 61  A 15  S 31  J  0   nameless    -> unnamed_end     (good)
-nana    I 79  A 11  S 12  J 64   confidante  -> confidante_end
-jisoo   I 75  A 24  S 32  J 24   confidante  -> confidante_end
-hyewon  I 73  A 23  S  0  J 24   confidante  -> confidante_end
-yeri    I 73  A 31  S  5  J 28   unspoken    -> unspoken_end    (good)
-```
-
-**Two good endings and three stalls.** Intimacy reaches 61-79 and admissibility
-stalls at 11-31, which is the plateau doing exactly what section 5 says. It is
-either correct or too harsh and the harness cannot tell you which.
-
-**That is why this is item 3 and not item 1**: the harness never takes a date
-and never spends a dorm evening, and a public date is the single largest
-admissibility lever in the game. Item 1 produces the evidence. Doing this first
-means tuning against a model of the game rather than against the game.
+**The harness cannot settle it, and this is why it is item 3 rather than item
+1**: it never takes a date and never spends a dorm evening, and a public date is
+the single largest admissibility lever in the game. Item 1 produces the
+evidence; doing this first means tuning against a model of the game rather than
+the game.
 
 Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
 
 Related and probably the same problem: **36 "facts with nothing to spend them
-on"** per campaign, credits ending at 0.
+on"** per campaign, with credits ending at 0-2.
 
-One number that moved for a known reason and is not a regression: **rumors found
-per campaign 21 -> 7**, because rumors are social-room-only now and the harness
-picks rooms without regard to what slot they fill. A player who knows the rule
-will do better than that; the harness does not know it. Fixing that belongs with
-item 5.
-
-### 4. The three questions the day-one fixes opened
+### 4. The four proposals the playtests opened
 
 All written up, none blocking, all wanting a played campaign rather than an
 argument:
@@ -843,9 +934,6 @@ argument:
 - **PROPOSALS 18 - `shared` beats `singledOut`**, so a dorm evening is the cheap
   place to spend openers. Deliberate and small; visible in the ledger if it
   starts to matter.
-
-Plus one from day two:
-
 - **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
   The recommendation is to make the portrait row visibly tappable during a read,
   not to build a new move. Cheap, and it answers the feeling behind the report.
@@ -859,15 +947,15 @@ Plus one from day two:
 - **The harness never dates and never spends a dorm evening**, which is what
   makes item 3 unanswerable from it. This is the single most valuable harness
   change available.
-- **The harness picks rooms without regard to slot**, so it finds a third of the
-  rumors it used to (21 -> 7 per campaign) now that rumors are social-room-only.
-  It is modelling a player who has not learned the map. Teaching it the rule
-  would also give item 3 a cleaner jealousy signal.
+- **It picks rooms without knowing rumors are social-room-only.** Rumors found
+  per campaign fell 21 -> 7 when that rule landed. Not a regression - a player
+  who learns the grammar will do better - but the harness now models a worse
+  player than it used to.
 - **`balanceSim` is superseded and still maintained.** It models a scene as a
   number and knows nothing about openers, chips, solo work, the calendar or
-  energy, and it needed a hand-patched `singledOut` this week to keep reporting
-  anything sensible. `playthrough.test.js` answers the same questions by playing
-  the real loop. Retire it.
+  energy, and it needed a hand-patched `singledOut` to keep reporting anything
+  sensible. `playthrough.test.js` answers the same questions by playing the real
+  loop. Retire it.
 
 ### 6. Events do not recur, and week 9 is the emptiest week in the game
 
@@ -909,6 +997,18 @@ building the entry point now means building it blind.
 - **The block-4 language reminder is unjustified** rather than wrong. It was
   added for a cause that turned out not to be the cause. Delete it if anything
   ever needs the space.
+
+Three dangling halves, all small, all the shape this project keeps producing -
+two correct pieces and nothing calling between them:
+
+- **`meta.lang` is written into every save and read by nobody.** Either restore
+  the language a save was written in, or stop writing it.
+- **`promptBuilder` spreads `...scene` after `lang`**, so `scene.lang` silently
+  overrides the argument. Both come from `settings.lang` today so they agree; it
+  is a footgun, not a bug. A two-word reorder plus a test.
+- **Save slots have no names and no export.** A player who wants to keep a fork
+  identifies it by week and by whoever is closest, which is enough for six slots
+  and would not be for twenty.
 
 ### Deferred by design
 
@@ -1006,3 +1106,7 @@ after being written down.
 | 2026-08-23 | While beats are unread the bar IS the continue control, rather than six dead controls with a continue button under them. Reported twice in one day: as dead options on screen, and as "Irene interrupted herself" in a one-to-one scene where an interjection cannot happen. Turning to somebody stays live throughout - it costs no turn and makes no call. |
 | 2026-08-23 | The last turn of a scene tells the model it is the last turn. Scenes ended mid-thought - she reopened the door to say one more thing and the block ended on the notice. The model cannot see the budget and section 6 measured that giving it one is worse; the client knows exactly which turn is last, so it says so once. |
 | 2026-08-23 | **One shape for every conversation** (`systems/dialogue.js`), on Yuhan proposal: count who may speak, one member means no second voice, turn limit follows the count (+2 each, capped at 16). A five-member room now runs 16 turns, which is where dates and events already sat by hand. Depth still belongs to the 1v1 - 16 split five ways is ~3 each against 8. |
+| 2026-08-23 | **Ten `zh` opening beats put the English gift name inside Chinese prose** - `*她没有马上接过hand warmer。*` - because `mockClient` scrapes the item out of a note that is model-facing English by design. Offline is a supported mode (section 3), so the lines refer to the object instead of naming it. Survived because every language check measures how Chinese a beat IS: all ten were wrong and only five crossed a 50% threshold. Guard is now categorical, and was run against the pre-fix file to confirm it catches all ten. |
+| 2026-08-23 | **Every model call is recorded** (`tools/debugLog.js`), because which writer answered and the raw pre-parser text are the two facts that decide most bugs here and neither reaches the screen. `client.js` is the only layer that knows, so it is the only layer that records. Recording is unconditional and printing is opt-in - a bug found by hand is found once. The key is never in a record; `redact()` is tested harder than the feature. |
+| 2026-08-23 | **Save moved from one automatic slot to six**, on Yuhan's instruction. Section 15 argued that there was nothing for the player to decide, which was right about saving and wrong about what a slot is for: a nine-week campaign of irreversible choices needs to be able to look at a fork twice. `auto` is unchanged; five manual slots sit beside it, `restart` clears only `auto`, and a single-slot save is adopted rather than discarded. |
+| 2026-08-23 | Three of four suspects for the language split eliminated from the code: settings use a lazy initializer so there is no English first render, both `lang` inputs share one source, and a load never overrides settings. `meta.lang` is consequently written into every save and read by nobody - logged as a dangling half rather than fixed. |
