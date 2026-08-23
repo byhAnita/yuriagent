@@ -118,6 +118,31 @@ feature, because a log written to be pasted into a bug report is the likeliest
 way a key ever leaves a device. Nothing here transmits anything - the ring is in
 memory and `dump` returns a string the player chooses what to do with.
 
+### ...and a console to type it into, because the target device has none
+
+The record is only worth having if somebody can read it, and on the device this
+game is built for they could not. **iOS runs WebKit under every browser**, so
+Chrome on an iPhone has no devtools and no way to call `yuri.dump()` - which
+made the whole apparatus desktop-only, on a mobile-first PWA.
+
+`tools/eruda.js` loads an in-page console overlay. Three rules:
+
+1. **Opt-in and not free.** ~490KB, so it is a **dynamic import** and lands in
+   its own chunk. A static import would put devtools in the main bundle for
+   every player forever.
+2. **Asking is sticky.** `?debug=1` sets a flag that survives reload, because
+   an installed PWA opens at `start_url` and drops the query string - the
+   console would otherwise vanish the moment a tester added the game to their
+   home screen, which is exactly when they are testing on a phone. `?debug=0`
+   turns it off.
+3. **It never breaks the game.** Every failure path is silent. A diagnostic
+   that takes the game down with it is worse than no diagnostic, and section 3
+   keeps every degraded mode playable.
+
+The dump gets its own button in the overlay rather than being typed. Typing
+`yuri.dump()` into a 390px console with autocorrect on is precisely the
+friction that stops a report carrying its evidence.
+
 ---
 
 ## 4. Architecture
@@ -2293,6 +2318,7 @@ src/
     mockClient.js            # offline writer; the game runs with no API key
     client.js                # picks live vs mock, falls back per call
     debugLog.js              # the call record; window.yuri.dump()
+    eruda.js                 # ?debug=1 -> an in-page console, for iOS
     liveEnv.js               # test-only: reads .env.local. Never imported by the app.
   data/
     characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri
@@ -2356,6 +2382,31 @@ Rules:
 - Tag `main` merges: `v0.1.0`, `v0.2.0`, ...
 - `npm test`, `npm run lint` and `npm run build` must pass before any merge.
 - Never commit API keys or key files.
+
+### Two deployments, and only one of them is a release
+
+`.github/workflows/pages.yml` publishes **`dev`** to GitHub Pages. That is not
+a contradiction of "deploy only from `main`" - it is a second thing with a
+different job.
+
+The game is designed for a 390x844 phone and was, for six milestones, only ever
+played on a desktop. A build nobody can open on a phone cannot be tested on the
+device it is for, and the fixes that matter here have all come from playing.
+So: **`dev` on Pages is the hand-test build; a tag from `main` is what players
+get.** The distinction is worth keeping sharp, because a URL that is sometimes
+a release and sometimes a work in progress is neither.
+
+The workflow runs `lint` and `test` before it builds. A red build must never
+become a URL somebody is testing against - a bug report from a broken deploy
+costs more than the deploy saves.
+
+**The key is not in the deployment and cannot be.** It is entered by the player
+into `localStorage` on their own device (section 22), and the provider names in
+`.env.local` deliberately carry no `VITE_` prefix, because Vite inlines every
+`VITE_*` variable into the client bundle at build time. `tools/liveEnv.js`
+imports `node:fs`, so it could not enter a browser build even by accident -
+that is a structural guarantee rather than a convention, which is the right
+shape for this particular rule.
 
 ---
 

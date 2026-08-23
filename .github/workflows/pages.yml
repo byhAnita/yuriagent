@@ -1,0 +1,67 @@
+# Test build on GitHub Pages.
+#
+# This is the HAND-TEST deployment, not the release. CLAUDE.md section 17 says
+# players get `main`; this exists because the game is designed for a 390x844
+# phone and until now had only ever been played on a desktop. A build that
+# cannot be opened on a phone cannot be tested on the device it is for.
+#
+# `dev` is deployed on purpose. `main` is six milestones behind, and the whole
+# point is to test what was just written.
+#
+# The build runs the suite and the linter first. A red build must not become a
+# URL somebody is testing against - a bug report from a broken deploy costs
+# more than the deploy saves.
+
+name: pages
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one half-finished: a cancelled Pages
+# deployment can leave the site serving a partial build.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+      - run: npm test
+
+      # `base: './'` in vite.config.js is what makes this work from
+      # /<repo>/ rather than only from a domain root. It is relative on
+      # purpose - see the comment there, it is a deploy-day bug otherwise.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
