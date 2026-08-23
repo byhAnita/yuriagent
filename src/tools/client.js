@@ -12,9 +12,20 @@
 
 import { stream, complete, withRetry } from './llmTool.js';
 import { createMockClient } from './mockClient.js';
+import { recordCall } from './debugLog.js';
 
 export function createClient({ apiKey, modelId, seed = 1, onFallback = null }) {
   const mock = createMockClient({ seed });
+
+  /**
+   * Every call is recorded here and nowhere else.
+   *
+   * This is the only layer that knows which writer answered, and that fact
+   * reaches neither the parser nor the screen - so a player cannot report it
+   * and a live probe cannot reproduce it. Recording is in memory, costs
+   * nothing, and never leaves the device.
+   */
+  const record = (args) => recordCall({ modelId, ...args });
 
   /**
    * No key is not a failure, so it never reports one.
@@ -25,19 +36,29 @@ export function createClient({ apiKey, modelId, seed = 1, onFallback = null }) {
    * the model is answering most turns, and one turn quietly came from
    * somewhere else.
    */
-  if (!apiKey) return mock;
+  if (!apiKey) {
+    return async function offlineClient({ messages, preset, onChunk }) {
+      const started = Date.now();
+      const out = await mock({ messages, preset, onChunk });
+      record({ preset, source: 'mock', modelId: null, messages, out, ms: Date.now() - started });
+      return out;
+    };
+  }
 
   return async function client({ messages, preset, onChunk }) {
+    const started = Date.now();
     try {
       if (preset === 'turn' && onChunk) {
         const { text } = await withRetry(() =>
           stream({ messages, apiKey, modelId, preset, onChunk }),
         );
         onFallback?.(null);
+        record({ preset, source: 'live', messages, out: text, ms: Date.now() - started });
         return text;
       }
       const { text } = await withRetry(() => complete({ messages, apiKey, modelId, preset }));
       if (preset !== 'chips') onFallback?.(null);
+      record({ preset, source: 'live', messages, out: text, ms: Date.now() - started });
       return text;
     } catch (error) {
       /**
@@ -50,7 +71,18 @@ export function createClient({ apiKey, modelId, seed = 1, onFallback = null }) {
        * the player should never learn it was reached for.
        */
       if (preset !== 'chips') onFallback?.(error ?? new Error('call failed'));
-      return mock({ messages, preset, onChunk });
+
+      const out = await mock({ messages, preset, onChunk });
+      /**
+       * The record that matters most, and the one the player cannot see.
+       *
+       * `source: 'fallback'` says the router was tried and failed, so the beat
+       * on screen came from the offline writer in the model's place. Chips
+       * suppress the on-screen notice by design (section 6); nothing suppresses
+       * the record.
+       */
+      record({ preset, source: 'fallback', messages, out, ms: Date.now() - started, error });
+      return out;
     }
   };
 }
