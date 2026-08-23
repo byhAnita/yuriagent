@@ -1383,3 +1383,214 @@ to her IS reacting - it changes who answers next, which is the only thing the
 player's response would have decided anyway. Build (b) only if a played campaign
 says the one-tap delay is what is missing, because it costs a stance and a
 directive to buy something (a) mostly already delivers.
+
+## 20. An anchor event has to decide something
+
+**Status: OPEN, raised by Yuhan 2026-08-23 after playing the first one.**
+Marked *not urgent* by the person who raised it, and it is nevertheless the
+largest quality lever left in the game.
+
+The report, on the concept meeting: *"talks too general and random - not
+distinguishable from ordinary group chat"*, and the broader version, *"different
+playthroughs don't give quite distinguishable experience because dialogues are
+always 无营养、水话"*.
+
+The transcript bears it out. Fifteen turns of a meeting that decides the
+comeback produced: a joke about ear colour, a joke about who writes the minutes,
+a colour preference nobody wrote down, and a plate of food. The ledger line for
+the whole day was *"In a comeback planning meeting, Irene accepted the player's
+homemade food with guarded warmth."* The event was scenery for a gift.
+
+### It is three separate deficits, and lumping them makes it unfixable
+
+**(a) Nothing establishes the day.** The scene opens the way every scene opens -
+one member's beat, *"what she does in the moment she notices the player has
+walked in"*. That is right for a wardrobe on a Tuesday and wrong for a room the
+whole cast is sitting in for a stated purpose. rv-simulator opens every round
+with 350-450 words of literary scene-setting, and Yuhan's comparison names that
+as the difference.
+
+Note this is not a case for importing that format. Pillar 1 rules it out
+directly: 30-50 word bursts, not 300-word narration, and a story generator is
+the thing this project stopped being. But an **event** is exactly where the
+exception earns its keep - a whole day, sixteen turns, the whole cast, the
+`event` register already written for it. One establishing beat, from nobody, is
+maybe forty words and it is the cheapest part of this entry.
+
+**(b) The agenda is atmosphere, not business.** Look at what
+`data/events/index.js` actually gives the model for `concept_meeting`:
+
+```
+'the boards going up, and which one she reacts to before she can stop herself'
+'the part of the concept that asks something of her specifically'
+'an idea getting cut, and the room going carefully polite'
+```
+
+Every movement is an emotional situation. Not one of them says *a title track
+gets chosen today*. The model was asked for feelings in a meeting room and it
+delivered feelings in a meeting room, which is a content bug wearing the costume
+of a model failure. The frame rule - **a movement sets the SITUATION and never
+the OUTCOME** - is correct and is not what is missing; what is missing is a
+second field beside it saying what the day has to produce.
+
+**(c) Nothing is recorded, so nothing accumulates.** Even had the room settled
+on a concept, there is nowhere to put it. `dossier` is per member. `ledger` is
+chronology, one sentence, and the summarizer spends it on whatever the scene was
+emotionally about. So the comeback the group spent a day designing does not
+exist in week 2, and cannot be referred to in week 5, and the second and third
+cycles have nothing to escalate from.
+
+This is the one that explains Yuhan's *"different playthroughs don't feel
+distinguishable"*, and it is the one with real cost.
+
+### What to build
+
+**(a) and (b) are cheap and go together.**
+
+- An `establishing` directive for `kind: 'event'`: one beat, no speaker, what
+  the room looks like and what is about to happen in it. Then the ordinary loop.
+- An `agenda` field on the event frame, listing two to four things the day must
+  decide. For the concept meeting: the concept, the title track, the styling,
+  the MV idea. Model-facing English like everything else in that file.
+- The closing directive for an event says so: *before this ends, the room
+  settles what it came to settle.*
+
+Concreteness is the whole point, and it is what makes a run its own. A model
+that has been told to name a title track will name one; Yuhan's example is
+exactly right - *"1st comeback, all agreed on Irene's advice: classic R&B. Yeri
+and Jisoo liked the player's idea of shooting the MV at a beach."* That is a
+sentence a player remembers, and nothing in the current design asks for it.
+
+**(c) is a schema change and should follow.**
+
+A run-level **canon**: `run.canon`, a short list of decided facts with the cycle
+they were decided in. Written by an extra field on the event's scene-exit call
+(`decisions[]`), injected into block 4 as one or two lines, and English like all
+memory (section 19 rule 2).
+
+Three reasons it belongs at run level rather than in the ledger:
+
+1. It is **not chronology**. "The title track is 'Static'" is true from the
+   moment it is decided until the campaign ends. The ledger compacts and drops;
+   canon must not.
+2. It is **not per member**, so the dossier's roster scoping is wrong for it -
+   every member knows what the group decided.
+3. It is the missing input for **cycles 2 and 3** (open item 6). An event that
+   can read what the last cycle decided is an event that can escalate, which is
+   the reading of PROPOSALS 10 that was passed over.
+
+Cost: a `schemaVersion` bump and a `fromSave` default, one summarizer branch,
+~30 tokens in block 4.
+
+### The second event PREP does not have
+
+Yuhan also asks for a **comeback MV shoot** as an anchor. PREP carries only
+`event_a` today (`meeting_room`); `comeback` and `rest` carry two each. So this
+is a genuine hole rather than a preference, and the group activity `mv_shoot`
+already exists in `data/activities.js` - the calendar has been sending the cast
+to shoot an MV since M1 with no authored day behind it.
+
+It also happens to be the best possible test of canon: an MV shoot that reads
+back the concept the meeting chose is the shortest demonstration that a
+campaign remembers itself.
+
+Needs `event_b: 'mv_set'` on the prep map, a location with a high `exposureBase`
+and full `presence`, an entry in `data/events/index.js`, `event.*` i18n keys in
+both locales, and a check against `soloCoverage` - the map assertions are the
+thing most likely to catch this, which is what they are for.
+
+### Recommended
+
+**(a) and (b) now, (c) and the MV shoot as one follow-up.** The first pair is a
+directive and a data field and it will move most of the felt quality; the second
+pair is where a campaign starts remembering what it decided, and it wants the
+save-schema change done deliberately rather than mid-playtest.
+
+Do not do (c) by widening the ledger. A summary that must carry both a feeling
+and a fact will carry the feeling, every time - the played transcript is the
+evidence, and it chose the plate of food.
+
+## 21. Dating is unreachable in week 1, and the fix is not a lower gate
+
+**Status: OPEN, raised by Yuhan 2026-08-23.** *"Stepped threshold for week 1 and
+week 8's public & private dating. Otherwise player hardly have in-depth
+development chance with 1 character. But the dating texture should be different
+for week 1 and week 8."* Marked not urgent, and it blocked a hand test, which
+is why it is written up now.
+
+### The observation is right and the diagnosis needs care
+
+A private date gates on `intimacy >= 50`, a public one on `admissibility >= 30`.
+After two played days across five members the highest intimacy in the run was
+15, so the weekend arrived with nothing to spend it on and the whole dating
+system - the largest admissibility lever in the game - stayed untested.
+
+But the gate is doing exactly what section 5b asks of it. **Breadth is cheap
+while everything is shallow**, and a player who spread five ways in week 1 is
+supposed to find that no single route is deep enough for a day alone. A devoted
+player reaches 50 by the first weekend on the current numbers; the run that
+produced the report was not one.
+
+So the honest reading is that **the gate is correct and the CURVE is empty**. In
+week 1 the player has three blocks a day, no credits, no facts, no openers, and
+nothing that costs a weekend. There is no early-game move that means anything.
+That is a content hole, not a threshold that is too high.
+
+### Why scaling the constant by week is the wrong shape
+
+`intimacy >= 50` is not one number. It is the same number as the `touch` stance
+and as her bedroom door, and CLAUDE.md says why in two places: *"you may go into
+her room" and "you may reach for her hand" unlock together, which is the correct
+reading.* Scaling it by week unhooks all three, or worse, unhooks one of them
+and leaves a game where the player can be taken on a private date by somebody
+they may not touch.
+
+The same objection applies twice over to the public gate. `admissibility >= 30`
+is what makes a public date the plateau's own answer to itself: a player deep in
+`confidante` gets the private date easily and cannot get the public one at all,
+which is the single clearest statement the mechanics make of the game's thesis.
+A week-scaled floor deletes that.
+
+### What to build instead: a smaller thing to spend a weekend on
+
+The want is *an early, lower-stakes version of a date*, not the same date
+earlier. That is a different object and it can be added without touching a
+threshold:
+
+- **Costs one block, not the day.** So it competes with a scene rather than with
+  three.
+- **Gates low** - somewhere near `colleague`, i.e. the point at which two
+  colleagues would plausibly get coffee after work.
+- **Moves intimacy only**, and modestly. It is not a lever on the second axis;
+  the whole point of the real public date is that it is the loud one.
+- **Refusable on the same shape**, because a refusal is where a hidden number
+  becomes a visible yes or no (section 10), and that is worth meeting in week 1
+  rather than week 4.
+
+This also gives the weekend something to be about before the routes are deep,
+which is the actual hole, and it leaves the two axes' thresholds alone.
+
+### The texture half is already answerable, and for free
+
+*"Dating in the beginning, you and the character are not sure and nervous."*
+Correct, and nothing new is needed: `standing` already reaches block 4 as a
+sentence, and the date frame in `data/sceneFrames.js` is per kind. Vary the
+frame by stage rather than by week - **week 8 is not the variable, closeness
+is** - and a first date at `good_friends` writes itself differently from one at
+`unspoken` with no new system, no new numbers, and no risk of a week-4 date
+reading as nervous because the player took it slowly on purpose.
+
+### Recommended
+
+**Neither now.** The threshold change is the one thing here that should not be
+done, and the coffee block is a new mechanic proposed off two played days.
+
+The immediate answer to the blocked hand test is that a **devoted week reaches
+the private date on the current numbers** - three blocks a day on one member for
+five days, which is also the run the harness has never played (open item 5). Do
+that test first. If a focused week still cannot reach 50, the gate is wrong and
+this entry is wrong about why; if it can, then what week 1 is missing is
+something to do, and the coffee block is the cheapest version of it.
+
+The stage-varied date frame is worth doing whenever dates are next touched. It
+costs a table and no numbers at all.

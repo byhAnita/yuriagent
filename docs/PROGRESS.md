@@ -5,30 +5,31 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, two days played
+## Current: M0-M5 complete, the first anchor event played
 
-**1001 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1021 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
 A campaign runs **cover -> nine weeks -> endings screen**, saves itself, and
 installs. In English or Chinese, with or without an API key.
 
-**Two in-game days have been played by a human, both on 2026-08-23**, one in
-English and one in Chinese. Between them they produced **fifteen** fixes. Every
-single one was in code that had tests and passed them.
+**Three in-game sessions have been played by a human, all on 2026-08-23**, one
+in English and two in Chinese. Between them they produced **twenty-three**
+fixes. Every single one was in code that had tests and passed them.
 
 | | |
 |---|---|
 | day one, `en` | 8 fixes, all in or around the group scene, invisible to its 27 tests |
 | day two, `zh` | 7 fixes, including two premises nobody had ever written down |
+| the first anchor event, `zh` | 8 fixes, four of them the missing-join shape again |
 
-Since then, without new play: three of the four suspects for the one unfixed
+Between the second and third: three of the four suspects for the one unfixed
 day-two bug were **eliminated from the code**, a real language defect was found
 in the offline writer while looking, the game grew a **call record** so the next
 hand-played bug arrives with evidence, and save became **six slots**. See
 "Between days".
 
-**If you are picking this up cold, read "What M5 shipped", then the two playtest
+**If you are picking this up cold, read "What M5 shipped", then the three playtest
 sections, then "Still open".** The design is in `CLAUDE.md`; this file is where
 it stands in code. `docs/PROPOSALS.md` holds arguments for changing the design
 and is worth reading before touching any coefficient.
@@ -836,49 +837,161 @@ discarded, so a run in progress survives the change.
 ---
 
 
+## The first anchor event (2026-08-23, `zh`, live DeepSeek V4 Flash)
+
+Week 1, days 2 to 5, in Chinese, on a live model, with `yuri.dump()` attached to
+every report. **Eight fixes.** The slot UI passed, and so did the one thing that
+was deliberately stress-tested: tapping the static chips before the written ones
+arrive, mixed live and offline turns in one scene, no defects.
+
+The dump earned its keep immediately. Every report arrived with `source`, the
+model, the exact prompt tail and the raw text before the parser touched it, so
+none of the eight needed a reproduction step - which is the whole argument for
+recording unconditionally rather than asking a player to switch logging on and
+hit the bug again.
+
+### Four of the eight are the same shape, again
+
+The missing join. Two correct halves, nothing calling between them.
+
+**`singledOut` was read off `Boolean(note)`.** True while an opener was the only
+thing that appended a system note mid-scene. Then the closing directive arrived -
+a note the stage adds to the LAST turn of every scene - and **every group scene
+in the game started ending witnessed**: four absent members took
+`WEIGHT_WITNESSED` and a dossier entry each for a conversation in which nothing
+happened. Played, it is four lines of *"Nana saw you with Irene"* at the end of a
+quiet scene; the number was correct and the question it answered was wrong.
+
+That is precisely the defect the three-tier weight table was introduced to fix
+in the first place, arriving eight weeks later through a different door. The
+flag is passed now, never inferred. A note is a transport, and what a scene
+costs may not be read off which transport it happened to use.
+
+**A lit bedroom door meant "she is somewhere in the dorm".** `DORM_OCCUPANCY`
+answers that question correctly for the dorm row on the overworld, and it is the
+wrong question for a door - so a member standing in the kitchen lit her own door
+as well, and the map showed Nana in two rooms at once. The routine layer has
+always known the exact answer.
+
+**`turnTo` dropped the written chips and nothing asked for new ones.** So
+tapping a portrait downgraded the player to static labels until they had spent a
+turn, and in a group scene, where turning is the commonest move there is, that
+is most of the scene. Reported as the options going dead, which is exactly what
+it looked like. The call is on the same prefix and costs no turn - it was
+already priced at that.
+
+**A room had no way out.** The block is paid by the action, so until one is
+picked nothing has happened - but opening a door to see who was inside was a
+commitment. A map is only a search if looking is free, which is the sentence
+section 10b is built on.
+
+### The event day was not a day at all
+
+*"It takes the whole day"* has been on the day screen since the first build and
+**nothing enforced it.** Played, the concept meeting was one row on a map that
+still offered four other rooms and the dorm, a daily task in the wardrobe, and
+five per-member chips at the meeting-room door. The whole cast stood in a room
+the player could walk past.
+
+Three rules now, and each is the same sentence said to a different part of the
+code: no daily task, the map is the site, and walking in is joining them.
+
+The third has an argument behind it and not only a bug. Section 10c's addressee
+already lets a player spend an event on one member - **inside** the scene, in
+front of the other four, where it costs what it should. Offering her at the door
+is the bet placed before the room is visible, which is what PROPOSALS 11 said
+about the old gift modal in a different costume.
+
+### One report that was not a bug, and the fix it earned anyway
+
+*"The next morning after the meeting, Irene's affection shows 0."* It did not:
+she ended the meeting at `fluster 28` and opened the next afternoon at 0,
+because guard and fluster are volatile by design and reset at every door.
+`guard 85` was likewise exactly `100 - intimacy` for an intimacy of 15.
+
+Both numbers were right and the screen was still wrong, because those three
+meters were the **only** relationship numbers a player sees during a scene, so
+there was nothing to read them against. The bar carries `standing` now - the
+same sentence block 4 gives the model, under the same words-not-numbers rule.
+One fixed thing beside three moving ones is what makes the moving ones legible.
+
+Worth keeping as a category: **a correct number can still be a defect if
+nothing on screen says what kind of number it is.**
+
+### What the report asked for that was NOT built
+
+Two quality items, both marked not urgent by the person raising them, both
+written up rather than implemented:
+
+- **PROPOSALS 20** - an anchor event has to decide something. The concept
+  meeting read as ordinary group chat because its authored movements are all
+  emotional situations and not one of them says a title track gets chosen today;
+  and even had the room decided, there is nowhere to put it. This is the largest
+  quality lever left in the game, and the part with real cost (a run-level
+  canon) is a save-schema change that wants doing deliberately.
+- **PROPOSALS 21** - dating is unreachable in week 1. The observation is right
+  and scaling the gate by week is the wrong fix: `intimacy >= 50` is the same
+  number as the `touch` stance and her bedroom door, on purpose. The entry says
+  what to test first.
+
+---
+
 ## Still open
 
 Nothing here blocks a playthrough. **In recommended order**, and the order is an
 argument rather than a list: each item is placed where it is because of what it
 would cost to do the ones after it first.
 
-> The ordering principle, earned twice this week: **playing beats reasoning, and
-> playing at full size beats playing.** Two in-game days produced fifteen fixes,
-> every one in code that had tests and passed them. Nothing below is worth doing
-> before more of the game has been played.
+> The ordering principle, earned three times now: **playing beats reasoning, and
+> playing at full size beats playing.** Three played sessions produced
+> twenty-three fixes, every one in code that had tests and passed them. Nothing
+> below is worth doing before more of the game has been played.
 >
 > The corollary, earned since: **reasoning that eliminates a suspect is worth
 > doing while nobody is playing, and it is not a substitute for playing.** Three
 > of the four candidates for the language split were closed from the code in an
 > afternoon. None of that found the bug; it found a different one.
+>
+> And the newest one, from the anchor event: **a rule stated on screen and
+> nowhere else is not a rule.** "It takes the whole day" was written on the day
+> screen from the first build, and the day it named offered four other rooms, a
+> task, and the dorm.
 
 ### 1. Play the rest of it, in both languages
 
-Two days of nine weeks. Days 1 and 2 produced fifteen fixes; there is no reason
-to think day 3 produces zero, and every hour of it is cheaper than any analysis
-in this file.
+Three sessions of nine weeks. They produced twenty-three fixes; there is no
+reason to think the fourth produces zero, and every hour of it is cheaper than
+any analysis in this file.
 
 **Play `zh` at least as much as `en`.** It is the primary locale (section 19)
-and it found seven of the fifteen, including two the English day could not
-surface at all - a model writing Chinese does not inherit an English
-instruction, and every locale-specific failure is invisible until somebody plays
-that locale.
+and it has found fifteen of the twenty-three, including two premises the English
+day could not surface at all - a model writing Chinese does not inherit an
+English instruction, and every locale-specific failure is invisible until
+somebody plays that locale.
 
 **When anything looks wrong, run `yuri.dump()` in the Chrome console before
-doing anything else** and keep the output with the report. It is the only place
-`live` / `mock` / `fallback` is visible, and the recording is unconditional - it
-is already there whether or not logging was switched on.
+doing anything else** and keep the output with the report. It earned this on the
+anchor-event session: all eight fixes arrived with `source`, the model, the
+prompt tail and the raw pre-parser text, and none of them needed a reproduction
+step. The recording is unconditional - it is already there whether or not
+logging was switched on.
 
 What has still never been touched by a human:
 
-- **an anchor event** - five in the campaign, sixteen turns each, all-cast, and
-  no one has played one. The longest authored thing in the game.
-- **a date**, public or private. The largest admissibility lever there is.
+- **a date**, public or private. The largest admissibility lever there is, and
+  the one thing the last session set out to reach and could not - see item 3 and
+  PROPOSALS 21 for why that is probably the game working.
 - **a weekend**, and therefore the whole dating loop and the shape of a week.
 - **the endings screen**, reached by playing rather than by test fixture.
 - **week 3 onward**: strain bands, `rift`, jealousy above `piqued`, the plateau.
-- **a save reloaded mid-campaign** and played on - now across six slots, and the
-  slot UI itself has never been used in anger.
+- **a save reloaded mid-campaign** and played on. The slot UI itself now passes.
+- **a devoted week** - three blocks a day on one member, five days running. It
+  is the run neither the harness nor any player has ever made, it is what the
+  dating gate is tuned for, and it is the cheapest way to settle both item 3 and
+  PROPOSALS 21.
+
+**An anchor event has now been played**, and produced eight fixes on its own.
+Four remain unplayed, and the two in `rest` sit in weeks nobody has reached.
 
 When it survives a full nine weeks, merge `dev` to `main` and tag it.
 
@@ -919,11 +1032,24 @@ Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
 Related and probably the same problem: **36 "facts with nothing to spend them
 on"** per campaign, with credits ending at 0-2.
 
-### 4. The four proposals the playtests opened
+### 4. The six proposals the playtests opened
 
 All written up, none blocking, all wanting a played campaign rather than an
-argument:
+argument. **20 is the one to read first** - it is the largest quality lever left
+in the game, and the only entry here a player has actually complained about.
 
+- **PROPOSALS 20 - an anchor event has to decide something.** The concept
+  meeting read as ordinary group chat, and the diagnosis is three deficits, not
+  one: nothing establishes the day, the authored movements are all emotional
+  situations with no agenda among them, and nothing a room decides can be
+  recorded anywhere. The first two are a directive and a data field. The third
+  is a run-level canon and a save-schema change, and it is also what would give
+  cycles 2 and 3 something to escalate from (item 6).
+- **PROPOSALS 21 - dating is unreachable in week 1.** Right observation, and
+  scaling the gate by week is the wrong fix: `intimacy >= 50` is deliberately
+  the same number as the `touch` stance and her bedroom door. Test a devoted
+  week first (item 1); the entry says what to build if that still cannot reach
+  it.
 - **PROPOSALS 16 - the chime has no brake.** A second voice on every turn, at
   both three and five members. It reads well in isolation; nobody has read nine
   weeks of it. The obvious brake (raise the threshold) is the wrong one and the
@@ -972,6 +1098,15 @@ not a redesign.
 
 **Watch for it in item 1** - it is a week-7-to-9 problem and nobody has played
 that far.
+
+Two things moved this since it was written. **PREP has only one event slot**
+(`event_a`, the meeting room) where comeback and rest carry two, which is a hole
+rather than a preference - the group activity `mv_shoot` has been on the
+calendar since M1 with no authored day behind it, and Yuhan has asked for that
+day specifically. And **PROPOSALS 20's canon is the missing input for the
+escalating reading**: an event that can read what the last cycle decided is an
+event that can raise the stakes, which is the thing this item wants and does not
+currently have.
 
 ### 7. Repair events
 
@@ -1110,3 +1245,10 @@ after being written down.
 | 2026-08-23 | **Every model call is recorded** (`tools/debugLog.js`), because which writer answered and the raw pre-parser text are the two facts that decide most bugs here and neither reaches the screen. `client.js` is the only layer that knows, so it is the only layer that records. Recording is unconditional and printing is opt-in - a bug found by hand is found once. The key is never in a record; `redact()` is tested harder than the feature. |
 | 2026-08-23 | **Save moved from one automatic slot to six**, on Yuhan's instruction. Section 15 argued that there was nothing for the player to decide, which was right about saving and wrong about what a slot is for: a nine-week campaign of irreversible choices needs to be able to look at a fork twice. `auto` is unchanged; five manual slots sit beside it, `restart` clears only `auto`, and a single-slot save is adopted rather than discarded. |
 | 2026-08-23 | Three of four suspects for the language split eliminated from the code: settings use a lazy initializer so there is no English first render, both `lang` inputs share one source, and a load never overrides settings. `meta.lang` is consequently written into every save and read by nobody - logged as a dangling half rather than fixed. |
+| 2026-08-23 | **`singledOut` is passed, never inferred from a note.** It read `Boolean(note)`, which was correct while an opener was the only thing appending one - then the closing directive made every group scene in the game end witnessed, with four `WEIGHT_WITNESSED` hits and four dossier entries for a conversation. Exactly the defect the three-tier weights were introduced to fix, arriving eight weeks later by another door. A note is a transport; what a scene costs may not be read off which transport it used. |
+| 2026-08-23 | **An event day is the event and nothing else**, on Yuhan's report. "It takes the whole day" was on screen from the first build and nothing enforced it: the concept meeting was one row among four other rooms, the dorm, a daily task, and five per-member chips at its own door. No task, one row, and walking in joins them - choosing one member in front of the others belongs inside the scene, where it costs what it should. |
+| 2026-08-23 | A lit bedroom door now means she is BEHIND it. It was drawn from `DORM_OCCUPANCY` - anywhere in the dorm - so a member in the kitchen lit her own door and the map showed her in two rooms at once. One constant was answering two different questions; the dorm row on the overworld still asks the first one. |
+| 2026-08-23 | **`turnTo` asks for a fresh chip set.** It dropped the written one and nothing requested another, so tapping a portrait downgraded the player to static labels until they spent a turn - most of a group scene. The directive now names the addressee too, since the label is what the player says TO somebody and after a turn that is no longer whoever last spoke. |
+| 2026-08-23 | A room can be left without spending the block. The block is paid by the action, so opening a door to see who was in it was a commitment - and a map is only a search if looking is free (section 10b). |
+| 2026-08-23 | **The scene meter bar carries `standing`.** Reported as "her affection shows 0" the morning after an anchor event: she ended at `fluster 28` and opened the next scene at 0, which is the design working. The defect was that three volatile meters were the only relationship numbers on screen, so nothing said they were a different kind of thing from intimacy. A word, not a number, under section 8's rule. **A correct number can still be a defect if nothing says what kind of number it is.** |
+| 2026-08-23 | Day header names the weekday instead of counting (`W1 Friday` / `W1 周五`). `dayFull` is a separate key set from `day`, which lives in a seven-column grid and must stay one or two characters wide. |
