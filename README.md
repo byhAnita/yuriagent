@@ -57,6 +57,17 @@ npm run build
 The live-provider suites are opt-in and need a key: `LIVE_PROVIDER=1`,
 `LIVE_QUALITY=1`, `ZH_SMOKE=1`. The default suite spends nothing.
 
+## Deploying
+
+```sh
+bash deploy.sh                # lint, test, build, publish to gh-pages
+SKIP_CHECKS=1 bash deploy.sh  # skip the suite while iterating on a phone
+```
+
+It publishes the whole `dist/` - this is a PWA, so the manifest, the service
+worker, the icons and the portraits all have to ship, and it refuses to push an
+incomplete build rather than serving a site that loads but cannot install.
+
 ## Debugging on a phone
 
 Every model call is recorded in a 40-call ring, unconditionally - a bug found

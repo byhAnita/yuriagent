@@ -1,0 +1,44 @@
+# Lint, test, build. On every push and every PR.
+#
+# This used to deploy to Pages as well, and that half is gone: the Actions
+# route needs Pages enabled, a `pages: write` token, and a `github-pages`
+# environment whose branch policy permits the branch - and GitHub creates that
+# policy hardcoded to `main`, so deploying `dev` failed at environment
+# resolution in two seconds, before step one, with nothing in the log saying
+# why. `deploy.sh` pushes a branch instead and needs none of it.
+#
+# The CI half was always green and is worth keeping on its own terms: it is the
+# only place the suite runs on a clean checkout, which is what catches a
+# dependency that only resolves because it is still sitting in someone's
+# node_modules.
+
+name: ci
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+      # `base: './'` in vite.config.js is what makes the build work from
+      # /<repo>/ rather than only from a domain root. Relative on purpose -
+      # see the comment there, it is a deploy-day bug otherwise.
+      - run: npm run build

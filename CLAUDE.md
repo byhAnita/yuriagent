@@ -2385,20 +2385,37 @@ Rules:
 
 ### Two deployments, and only one of them is a release
 
-`.github/workflows/pages.yml` publishes **`dev`** to GitHub Pages. That is not
-a contradiction of "deploy only from `main`" - it is a second thing with a
+`bash deploy.sh` publishes the current branch to GitHub Pages. That is not a
+contradiction of "deploy only from `main`" - it is a second thing with a
 different job.
 
 The game is designed for a 390x844 phone and was, for six milestones, only ever
 played on a desktop. A build nobody can open on a phone cannot be tested on the
 device it is for, and the fixes that matter here have all come from playing.
-So: **`dev` on Pages is the hand-test build; a tag from `main` is what players
+So: **the Pages site is the hand-test build; a tag from `main` is what players
 get.** The distinction is worth keeping sharp, because a URL that is sometimes
 a release and sometimes a work in progress is neither.
 
-The workflow runs `lint` and `test` before it builds. A red build must never
+`deploy.sh` runs `lint` and `test` before it builds. A red build must never
 become a URL somebody is testing against - a bug report from a broken deploy
 costs more than the deploy saves.
+
+**It publishes a branch rather than going through Actions**, and that was
+learned the hard way. The Actions route needs three server-side things to line
+up: Pages enabled, a `pages: write` token, and a `github-pages` environment
+whose deployment branch policy permits the branch. GitHub creates that policy
+**hardcoded to `main`**, so deploying `dev` failed at environment resolution in
+two seconds - before step one, with no log line saying why, while
+`configure-pages` in the job above it reported success. A branch push needs
+none of that. `.github/workflows/ci.yml` still runs the suite on a clean
+checkout, which is worth having on its own terms.
+
+**Publish the whole `dist/`, never a list of file types.** The obvious script
+copies `assets/*.js` and `*.css` and it is quietly wrong here: the PWA needs
+its `manifest.webmanifest`, its `sw.js`, its icons and its portraits, and a
+copy rule that names extensions drops all of them - a site that loads and
+cannot install, with no faces. `deploy.sh` asserts the build is complete before
+it pushes, for the same reason section 21 asserts everything else.
 
 **The key is not in the deployment and cannot be.** It is entered by the player
 into `localStorage` on their own device (section 22), and the provider names in
