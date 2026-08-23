@@ -91,6 +91,33 @@ Everything in v2 must have its **interface stubbed in MVP** (identity config, ca
   That is a supported mode, not a degraded one: it keeps the loop free to play
   and lets development continue without spending tokens.
 
+### Every model call is recorded, because the two useful facts never reach the screen
+
+`tools/debugLog.js`. Which writer answered - the router, the offline writer, or
+the offline writer *standing in for a failed router* - and what the raw text was
+before the parser touched it. A player cannot see either, so a hand-played bug
+report cannot contain them, and a live probe cannot reproduce a client-side path
+at all: that is how eight of them missed a language bug that lived in
+`client.js`.
+
+`client.js` is the only layer that knows, so it is the only layer that records.
+`source` is `live` / `mock` / `fallback`, and the third is invisible in play for
+every preset except chips.
+
+**Recording is unconditional; printing is opt-in.** That way round on purpose - a
+bug found by hand is found once, and asking the player to switch logging on and
+then hit it again is asking for the one thing they cannot promise. The ring
+holds forty calls, about two scenes, which is the window a report is written
+from. `yuri.dump()` renders it as text meant to be pasted; `yuri.debug()` also
+prints each call as it happens.
+
+**The key is never in a record** (section 22). It travels as its own argument to
+`llmTool` and is not in `messages`, so this is mostly a matter of not being
+clever; `redact()` is a belt on top of that, and it is tested harder than the
+feature, because a log written to be pasted into a bug report is the likeliest
+way a key ever leaves a device. Nothing here transmits anything - the ring is in
+memory and `dump` returns a string the player chooses what to do with.
+
 ---
 
 ## 4. Architecture
@@ -2149,6 +2176,7 @@ src/
     llmTool.js               # multi-model router, streaming, retries
     mockClient.js            # offline writer; the game runs with no API key
     client.js                # picks live vs mock, falls back per call
+    debugLog.js              # the call record; window.yuri.dump()
     liveEnv.js               # test-only: reads .env.local. Never imported by the app.
   data/
     characters/*.json        # cast: irene, nana, jisoo, hyewon, yeri

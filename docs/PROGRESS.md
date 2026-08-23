@@ -766,13 +766,35 @@ The one day-two report not fixed: an English action with Chinese speech in the
 same beat, twice in a row. 25/25 clean on DeepSeek with a realistic block 4, so
 the harness cannot see it.
 
-**The cheapest next step is one line in a bug report: which model was selected
-in settings.** The app reads `settings.model` and the harness reads
-`.env.local`, and they agree only by coincidence. If it is not DeepSeek, that is
-the whole answer and the fix is a per-model note rather than a prompt change.
+**Three of the four suspects are now eliminated from the code, and the fourth
+has a defect in it.**
+
+- **Settings threading is clean.** `App` is `useState(loadSettings)` - a lazy
+  initializer, so the very first render already has `zh` and there is no English
+  frame to leak, even on a reload. Both `lang` inputs to the prompt come from
+  the same `settings.lang`, so blocks 1 and 4 cannot disagree.
+- **A load never overrides the language.** This was the best version of the
+  guess: `meta.lang` is in the save and the game auto-saves at day rollover, so
+  a load that pushed it back into settings would drag English in on day 2 -
+  exactly when it was seen. `onContinue` does not touch settings. (`meta.lang`
+  is therefore **written and read by nobody** - harmless, another dangling
+  half.)
+- **The default model is DeepSeek**, the same one the harness uses, so the
+  original "a different provider was selected" theory is weaker than it was. It
+  is still worth confirming from a report rather than assumed.
+- **The offline writer had a real language defect** - ten `zh` opening beats
+  interpolating the English gift name. Fixed. It is not the reported shape, but
+  it is the same family, and it is in the one path no live probe can reach.
+
+**So the next step is now a call record rather than a question.**
+`tools/debugLog.js` records which writer answered every call - `live`, `mock` or
+`fallback` - with the raw text before the parser touched it, and `yuri.dump()`
+renders the last forty as pasteable text. If the split beat came from a
+`fallback`, that narrows it to a path we now know had a language bug in it; if
+it came from `live`, the record carries the model and the exact prompt.
 
 Ranked above the balance work because it is a **correctness** bug in the primary
-locale and it is one question away from being understood.
+locale, and it is now one *dump* away from being understood.
 
 ### 3. The plateau, measured against a real campaign
 
