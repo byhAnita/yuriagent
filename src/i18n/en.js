@@ -12,6 +12,9 @@ export default {
     customCast: 'Build your own five',
     soon: 'soon',
     begin: 'Begin',
+    continue: 'Pick it back up',
+    savedAt: '{name}, week {week}, day {day}',
+    beginOver: 'Start over',
   },
 
   identity: {
@@ -55,6 +58,50 @@ export default {
     note: 'All of you. Nobody is being singled out.',
     cook_together: 'Cook together',
     watch_a_film: 'Watch something together',
+  },
+
+  /**
+   * The endings. Section 5.
+   *
+   * Each has a NAME and a LINE. The line is what the screen actually says
+   * about her, and it is authored rather than generated on purpose: it is the
+   * last thing the player reads, it has to be exactly right, and a summarizer
+   * call at that moment could fail and leave the campaign ending in silence.
+   */
+  ending: {
+    out_end: 'Out',
+    out_endLine: 'Said out loud, to anyone who asked. It cost what it was always going to cost, and neither of you would take it back.',
+    ours_end: 'Ours',
+    ours_endLine: 'Named, and kept between the two of you. Everybody suspects; nobody is told.',
+    unspoken_end: 'Unspoken',
+    unspoken_endLine: 'Both of you know. Neither of you has ever had to say it, and by now saying it would almost be a step backwards.',
+    unnamed_end: 'No Word For It',
+    unnamed_endLine: 'As close as two people get, and there was never a word that fit. Not broken - just never named.',
+    confidante_end: 'Confidante',
+    confidante_endLine: 'She tells you everything. It never became anything else, and somewhere along the way it stopped being able to.',
+    friends_end: 'Friends',
+    friends_endLine: 'Genuinely fond of you. That is where it settled, and it is not nothing.',
+    reckless_end: 'Reckless',
+    reckless_endLine: 'Public, and hollow. You made it visible long before it was real, and it is still not real.',
+    drift_end: 'Drift',
+    drift_endLine: 'You worked together for nine weeks. It never started.',
+    nameless_end: 'A Friend',
+    nameless_endLine: 'You got so close. She has decided what you are to her, and it is a friend, and she will not be revisiting it.',
+    exposure_end: 'Seen',
+    exposure_endLine: 'It got out. The company moved first, the fandom moved second, and neither of you was consulted.',
+    severance_end: 'Severance',
+    severance_endLine: 'She stopped answering. Whatever it had become, she could not carry it any further.',
+  },
+
+  endings: {
+    title: 'Nine weeks',
+    subtitle: 'How it ended, with each of them.',
+    balance: 'All five, and not one of them named it.',
+    balanceNote: 'The hardest thing this game asks for.',
+    good: 'Something real',
+    neutral: 'Where it settled',
+    bad: 'How it broke',
+    again: 'Again',
   },
 
   settings: {

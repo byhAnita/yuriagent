@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { applyTheme } from './config/themes.js';
 import { loadSettings, saveSettings } from './store/settings.js';
 import { loadApiKey, saveApiKey } from './store/apiKey.js';
+import { save as writeSave, load as readSave, peek, clearSave } from './store/save.js';
 import { makeT } from './i18n/index.js';
 import { BLOCKS, SCENE_TURN_LIMITS } from './config/constants.js';
 import { getCast } from './data/cast.js';
@@ -37,6 +38,7 @@ import { createClient } from './tools/client.js';
 import VNStage from './ui/vn/VNStage.jsx';
 import Start from './ui/screens/Start.jsx';
 import Day from './ui/screens/Day.jsx';
+import Endings from './ui/screens/Endings.jsx';
 import GiftModal from './ui/modals/GiftModal.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
@@ -241,10 +243,12 @@ export default function App() {
        */
       let cursor = run;
       let rolledDay = false;
+      let over = false;
       for (let i = 0; i < Math.max(1, blocks); i++) {
         const step = advanceBlock(cursor);
         cursor = step.run;
         rolledDay = rolledDay || step.rolledDay;
+        over = over || step.campaignOver;
       }
       const next = cursor;
       const finished = taskDone ?? taskState.done;
@@ -272,7 +276,16 @@ export default function App() {
 
       setPlayer(nextPlayer);
       setRun(next);
-      setScreen('day');
+
+      /**
+       * Nine weeks, and then it is over.
+       *
+       * `advanceBlock` has returned `campaignOver` since M1 and nothing ever
+       * read it, so the clock rolled past the end of the campaign and the game
+       * simply kept going - the third thing found this milestone that was
+       * implemented, tested, and never called.
+       */
+      setScreen(over ? 'endings' : 'day');
     },
     [run, player, task, taskState, castIds, identity],
   );
@@ -591,6 +604,98 @@ export default function App() {
    * remaining scene. Collecting it here and nowhere else is what keeps that
    * true (section 8, invariant 1).
    */
+  /**
+   * The run, exactly as `save.js` wants it.
+   *
+   * An explicit projection on both sides, so that adding UI state to this
+   * component cannot start persisting it by accident and reading either
+   * function tells you what a save is.
+   */
+  const snapshot = () => ({
+    run,
+    player,
+    cast: castIds,
+    relations,
+    memory,
+    calendar: { taskState },
+    flags: { firedEvents, usedGestures, foundRumors },
+    lang: settings.lang,
+    model: settings.model,
+  });
+
+  /**
+   * The game saves itself at day rollover, and nowhere else.
+   *
+   * Not a button, because there is nothing for the player to decide: one slot,
+   * one run, and a save screen would be a decision about bookkeeping in a game
+   * that has no other bookkeeping. Not every block either - the day boundary is
+   * the natural unit and it is also, not coincidentally, the only moment
+   * section 15 permits: a scene is ephemeral, so a save taken mid-scene would
+   * be a save taken at the room door.
+   *
+   * Keyed on the day, deliberately, rather than on everything it writes. The
+   * point is one save per day, not one per state change.
+   */
+  useEffect(() => {
+    if (screen !== 'day' || !player.name) return;
+    writeSave(snapshot());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.day, run.week, screen]);
+
+  /**
+   * Pick a run back up.
+   *
+   * Straight to the day screen, never to a scene: section 15 excludes `scene`
+   * from a save because a scene is ephemeral, so the only place a run can be
+   * resumed is at the top of a block.
+   */
+  const onContinue = () => {
+    const loaded = readSave({
+      run: newRun({ seed: SEED }),
+      player: { name: '', dishes: 0, ...identity.startStats },
+      cast: castIds,
+      relations: Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
+      memory: newMemory(castIds),
+    });
+    if (!loaded) return;
+
+    setRun(loaded.run);
+    setPlayer(loaded.player);
+    setRelations(loaded.relations);
+    setMemory(loaded.memory);
+    setTaskState(loaded.calendar.taskState ?? newTaskState());
+    setFiredEvents(loaded.flags.firedEvents);
+    setUsedGestures(loaded.flags.usedGestures);
+    setFoundRumors(loaded.flags.foundRumors);
+    setScreen('day');
+  };
+
+  /**
+   * Wipe the run and go back to the cover.
+   *
+   * Everything derived - the week plan, occupancy, the day's task - recomputes
+   * from `run`, so only the state that is genuinely held needs clearing. The
+   * settings and the API key are device-level and deliberately survive.
+   */
+  const restart = () => {
+    setRun(newRun({ seed: SEED }));
+    setRelations(Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])));
+    setMemory(newMemory(castIds));
+    setTaskState(newTaskState());
+    setFiredEvents([]);
+    setUsedGestures([]);
+    setFoundRumors([]);
+    setPendingScene(null);
+    setGiftNote(null);
+    setOutcome(null);
+    setSolo(null);
+    setAskedToday(null);
+    setRefusal(null);
+    setPlayer({ name: '', dishes: 0, ...identity.startStats });
+    clearSave();
+    setScreen('start');
+  };
+
   const onBegin = ({ name, identityId: chosen }) => {
     const picked = getIdentity(chosen);
     setIdentityId(picked.id);
@@ -604,8 +709,27 @@ export default function App() {
         <Start
           cards={cards}
           lineup={lineup}
+          saved={peek()}
+          onContinue={onContinue}
           onBegin={onBegin}
           onOpenSettings={() => setShowSettings(true)}
+          t={t}
+        />
+      ) : null}
+
+      {screen === 'endings' ? (
+        <Endings
+          cards={cards}
+          relations={relations}
+          /**
+           * Back to the cover, not to a fresh run.
+           *
+           * A new campaign needs a name and an identity, and both are set once
+           * and never edited because `player.name` reaches the byte-stable
+           * block. Restarting into the day screen would carry the old ones
+           * silently.
+           */
+          onRestart={restart}
           t={t}
         />
       ) : null}

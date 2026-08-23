@@ -337,7 +337,7 @@ export default function VNStage({
 
   return (
     <div
-      className="stage mx-auto flex h-dvh w-full max-w-[26rem] flex-col"
+      className="stage stage-fill mx-auto flex w-full max-w-[26rem] flex-col"
       style={{ '--stage-glow': stageGlow }}
     >
       <SceneHeader {...setup.scene} turnsLeft={turnsLeft} onExit={leave} t={t} />

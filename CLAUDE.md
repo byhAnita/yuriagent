@@ -59,7 +59,17 @@ Everything in v2 must have its **interface stubbed in MVP** (identity config, ca
 - React 19 + Vite 8 (already scaffolded), Tailwind CSS 4
 - Plain React hooks. No Redux/Zustand.
 - LLM: OpenAI-compatible router - DeepSeek V4 Flash (default), Gemini 3.5 Flash-Lite, GPT-5.6 Luna, Qwen 3.8 Max
-- PWA: manifest + service worker, mobile-first 390x844
+- PWA: manifest + service worker, mobile-first 390x844. **Every path is
+  relative** - `base: './'` in `vite.config.js`, `./` in the manifest and in
+  `index.html`, and `./sw.js` at registration - so the build works from a
+  GitHub Pages project subpath as well as from a domain root. An absolute path
+  looks perfectly correct in `npm run dev` and 404s on deploy day, which is
+  what makes it worth a test rather than a habit.
+  The worker is hand-rolled and small: **network first for navigations**, so a
+  new build is picked up rather than pinned; **cache first for everything
+  else**, because hashed assets are immutable by construction. It caches only
+  GETs from its own origin and the two font hosts, which is what keeps model
+  traffic - a cross-origin POST carrying the player's prompt - off the disk.
 - Persistence: localStorage
 - Tests: vitest (`npm test`). Lint: oxlint (`npm run lint`). Build: `npm run build`.
 - **The game is playable with no API key.** `tools/mockClient.js` emits the real
@@ -1818,6 +1828,21 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
 
 Save key: `yuriagent_saves_v1`. On load, unknown or missing fields fill from defaults rather than throwing.
 
+**One slot, and the game saves itself at day rollover.** Not a button: there is
+nothing for the player to decide, and a save screen would be the only piece of
+bookkeeping in a game that has none. The day boundary is also the only moment
+the schema permits - a scene is ephemeral, so a save taken mid-scene is a save
+taken at the room door.
+
+`toSave` is an explicit projection rather than a spread of app state, so that
+adding a piece of UI state cannot silently start persisting it, and so reading
+one function tells you what a save contains. `fromSave` merges per member
+rather than replacing wholesale: a cast that gained a member since the save was
+written must not come back with `undefined` where her relationship should be.
+
+A failed write returns `false` and never throws. A player in a private window
+should lose the save, not the run.
+
 The **API key is not in here**. It lives in `yuriagent_key_v1` via `store/apiKey.js`,
 in its own module with its own storage key, so it can never be accidentally
 serialised into a save file that gets exported or shared (section 22).
@@ -1935,7 +1960,8 @@ Rules:
 | **M4** | Shell: map, time blocks, calendar, tasks, gift modal, day rollover | one full in-game day playable |
 | **M5** | Run layer: full 3x3 campaign, event anchors on weekend blocks, endings screen, save/load, PWA install | full playthrough reaches an ending |
 
-**Status: M0-M4 complete. M5 is next.** Running state, what is done and what is
+**Status: M0-M5 complete.** A campaign now runs from the cover screen to the
+endings screen, saves itself, and installs. Running state, what is done and what is
 still open, lives in `docs/PROGRESS.md` - that file is updated *before* a
 milestone closes, and it is what makes compacting this session safe.
 Design changes that have been argued for but not made live in
@@ -2010,6 +2036,27 @@ All visual constants are CSS custom properties on `:root`, defined in `config/th
 ### Permitted exceptions
 
 Inline styles are allowed only for values that come from data at runtime: character `palette` application, and meter fill widths. Everything else uses tokens.
+
+### Safe areas
+
+`viewport-fit=cover` plus `apple-mobile-web-app-status-bar-style:
+black-translucent` is what makes an installed iOS app fill the screen instead
+of sitting in a letterboxed frame. The price is that the web view then draws
+**underneath** the status bar and the home indicator, so without insets the day
+header sits behind the clock and the chip bar behind the gesture bar - on every
+iPhone, in the one mode the game is designed for. Android needs the same on any
+device with a display cutout.
+
+`--safe-top` / `--safe-bottom` / `--safe-left` / `--safe-right` are tokens
+like everything else in this section, and exactly two rules read them: `body`
+pads by them, and the full-height rules subtract them. A component must never
+hardcode a notch height.
+
+The two full-height rules are `.stage` (`min-height`) and `.stage-fill`
+(`height`, for the scene, whose chip bar is pinned to the bottom). Both are
+**unlayered**, so they beat the `min-h-dvh` utility - which would otherwise
+make every screen one full viewport tall inside a body already inset, and push
+the last row off the bottom by the height of the notch.
 
 ### Accessibility
 

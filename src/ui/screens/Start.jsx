@@ -77,7 +77,16 @@ function Row({ selected, disabled, onSelect, lead, title, note, tag }) {
   );
 }
 
-export default function Start({ cards, lineup, onBegin, onOpenSettings, t }) {
+export default function Start({
+  cards,
+  lineup,
+  /** `{ savedAt, week, day, name }` from `store/save.js`, or null. */
+  saved = null,
+  onContinue,
+  onBegin,
+  onOpenSettings,
+  t,
+}) {
   const [name, setName] = useState('');
   const [identityId, setIdentityId] = useState(DEFAULT_IDENTITY);
 
@@ -102,6 +111,35 @@ export default function Start({ cards, lineup, onBegin, onOpenSettings, t }) {
           {t('start.blurb')}
         </p>
       </header>
+
+      {/*
+        A run in progress outranks starting one.
+
+        Above the name field rather than beside the Begin button, because a
+        player who has a campaign going is here to resume it and should not
+        have to scroll past three pickers they already answered to find that
+        out. Beginning is still one tap away, and it warns that it replaces
+        what is there.
+      */}
+      {saved ? (
+        <section className="sheet-in" style={{ '--i': 1 }}>
+          <button
+            type="button"
+            onClick={onContinue}
+            className="w-full rounded-[var(--radius)] border border-accent bg-accent-soft/25 px-4 py-3 text-left"
+          >
+            <span className="block font-mono text-[0.6875rem] uppercase tracking-[0.22em] text-accent">
+              {t('start.continue')}
+            </span>
+            <span className="mt-1 block font-body text-[0.8125rem] text-dim">
+              {t('start.savedAt')
+                .replace('{name}', saved.name || t('start.namePlaceholder'))
+                .replace('{week}', String(saved.week + 1))
+                .replace('{day}', String(saved.day + 1))}
+            </span>
+          </button>
+        </section>
+      ) : null}
 
       <section className="sheet-in" style={{ '--i': 1 }}>
         <Label>{t('start.nameLabel')}</Label>
@@ -179,7 +217,7 @@ export default function Start({ cards, lineup, onBegin, onOpenSettings, t }) {
           disabled={!ready}
           className="rounded-[var(--radius)] border border-accent px-4 py-3.5 font-mono text-[0.8125rem] uppercase tracking-[0.24em] text-accent disabled:border-hairline disabled:text-faint"
         >
-          {t('start.begin')}
+          {saved ? t('start.beginOver') : t('start.begin')}
         </button>
         <button
           type="button"

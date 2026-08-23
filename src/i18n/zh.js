@@ -12,6 +12,9 @@ export default {
     customCast: '自己组一个五人团',
     soon: '待开放',
     begin: '开始',
+    continue: '继续上次',
+    savedAt: '{name}，第 {week} 周，第 {day} 天',
+    beginOver: '重新开始',
   },
 
   identity: {
@@ -92,6 +95,48 @@ export default {
     note: '所有人一起，没有谁被单独挑出来。',
     cook_together: '一起做饭',
     watch_a_film: '一起看点什么',
+  },
+
+  /**
+   * 结局。第 5 节。
+   *
+   * 每个结局有名字和一句话。这句话是玩家读到的最后一段文字，必须写死而不是
+   * 生成——生成调用可能失败，让整场战役在沉默里结束。
+   */
+  ending: {
+    out_end: '公开',
+    out_endLine: '说出口了，谁问都一样。代价一如预料，而你们谁都不后悔。',
+    ours_end: '我们的',
+    ours_endLine: '有了名字，只留在你们两个人之间。所有人都在猜，没有人被告知。',
+    unspoken_end: '心照不宣',
+    unspoken_endLine: '两个人都知道。谁也没说过，到这一步说出来反而像是退了一格。',
+    unnamed_end: '没有名字',
+    unnamed_endLine: '亲近到不能再亲近，却始终没有一个词装得下。不是坏掉了——只是从未被命名。',
+    confidante_end: '倾诉的人',
+    confidante_endLine: '她什么都跟你说。它没能变成别的东西，而且不知从哪一刻起，已经变不了了。',
+    friends_end: '朋友',
+    friends_endLine: '她是真心喜欢你的。它停在了这里，而这也不算什么都没有。',
+    reckless_end: '莽撞',
+    reckless_endLine: '公开，却空洞。你让它被看见的时候，它还远远不是真的，而现在依然不是。',
+    drift_end: '错过',
+    drift_endLine: '你们共事了九周。它从来没有开始。',
+    nameless_end: '一个朋友',
+    nameless_endLine: '你差一点就到了。她已经决定你是什么——一个朋友——而且不会再改。',
+    exposure_end: '被看见',
+    exposure_endLine: '事情传出去了。公司先动手，粉丝后动手，谁都没问过你们。',
+    severance_end: '断联',
+    severance_endLine: '她不再回消息了。不管那是什么，她已经背不动了。',
+  },
+
+  endings: {
+    title: '九周',
+    subtitle: '和她们每一个人，最后是怎样收场的。',
+    balance: '五个人，没有一个说出那个词。',
+    balanceNote: '这个游戏所能提出的最难的要求。',
+    good: '真的发生过',
+    neutral: '停在了这里',
+    bad: '它是怎么断的',
+    again: '再来一次',
   },
 
   settings: {

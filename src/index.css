@@ -145,9 +145,35 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* ---------------------------------------------------------------------------
+   Safe areas. CLAUDE.md section 3, installed on a phone.
+
+   `viewport-fit=cover` plus `apple-mobile-web-app-status-bar-style:
+   black-translucent` is what makes an installed iOS app fill the screen
+   instead of sitting in a letterboxed white frame - and the price is that the
+   web view now draws UNDERNEATH the status bar and the home indicator. Without
+   these insets the day header sits behind the clock and the chip bar sits
+   behind the gesture bar, on every iPhone, in the one mode the game is
+   designed for.
+
+   Android needs it too, on any device with a display cutout.
+
+   Declared as tokens rather than inline so that the two rules below are the
+   only places in the codebase that know about it, and so a component can never
+   accidentally hardcode a notch height (section 20).
+--------------------------------------------------------------------------- */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 body {
   margin: 0;
   min-height: 100dvh;
+  box-sizing: border-box;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-mono);
@@ -167,6 +193,24 @@ body {
   position: relative;
   isolation: isolate;
   overflow: hidden;
+
+  /*
+    A screenful, minus whatever the phone took.
+
+    Unlayered, so it beats the `min-h-dvh` utility - which would otherwise make
+    every screen exactly one viewport tall INSIDE a body already inset by the
+    status bar, and push the last row off the bottom by the height of the notch.
+  */
+  min-height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+}
+
+/*
+  The scene, which is a fixed height rather than a minimum: the chip bar is
+  pinned to the bottom of the frame and the portrait takes what is left, so it
+  must not grow with the dialogue.
+*/
+.stage-fill {
+  height: calc(100dvh - var(--safe-top) - var(--safe-bottom));
 }
 
 .stage::before {
