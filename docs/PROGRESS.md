@@ -1149,12 +1149,31 @@ four events times three cycles - and the least certain to read well.
 different, the stakes clauses may be unnecessary; if it does not, playing is the
 only thing that will say why.
 
-#### One rule not to break when returning to this
+#### Two rules not to break when returning to this
 
-An event's day must not move once another event fires. `eventDays` deals days to
-every slot BEFORE filtering, and reversing that made the second event of a phase
-unreachable in the shipped build - the fan meeting after Music Bank, the island
-after the cruise. Two tests guard it and both fail against the old code.
+Both live in `eventDays`, and both are about which day a slot gets.
+
+1. **An event's day must not move once another event fires.** It deals days to
+   every slot BEFORE filtering, and reversing that made the second event of a
+   phase unreachable in the shipped build - the fan meeting after Music Bank,
+   the island after the cruise.
+2. **`event_a` falls on the earlier weekday.** The dealt days are sorted before
+   the slots take them, because the chain runs `event_a -> event_b`. Found in
+   the first played week: the MV shoot happened before the concept meeting, so
+   `reads` pointed at a day still ahead and the shoot filmed a concept nobody
+   had chosen.
+
+Four tests guard the pair and all four fail against the code they were written
+against. The second is a coin flip per week, so its guard sweeps every phase
+and every week rather than asserting one seed - at one seed a broken build
+passes half the time.
+
+The near miss worth keeping: the seed-sweep guard first used string seeds and
+reported forty identical schedules. That is not a scheduling bug. `deriveSeed`
+starts from `seed >>> 0`, which is **0 for any string**, so the sweep was one
+seed forty times. `calendarPhase.test.js` has `SEED = 'phase-seed'` at the top
+and has therefore always run at seed 0; the app passes a number, so nothing is
+broken in play, but a string seed there buys no coverage it looks like it buys.
 
 ### 2. Play the rest of it, on the phone, in both languages
 

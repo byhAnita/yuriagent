@@ -157,9 +157,22 @@ export function eventDays({ phase, seed, week = 0, fired = [] }) {
    *
    * A day now belongs to a SLOT, decided before anything is filtered, so what
    * has already happened cannot move what has not.
+   *
+   * ...AND THE SLOTS TAKE THOSE DAYS IN ORDER. `event_a` is always the earlier
+   * weekday of the two, because the chain runs `event_a -> event_b` and a shoot
+   * cannot film a concept the meeting has not chosen yet. Dealt at random, half
+   * the PREP weeks put the MV shoot on Monday and the concept meeting on
+   * Thursday - reported after one played week, and it is the `reads` field
+   * silently pointing backwards rather than anything about the scene.
+   *
+   * Sorting the dealt days rather than dealing them in order keeps WHICH days
+   * random and only fixes which slot gets which, so the rule above is untouched:
+   * the pairing still does not depend on what has already fired.
    */
   const rng = makeRng(deriveSeed(seed, `events:${phase}:${week}`));
-  const days = shuffled(rng, workDays()).slice(0, all.length);
+  const days = shuffled(rng, workDays())
+    .slice(0, all.length)
+    .sort((a, b) => a - b);
 
   return all
     .map((slot, i) => ({

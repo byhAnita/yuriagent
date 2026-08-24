@@ -59,6 +59,55 @@ describe('the event day is placed first and takes the whole day', () => {
     expect(restSlotsIn(2)).toEqual(['event_b']); // the island, in the last week
   });
 
+  /**
+   * REPORTED IN PLAY: the MV shoot happened before the concept meeting.
+   *
+   * The slots are a chain - `event_b` reads what `event_a` settled - so their
+   * order in the week is not cosmetic. Dealt at random, roughly half of every
+   * two-event week ran the chain backwards, and the shoot filmed a concept
+   * nobody had chosen. Nothing about the scene was wrong; `reads` was simply
+   * pointing at a day still in the future.
+   *
+   * Every phase and every week, because the failure was one coin flip per week
+   * and a single-seed assertion would pass half the time on a broken build.
+   */
+  it('always runs event_a before event_b', () => {
+    for (const phase of PHASES) {
+      for (let week = 0; week < PHASES.length * 3; week += 1) {
+        const days = eventDays({ phase, seed: SEED, week });
+        if (days.length < 2) continue;
+
+        const a = days.find((e) => e.slot === 'event_a');
+        const b = days.find((e) => e.slot === 'event_b');
+        expect(a.day, `${phase} w${week}`).toBeLessThan(b.day);
+      }
+    }
+  });
+
+  /**
+   * The pairing must hold under every seed, not just this one - and the days
+   * themselves must still vary, or "sorted" would be satisfied by handing out
+   * Monday and Tuesday every week, which is the same schedule forever.
+   *
+   * Seeds are NUMBERS here on purpose. `deriveSeed` starts from `seed >>> 0`,
+   * which is 0 for any string, so a string-seeded sweep is forty runs of the
+   * same seed - it looked like this test had caught a second bug and it had
+   * only mis-called the API.
+   */
+  it('holds across seeds, and still moves the days around', () => {
+    const seen = new Set();
+
+    for (let s = 0; s < 40; s += 1) {
+      const days = eventDays({ phase: 'comeback', seed: 1000 + s * 7, week: 1 });
+      const a = days.find((e) => e.slot === 'event_a');
+      const b = days.find((e) => e.slot === 'event_b');
+      expect(a.day, `seed ${1000 + s * 7}`).toBeLessThan(b.day);
+      seen.add(`${a.day}:${b.day}`);
+    }
+
+    expect(seen.size).toBeGreaterThan(3);
+  });
+
   it('never books two events on the same day', () => {
     for (const phase of PHASES) {
       const days = eventDays({ phase, seed: SEED }).map((e) => e.day);

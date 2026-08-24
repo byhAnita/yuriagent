@@ -1534,6 +1534,15 @@ prep_a concept meeting -> prep_b MV shoot -> comeback_a music bank
    +------- comeback_b fan meeting <-----------------+
 ```
 
+**A chain has a direction, so `event_a` always falls on the earlier weekday.**
+`eventDays` deals the days at random and then hands them to the slots in order.
+Dealt at random *and* assigned at random, half of every two-event week ran
+backwards - reported on the first played PREP week as the MV shoot happening
+before the concept meeting, which is a shoot filming a concept nobody has
+chosen. Nothing about the scene was wrong; `reads` was pointing at a day still
+in the future. Which days are used stays random, so the week still varies;
+only which slot gets which is fixed.
+
 `company_cruise` and `island_trip` stay **once per campaign** and stay out of
 the chain, for two reasons that both come from elsewhere in this document.
 **REST is the repair week** - two mandatory whole-cast days out of its five
