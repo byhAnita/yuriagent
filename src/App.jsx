@@ -151,7 +151,7 @@ export default function App() {
    * Which anchor events have already happened, as `phase:slot` keys.
    *
    * Section 15 puts this on `flags.firedEvents`, and it persists across the
-   * whole campaign rather than resetting with the cycle: there are five events
+   * whole campaign rather than resetting with the cycle: there are six events
    * in the game, not five per cycle. `generateWeek` filters on it, so a fired
    * event stops being scheduled and its site leaves the map at the same moment.
    */

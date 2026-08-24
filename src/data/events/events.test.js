@@ -1,5 +1,5 @@
 /**
- * The five anchor events.
+ * The anchor events - six of them, two per phase.
  *
  * Two classes of assertion, and the second is the one that matters. The first
  * checks the content is well-formed. The second checks it is REACHABLE - the
@@ -34,10 +34,15 @@ describe('the catalogue', () => {
     }
   });
 
-  it('is exactly five, which is what section 10 promises', () => {
+  /**
+   * Six: two per phase. It was five while PREP had one slot, and the count is
+   * asserted against the maps rather than hardcoded twice, so the next event
+   * to land fails HERE with a clear reason rather than somewhere downstream.
+   */
+  it('writes exactly as many events as there are slots', () => {
     const slots = PHASES.flatMap((p) => eventSlots(p));
-    expect(EVENT_IDS).toHaveLength(5);
-    expect(slots).toHaveLength(5);
+    expect(EVENT_IDS).toHaveLength(6);
+    expect(slots).toHaveLength(EVENT_IDS.length);
   });
 
   it('puts each one at a location that exists this phase', () => {
@@ -55,8 +60,15 @@ describe('the catalogue', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
+  /**
+   * Null is a real answer, not a failure: a phase map may carry an event slot
+   * with nothing written for it, and the right behaviour then is an ordinary
+   * day rather than a crash. Every authored slot is now filled - the assertion
+   * above is what guarantees that - so this asks about slots that are not event
+   * slots at all, which is the case the calendar actually hits.
+   */
   it('answers null for a slot nobody has written for', () => {
-    expect(eventFor('prep', 'event_b')).toBeNull();
+    expect(eventFor('prep', 'workroom_a')).toBeNull();
     expect(eventFor('nonsense', 'event_a')).toBeNull();
   });
 });

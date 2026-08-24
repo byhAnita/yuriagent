@@ -100,8 +100,11 @@ describe('resolveSlot', () => {
   });
 
   it('returns null for a slot this phase does not fill', () => {
-    expect(resolveSlot('prep', 'event_b')).toBeNull();
+    // PREP grew an `event_b` when the MV shoot landed, so the example here had
+    // to move. `solo_site_b` is REST-only and is now the one that is genuinely
+    // unfilled - the assertion is about the null, not about which slot it is.
     expect(resolveSlot('prep', 'solo_site_b')).toBeNull();
+    expect(resolveSlot('comeback', 'solo_site_b')).toBeNull();
   });
 
   it('returns null for junk rather than throwing', () => {
@@ -142,10 +145,15 @@ describe('slotAt and rolesAt', () => {
 });
 
 describe('event sites', () => {
-  it('gives PREP one and the other two phases two', () => {
-    expect(eventSlots('prep')).toEqual(['event_a']);
-    expect(eventSlots('comeback')).toEqual(['event_a', 'event_b']);
-    expect(eventSlots('rest')).toEqual(['event_a', 'event_b']);
+  /**
+   * Two each, everywhere. PREP had one until the MV shoot landed, and that was
+   * a hole rather than a preference - the concept meeting had nothing to hand
+   * off to, so the cycle chain (PROPOSALS 20) had no second link.
+   */
+  it('gives every phase two', () => {
+    for (const phase of PHASES) {
+      expect(eventSlots(phase), phase).toEqual(['event_a', 'event_b']);
+    }
   });
 
   it('never places more events than there are weekdays to spend', () => {

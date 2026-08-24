@@ -1417,14 +1417,24 @@ player, which is what this section wanted them for in the first place.
 
 `isWeekend(day)`, `workDays()` and `eventWindows()` in `systems/calendar.js`. Day 0 is Monday.
 
-### Anchor events: five in a campaign, not five per cycle
+### Anchor events: six of them, two per phase
 
 `data/events/` holds one authored event per event slot on the three phase maps
-- concept meeting, Music Bank, fan meeting, company cruise, island day. Each
-takes a weekday and the whole of it, and each **fires exactly once in the
-campaign**: `flags.firedEvents` holds `phase:slot` keys, `generateWeek` filters
-on it, and the site leaves the map at the same moment. A phase that has spent
-both of its events goes back to ordinary working days.
+- concept meeting, MV shoot, Music Bank, fan meeting, company cruise, island
+day. Each takes a weekday and the whole of it, and each **fires exactly once in
+the campaign**: `flags.firedEvents` holds `phase:slot` keys, `generateWeek`
+filters on it, and the site leaves the map at the same moment. A phase that has
+spent both of its events goes back to ordinary working days.
+
+**Two slots per phase, and PREP having only one was a hole rather than a
+preference.** The concept meeting had nothing to hand off to, so a comeback
+cycle decided its concept and then never showed it being made - while the group
+activity `mv_shoot` had been on the calendar since M1 with no authored day
+behind it. `mv_set` closes it, at `exposureBase` 70, which gives the four
+working-cycle events a visibility ramp: **35 -> 70 -> 90 -> 88.** A gesture at
+the concept meeting is safe and cheap; the same gesture at the fan meeting is
+the loudest thing in the game. That ramp is the cycle's shape expressed as one
+number per site.
 
 An event is **not** a branching node. It is the ordinary scene engine given the
 three things a date already gets - a frame, the literary register, and sixteen

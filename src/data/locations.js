@@ -84,6 +84,26 @@ export const LOCATIONS = {
     label: 'X Meeting Room',
     note: 'The label side of the building. Decisions land here before anyone is asked.',
   },
+  /**
+   * A closed set is not a private room and it is not a broadcast either.
+   *
+   * 70 puts it above the risk threshold (60) and well below `music_bank` at 90,
+   * which is the point: a comeback cycle should ESCALATE in visibility as it
+   * runs. The four recurring events now read 35 -> 70 -> 90 -> 88, so the
+   * concept meeting is where a gesture is safe and cheap, and the fan meeting
+   * is where the same gesture is the loudest thing the player can do. That ramp
+   * is the cycle's shape expressed in one number per site.
+   *
+   * `presence: 'all'` because the whole group is called for the shoot, which is
+   * what makes it the second link in the chain rather than a solo day.
+   */
+  mv_set: {
+    zone: 'out',
+    exposureBase: 70,
+    presence: 'all',
+    label: 'MV Set',
+    note: 'A closed set, and forty people who do not work for X. Nothing here is private, and none of it is broadcast.',
+  },
 
   // --- COMEBACK -----------------------------------------------------------
   makeup_room: {

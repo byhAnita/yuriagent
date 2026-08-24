@@ -31,7 +31,7 @@ import {
   GOOD_ENDINGS,
 } from '../systems/relationship.js';
 import { generateWeek, occupancyAt } from '../systems/calendar.js';
-import { eventFor, eventKey } from '../data/events/index.js';
+import { eventFor, eventKey, EVENT_IDS } from '../data/events/index.js';
 import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from '../systems/clock.js';
 import { generateDayTask, completeTask, failTask, newTaskState, applyPlayerDeltas } from '../systems/tasks.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta } from '../systems/soloWork.js';
@@ -186,8 +186,8 @@ async function playCampaign({
   const policyRng = makeRng(deriveSeed(seed, `policy:${policy}`));
 
   /**
-   * Anchor events, tracked here for the same reason App tracks them: five in
-   * the campaign, not five per cycle.
+   * Anchor events, tracked here for the same reason App tracks them: six in
+   * the campaign, not six per cycle.
    *
    * Without it `generateWeek` places one every single week, so the harness
    * would report a campaign with three times as many all-cast, high-exposure
@@ -196,7 +196,14 @@ async function playCampaign({
    */
   let firedEvents = [];
 
-  for (let n = 0; n < weeks * DAYS_PER_WEEK * BLOCKS.length; n += 1) {
+  /**
+   * Bounded by `n` AND by the clock, because a block is no longer always one
+   * iteration: an anchor event eats the rest of its day (below), so the run
+   * reaches the end of week nine before the counter reaches 189. The counter
+   * stays as the safety bound - a loop that can only end on a state condition
+   * is a loop that can hang - and the clock is what actually stops it.
+   */
+  for (let n = 0; n < weeks * DAYS_PER_WEEK * BLOCKS.length && run.week < weeks; n += 1) {
     stats.blocks += 1;
     const weekPlan = generateWeek({
       phase: run.phase,
@@ -213,12 +220,26 @@ async function playCampaign({
       seed,
       week: run.week,
     });
+    /**
+     * An event day carries no task, and the harness has to know that.
+     *
+     * `generateDayTask` has taken `eventDay` since section 10's "an event day is
+     * the event, and nothing else" landed, and this call never passed it - so
+     * the harness handed out a chore on all 45 weekdays where the game hands
+     * out fewer, and reported a credit supply the player never has.
+     *
+     * That matters more than it looks. Event days are about to go from six a
+     * campaign to fourteen (PROPOSALS 20), and the ONLY evidence for whether
+     * that is affordable is what this harness says about credits. A task count
+     * that ignores event days would have answered the question by assuming it.
+     */
     const task = generateDayTask({
       identity: IDENTITY,
       day: run.day,
       week: run.week,
       phase: run.phase,
       seed,
+      eventDay: Boolean(placedEvent),
     });
 
     // Where can the player go? A location is reachable if somebody is there,
@@ -263,6 +284,8 @@ async function playCampaign({
     if (doTask || doSnoop) targetId = null;
     let extraEnergy = 0;
     let playerDelta = null;
+    /** An anchor event takes the whole day. Set in the scene branch below. */
+    let ateTheDay = false;
 
     if (targetId && player.energy > 10) {
       // --- a scene ---------------------------------------------------------
@@ -414,6 +437,7 @@ async function playCampaign({
         const key = eventKey(placedEvent.phase, placedEvent.slot);
         if (!firedEvents.includes(key)) firedEvents = [...firedEvents, key];
         stats.eventsPlayed = (stats.eventsPlayed ?? 0) + 1;
+        ateTheDay = true;
       }
 
       /**
@@ -512,7 +536,27 @@ async function playCampaign({
     }
 
     // --- advance, exactly as App.advance does ------------------------------
-    const { run: next, rolledDay } = advanceBlock(run);
+    let { run: next, rolledDay } = advanceBlock(run);
+
+    /**
+     * An anchor event eats the rest of its day, which `Aftermath` does with
+     * `blocks: BLOCKS.length - BLOCKS.indexOf(run.block)` and this loop did
+     * not do at all.
+     *
+     * So the harness played the afternoon and evening of every event day as
+     * ordinary blocks the game does not have - two extra blocks per event,
+     * with a task and a snoop in them. At six events that was noise. At the
+     * fourteen PROPOSALS 20 is about to introduce it is 28 blocks of 189, and
+     * they are exactly the blocks whose absence the credit question turns on.
+     * A harness that plays a day the game skips cannot answer whether the game
+     * can afford to skip it.
+     */
+    if (ateTheDay) {
+      while (!rolledDay) {
+        stats.blocks += 1;
+        ({ run: next, rolledDay } = advanceBlock(next));
+      }
+    }
     let nextPlayer = playerDelta ? applyPlayerDeltas(player, playerDelta) : player;
     nextPlayer = spendBlockEnergy(nextPlayer, extraEnergy);
 
@@ -570,7 +614,7 @@ function report(label, out) {
     `openers ${stats.openersUsed} (${stats.objectsBought} bought, ${stats.gesturesUsed} said)  rumors ${stats.rumors}`,
   );
   log(`tasks ${stats.tasksDone} done / ${stats.tasksFailed} failed`);
-  log(`anchor events played ${stats.eventsPlayed ?? 0} of 5`);
+  log(`anchor events played ${stats.eventsPlayed ?? 0} of ${EVENT_IDS.length}`);
   log(
     `scenes that paid nothing ${stats.scenesThatPaidNothing}/${stats.scenes}  ` +
       `intimacy from scenes ${stats.intimacyFromScenes} (${(

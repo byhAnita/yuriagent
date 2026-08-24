@@ -1,8 +1,8 @@
 /**
  * Anchor events. CLAUDE.md sections 9 and 10.
  *
- * Five in the whole campaign, one per event slot on the three phase maps. Each
- * takes a WEEKDAY and the whole of it, replacing whatever the calendar would
+ * One per event slot on the three phase maps, six in all. Each takes a WEEKDAY
+ * and the whole of it, replacing whatever the calendar would
  * otherwise have put there - the Music Bank recording genuinely is that
  * Thursday. Each fires exactly once and its site leaves the map afterwards.
  *
@@ -34,7 +34,7 @@
  * back: a title track, a concept, who the company pushes. "Whether she is
  * happy" is not an agenda item, it is a movement in disguise.
  *
- * All five are held in one table rather than one file each, because keeping
+ * All six are held in one table rather than one file each, because keeping
  * them consistent matters more than keeping them apart: they are short, they
  * are written by a person reading them top to bottom, and the failure mode of
  * authored content is drift between pieces nobody reads together.
@@ -74,6 +74,42 @@ export const EVENTS = {
         'which of the demos is the title track',
         'the styling the concept commits them to, and which member it asks the most of',
         'who gets the centre position for the promotion',
+      ],
+    },
+  },
+
+  /**
+   * The second link in the chain, and the reason it exists.
+   *
+   * PREP carried one event slot while `comeback` and `rest` carried two, which
+   * was a hole rather than a preference - and the group activity `mv_shoot` had
+   * been on the calendar since M1 with no authored day behind it, so the cast
+   * shot a music video every cycle that nobody ever saw.
+   *
+   * It is also the shortest possible demonstration of what canon is for: a
+   * shoot that executes the concept the meeting chose, on a set at exposure 70,
+   * two days after the room settled it.
+   */
+  mv_shoot: {
+    id: 'mv_shoot',
+    phase: 'prep',
+    slot: 'event_b',
+    frame: {
+      setting:
+        'A closed set in a warehouse dressed for the concept. Forty people who do not work ' +
+        'for X, cable runs taped to the floor, and one shot being lit for an hour before ' +
+        'anybody is asked to stand in it.',
+      movements: [
+        'the first setup, and how long everyone waits before anything is filmed',
+        'her part, shot over and over until somebody is happy with it',
+        'the long gap in the middle of the day when nobody is needed on set',
+        'the light going, and the last setup they are going to get today',
+      ],
+      agenda: [
+        'which member the video ends up built around, whichever way the concept pointed',
+        'the one shot the whole thing gets cut around',
+        'the ending pose the choreography lands on, which the stage will have to repeat',
+        'what gets dropped when the shoot runs out of daylight',
       ],
     },
   },

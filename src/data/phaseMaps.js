@@ -88,6 +88,7 @@ export const PHASE_MAP = {
     social: 'drink_room',
     venue: 'bistro',
     event_a: 'meeting_room',
+    event_b: 'mv_set',
   },
   comeback: {
     workroom_a: 'broadcast_studio',
