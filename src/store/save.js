@@ -26,7 +26,7 @@
 import { SAVE_KEY } from '../config/constants.js';
 import { eventFor, recurs } from '../data/events/index.js';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * Everything a run is, and nothing else.
@@ -35,7 +35,7 @@ export const SCHEMA_VERSION = 2;
  * adding a piece of UI state to App cannot silently start persisting it - and
  * so that reading this function tells you what a save contains.
  */
-export function toSave({ run, player, cast, relations, memory, calendar, flags, lang, model }) {
+export function toSave({ run, player, cast, relations, memory, canon, calendar, flags, lang, model }) {
   return {
     meta: { schemaVersion: SCHEMA_VERSION, savedAt: Date.now(), lang, model },
     run,
@@ -44,6 +44,8 @@ export function toSave({ run, player, cast, relations, memory, calendar, flags, 
     relations,
     dossier: memory?.dossier ?? {},
     ledger: memory?.ledger ?? [],
+    // The third memory store (section 7). Flat, run-level, never compacted.
+    canon: Array.isArray(canon) ? canon : [],
     calendar: calendar ?? {},
     flags: flags ?? {},
   };
@@ -80,6 +82,11 @@ export function fromSave(raw, defaults) {
       dossier: mergePerMember(defaults.memory.dossier, raw.dossier),
       ledger: Array.isArray(raw.ledger) ? raw.ledger : [],
     },
+    /**
+     * A save written before canon existed comes back with an empty one rather
+     * than `undefined` - every reader treats it as a list.
+     */
+    canon: Array.isArray(raw.canon) ? raw.canon.filter(isCanonEntry) : [],
     calendar: isObject(raw.calendar) ? raw.calendar : {},
     flags: {
       firedEvents: migrateFiredEvents(raw.flags?.firedEvents),
@@ -118,6 +125,15 @@ export function migrateFiredEvents(stored) {
       const [phase, slot] = parts;
       return recurs(eventFor(phase, slot)) ? `${phase}:${slot}:0` : key;
     });
+}
+
+/**
+ * A canon entry needs a topic and the English text the prompt reads. Anything
+ * else in a stored record is somebody's hand-edited save or a half-written
+ * one, and dropping it is better than letting `undefined` into block 4.
+ */
+function isCanonEntry(e) {
+  return isObject(e) && typeof e.topic === 'string' && typeof e.text === 'string';
 }
 
 function mergePerMember(defaults, stored) {

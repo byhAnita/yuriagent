@@ -1003,10 +1003,11 @@ ledger:
 
 ### Canon
 
-> **Designed 2026-08-24, not built yet.** `docs/PROPOSALS.md` entry 20 carries
-> the argument and `docs/PROGRESS.md` "Still open" item 1 carries the build
-> order. Written here first because this file is updated before the code, never
-> after.
+> **Built 2026-08-24.** `systems/canon.js`, written by the event scene-exit
+> call, injected into block 4, persisted at `schemaVersion` 3. What is still
+> missing is the `reads` chain - an event asking for a named topic the last one
+> settled - and the handbook. `docs/PROGRESS.md` "Still open" item 1 has the
+> rest of the order.
 
 The two stores above cannot hold a decision, and an anchor event is a day that
 makes decisions. `dossier` is per member and scoped to the room, so it is the

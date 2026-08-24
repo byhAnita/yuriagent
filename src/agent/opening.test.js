@@ -14,12 +14,14 @@ import {
   closingDirective,
   establishingDirective,
   establish,
+  endScene,
 } from './sceneEngine.js';
 import { buildMessages } from './promptBuilder.js';
 import { purchase } from '../systems/economy.js';
 import { newMemory, addDossierEntry } from './memory.js';
 import { createMockClient } from '../tools/mockClient.js';
 import { getCast } from '../data/cast.js';
+import { EVENTS } from '../data/events/index.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { newRelation } from '../systems/relationship.js';
 
@@ -515,5 +517,135 @@ describe('a day with business on it settles it before it ends', () => {
    */
   it('does not re-list the agenda into the tail of the scene', () => {
     expect(closingDirective({ settles: true })).not.toMatch(/^\s*-/m);
+  });
+});
+
+/**
+ * Canon, end to end. PROPOSALS 20 (c).
+ *
+ * `systems/canon.test.js` covers the rules; this covers the JOIN, which is what
+ * this project actually gets wrong. `markRisk` was implemented, tested, and
+ * never called for two milestones - so the assertions here are that a real
+ * scene exit produces decisions at all, and that an ordinary scene produces
+ * none.
+ */
+describe('a scene exit reports what the day settled', () => {
+  const client = createMockClient({ seed: 11, delay: 0 });
+
+  const eventSetup = () => {
+    const base = setup();
+    return {
+      ...base,
+      scene: {
+        ...base.scene,
+        event: EVENTS.concept_meeting,
+        sceneFrame: EVENTS.concept_meeting.frame,
+      },
+    };
+  };
+
+  const play = async (args) => {
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(), client, opening: true });
+    return endScene(session, {
+      client,
+      memory: args.memory,
+      relations: args.relations,
+      cards,
+      scene: args.scene,
+      rng: () => 0.5,
+    });
+  };
+
+  it('reports decisions from an event, keyed to its own agenda', async () => {
+    const args = eventSetup();
+    const { decisions } = await play(args);
+
+    expect(decisions.length).toBeGreaterThan(0);
+    const allowed = EVENTS.concept_meeting.frame.agenda.map((a) => a.id);
+    for (const d of decisions) {
+      expect(allowed).toContain(d.topic);
+      expect(d.text.length).toBeGreaterThan(0);
+      expect(d.display.length).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * An ordinary block has no agenda, so there is nothing for it to settle and
+   * nothing extra in its request. Canon is written by events only.
+   */
+  it('reports none from an ordinary block', async () => {
+    const { decisions } = await play(setup());
+    expect(decisions).toEqual([]);
+  });
+
+  /** A failed summarizer must not cost the scene, let alone throw. */
+  it('reports none rather than throwing when the call fails', async () => {
+    const dead = async () => {
+      throw new Error('provider down');
+    };
+    const args = eventSetup();
+    let session = beginScene(args);
+    session = await runTurn(session, { text: openingDirective(), client, opening: true });
+
+    const result = await endScene(session, {
+      client: dead,
+      memory: args.memory,
+      relations: args.relations,
+      cards,
+      scene: args.scene,
+      rng: () => 0.5,
+    });
+
+    expect(result.decisions).toEqual([]);
+    expect(result.memory.ledger.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ...and the other half of the join: canon has to reach the model.
+ *
+ * Written and never read is the shape this project keeps producing, so the
+ * store and the reader ship together rather than in two steps.
+ */
+describe('canon reaches block 4', () => {
+  const withCanon = (canon) => {
+    const base = setup();
+    return beginScene({ ...base, scene: { ...base.scene, canon } });
+  };
+
+  it('states what the cycle has settled, in the header', () => {
+    const frame = withCanon([
+      { topic: 'title_track', text: 'the title track is Surfin Summer', display: 'zh version' },
+    ]).frame;
+
+    expect(frame.header).toContain('Where the cycle stands');
+    expect(frame.header).toContain('the title track is Surfin Summer');
+  });
+
+  /**
+   * An ordinary scene gets canon too, and that is most of the value: Irene
+   * mentioning the title track in a wardrobe on a Tuesday is memory that shows
+   * in the scene rather than in plumbing (pillar 4).
+   */
+  it('does so for an ordinary block and not only for an event', () => {
+    const frame = withCanon([{ topic: 'concept', text: 'the concept is summer', display: '' }])
+      .frame;
+    expect(frame.header).toContain('the concept is summer');
+  });
+
+  it('adds no heading at all before anything has been decided', () => {
+    expect(withCanon([]).frame.header).not.toContain('Where the cycle stands');
+    expect(withCanon(undefined).frame.header).not.toContain('Where the cycle stands');
+  });
+
+  /** Memory is English (section 19 rule 2). The display string is not memory. */
+  it('never puts the player-facing text in the prompt', () => {
+    const frame = withCanon([
+      { topic: 'title_track', text: 'the English one', display: 'the player-facing one' },
+    ]).frame;
+
+    expect(frame.header).toContain('the English one');
+    expect(frame.header).not.toContain('the player-facing one');
   });
 });

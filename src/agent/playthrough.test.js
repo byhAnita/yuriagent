@@ -45,6 +45,7 @@ import { actionsFor } from '../data/soloActions.js';
 import { LOCATIONS } from '../data/locations.js';
 import { giftsFor, purchase, spendGesture } from '../systems/economy.js';
 import { availableStances, isRiskStance } from '../systems/chips.js';
+import { addDecisions, canonForCycle } from '../systems/canon.js';
 import { makeRng, deriveSeed, pick } from '../systems/rng.js';
 import { BLOCKS, DAYS_PER_WEEK, SCENE_TURN_LIMITS } from '../config/constants.js';
 import { REGISTERS } from '../data/sceneFrames.js';
@@ -201,6 +202,7 @@ async function playCampaign({
    * is worse than one that skips it, because its numbers look trustworthy.
    */
   let firedEvents = [];
+  let canon = [];
   const eventDaysOffered = new Set();
 
   /**
@@ -345,6 +347,8 @@ async function playCampaign({
         dormWitnessIds,
         event: eventHere,
         sceneFrame: eventHere?.frame ?? null,
+        // What the cycle has settled, exactly as App injects it into block 4.
+        canon: canonForCycle(canon, cycleForWeek(run.week)),
         register: eventHere ? REGISTERS.event : REGISTERS.ordinary,
       };
 
@@ -457,6 +461,18 @@ async function playCampaign({
         if (!firedEvents.includes(key)) firedEvents = [...firedEvents, key];
         stats.eventsPlayed = (stats.eventsPlayed ?? 0) + 1;
         ateTheDay = true;
+
+        /**
+         * What the day settled. The harness is the only thing that runs all
+         * fourteen events against real memory state, so it is the only place
+         * that can answer whether canon grows sensibly across a campaign or
+         * fills up with the same topic fourteen times.
+         */
+        canon = addDecisions(canon, result.decisions ?? [], {
+          cycle: cycleForWeek(run.week),
+          phase: placedEvent.phase,
+          slot: placedEvent.slot,
+        });
       }
 
       /**
@@ -613,6 +629,8 @@ async function playCampaign({
 
   const endings = Object.fromEntries(castIds.map((id) => [id, resolveEnding(relations[id])]));
   stats.eventDaysOffered = eventDaysOffered.size;
+  stats.canonEntries = canon.length;
+  stats.canonTopics = new Set(canon.map((e) => e.topic)).size;
   return { stats, relations, memory, player, endings, balance: isBalanceEnding(relations), cards };
 }
 
@@ -634,7 +652,10 @@ function report(label, out) {
     `openers ${stats.openersUsed} (${stats.objectsBought} bought, ${stats.gesturesUsed} said)  rumors ${stats.rumors}`,
   );
   log(`tasks ${stats.tasksDone} done / ${stats.tasksFailed} failed`);
-  log(`anchor events played ${stats.eventsPlayed ?? 0} of ${stats.eventDaysOffered} offered`);
+  log(
+    `anchor events played ${stats.eventsPlayed ?? 0} of ${stats.eventDaysOffered} offered` +
+      `  canon ${stats.canonEntries} entries / ${stats.canonTopics} topics`,
+  );
   log(
     `scenes that paid nothing ${stats.scenesThatPaidNothing}/${stats.scenes}  ` +
       `intimacy from scenes ${stats.intimacyFromScenes} (${(
@@ -725,6 +746,37 @@ describe('a whole campaign through the real engine', () => {
       expect(bold.stats.risksTaken).toBeGreaterThan(shy.stats.risksTaken);
     },
     180000,
+  );
+
+  /**
+   * A campaign remembers what it decided. PROPOSALS 20 (c).
+   *
+   * The join, at full size, which is the only place it can be checked: fourteen
+   * events against real memory state. Unit tests cover the rules; this covers
+   * whether anything ever calls them - the shape that gave this project two
+   * milestones of unreachable good endings.
+   *
+   * The two assertions are the two halves of the design. Storage NEVER compacts,
+   * so a recurring event settling the same topic three times leaves three
+   * entries; injection supersedes, so the distinct-topic count stays far below
+   * the entry count. If those two numbers ever converge, one of the halves has
+   * quietly stopped working.
+   */
+  it(
+    'accumulates canon across a campaign without piling up in the prompt',
+    async () => {
+      const out = await playCampaign({ seed: 11, policy: 'spread' });
+      report('canon, seed 11', out);
+
+      expect(out.stats.eventsPlayed).toBeGreaterThan(8);
+      expect(out.stats.canonEntries).toBeGreaterThan(out.stats.eventsPlayed);
+
+      // Recurring events reuse their topic ids, which is what supersedes.
+      expect(out.stats.canonTopics).toBeLessThan(out.stats.canonEntries);
+      // ...and no single cycle can flood block 4.
+      expect(out.stats.canonTopics).toBeLessThanOrEqual(24);
+    },
+    120000,
   );
 });
 

@@ -103,7 +103,11 @@ describe('every frame has a spine', () => {
   /** Model-facing English, like ACTIVITY_DOING and the date frames. */
   it('stays ASCII, because it is never localized', () => {
     for (const f of frames) {
-      const text = [f.setting, ...f.movements, ...(f.agenda ?? [])].join(' ');
+      const text = [
+        f.setting,
+        ...f.movements,
+        ...(f.agenda ?? []).flatMap((a) => [a.id, a.text]),
+      ].join(' ');
       // eslint-disable-next-line no-control-regex
       expect(/^[\x20-\x7e]+$/.test(text)).toBe(true);
     }
@@ -149,7 +153,7 @@ describe('every event is also a working day', () => {
     const decided = /\b(wins|is chosen|is picked|gets picked|will be|ends up as|is decided to)\b/i;
     for (const f of frames) {
       for (const a of f.agenda) {
-        expect(decided.test(a), `pre-decided agenda item: "${a}"`).toBe(false);
+        expect(decided.test(a.text), `pre-decided agenda item: "${a.text}"`).toBe(false);
       }
     }
   });
@@ -166,7 +170,9 @@ describe('every event is also a working day', () => {
     const feeling = /\b(feels?|feeling|wants? to say|is scared|is happy|is upset)\b/i;
     for (const f of frames) {
       for (const a of f.agenda) {
-        expect(feeling.test(a), `agenda item is a movement in disguise: "${a}"`).toBe(false);
+        expect(feeling.test(a.text), `agenda item is a movement in disguise: "${a.text}"`).toBe(
+          false,
+        );
       }
     }
   });
@@ -177,8 +183,37 @@ describe('every event is also a working day', () => {
    */
   it('writes each item as something a room could argue about', () => {
     for (const f of frames) {
-      for (const a of f.agenda) expect(a.length, a).toBeGreaterThan(25);
+      for (const a of f.agenda) expect(a.text.length, a.text).toBeGreaterThan(25);
     }
+  });
+
+  /**
+   * The topic id is the primary key of `run.canon`: what a decision is recorded
+   * under, what supersedes a previous cycle's answer, and what a later event
+   * asks for by name. So it has to be a machine token and it has to be unique -
+   * two agenda items sharing an id would silently overwrite each other.
+   */
+  it('gives every agenda item a unique ASCII snake_case id', () => {
+    const seen = new Set();
+    for (const id of EVENT_IDS) {
+      for (const a of EVENTS[id].frame.agenda) {
+        expect(a.id, `${id} has an agenda item with no id`).toBeTruthy();
+        expect(a.id, a.id).toMatch(/^[a-z][a-z0-9_]*$/);
+        expect(seen.has(a.id), `duplicate topic id: ${a.id}`).toBe(false);
+        seen.add(a.id);
+      }
+    }
+  });
+
+  /**
+   * A recurring event reports the SAME topic ids every cycle, which is what
+   * lets cycle 2's title track supersede cycle 1's instead of piling up beside
+   * it. Stated as a test because ids are content and content drifts - and a
+   * renamed id fails silently, by having its decision dropped.
+   */
+  it('keeps a recurring event topic stable, which is what supersedes', () => {
+    expect(EVENTS.concept_meeting.frame.agenda.map((a) => a.id)).toContain('title_track');
+    expect(EVENTS.mv_shoot.frame.agenda.map((a) => a.id)).toContain('ending_pose');
   });
 });
 

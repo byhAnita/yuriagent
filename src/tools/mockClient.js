@@ -234,11 +234,34 @@ export function createMockClient({
     const fallbackLine = zh ? FALLBACK_ZH : FALLBACK;
     const openings = zh ? OPENING_ZH : OPENING;
 
+    const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+
     if (preset === 'summarize') {
+      /**
+       * An event day settles what it came to settle, offline too.
+       *
+       * The request lists the topic ids when the scene had an agenda, so the
+       * mock can answer the real contract by reading them back - which is what
+       * exercises `parseDecisions`, the drop rule and the canon store in a
+       * no-key campaign. Section 3 treats offline as a supported mode, and a
+       * mock that never reports a decision would leave the whole of section 7's
+       * third store untested in the harness.
+       *
+       * It reports the FIRST TWO only. A mock that answered every topic every
+       * time would hide the case the game actually produces - a day that
+       * settles some of its agenda and leaves the rest.
+       */
+      const topics = [...last.matchAll(/^- ([a-z][a-z0-9_]*): /gm)].map((m) => m[1]).slice(0, 2);
+
       return JSON.stringify({
         summary: 'They talked, and neither of them said the thing.',
         display: zh ? SUMMARY_ZH : 'They talked, and neither of them said the thing.',
         dossier_add: [],
+        decisions: topics.map((topic) => ({
+          topic,
+          text: `the room settled ${topic.replace(/_/g, ' ')}`,
+          display: zh ? `关于${topic}，屋子里定了下来` : `the room settled ${topic.replace(/_/g, ' ')}`,
+        })),
       });
     }
 
@@ -250,7 +273,6 @@ export function createMockClient({
       return pick(rng, zh ? ESTABLISHING_ZH : ESTABLISHING);
     }
 
-    const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
 
     // Written chips. The offline writer cannot make them scene-specific, but it
     // can honour the contract exactly - which is what the parser, the roster

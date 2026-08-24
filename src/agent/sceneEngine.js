@@ -20,6 +20,7 @@ import {
 } from './promptBuilder.js';
 import { createStreamParser, parseResponse } from './responseParser.js';
 import { parseSummary, buildSummarizerMessages, toCommit } from './summarizer.js';
+import { parseDecisions } from '../systems/canon.js';
 import { commitSummary, entryText } from './memory.js';
 import { cardFacts } from '../data/facts.js';
 import { sceneExposure, witnessedExposure } from '../systems/exposure.js';
@@ -767,7 +768,13 @@ export async function endScene(session, { client, memory, relations, cards, scen
   let parsed;
   try {
     const raw = await client({
-      messages: buildSummarizerMessages(session.frame, buildMessages, { learnable, lang: scene.lang }),
+      messages: buildSummarizerMessages(session.frame, buildMessages, {
+        learnable,
+        lang: scene.lang,
+        // Only an anchor event has one, so an ordinary scene's request is
+        // byte-for-byte what it was.
+        agenda: scene.sceneFrame?.agenda ?? [],
+      }),
       preset: 'summarize',
     });
     parsed = parseSummary(raw, { rosterIds });
@@ -852,8 +859,29 @@ export async function endScene(session, { client, memory, relations, cards, scen
     });
   }
 
+  /**
+   * What the day settled, if it was a day that settles things.
+   *
+   * Validated here rather than in the caller, against this event's own agenda:
+   * a topic that is not on it is dropped entirely (`systems/canon.js`), which
+   * is section 9's roster rule in a new place and for the same reason. An
+   * ordinary scene has no agenda, so this is always empty for one.
+   *
+   * The caller appends it with the cycle it happened in. This function has no
+   * business knowing what a cycle is.
+   */
+  const decisions = parseDecisions(parsed.decisions, scene.sceneFrame);
+
   // Block 5 is discarded by simply not carrying the frame forward.
-  return { memory: finalMemory, relations: nextRelations, delta, rumors, noticed, summary: parsed };
+  return {
+    memory: finalMemory,
+    relations: nextRelations,
+    delta,
+    rumors,
+    noticed,
+    decisions,
+    summary: parsed,
+  };
 }
 
 export { parseResponse };

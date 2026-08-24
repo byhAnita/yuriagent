@@ -12,7 +12,11 @@
  * A frame carries:
  *   setting   - one or two sensory sentences the opening beat can start from
  *   movements - two to four situations the scene MAY pass through, in order
- *   agenda    - two to four things the day MUST decide. Optional; events only.
+ *   agenda    - two to four things the day MUST decide, each `{ id, text }`.
+ *               Optional; events only. The id is what a decision is recorded
+ *               under (`systems/canon.js`), which is why a bare string is not
+ *               enough: cycle 2's title track has to supersede cycle 1's, and a
+ *               later event has to be able to ask for one by name.
  *
  * THE RULE, unchanged from section 11: a movement may set the SITUATION and
  * never the OUTCOME. "The walk back, and how long it takes" is a place. "She
@@ -168,7 +172,7 @@ export function renderFrame(frame) {
     lines.push(
       '',
       'This is not only a mood. The day is here to settle these, and it does not end until it has:',
-      ...frame.agenda.map((a) => `- ${a}`),
+      ...frame.agenda.map((a) => `- ${a.text}`),
       '',
       'Say what actually gets decided, in plain words, as it happens. Nothing here',
       'has to go anyone\'s way, and a room where all of it does is a room where',

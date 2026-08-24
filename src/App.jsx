@@ -48,6 +48,7 @@ import {
 import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
+import { addDecisions, canonForCycle } from './systems/canon.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
 import VNStage from './ui/vn/VNStage.jsx';
@@ -162,6 +163,16 @@ export default function App() {
    * event stops being scheduled and its site leaves the map at the same moment.
    */
   const [firedEvents, setFiredEvents] = useState([]);
+
+  /**
+   * What the campaign has decided. CLAUDE.md section 7.
+   *
+   * Run-level, not per member and not chronology - everybody in X knows what
+   * the group chose, and "the title track is X" stays true from the moment it
+   * is settled until the campaign ends. The ledger compacts and drops; this
+   * must not.
+   */
+  const [canon, setCanon] = useState([]);
 
   const [showDates, setShowDates] = useState(false);
   const [askedToday, setAskedToday] = useState(null);
@@ -584,8 +595,19 @@ export default function App() {
        */
       occupancy,
       task: task ? { ...task, done: taskState.done } : null,
+
+      /**
+       * What the cycle has settled so far, for block 4.
+       *
+       * FILTERED HERE, not in the prompt builder: storage is complete and
+       * permanent (it is what the handbook shows) and injection is a handful of
+       * lines. Ordinary scenes get it too, which is where most of the value is -
+       * Irene mentioning the title track in a wardrobe on a Tuesday is memory
+       * that shows in the scene rather than in plumbing.
+       */
+      canon: canonForCycle(canon, cycleForWeek(run.week)),
     };
-  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done, settings.lang]);
+  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done, settings.lang, canon]);
 
   const setup = useMemo(
     () =>
@@ -614,6 +636,24 @@ export default function App() {
      */
     if (pendingScene?.eventKey) {
       setFiredEvents((f) => (f.includes(pendingScene.eventKey) ? f : [...f, pendingScene.eventKey]));
+    }
+    /**
+     * What the room settled, appended with the cycle it happened in.
+     *
+     * Already validated against the event's agenda by `endScene` - a topic
+     * that was not on it never gets here. Appended rather than merged: cycle
+     * 2's title track does not delete cycle 1's, because the handbook should be
+     * able to show a campaign that changed its mind. Superseding happens at
+     * injection time (`canonForCycle`).
+     */
+    if (result.decisions?.length && pendingScene?.event) {
+      setCanon((c) =>
+        addDecisions(c, result.decisions, {
+          cycle: cycleForWeek(run.week),
+          phase: run.phase,
+          slot: pendingScene.event.slot,
+        }),
+      );
     }
     setOutcome({ ...result, date: scene?.date ?? null, event: scene?.event ?? null });
     setSceneNo((n) => n + 1);
@@ -698,6 +738,7 @@ export default function App() {
     cast: castIds,
     relations,
     memory,
+    canon,
     calendar: { taskState },
     flags: { firedEvents, usedGestures, foundRumors },
     lang: settings.lang,
@@ -746,6 +787,7 @@ export default function App() {
     setRelations(loaded.relations);
     setMemory(loaded.memory);
     setTaskState(loaded.calendar.taskState ?? newTaskState());
+    setCanon(loaded.canon ?? []);
     setFiredEvents(loaded.flags.firedEvents);
     setUsedGestures(loaded.flags.usedGestures);
     setFoundRumors(loaded.flags.foundRumors);
@@ -791,6 +833,7 @@ export default function App() {
     setMemory(newMemory(castIds));
     setTaskState(newTaskState());
     setFiredEvents([]);
+    setCanon([]);
     setUsedGestures([]);
     setFoundRumors([]);
     setPendingScene(null);

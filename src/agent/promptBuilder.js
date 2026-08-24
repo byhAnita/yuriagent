@@ -25,6 +25,7 @@ import { resolveStage } from '../systems/relationship.js';
 import { doingLine } from '../data/activities.js';
 import { displayName } from '../store/playerName.js';
 import { renderFrame } from '../data/sceneFrames.js';
+import { renderCanon } from '../systems/canon.js';
 import { getIdentity } from '../data/identities.js';
 
 /** The shipped default role, so the fallback cannot drift from the table. */
@@ -355,6 +356,7 @@ export function buildSceneHeader({
   giftNote,
   sceneFrame = null,
   register = null,
+  canon = [],
   lang = 'en',
   crossAwareness = [],
   occupancy = {},
@@ -491,6 +493,22 @@ export function buildSceneHeader({
    * Last, because it is the most immediate instruction there is: everything
    * above describes the situation, and this says how to put it into words.
    */
+  /**
+   * What the campaign has already decided (section 7).
+   *
+   * Above the frame, because it is context rather than instruction: the frame
+   * says what THIS day is for, and this says what world it happens in. It also
+   * has to be above `## How to write this one`, which by section 8's salience
+   * rule is the last thing in the block.
+   *
+   * Already filtered and capped by the caller. Block 4 is rebuilt at every
+   * scene start, so a few lines here cost nothing in cache terms - but the
+   * standing sentence is the most important line in this block and eighteen
+   * world facts would drown it.
+   */
+  const canonText = renderCanon(canon);
+  if (canonText) lines.push('', '## Where the cycle stands', canonText);
+
   const frameText = renderFrame(sceneFrame);
   if (frameText) lines.push('', '## The day', frameText);
   if (register) lines.push('', '## How to write this one', register);

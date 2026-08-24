@@ -88,7 +88,10 @@ describe('renderFrame', () => {
 describe('renderFrame carries the day business, when there is any', () => {
   const withAgenda = {
     ...PRIVATE_DATE_FRAME,
-    agenda: ['which of the demos is the title track', 'who takes the centre position'],
+    agenda: [
+      { id: 'title_track', text: 'which of the demos is the title track' },
+      { id: 'centre', text: 'who takes the centre position' },
+    ],
   };
 
   it('adds nothing at all to a frame without one', () => {
@@ -100,7 +103,20 @@ describe('renderFrame carries the day business, when there is any', () => {
 
   it('lists every item', () => {
     const out = renderFrame(withAgenda);
-    for (const item of withAgenda.agenda) expect(out).toContain(item);
+    for (const item of withAgenda.agenda) expect(out).toContain(item.text);
+  });
+
+  /**
+   * The id is for the code, not the model. It is what a decision is recorded
+   * under and what a later event asks for by name (`systems/canon.js`) - and
+   * putting it in the prompt would invite the model to quote a machine token
+   * back at the player, which section 9 forbids for the same reason it forbids
+   * numbers in prose.
+   */
+  it('never prints a topic id into block 4', () => {
+    const out = renderFrame(withAgenda);
+    expect(out).not.toContain('title_track');
+    expect(out).not.toContain('centre position:');
   });
 
   /**

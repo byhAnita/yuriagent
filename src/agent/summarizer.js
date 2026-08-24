@@ -99,6 +99,13 @@ function sanitize(parsed, { rosterIds = [] } = {}) {
     display: String(parsed?.display ?? parsed?.summary ?? '').trim().slice(0, 200),
     dossierAdd: clean(parsed?.dossier_add, true).slice(0, 3),
     dossierResolve: clean(parsed?.dossier_resolve, false).slice(0, 3),
+    /**
+     * Passed through raw and validated by `systems/canon.js` against the
+     * event's own agenda, because the rule that decides whether a decision is
+     * real belongs with the data that defines it - not here, where the only
+     * available check would be "is it a non-empty string".
+     */
+    decisions: Array.isArray(parsed?.decisions) ? parsed.decisions : [],
   };
 }
 
@@ -134,6 +141,7 @@ export function parseSummary(raw, ctx = {}) {
     summary: ctx.fallbackSummary ?? 'They spent time together.',
     dossierAdd: [],
     dossierResolve: [],
+    decisions: [],
     level: 4,
   };
 }
@@ -144,11 +152,63 @@ export function parseSummary(raw, ctx = {}) {
  * Appended at the TAIL of the open frame, so the whole scene prefix is still a
  * cache hit and the miss is only this instruction (~40 tokens, section 8).
  */
-export function buildSummarizerMessages(frame, buildMessages, { learnable = [], lang = 'en' } = {}) {
+export function buildSummarizerMessages(
+  frame,
+  buildMessages,
+  { learnable = [], lang = 'en', agenda = [] } = {},
+) {
   return [
     ...buildMessages(frame),
-    { role: 'user', content: summarizerInstruction(lang) + learnableNote(learnable) },
+    {
+      role: 'user',
+      content: summarizerInstruction(lang) + learnableNote(learnable) + agendaNote(agenda, lang),
+    },
   ];
+}
+
+/**
+ * What the day was here to settle, asked for by id.
+ *
+ * Only an anchor event has an agenda, so an ordinary scene sends nothing extra
+ * and its request is byte-for-byte what it was.
+ *
+ * The ids are handed over explicitly and the client drops anything that is not
+ * one of them (`systems/canon.js`). That is deliberately belt and braces: the
+ * list makes the model likely to comply, and the drop rule makes compliance not
+ * matter. Section 9's roster rule works the same way and for the same reason.
+ *
+ * "Omit anything the day did not actually settle" is the load-bearing sentence.
+ * A model asked what a room decided will invent one, and a decision recorded
+ * for nothing is worse than one never recorded - it is the `learnableFacts`
+ * problem with a bigger blast radius, because canon outlives the scene.
+ */
+export function agendaNote(agenda, lang = 'en') {
+  const items = (agenda ?? []).filter((a) => a?.id && a?.text);
+  if (items.length === 0) return '';
+
+  const display =
+    !lang || lang === 'en'
+      ? '  "display": "the same, in the language the scene was written in",'
+      : `  "display": "the same, in ${lang}. Never English.",`;
+
+  return [
+    '',
+    '',
+    'This day was also a working day, and it was here to settle the topics below.',
+    'Add one more field:',
+    '',
+    '"decisions": [{',
+    '  "topic": "one of the ids below, exactly",',
+    '  "text": "what was actually settled, one short sentence, ENGLISH",',
+    display,
+    '}]',
+    '',
+    ...items.map((a) => `- ${a.id}: ${a.text}`),
+    '',
+    'Report only what the scene actually settled. Omit any topic the day did not',
+    'reach - an empty list is a correct answer. Never invent an outcome, and never',
+    'report a topic that is not in the list above.',
+  ].join('\n');
 }
 
 /**
