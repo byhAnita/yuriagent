@@ -713,6 +713,51 @@ of every beat, which is strictly stronger.
 
 ### Where the numbers stand
 
+**20 seeds x 5 policies x 5 members, current code**, which is the widest reading
+this harness has ever been given:
+
+| policy | good | endings |
+|---|---|---|
+| `expert` | **75%** | ours 36, unspoken 21, out 16, severance 10, exposure 8, confidante 7, unnamed 2 |
+| `bold` | **61%** | ours 40, confidante 23, out 15, severance 11, unspoken 6, exposure 5 |
+| `spread` | 39% | confidante 60, unnamed 20, unspoken 19, severance 1 |
+| `balanced` | 22% | confidante 78, unspoken 14, unnamed 6, ours 2 |
+| `devoted` | 20% | drift 80, out 20 |
+
+**The balance ending is 0/20 for every policy**, which is what section 5b wants
+of it and is unchanged.
+
+Two things to read out of that table.
+
+**`expert` finally beats `bold`**, 75 to 61, which is the design working and
+which five seeds could not show - the same two policies read 56 and 64 on the
+narrow list. Understanding both axes should beat betting on one, and now it
+does.
+
+**But `spread` beats `balanced`, 39 to 22, and section 5b says the opposite.**
+Both are non-risk policies and both drown in `confidante_end` (60 and 78), so
+neither is really playing the second axis at all - and chasing jealousy
+concentrates attention where spreading it does not, which is a plausible
+mechanism rather than a measurement. **It is not yet known whether `work`
+caused this**, because the only before/after that exists is at five seeds, and
+five seeds is exactly what this section is about. `HARNESS_EXCLUDE=work` is the
+knob for answering it honestly - it withholds a stance from the harness so the
+two arms differ by one thing instead of by a reshuffled rng.
+
+#### What the harness can and cannot say about a stance
+
+Worth writing down once, because the plan for PROPOSALS 22 asked this harness a
+question it structurally cannot answer.
+
+| | reaches the harness? |
+|---|---|
+| `work` added to `STANCES` | **yes** - and badly: the harness picks UNIFORMLY out of `available`, so a twelfth entry dilutes every other stance AND changes which one each rng draw lands on |
+| `work` added to `COMMON_STANCES` | **no** - the harness never calls `generateChips`, so the weighting that the player actually experiences is invisible to it |
+
+So a naive before/after measures the first and misses the second entirely. The
+guards for the part that matters are `systems/workStance.test.js` and
+`ui/vn/VNStage.dom.test.jsx`.
+
 
 ---
 
@@ -1538,7 +1583,29 @@ are the ones that were already waiting.
 - **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
   Partly answered since: the chip bar now names the addressee.
 
-### 4. The plateau, measured against a real campaign
+### 4. `spread` beats `balanced`, and section 5b says it should not
+
+**Open, and new on 2026-08-24.** The twenty-seed sweep puts `spread` at 39% good
+endings and `balanced` at 22%. CLAUDE.md section 5b's whole claim about policy
+ordering is *skill beats spreading, spreading beats chance* - so a competent
+multi-route player losing to a naive round-robin is either a real regression or
+a statement that `balanced` is not the policy its name claims.
+
+Two things point at the second reading. Both are **non-risk** policies -
+neither sets `preferRisk` - so neither is playing the second axis at all, and
+both drown in `confidante_end` (60 and 78 of 100). And chasing jealousy
+*concentrates* attention where spreading it does not, which is a plausible
+mechanism rather than a measurement.
+
+**What has NOT been established is whether `work` caused it.** The only
+before/after that exists is at five seeds, which is the exact width this file
+now says is a reading rather than a comparison. `HARNESS_EXCLUDE=work` is the
+knob: it withholds a stance from the harness so the two arms differ by one
+thing instead of by a reshuffled rng stream.
+
+Do not touch a coefficient over this until the two arms have been run wide.
+
+### 5. The plateau, measured against a real campaign
 
 The harness reports **three `confidante_end` of five** on the balanced seed:
 intimacy climbs to 80-90 and admissibility stalls at 26-36. Either correct or
@@ -1549,7 +1616,7 @@ lever in the game. Do not move `RISK_PAYOFF_SCALE` on harness numbers alone.
 Related and probably the same problem: **36 "facts with nothing to spend them
 on"** per campaign, with credits ending at 0-2.
 
-### 5. Harness fidelity
+### 6. Harness fidelity
 
 Two of these were fixed on 2026-08-24 and are recorded below the line, because
 **a harness that is wrong in the player's favour hides bugs rather than causing
@@ -1574,7 +1641,7 @@ Fixed, and both mattered more than they looked:
   same "today" when the week plan reshuffled, so it walked into a relocated
   event a block later and never noticed that a real player could not.
 
-### 6. Repair events
+### 7. Repair events
 
 `applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
 and **nothing calls either.** The classic join, still sitting there. It is here
@@ -1582,7 +1649,7 @@ rather than higher because `rift` needs sustained neglect to reach and no
 played day has been near it - building the entry point now means building it
 blind.
 
-### 7. Events recur - BUILT 2026-08-24
+### 8. Events recur - BUILT 2026-08-24
 
 Kept as a stub because the reasoning is worth finding from this direction too.
 This entry and item 1 were each waiting for the other: canon needs a second
@@ -1596,7 +1663,7 @@ is no longer the quietest week - it is the island trip.**
 What remains of this entry is the per-cycle stakes clause, which is item 1's
 step 6 and is deliberately unbuilt until somebody has played the chain.
 
-### 8. Content and polish
+### 9. Content and polish
 
 - **Card picker UI.** The cover renders the fixed five. v1: choose any five.
 - **Other identities.** Three stubs, asserted well-formed, disabled in the

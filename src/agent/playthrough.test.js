@@ -58,6 +58,26 @@ import { getIdentity } from '../data/identities.js';
 const IDENTITY = getIdentity();
 
 const REPORT = Boolean(process.env.HARNESS_REPORT);
+
+/**
+ * Stances to hold back from the harness, for an A/B.  HARNESS_EXCLUDE=work
+ *
+ * Adding a stance to `STANCES` changes this harness in a way that has nothing
+ * to do with the game: it picks UNIFORMLY out of `available`, so a twelfth
+ * entry both dilutes every other stance and reshuffles which one each rng draw
+ * lands on. Meanwhile the thing the change was actually about - `work` joining
+ * `COMMON_STANCES` - is invisible here, because **this harness never calls
+ * `generateChips`**.
+ *
+ * So a before/after across a stance addition compares two different questions
+ * unless one arm can be run with the stance withheld. That is what this is for,
+ * and it is the honest way to answer "did the vocabulary change move the
+ * endings, or did the seeds?"
+ */
+const EXCLUDED_STANCES = (process.env.HARNESS_EXCLUDE ?? '')
+  .split(',')
+  .map((x) => x.trim())
+  .filter(Boolean);
 // Straight to stdout rather than console.log: vitest buffers console output
 // from a passing test, which is exactly the run whose numbers we want to read.
 const log = (...a) => REPORT && process.stdout.write(a.join(' ') + '\n');
@@ -439,7 +459,13 @@ async function playCampaign({
           continue;
         }
 
-        const { available } = availableStances(relations[targetId], { energy: player.energy });
+        const { available: legal } = availableStances(relations[targetId], {
+          energy: player.energy,
+        });
+        const available =
+          EXCLUDED_STANCES.length > 0
+            ? legal.filter((x) => !EXCLUDED_STANCES.includes(x))
+            : legal;
         // A bold player takes the overt move whenever the room allows it; that
         // is the whole bet, and it is the only thing that moves admissibility.
         const overt = available.filter((s) => isRiskStance(s, session.exposure));
