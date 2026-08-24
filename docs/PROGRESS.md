@@ -1222,94 +1222,57 @@ it first.
 
 ---
 
-### 1. Play PROPOSALS 20, on the phone  <- PICK UP HERE
+### 1. Play the day-three fixes  <- PICK UP HERE
 
-**Steps 1-5 are built and deployed. Step 6 is deliberately not.** The feature
-has never been touched by a human, and this project's whole history says that
-is the gap that matters: four sessions produced thirty-one fixes, every one in
-code that had tests and passed them.
+**PROPOSALS 20 has now been played, in `zh`, on the phone, across two cycles.**
+That was the previous item 1 and it is done; `TestReport3.txt` is the report and
+the day-three section above is the triage. Ten defects were fixed in one pass
+and five design questions went to PROPOSALS 22-26 rather than into code.
 
-What shipped, in one line each:
+#### What to check first, because it is the one that matters
+
+**The risk chip.** Play until the bar deals a marked option - the one that says
+it will be seen - and then WAIT for the written labels to arrive. Before this
+pass they replaced it and the player had to out-race the call; now the bet keeps
+its slot and loses only its label. If `admissibility` still never moves in a
+played campaign, something else is wrong and it is worth stopping to find it,
+because that is the third time this axis has been unreachable.
+
+#### Then, in the order they show up
 
 | | |
 |---|---|
-| **(a)** | an anchor event opens with a paragraph of room, in the player's language |
-| **(b)** | every event carries an `agenda` of two to four things the day must settle |
-| **(d)** | the MV shoot fills PREP's missing `event_b` |
-| **item 7** | four events recur per cycle; fourteen event days a campaign |
-| **(c)** | `run.canon`, chained through `reads`, injected into block 4, readable in the handbook |
+| **an anchor event** | ends with NO "she watched you give your time to Irene" lines - unless you actually give somebody something, which should still produce four |
+| **the chip bar** | three written labels, not two-and-a-static |
+| **a scene summary** | addresses you as *you*, and spells her name the way the card does |
+| **an event decision** | names a song and a concept, never "the third demo" |
+| **an ordinary block after an event** | she says the title by name, and does not put a finished shoot in the future |
+| **the cover** | the save list is a bordered control now; the five manual slots were always behind it |
 
-#### What to look at, in the order it will appear
+#### What is deliberately NOT fixed
 
-1. **The establishing beat.** An anchor event should open with the room and not
-   with somebody noticing you. In `zh` it must be **wholly Chinese** - this call
-   now owns the empty block 5, which is where the language split lived, and if
-   it comes back it comes back here.
-2. **Does the meeting decide anything?** That was the whole complaint. The
-   concept meeting should name a concept and a title track out loud, and the
-   last turn should settle what is left rather than drift to a parting.
-3. **The handbook** - `notes` in the day-screen header. After the meeting it
-   should hold what the room settled, in the language being played.
-4. **The MV shoot, two days later.** It should be shooting the concept the
-   meeting chose. This is the shortest demonstration that the chain works, and
-   the first place it can visibly fail.
-5. **Ordinary blocks after an event.** Canon reaches them too, capped at a few
-   lines. She should be able to mention the title track in a wardrobe on a
-   Tuesday - and must not state a **previous cycle's** decision as current.
-6. **Week 4, the second concept meeting.** The one that has to read as
-   escalation rather than repetition. If it feels like the same day again, that
-   is what step 6 is for and the evidence for building it.
+The five in PROPOSALS 22-26, and the reason is the same for all of them: each
+changes a rule rather than repairing one, and this project's own record says
+playing beats reasoning. In rough order of how much they would improve a played
+session:
 
-#### Two numbers to watch, because the harness says they moved
+1. **24 - the second comeback is the first comeback.** The strongest finding in
+   the report and the one with a designed answer already waiting (PROPOSALS 20
+   step 6) plus a better one from the player (seeded style pools).
+2. **22 - there is no way to do the job.** Why the meeting had to be driven by
+   hand-typed text.
+3. **23 - the MV shoot never shoots.** A cheap version exists that breaks no
+   rules: a second establishing-shaped beat mid-event.
+4. **26 - the Chinese reads translated.** Two of the three fixes are free.
+5. **25 - reading how close she is.** Mostly already built and unfindable.
 
-**Credits.** Task days went 45 -> 39 -> 31 across this work, and across four
-policies credits at campaign end went `{1,13,2,1}` -> `{2,0,0,0}`, with unspent
-facts `{31,37,22,17}` -> `{36,38,43,31}`. Recurrence **aggravates a problem it
-did not cause** - credits already ended near zero - so it was recorded rather
-than acted on. If the gift economy feels dead in play, that is item 4, and the
-lever is gift prices or per-task credits, not fewer events.
+#### One number nobody has measured yet
 
-**Event density.** Fourteen event days of 45 weekdays, ~31%. Each is the whole
-cast, one speaker, sixteen turns, and no daily task. If a cycle starts to feel
-like it is all events, dropping `fan_meeting` to a one-off is the cheapest cut -
-one `cycle:` field.
-
-#### Step 6, and why it is not built
-
-Each recurring event would carry a per-cycle stakes clause, so cycle 2's concept
-meeting is not cycle 1's with different numbers. It is buildable now that canon
-exists to read from, and it is the largest authoring cost in the whole feature -
-four events times three cycles - and the least certain to read well.
-
-**Play first.** If the `reads` chain already makes the second cycle feel
-different, the stakes clauses may be unnecessary; if it does not, playing is the
-only thing that will say why.
-
-#### Two rules not to break when returning to this
-
-Both live in `eventDays`, and both are about which day a slot gets.
-
-1. **An event's day must not move once another event fires.** It deals days to
-   every slot BEFORE filtering, and reversing that made the second event of a
-   phase unreachable in the shipped build - the fan meeting after Music Bank,
-   the island after the cruise.
-2. **`event_a` falls on the earlier weekday.** The dealt days are sorted before
-   the slots take them, because the chain runs `event_a -> event_b`. Found in
-   the first played week: the MV shoot happened before the concept meeting, so
-   `reads` pointed at a day still ahead and the shoot filmed a concept nobody
-   had chosen.
-
-Four tests guard the pair and all four fail against the code they were written
-against. The second is a coin flip per week, so its guard sweeps every phase
-and every week rather than asserting one seed - at one seed a broken build
-passes half the time.
-
-The near miss worth keeping: the seed-sweep guard first used string seeds and
-reported forty identical schedules. That is not a scheduling bug. `deriveSeed`
-starts from `seed >>> 0`, which is **0 for any string**, so the sweep was one
-seed forty times. `calendarPhase.test.js` has `SEED = 'phase-seed'` at the top
-and has therefore always run at seed 0; the app passes a number, so nothing is
-broken in play, but a string seed there buys no coverage it looks like it buys.
+The chip field is now sampled rather than sliced, so `touch`, `invite` and
+`confide` can be WRITTEN for the first time. That widens what the model is
+offered on every turn of every scene, and nothing yet says what it does to the
+payout distribution. **Re-run `balanceSim` and the campaign harness** before
+trusting any coefficient in section 5b.
 
 ### 2. Play the rest of it, on the phone, in both languages
 

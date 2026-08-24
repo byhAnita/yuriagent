@@ -177,6 +177,19 @@ export function renderFrame(frame) {
       'Say what actually gets decided, in plain words, as it happens. Nothing here',
       'has to go anyone\'s way, and a room where all of it does is a room where',
       'nothing was at stake.',
+      /**
+       * GIVE IT A NAME, not a number.
+       *
+       * The day-three playtest settled a title track four times and never once
+       * named it: the room chose "the third demo", "the slow one", "the second
+       * board". That reads as placeholder text in the scene, and it is worse
+       * afterwards - canon keeps the sentence forever, the handbook shows it to
+       * the player, and the next event in the chain reads a decision that
+       * identifies nothing. The player fixed it themselves by typing a name in,
+       * which is the clearest possible evidence that the prompt should have.
+       */
+      'Anything the room settles gets a NAME, not a position in a list - the song',
+      'has a title, the concept has a word for it. Never "the third demo".',
     );
   }
 

@@ -1837,3 +1837,306 @@ something to do, and the coffee block is the cheapest version of it.
 
 The stage-varied date frame is worth doing whenever dates are next touched. It
 costs a table and no numbers at all.
+
+---
+
+## 22. The vocabulary has no way to do the job
+
+**Raised in the day-three playtest, repeatedly and in several disguises.** The
+sharpest statement of it:
+
+> I'm thinking we also need to professional/career/work talk - you can name it -
+> option in all dialogues as a common option, we don't want all emotional
+> options.
+
+Every one of the eleven stances is a move in a *relationship*: being warm, being
+obvious, being funny, pressing, confiding, reaching, leaving, apologising,
+asking her out, or changing the subject. There is nothing in the vocabulary for
+**doing the work you are both there to do** - and the player is an artist
+assistant standing in a meeting about a comeback.
+
+Read what that costs at an anchor event, which is where it showed:
+
+> the options are still daily small talk options - maybe this is the cause - the
+> whole meeting continue talking about small talks like *Did you sleep well
+> yesterday*
+
+The player's workaround was to type every agenda topic in by hand. That is a
+complete diagnosis: with a work stance on the bar, the day would have moved
+itself.
+
+### Why `casual` does not already cover it
+
+`casual` was added on day two, for the opposite problem - there was no
+low-stakes move, and *"most turns are not tactics"*. It is deliberately
+contentless: talk about nothing. A stance that means *let us settle the thing
+this room is for* is not a lighter version of that, it is a different axis
+entirely, and the report says so twice:
+
+> Small talk option is actually similar to change topic - which LLM leads to
+> random direction. We don't need to keep small chat as a common option - LLM
+> already gives randomness and small talk topics.
+
+### The shape, if it is built
+
+A stance - call it `work` - with three properties that fall out of the existing
+model rather than needing new machinery:
+
+| | |
+|---|---|
+| **common** | it joins `COMMON_STANCES`, because at work most turns are work |
+| **safe** | never locked by strain or jealousy. Doing the job together is what people fall back on when everything else is difficult, and section 6 already wanted a second move that survives `rift` |
+| **worth little** | it moves `guard` slowly and `fluster` barely at all. It is the floor of the relationship, not a route up it |
+
+That last row is what stops it eating the game. `work` should be the stance a
+player picks when they have nothing to spend and something to get done, and it
+should feel exactly that way.
+
+**And the agenda is what it acts on.** At an anchor event a `work` chip written
+by the model has the agenda in block 4 to draw on, so it becomes *"so - the
+title track"* rather than a generic verb. That is the whole feature: the day's
+business becomes a thing the player can pick instead of a thing they must type.
+
+### What has to be decided first
+
+**The four common stances are a set of four for a reason.** `generateChips`
+fills two of three slots from `COMMON_STANCES` and reserves the third, so making
+it five dilutes every common stance by a fifth - including `care`, the one the
+`piqued` conversion runs through. The user's own proposal names four and drops
+one:
+
+> I'd propose keep caring, flirting, professional, friendly/natural as common
+> options.
+
+That is `care`, `flirt`, `work`, `casual` - and it retires `deflect` from the
+common set. Defensible: `deflect` is evasion, which is a tactic, and the day-two
+argument for `casual` was that most turns are not tactics. But `deflect` is also
+the only way to refuse a subject, and it reads as *change the subject* in both
+locales, which the day-one report specifically asked for.
+
+**Recommended:** build `work` and take the fifth slot from `deflect` in the
+common set only - it stays fully available, it just stops being weighted up.
+Then re-run `balanceSim` and the campaign harness, because a new safe common
+stance changes the payout distribution of every scene in the game, and this
+section has been wrong about magnitudes before.
+
+---
+
+## 23. The MV shoot never shoots anything
+
+**Three events, one complaint, stated three times.**
+
+> Still No description of MV shooting scene.
+> Same issue - no description for comeback stage performance.
+> Still no fan-meeting description.
+
+An anchor event currently produces a room full of women *talking about* the day.
+The concept meeting survives that, because a meeting IS people talking. The
+other three do not: the MV shoot is a shoot, Music Bank is a stage, and a fan
+meeting has nine hundred albums and the people who bought them. What the player
+got at all three was a green room.
+
+This is not a model failure. Every mechanism the event has - `movements`, the
+`agenda`, the addressee, the interjection - produces **dialogue between cast
+members**, because that is what the whole engine is built to produce. Nothing in
+it can represent a thing happening *to* the room.
+
+### The player's proposal, which is the right instinct
+
+> Do We need introduce a temp NPC like director in the event chat? Then makes
+> it: Director "yes, Irene take the sunglasses on head, Yeri hold a drink and
+> wink to the camera..." Irene "xxx" Yeri "xxx" player "xxx"
+
+A director, a broadcast PD, a fan at the front of the queue. Something outside
+the cast that **moves the day forward without being someone the player has a
+relationship with.**
+
+### Why it is a bigger change than it looks
+
+Three rules would have to bend, and each is load-bearing:
+
+1. **The parser roster rule** (section 9) drops any beat whose speaker is not
+   in the scene roster. That is the hard guarantee against member bleed, and it
+   is the one rule this project has never allowed to be softened. A named NPC
+   needs a speaker id, which means being on the roster, which means the model
+   may write her - and the moment the roster contains somebody who is not a
+   cast member, "one call, one speaker" has a new case in it.
+2. **`presentIds` drives jealousy and exposure.** An NPC must be in neither.
+3. **Portraits, meters and the addressee row** are all per cast member. A
+   director with a name plate and no face is a new UI state.
+
+### The cheaper version, and why it may be enough
+
+**Narration, not a character.** The establishing beat already produces exactly
+this - one paragraph, `speaker: null`, no metadata line, no portrait, no roster
+entry - and it was singled out as good in four separate places in the report.
+
+So: let an event emit a **second and third establishing-shaped beat mid-scene**,
+on a schedule the client controls, carrying what the room is *doing* rather than
+what anyone says. Take one. The light changes. They go again.
+
+| | roster | speaker | portrait | jealousy | new rules |
+|---|---|---|---|---|---|
+| named NPC | yes | new id | new state | must exclude | 3 |
+| **event beat** | no | `null` | none | none | **0** |
+
+It buys most of the value - the shoot visibly shoots - for a call the engine
+already makes, on a path already built and already tested. If, after playing
+that, the day still feels like people in a room, the NPC is the next step and
+this section is the argument for what it would cost.
+
+**Recommended:** the event beat, at the two-thirds mark of an anchor event, for
+events that carry a new `physical: true` flag - the shoot, the stage and the fan
+meeting have one, the concept meeting does not.
+
+---
+
+## 24. The second comeback is the first comeback
+
+**The clearest single finding in the day-three report**, and the one PROPOSALS
+20 step 6 was written in advance to answer - so this is evidence rather than a
+new idea.
+
+Cycle 2's concept meeting, week 4:
+
+> Oh no she's talking same concept of 1st concept.
+
+and at the end of it:
+
+> Oh no, the song name is same as 1st comeback, and the concept is similar.
+
+The chain worked exactly as designed. `concept_meeting` reads its own previous
+`concept` and `title_track`, precisely so a second meeting can escalate instead
+of starting from nothing - and handed its own last answer, the model reproduced
+it. **Reading the previous cycle and being different from the previous cycle are
+two instructions, and only one of them was given.**
+
+Note what the player had to do to break the loop:
+
+> "This is the second comeback, what concept do we do this time? ... we have to
+> decide today"
+
+...and only then did the room produce something new. Even then: *"quite similar
+to 1st concept"* - dusk sea instead of dawn sea.
+
+### Two fixes, and they are not alternatives
+
+**(a) The stakes clause - PROPOSALS 20 step 6, unbuilt.** Each recurring event
+carries a per-cycle line, so cycle 2's meeting knows it is cycle 2 and knows how
+cycle 1 landed. This is the designed answer and it is still the right one. The
+report supplies what the design could not: proof that without it the chain
+actively causes repetition rather than merely failing to prevent it.
+
+**(b) The player's own proposal, which is better than what was designed:**
+
+> I'm considering to prepare a hardcoded style directive word prompt to randomly
+> assign one into each comeback to make LLM produce different. I.e. {R&B, Jazz,
+> electronic ...} {summer holiday, Christmas, ...} {forest, beach, modern city,
+> ...}
+
+Three seeded pools - a **sound**, an **occasion** and a **place** - drawn per
+cycle and injected into the concept meeting's frame as constraints the room must
+work within, not answers it must reach.
+
+This is the calendar's own argument applied to content. Section 10 keeps the
+schedule deterministic and seeded because it is replayable, testable, instant
+and free, and *the LLM may write a flavour label; it may never decide the slot.*
+A comeback concept is a slot. Three dice make cycle 2 structurally unable to be
+cycle 1, where a stakes clause only asks it not to be.
+
+They compose: the pools guarantee difference, the stakes clause supplies
+continuity. Neither does the other's job.
+
+### The one thing to be careful about
+
+A pool that reaches the model as `{jazz, christmas, forest}` produces a room
+reciting three nouns. It has to arrive as **pressure from outside** - the label
+wants a winter concept this time, the B-side tested better than the title - so
+that the room still argues about it. That is the same rule the `agenda` already
+follows: name what gets settled, never which way.
+
+**Recommended:** build both, pools first - they are a table and a seeded draw,
+they need no authoring per event, and they are testable with no model at all.
+
+---
+
+## 25. The player cannot see how close she is
+
+> And no UI display the character's intimacy value in the game. We don't know
+> what value we have now. I'd suggest [it is shown] in dialogue and display the
+> character's intimacy instead or keep them both. And should also find a
+> place/menu in outside scene - the game main screen - to present character's
+> intimacy & emotion stage for player check the emotional development.
+
+Two different asks, and they should be answered differently.
+
+**Outside a scene: yes, and it mostly exists.** The day screen already prints
+every member's stage and intimacy - the report quotes it verbatim several times.
+What it does not do is explain the number or make it findable, and the player
+went looking for a menu that was already a row. That is section 7's handbook
+lesson again: a thing the player has to discover is a thing that does not exist.
+
+**Inside a scene: no, and this is the pillar.** Pillar 1 is *the player reads
+hidden emotional state and bets on it*, and `Read her` is rationed specifically
+so that reading her costs something. Putting `intimacy` on the scene screen
+hands over the answer key for free and retires the rationed action in one
+stroke. The scene bar deliberately carries **standing in words** next to the
+three volatile meters, for exactly this reason.
+
+The real problem underneath the ask is a different one, and the report states it
+plainly a few lines later: the player could not tell why a date was refused.
+
+> Oh no we have no dating access to anyone.
+
+That is PROPOSALS 21, and it is a legibility problem rather than a numbers one.
+**A refusal should say which axis was short** - *she would go somewhere private
+with you, but not somewhere public* - which is pillar 1 working rather than
+being bypassed: the hidden state becomes readable through a decision the player
+made, not through a readout.
+
+**Recommended:** make the day screen's relationship row open into a panel (the
+handbook's own shape, free, no block), and make date refusals name the axis.
+Nothing on the scene screen.
+
+---
+
+## 26. The Chinese reads like translated English
+
+> But I have to say the Chinese expression are very awkward and strange, not
+> native. "cables crawling along the ground like black snakes", "settle the
+> skeleton of the whole video" - feels like using a machine translation from
+> English to Chinese.
+>
+> I'm considering if we write L1 memory in each ${lang} in native way? Or what
+> other we can do to make the language output natural.
+
+The observation is right and the proposed fix is the one thing that must not be
+done. Section 19 rule 2 keeps memory English so a player can switch language
+mid-run without corrupting history, and so one card library serves every locale.
+Writing memory in `zh` trades a prose-quality problem for a data-integrity one.
+
+**The cause is almost certainly the prompt, not the memory.** Everything the
+model reads before writing is English: the cards, the ledger, the dossier, the
+frame, the register, the agenda. It is being asked to write Chinese prose from
+an English brief, which is the definition of translationese - and the two
+examples are both *stage directions*, which come most directly from the English
+frame.
+
+Three things worth trying, cheapest first:
+
+1. **Say it, in the `zh` block.** *Write as a Chinese novelist writes, not as a
+   translator does. Prefer the concrete verb to the English metaphor.* Free,
+   and the day-three fixes show this block does reach the model.
+2. **`styleHints.zh`, which has existed since M0 and is `null` on every card.**
+   Section 12 built it for exactly this - *locale-specific voicing that a
+   generic translation flattens* - and nobody has ever filled one in. Her voice
+   in Chinese is not her voice in English rendered word by word.
+3. **Author the register in the target language.** `REGISTERS` and the frame
+   `setting` lines are the most directly translated text in the prompt, because
+   they describe atmosphere. These are content, not memory, so rule 2 does not
+   cover them - a `zh` register would be a new field on a frame, not a change
+   to what memory is.
+
+**Recommended:** 1 and 2 now; 3 only if a played `zh` scene still reads
+translated afterwards. And measure it the only way it can be measured - by
+asking a native reader, which is what produced this finding in the first place.

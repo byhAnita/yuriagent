@@ -420,6 +420,25 @@ she was in the room would flush its four-entry FIFO of anything that mattered.
 The group scene is still the loudest place in the game to make a move, at five
 times the price of simply being there. It now requires a move.
 
+#### ...but nobody chose to be at the concept meeting
+
+`WEIGHT_PRESENT` prices *she was in the room while the player spent the block on
+somebody else*, and that is exactly right for a practice room with three of them
+in it: the player picked one. An **anchor event is not that.** The company put
+all five in the room, attendance is the day, and the engine picks an addressee
+by construction - so every event ended with four "she watched you give your time
+to Irene" lines and four jealousy hits, fourteen times a campaign, for turning
+up to work. Reported five separate times in one session, once per event played.
+
+So a `collective` scene takes the same exemption the dorm's `shared` evening
+already has, on the same grounds: **collective attendance is not a choice.**
+
+Only the presence tier, though. A **gesture** at an event still falls through to
+the witnessed branch at full weight, because singling somebody out in front of
+the other four is the loudest act available to the player and an event is where
+it is loudest. The event stays the highest-stakes room in the game; it just
+stops charging admission.
+
 #### A gesture is a gesture, not "a system note went out"
 
 The turn loop read `singledOut` off `Boolean(note)`, because at the time the
@@ -817,6 +836,40 @@ moment**, while the stance underneath stays exactly what `chips.js` decided:
 
 The stance is what the game acts on. The label is what the player reads. Keeping
 those separate is what lets the writing improve without any mechanic changing.
+
+#### The written set may not be a different set
+
+**The stance is what the game acts on**, so which stances the model is offered
+is a mechanic and not a detail of the call. It was written as
+`available.slice(0, 6)` and that is the head of the `STANCES` array - `flirt,
+care, casual, deflect, joke, press`, byte-identical in every scene of every
+campaign ever played.
+
+`touch`, `invite` and `confide` are at indices 7, 6 and 10. **The only three
+stances that can move admissibility could never be written**, and because a
+written set replaces the static one wholesale, the slot `generateChips` reserves
+for exactly them was destroyed on every turn the model answered. Played:
+
+> I saw the option with a small circle noted on it to be seen, but the option is
+> changed to LLM options... we now need to click the need to be seen option very
+> fast before LLM options come.
+
+A public risk, reachable only by out-racing an API call. That is the third time
+this project has made the second axis unreachable - after `markRisk`, and after
+the bar that filled with warm verbs - and the third time the cause was **a
+deterministic slice of an ordered array standing in for a choice**, which is the
+same defect as `sort(() => rng() - 0.5)`.
+
+Two rules, and the first is the fix:
+
+1. **The field is built, not sliced.** Everything the static bar is showing,
+   then a sampled remainder, capped at six. A written set is a relabelling of
+   the move the game dealt, plus room for the model to pick a better one.
+2. **A dealt risk keeps its slot.** If the bar was holding one and the model
+   writes three warm verbs, the risk stays and loses only its label - degrading
+   chip by chip, which is what this whole subsystem does everywhere else.
+
+Neither widens what is legal. `chips.js` is still the source of truth.
 
 #### Latency: the static chips are already on screen
 
@@ -2366,6 +2419,21 @@ JSON, importable and exportable. Prebuilt cards ship in `src/data/characters/`; 
 `origin` is **library metadata only and is never injected into a prompt** - in fiction every member is in X (section 1b). `preferredRoles` feeds `castBuilder.js`, which resolves a coherent X lineup from whichever five cards are chosen. `activityProfile.types` are keys into `data/activities.js` and drive her solo schedule. `hiddenConflict` is optional and names the specific way this character fails under neglect; it is injected only once jealousy reaches `piqued` or above.
 
 Localized display names live in `i18n/`, not on the card, so a card stays a single portable file.
+
+**Except how her name is SPELLED, which is on the card.** A `zh` run called
+Irene *Yilin* and Hyewon *Huiyuan* - transliterations the model invented on the
+spot, differently in different scenes, because nothing ever told it how these
+names are written in Chinese. `nameLocal: { "zh": "..." }` sits beside
+`nameRoman` as the same kind of thing: how this person is written somewhere
+other than English.
+
+It is on the card rather than in `i18n/` for two reasons that point the same
+way. **`agent/` never imports `i18n/`** - that module's own header says the two
+paths never mix, because one is UI strings and the other is a prompt - and a
+**custom card cannot ship an i18n file at all**, which is the argument section 12
+already made for facts. Absent, the Latin stage name stands, which is normal in
+Chinese K-pop writing and in every case better than an invented spelling. The
+speaker id stays ASCII in every locale (section 9); only the prose changes.
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
 
