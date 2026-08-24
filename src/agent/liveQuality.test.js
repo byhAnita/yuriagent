@@ -212,10 +212,12 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
    */
   it('writes five different women into the same room', async () => {
     const opens = {};
+    const beatsFor = {};
     for (const id of castIds) {
       let s = beginScene(setup({ memberId: id }));
       s = await runTurn(s, { text: openingDirective(), client });
       opens[id] = s.beats.map((b) => b.text).join(' ');
+      beatsFor[id] = s.beats;
     }
 
     log('\n[quality] --- the same room, five members ---');
@@ -250,11 +252,29 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
       `[quality] worst vocabulary overlap: ${worstPair} ${(worst * 100).toFixed(0)}%`,
     );
 
-    // Nobody should be speaking as somebody else - that one IS a contract.
+    /**
+     * Nobody speaks as somebody else - that one IS a contract (section 9, rule
+     * 3), and it is asserted against the SPEAKER, which is what the rule is
+     * about.
+     *
+     * It used to be asserted by searching the prose for another member's name,
+     * and that is a different claim entirely - one the game does not make and
+     * should not. Caught live when Irene said
+     *
+     *   "Practice room's free. Yeri took the last of the good towels, so don't
+     *   bother looking."
+     *
+     * which is five women who share a dorm being written as five women who
+     * share a dorm. Block 4 NAMES the absent members as absent precisely so
+     * that this is possible; a cast where nobody may mention anybody is a cast
+     * of strangers. The proxy would have failed on good writing, and it never
+     * tested the rule it was named after - the parser drops an off-roster beat
+     * before it can reach `s.beats` at all.
+     */
     for (const [id, text] of Object.entries(opens)) {
       expect(text.length).toBeGreaterThan(0);
-      for (const other of cards.filter((c) => c.id !== id)) {
-        expect(text).not.toContain(other.name);
+      for (const beat of beatsFor[id]) {
+        expect(beat.speaker, `${id} scene has a beat spoken by ${beat.speaker}`).toBe(id);
       }
     }
   }, 300000);

@@ -29,6 +29,7 @@ import { liveConfig } from '../tools/liveEnv.js';
 import {
   beginScene,
   establish,
+  interlude,
   runTurn,
   endScene,
   openingDirective,
@@ -37,7 +38,7 @@ import {
 import { newMemory } from './memory.js';
 import { newRelation } from '../systems/relationship.js';
 import { agendaIds, addDecisions, canonForEvent, renderCanon } from '../systems/canon.js';
-import { eventFor } from '../data/events/index.js';
+import { eventFor, eventFrame } from '../data/events/index.js';
 import { REGISTERS } from '../data/sceneFrames.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
@@ -62,6 +63,32 @@ function client({ messages, preset, onChunk }) {
 const HAN = /[一-鿿]/;
 /** A run of Latin letters long enough to be prose rather than a name or an id. */
 const LATIN_PROSE = /[A-Za-z]{4,}(\s+[A-Za-z]{3,}){2,}/;
+
+/**
+ * A NAME IS NOT PROSE, and section 19 rule 2 is a rule about prose.
+ *
+ * Memory is English so a language switch cannot corrupt a run. A song TITLE is
+ * not memory being written in Chinese - it is the name of a thing that this
+ * campaign invented, and in a `zh` run the thing is genuinely called that.
+ * Caught live: the meeting settled on
+ *
+ *   text = "the road-trip demo titled <<TITLE>> was chosen as the title track"
+ *
+ * with the same title in `display`. Demanding an English title would invent a
+ * SECOND name for one song - the model would then say the English one in
+ * Chinese prose, and the player would read a different title in the handbook
+ * from the one Irene says out loud. That is precisely the failure
+ * `learnableFacts` had before ids, and the same failure `nameLocal` fixed for
+ * the members themselves.
+ *
+ * So the check strips quoted and bracketed spans - the places a name lives -
+ * and asks whether what is LEFT is English.
+ */
+const stripNames = (text) =>
+  String(text ?? '')
+    .replace(/\u300a[^\u300b]*\u300b/g, ' ')
+    .replace(/[\u201c\u201d"'\u2018\u2019][^\u201c\u201d"'\u2018\u2019]*[\u201c\u201d"'\u2018\u2019]/g, ' ')
+    .replace(/\u300c[^\u300d]*\u300d/g, ' ');
 
 /**
  * The whole cast in the room, which is what an anchor event is.
@@ -101,7 +128,12 @@ function eventSetup({ eventId = 'concept_meeting', lang = 'en', canon = [], cycl
       occupancy: {},
       task: null,
       event,
-      sceneFrame: event.frame,
+      /**
+       * Built for THIS cycle rather than read off the table (PROPOSALS 24), so
+       * a live pass exercises the per-cycle stakes clause and this run's style
+       * pressure - which is the half of the fix that only shows up in prose.
+       */
+      sceneFrame: eventFrame(event, { cycle, seed: 20260821 }),
       register: REGISTERS.event,
       canon: canonForEvent(canon, { cycle, reads: event.reads ?? [] }),
     },
@@ -244,13 +276,14 @@ describe.skipIf(!enabled)('a day that decides something', () => {
 
     expect(out.decisions.length).toBeGreaterThan(0);
     for (const d of out.decisions) {
-      // Memory is English, always. Section 19 rule 2.
-      expect(d.text, `text should be English: ${d.text}`).not.toMatch(HAN);
+      // Memory is English, always (section 19 rule 2) - but a title the
+      // campaign invented is a NAME, and `stripNames` says why it is exempt.
+      expect(stripNames(d.text), `text should be English: ${d.text}`).not.toMatch(HAN);
       // ...and the player reads their own language.
       expect(HAN.test(d.display), `display should be Chinese: ${d.display}`).toBe(true);
     }
     // The ledger is memory too - and its display line is not.
-    expect(out.summary?.summary ?? '').not.toMatch(HAN);
+    expect(stripNames(out.summary?.summary)).not.toMatch(HAN);
     expect(HAN.test(out.summary?.display ?? '')).toBe(true);
   }, 480000);
 });
@@ -440,4 +473,62 @@ describe.skipIf(!enabled)('canon in an ordinary block', () => {
     log(`[event] speaks of it as still ahead: ${future}`);
     expect(session.beats.length).toBeGreaterThan(0);
   }, 480000);
+});
+
+/**
+ * The middle of a day that DOES something. PROPOSALS 23.
+ *
+ * The complaint was stated three times in one played session - the MV shoot
+ * never shoots, the stage never performs, the fan meeting never signs anything -
+ * and it is a judgement no unit test can make. `interlude.test.js` proves the
+ * call is shaped like narration and fails silently; only a real model can say
+ * whether what comes back is the WORK or another paragraph of mood.
+ */
+describe.skipIf(!enabled)('the middle of a shoot', () => {
+  it('writes the work, not another paragraph of room', async () => {
+    const setup = eventSetup({ eventId: 'mv_shoot' });
+    let session = beginScene(setup);
+
+    const room = await establish(session, { client, lang: 'en' });
+    session = room.session;
+    session = await runTurn(session, { text: openingDirective('en'), client, cast: cards });
+    session = await runTurn(session, { stance: 'work', text: '', client, cast: cards });
+
+    const mid = await interlude(session, { client, lang: 'en' });
+
+    log('\n[event] --- interlude, mv shoot, en ---');
+    log(`  ${mid.text}`);
+
+    expect(mid.text).toBeTruthy();
+    // Narration: nobody speaks, and no metadata line reaches the player.
+    expect(mid.text).not.toMatch(/^@/m);
+    expect(mid.text).not.toMatch(/["\u201c\u201d]/);
+
+    // It has to be about the shoot rather than about the weather. Any one of
+    // these is enough - the point is that a camera exists in the sentence.
+    expect(mid.text).toMatch(
+      /camera|shot|take|lens|lighting|lights|monitor|crew|set|frame|rig|marker|playback/i,
+    );
+
+    // Not the establishing beat again. That one is allowed to describe the
+    // room; this one has already had a room described and must move past it.
+    expect(mid.text).not.toBe(room.text);
+  }, 240000);
+
+  it('is wholly Chinese in a zh run', async () => {
+    const setup = eventSetup({ eventId: 'mv_shoot', lang: 'zh' });
+    let session = beginScene(setup);
+
+    const room = await establish(session, { client, lang: 'zh' });
+    session = room.session;
+    session = await runTurn(session, { text: openingDirective('zh'), client, cast: cards });
+
+    const mid = await interlude(session, { client, lang: 'zh' });
+
+    log('\n[event] --- interlude, mv shoot, zh ---');
+    log(`  ${mid.text}`);
+
+    expect(HAN.test(mid.text)).toBe(true);
+    expect(LATIN_PROSE.test(mid.text)).toBe(false);
+  }, 240000);
 });

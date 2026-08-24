@@ -794,27 +794,40 @@ describe('a whole campaign through the real engine', () => {
  * table in CLAUDE.md section 5b, which was measured against a model of a scene
  * rather than a scene.
  */
+/**
+ * FIVE SEEDS IS A READING, NOT A COMPARISON.
+ *
+ * Adding the `work` stance (PROPOSALS 22) moved `spread` 28 -> 40 and
+ * `balanced` 32 -> 16 on the default list - in OPPOSITE directions, and only
+ * for the two policies that pick uniformly from `available`. That is what seed
+ * noise looks like, and at five seeds there is no way to tell it from an
+ * effect. So the list is settable, and a change to a coefficient gets re-run
+ * wide before anybody writes a number down.
+ *
+ *   HARNESS_SEEDS=1,2,3,... HARNESS_SWEEP=1 HARNESS_REPORT=1 npx vitest run playthrough
+ *
+ * NUMERIC seeds only, and that is not a style preference: `deriveSeed` starts
+ * from `seed >>> 0`, which is 0 for any string, so a list of names is one seed
+ * repeated - a sweep that looks wide and is not.
+ */
+const SWEEP_SEEDS = (process.env.HARNESS_SEEDS ?? '3,7,11,21,42')
+  .split(',')
+  .map((s) => Number(s.trim()))
+  .filter((n) => Number.isFinite(n));
+
+/**
+ * The budget has to follow the list, or widening the sweep fails as a timeout
+ * rather than as a result - which is exactly what a twenty-seed run did on its
+ * first attempt. About twelve seconds a campaign here, times five policies,
+ * plus room for a machine that is also running something else.
+ */
+const SWEEP_TIMEOUT = Math.max(600000, SWEEP_SEEDS.length * Object.keys(POLICIES).length * 30000);
+
 describe.skipIf(!process.env.HARNESS_SWEEP)('policy sweep', () => {
   it(
     'reports what each kind of player gets',
     async () => {
-      /**
-       * FIVE SEEDS IS A READING, NOT A COMPARISON.
-       *
-       * Adding the `work` stance (PROPOSALS 22) moved `spread` 28 -> 40 and
-       * `balanced` 32 -> 16 on this list - in OPPOSITE directions, and only for
-       * the two policies that pick uniformly from `available`. That is what
-       * seed noise looks like, and at five seeds there is no way to tell it
-       * from an effect. So the list is settable, and a change to a coefficient
-       * gets re-run wide before anybody writes a number down.
-       *
-       * HARNESS_SEEDS=1,2,3,...  and mind the wall clock: about twelve seconds
-       * a campaign, times five policies, times however many seeds.
-       */
-      const seeds = (process.env.HARNESS_SEEDS ?? '3,7,11,21,42')
-        .split(',')
-        .map((s) => Number(s.trim()))
-        .filter((n) => Number.isFinite(n));
+      const seeds = SWEEP_SEEDS;
       const table = {};
 
       for (const policy of Object.keys(POLICIES)) {
@@ -835,7 +848,7 @@ describe.skipIf(!process.env.HARNESS_SWEEP)('policy sweep', () => {
         table[policy] = { tally, balance, goodPct: ((good / total) * 100).toFixed(0) };
       }
 
-      log('\n=== policy sweep, 5 seeds x 5 members ===');
+      log(`\n=== policy sweep, ${seeds.length} seeds x 5 members ===`);
       for (const [policy, row] of Object.entries(table)) {
         log(
           `${policy.padEnd(9)} good ${String(row.goodPct).padStart(3)}%  balance ${row.balance}/${seeds.length}  ` +
@@ -848,7 +861,7 @@ describe.skipIf(!process.env.HARNESS_SWEEP)('policy sweep', () => {
 
       expect(Object.keys(table)).toHaveLength(Object.keys(POLICIES).length);
     },
-    600000,
+    SWEEP_TIMEOUT,
   );
 });
 
