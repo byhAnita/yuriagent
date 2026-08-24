@@ -26,14 +26,48 @@ import { makeRng, deriveSeed } from './rng.js';
 
 export const DATE_KIND_IDS = Object.keys(DATE_KINDS);
 
-/** Why she said no, or why the offer is not live. Never a bare false. */
+/**
+ * Why she said no, or why the offer is not live. Never a bare false.
+ *
+ * `TOO_SOON` USED TO BE ONE REASON FOR TWO AXES, and that was the whole of the
+ * legibility problem PROPOSALS 25 describes. A public date gates on
+ * `admissibility` and a private one on `intimacy` - two completely different
+ * questions - and both came back as "not yet", which tells the player nothing
+ * about which of the two things they were short of. Reported as:
+ *
+ *   > Oh no we have no dating access to anyone.
+ *
+ * The ask underneath that report was for an intimacy readout on the scene
+ * screen, and that would retire pillar 1 in one stroke: the player reads hidden
+ * state and bets on it, and `Read her` is rationed precisely so that reading
+ * her costs something. NAMING THE AXIS ON A REFUSAL is the opposite - the
+ * hidden state becomes readable through a decision the player made, which is
+ * pillar 1 working rather than being bypassed.
+ *
+ * So the two reasons are separate, and neither carries a number. "She would go
+ * somewhere quiet with you, just not somewhere people would see" says exactly
+ * which axis is short, in words, which is the same rule block 4's standing line
+ * follows (section 8).
+ */
 export const REFUSAL = {
-  TOO_SOON: 'too_soon',
+  /** Not close enough - a private date, short on `intimacy`. */
+  NOT_CLOSE: 'not_close',
+  /** Not nameable enough - a public date, short on `admissibility`. */
+  NOT_NAMEABLE: 'not_nameable',
   STRAIN: 'strain',
   JEALOUSY: 'jealousy',
   CREDITS: 'credits',
   DECLINED: 'declined',
 };
+
+/**
+ * Which "not yet" this kind of date gets. Derived from the gate rather than
+ * hardcoded, so a third kind of date with a third axis cannot silently fall
+ * back to a reason that names the wrong one.
+ */
+export function axisRefusal(kind) {
+  return DATE_KINDS[kind]?.axis === 'admissibility' ? REFUSAL.NOT_NAMEABLE : REFUSAL.NOT_CLOSE;
+}
 
 function clamp01(n) {
   return Math.max(0, Math.min(1, n));
@@ -75,11 +109,11 @@ export function acceptChance(rel, kind) {
  */
 export function blockedReason(rel, kind, player = {}) {
   const def = DATE_KINDS[kind];
-  if (!def) return REFUSAL.TOO_SOON;
+  if (!def) return axisRefusal(kind);
 
   if (strainBand(rel.strain) === DATE_REFUSING_STRAIN || rel.strain >= 90) return REFUSAL.STRAIN;
   if (jealousyBand(rel.jealousy ?? 0) === 'corrosive') return REFUSAL.JEALOUSY;
-  if ((rel[def.axis] ?? 0) < def.floor) return REFUSAL.TOO_SOON;
+  if ((rel[def.axis] ?? 0) < def.floor) return axisRefusal(kind);
   if (def.credits > 0 && (player.credits ?? 0) < def.credits) return REFUSAL.CREDITS;
   return null;
 }

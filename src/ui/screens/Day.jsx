@@ -52,6 +52,7 @@ export default function Day({
   onOpenSettings,
   onOpenSaves,
   onOpenHandbook,
+  onOpenRelations,
   canAskOut = false,
   onAskOut,
   t,
@@ -244,7 +245,31 @@ export default function Day({
         />
       )}
 
+      {/*
+        The row is a way in, not just a readout. PROPOSALS 25.
+
+        Everything below has been on this screen since M4 and the player still
+        went looking for a menu, which is section 7's handbook lesson: a thing
+        you have to discover is a thing that does not exist. It also could not
+        show `admissibility` - half the relationship model, and the half that
+        decides the plateau, the public date and four endings - because a
+        one-line row has no room for a second number.
+
+        The button is the whole list, so there is nothing to find: whatever the
+        player was already looking at opens into the panel that explains it.
+        Free, and not a block - same rule the handbook follows.
+      */}
       <section className="mt-1">
+        <button
+          type="button"
+          onClick={onOpenRelations}
+          className="mb-1 flex w-full items-baseline gap-2 text-left"
+        >
+          <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent">
+            {t('relations.open')}
+          </span>
+          <span className="h-px flex-1 bg-hairline opacity-60" />
+        </button>
         <ul className="flex flex-col gap-0.5">
           {cards.map((c) => {
             const rel = relations[c.id];

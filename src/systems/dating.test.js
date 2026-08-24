@@ -39,7 +39,7 @@ describe('the gate comes off the two axes', () => {
   it('offers the plateau a private day and refuses it a public one', () => {
     const stalled = rel({ intimacy: 90, admissibility: 5, stage: 'confidante' });
     expect(blockedReason(stalled, 'private', rich)).toBeNull();
-    expect(blockedReason(stalled, 'public', rich)).toBe(REFUSAL.TOO_SOON);
+    expect(blockedReason(stalled, 'public', rich)).toBe(REFUSAL.NOT_NAMEABLE);
   });
 
   it('unlocks her door and the invitation at the same number', () => {
@@ -115,7 +115,7 @@ describe('the bill', () => {
       memberId: 'irene',
     });
     expect(out.accepted).toBe(false);
-    expect(out.reason).toBe(REFUSAL.TOO_SOON);
+    expect(out.reason).toBe(REFUSAL.NOT_NAMEABLE);
   });
 });
 

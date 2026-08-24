@@ -194,6 +194,41 @@ export default {
 
   jealousy: { calm: 'Calm', piqued: 'Piqued', sharp: 'Sharp', corrosive: 'Corrosive' },
 
+  /**
+   * Where you stand, in words. PROPOSALS 25.
+   *
+   * Deliberately NOT the STANDING table in `agent/promptBuilder.js`. That one
+   * is model-facing English that never localizes, written in the third person
+   * for something being asked to write her. This is the player's own screen,
+   * in the player's own language, in the second person - and the two are
+   * allowed to drift, because they are addressed to different readers.
+   */
+  standing: {
+    stranger: '{name} barely knows you yet.',
+    colleague: '{name} knows you as a colleague, and not much more.',
+    good_friends: '{name} is easy around you, and calls it friendship.',
+    nameless: '{name} is close to you in a way neither of you has put a name to.',
+    unspoken: '{name} knows exactly what this is. Neither of you has said it out loud.',
+    ours: '{name} is with you, privately, and you both know it.',
+    out: '{name} is with you and has stopped hiding it.',
+    confidante: '{name} trusts you completely in private and keeps a careful distance in public.',
+    reckless: 'You are further out in the open with {name} than the two of you are ready for.',
+  },
+
+  strain: { stable: 'steady', tense: 'tense', rift: 'a rift', critical: 'breaking' },
+
+  relations: {
+    open: 'where you stand',
+    title: 'Where you stand',
+    close: 'How close',
+    dismiss: 'close',
+    nameable: 'How nameable',
+    jealousy: 'jealousy',
+    strain: 'strain',
+    lede: 'Two numbers, not one. Closeness grows anywhere; being nameable only grows where you can be seen.',
+    stalled: 'Stalled. She will not get any closer until the two of you have been seen together, doing something neither of you could deny.',
+  },
+
   stance: {
     flirt: 'Flirt',
     care: 'Look after her',
@@ -489,7 +524,8 @@ export default {
     heading: { public: 'Somewhere people can see', private: 'Somewhere nobody can' },
     chance: { sure: 'she would say yes', likely: 'she probably would', maybe: 'she might' },
     no: {
-      too_soon: 'not yet',
+      not_close: 'you are not that close yet',
+      not_nameable: 'not something she could be seen doing',
       strain: 'not while things are like this',
       jealousy: 'she is barely speaking to you',
       credits: 'you cannot cover it',
@@ -497,7 +533,8 @@ export default {
     },
     refused: {
       declined: '{name} thought about it, and said not this time.',
-      too_soon: '{name} looked at you as though you had asked the wrong question.',
+      not_close: '{name} was kind about it. Whatever the two of you are, it is not that yet.',
+      not_nameable: '{name} would spend the day with you. Somewhere people could watch her do it is another question, and the answer today is no.',
       strain: '{name} said no before you had finished asking.',
       jealousy: '{name} did not even look up.',
       credits: 'You checked what you had, and put the idea away.',
