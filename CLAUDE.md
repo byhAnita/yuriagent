@@ -2825,18 +2825,28 @@ shape for this particular rule.
 to the endings screen, saves itself, and installs. It is live at
 `https://byhAnita.github.io/yuriagent/` - published from `dev` by
 `bash deploy.sh`, which is the hand-test build and not the release (section
-17). Four sessions have been played by hand, the most recent on the phone the
-game is designed for.
+17). Five sessions have been played by hand, the last two on the phone the game
+is designed for.
 
-**PROPOSALS 20 is half built, and the other half is designed.** An anchor event
-now opens with a paragraph of room and carries an `agenda` of things the day
-must settle - section 10 has the argument. What is still missing is the third
-deficit: a campaign has nowhere to remember what it decided. That is
-`run.canon`, section 7 has the architecture, and the design pass found that it
-cannot be built alone - **PREP has no second event slot and events fire once per
-campaign**, so the chain it needs has a hole and there is no second cycle to
-escalate into. The MV shoot and per-cycle events are therefore prerequisites
-rather than follow-ups. Build order: `docs/PROGRESS.md` "Still open" item 1.
+**PROPOSALS 20 is built, except step 6.** An anchor event opens with a
+paragraph of room, carries an `agenda` of what the day must settle, and writes
+what it settled into `run.canon` - which the chain reads, block 4 injects, and
+the handbook shows the player. Six events across fourteen event days, four of
+them recurring per cycle. What is deliberately not built is the **per-cycle
+stakes clause**, and the day-three playtest turned that from a nicety into the
+strongest open item: handed its own previous answer and no instruction to
+differ from it, the second concept meeting reproduced the first one's concept
+and title track. PROPOSALS 24 has the argument and a better fix than the one
+originally designed.
+
+**The day-three playtest also found the largest bug the chip system has had.**
+Written chips offered the model `available.slice(0, 6)` - the head of the
+`STANCES` array - so `touch`, `invite` and `confide` could never be written and
+the slot `generateChips` reserves for them was destroyed on every turn the
+model answered. Section 6 has it. Two things worth carrying: it is the third
+occurrence of a deterministic slice standing in for a choice, and **neither
+harness could see it, because neither calls `writeChips`** - so every
+admissibility figure measured before 2026-08-24 is an upper bound.
 
 Running state, what is done and what is still open, lives in
 `docs/PROGRESS.md` - that file is updated *before* a milestone closes, and it

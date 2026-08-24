@@ -5,17 +5,31 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, plus PROPOSALS 20. Four sessions played.
+## Current: M0-M5 complete, plus PROPOSALS 20. Five sessions played.
 
-**1161 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1195 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
-**Newest, and untouched by a human: an anchor event now decides things and the
-campaign remembers them.** Six authored events across fourteen event days, each
-opening with a paragraph of room, each carrying an agenda of what the day must
-settle, chained so the MV shoot shoots the concept the meeting chose and the
-next meeting knows what the fandom made of it. `run.canon` holds the answers
-and the handbook shows them. Item 1 of "Still open" says what to look at first.
+**Newest: the day-three playtest, and it was the most valuable session the
+project has had** - the first one to play the same feature across two cycles,
+in `zh`, on the phone, with the call log attached. Ten defects fixed, five
+questions sent to PROPOSALS 22-26. The report is `docs/playtests/TestReport3.txt`
+and the triage is the "Day-three playtest" section below.
+
+**The one to remember: written chips were deleting the reserved risk slot on
+every turn the model answered**, so `touch`, `invite` and `confide` - the only
+three stances that move admissibility - could not be reached except by
+out-racing an API call. Third occurrence of the `markRisk` shape, and neither
+harness could see it because neither calls `writeChips`. The sweep says what it
+cost: bold play reaches a good ending 64% of the time against balanced's 32%.
+
+Before that, PROPOSALS 20 landed: six authored events across fourteen event
+days, each opening with a paragraph of room, each carrying an agenda of what
+the day must settle, chained so the MV shoot shoots the concept the meeting
+chose. `run.canon` holds the answers and the handbook shows them.
+
+**Item 1 of "Still open" is the pick-up point**, and the next thing that
+happens is deciding PROPOSALS 22-26 with Yuhan.
 
 **It is live and playable on a phone:** https://byhAnita.github.io/yuriagent/
 Published from `dev` by `bash deploy.sh` (section 17: the Pages site is the
@@ -1275,52 +1289,56 @@ it first.
 > below it.** "These stances are wrong" was a broken shuffle. "Her affection
 > resets" was one Chinese word. Fix what was reported and you ship the same bug
 > wearing different clothes.
+>
+> And from day three, the sharpest one yet: **ask what the harness does not
+> call.** The written-chip defect made the game's second axis unreachable for a
+> whole campaign, and neither harness could see it, because neither has ever
+> called `generateChips` or `writeChips` - they pick stances straight out of
+> `availableStances`. A harness that is wrong in the player's favour does not
+> merely miss a bug, it *certifies* the code around it.
 
 ---
 
-### 1. Play the day-three fixes  <- PICK UP HERE
+### 1. Decide PROPOSALS 22-26, then play the fixes  <- PICK UP HERE
 
-**PROPOSALS 20 has now been played, in `zh`, on the phone, across two cycles.**
-That was the previous item 1 and it is done; `TestReport3.txt` is the report and
-the day-three section above is the triage. Ten defects were fixed in one pass
-and five design questions went to PROPOSALS 22-26 rather than into code.
+**The day-three report is fully triaged. Ten defects fixed, five questions
+open.** The open five are written up as PROPOSALS 22-26 and Yuhan has asked to
+go through them in detail; that conversation is the next thing that happens, and
+nothing below it should be built before it.
 
-#### What to check first, because it is the one that matters
+#### (a) The five, in the order they are worth discussing
 
-**The risk chip.** Play until the bar deals a marked option - the one that says
-it will be seen - and then WAIT for the written labels to arrive. Before this
-pass they replaced it and the player had to out-race the call; now the bet keeps
-its slot and loses only its label. If `admissibility` still never moves in a
-played campaign, something else is wrong and it is worth stopping to find it,
-because that is the third time this axis has been unreachable.
+The order is by how much a played session improves per unit of work, not by
+proposal number.
 
-#### Then, in the order they show up
+| # | The question it actually asks | Recommendation |
+|---|---|---|
+| **24** | cycle 2 reproduced cycle 1's concept and title track. Should variety be *asked for* (a stakes clause) or *structurally imposed* (seeded style pools)? | **Both, pools first.** Pools are a table and a seeded draw, need no authoring per event, and are testable with no model at all. The stakes clause is PROPOSALS 20 step 6 and was already designed. |
+| **22** | there is no stance for doing the job, which is why the meeting had to be driven by hand-typed text. Adding `work` means **taking a slot from the common four** - which one? | Build `work`; take the fifth slot from `deflect` in the common set only. Then re-measure: a new safe common stance changes every scene's payout. |
+| **23** | the MV shoot never shoots. A transient NPC (director, fans) would bend three load-bearing rules - is the cheap version enough? | **The cheap version.** A second establishing-shaped beat mid-event: no roster entry, no speaker id, no portrait state, no jealousy, zero new rules. Revisit the NPC only if that still reads as people in a room. |
+| **26** | the Chinese reads translated. Yuhan proposed writing memory in `zh`. | **Not that** - it trades a prose problem for a data-integrity one (section 19 rule 2). Say it in the `zh` block, and fill in `styleHints.zh`, which has existed since M0 and is `null` on every card. |
+| **25** | where the player reads how close she is. | Mostly already built and unfindable. The real ask underneath is that **a date refusal should name the axis it was short on** - which is pillar 1 working, not being bypassed. Nothing on the scene screen. |
+
+Each entry in `docs/PROPOSALS.md` carries the evidence and the argument; this
+table is only the running order and the position I would defend.
+
+#### (b) Then play what shipped today
+
+**The one that matters first: the risk chip.** Play until the bar deals a
+marked option - the one that says it will be seen - and then WAIT for the
+written labels to arrive. Before today they replaced it and the player had to
+out-race the call. If admissibility still never moves across a played campaign,
+stop and find out why: that would be the fourth time this axis has been
+unreachable.
 
 | | |
 |---|---|
-| **an anchor event** | ends with NO "she watched you give your time to Irene" lines - unless you actually give somebody something, which should still produce four |
+| **an anchor event** | ends with NO "she watched you give your time to Irene" lines - unless you actually hand somebody something, which should still produce four |
 | **the chip bar** | three written labels, not two-and-a-static |
 | **a scene summary** | addresses you as *you*, and spells her name the way the card does |
 | **an event decision** | names a song and a concept, never "the third demo" |
 | **an ordinary block after an event** | she says the title by name, and does not put a finished shoot in the future |
 | **the cover** | the save list is a bordered control now; the five manual slots were always behind it |
-
-#### What is deliberately NOT fixed
-
-The five in PROPOSALS 22-26, and the reason is the same for all of them: each
-changes a rule rather than repairing one, and this project's own record says
-playing beats reasoning. In rough order of how much they would improve a played
-session:
-
-1. **24 - the second comeback is the first comeback.** The strongest finding in
-   the report and the one with a designed answer already waiting (PROPOSALS 20
-   step 6) plus a better one from the player (seeded style pools).
-2. **22 - there is no way to do the job.** Why the meeting had to be driven by
-   hand-typed text.
-3. **23 - the MV shoot never shoots.** A cheap version exists that breaks no
-   rules: a second establishing-shaped beat mid-event.
-4. **26 - the Chinese reads translated.** Two of the three fixes are free.
-5. **25 - reading how close she is.** Mostly already built and unfindable.
 
 #### Do NOT reach for the harness to check the chip fix
 
@@ -1333,8 +1351,7 @@ at the layer where the swap happens.
 What the harness DID measure, run after the fixes, is what the bug was costing:
 `bold` reaches a good ending **64%** of the time against `balanced`'s **32%**,
 and `ours_end` / `out_end` come almost only from policies that reach for risk.
-The section above has the table. Treat every admissibility figure measured
-before 2026-08-24 as an upper bound.
+Treat every admissibility figure measured before 2026-08-24 as an upper bound.
 
 ### 2. Play the rest of it, on the phone, in both languages
 
@@ -1363,7 +1380,11 @@ What has still never been touched by a human:
 
 When it survives a full nine weeks, merge `dev` to `main` and tag it.
 
-### 3. The four proposals still open
+### 3. The older proposals still open
+
+**PROPOSALS 22-26 are NOT here** - they are item 1, because they came out of
+the newest played session and Yuhan has asked to decide them first. These four
+are the ones that were already waiting.
 
 - **PROPOSALS 21 - dating is unreachable in week 1.** Right observation, wrong
   fix: `intimacy >= 50` is deliberately the same number as the `touch` stance
