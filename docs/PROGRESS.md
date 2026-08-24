@@ -735,14 +735,35 @@ narrow list. Understanding both axes should beat betting on one, and now it
 does.
 
 **But `spread` beats `balanced`, 39 to 22, and section 5b says the opposite.**
-Both are non-risk policies and both drown in `confidante_end` (60 and 78), so
-neither is really playing the second axis at all - and chasing jealousy
-concentrates attention where spreading it does not, which is a plausible
-mechanism rather than a measurement. **It is not yet known whether `work`
-caused this**, because the only before/after that exists is at five seeds, and
-five seeds is exactly what this section is about. `HARNESS_EXCLUDE=work` is the
-knob for answering it honestly - it withholds a stance from the harness so the
-two arms differ by one thing instead of by a reshuffled rng.
+That is open item 4, and the A/B below settles who is responsible for it.
+
+#### The A/B: `work` changes nothing here, and that is the answer
+
+Both arms at 20 seeds, differing by exactly one thing -
+`HARNESS_EXCLUDE=work` withholds the stance from the harness rather than
+reverting the code, so the rng stream and every other input are identical.
+
+| policy | with `work` | withheld | delta |
+|---|---|---|---|
+| `expert` | 75% | 74% | +1 |
+| `bold` | 61% | 62% | -1 |
+| `spread` | 39% | 38% | +1 |
+| `balanced` | 22% | 24% | -2 |
+| `devoted` | 20% | 20% | 0 |
+
+**Every delta is inside +/-2 points on 100 endings a cell.** `work` is not
+measurable here, which is exactly what it should be: it is a cheap, safe verb,
+and the harness cannot see the one thing about it that is not cheap - the
+weighting, which needs `generateChips`.
+
+So the five-seed reading of `balanced` 32 -> 16 was **entirely** noise, and
+`spread` beating `balanced` is a **pre-existing property of the two policies**
+rather than anything this session did.
+
+This is the shape to reuse. A before/after across a stance ADDITION compares two
+different questions, because a twelfth entry in a uniform pool reshuffles which
+stance every draw lands on. Withholding it from one arm is the only version of
+the experiment that isolates the variable.
 
 #### What the harness can and cannot say about a stance
 
@@ -1583,7 +1604,7 @@ are the ones that were already waiting.
 - **PROPOSALS 19 - turning to somebody is live while reading, and invisible.**
   Partly answered since: the chip bar now names the addressee.
 
-### 4. `spread` beats `balanced`, and section 5b says it should not
+### 4. `spread` beats `balanced`, and it is not the work stance
 
 **Open, and new on 2026-08-24.** The twenty-seed sweep puts `spread` at 39% good
 endings and `balanced` at 22%. CLAUDE.md section 5b's whole claim about policy
@@ -1597,13 +1618,19 @@ both drown in `confidante_end` (60 and 78 of 100). And chasing jealousy
 *concentrates* attention where spreading it does not, which is a plausible
 mechanism rather than a measurement.
 
-**What has NOT been established is whether `work` caused it.** The only
-before/after that exists is at five seeds, which is the exact width this file
-now says is a reading rather than a comparison. `HARNESS_EXCLUDE=work` is the
-knob: it withholds a stance from the harness so the two arms differ by one
-thing instead of by a reshuffled rng stream.
+**`work` is not responsible, and that is measured rather than argued.** Both
+arms at 20 seeds, differing by `HARNESS_EXCLUDE=work` alone: `balanced` 22%
+with it and 24% without, `spread` 39% and 38%, every policy inside +/-2 points.
+The inversion is there in both arms, so it predates this session and the
+five-seed `32 -> 16` was noise start to finish.
 
-Do not touch a coefficient over this until the two arms have been run wide.
+What is left is a question about the policy rather than about the game: **is
+`balanced` doing what its name claims?** It converts jealousy first and takes
+no risks, so it concentrates attention on whoever is unsettled and never
+touches the axis that would let anyone off the plateau. If that is what a
+competent multi-route player actually does, section 5b's ordering claim needs
+rewording; if it is not, the policy needs rewriting. **It is not evidence about
+a coefficient either way** - do not move one over it.
 
 ### 5. The plateau, measured against a real campaign
 

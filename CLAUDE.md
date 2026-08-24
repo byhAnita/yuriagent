@@ -811,14 +811,24 @@ general pool, no longer weighted up. Evasion is a tactic, and the argument for
 Five seeds is a **reading, not a comparison**, and this is the change that
 proved it. On the default list `spread` went 28 -> 40 and `balanced` 32 -> 16 -
 in **opposite directions**, and only for the two policies that pick uniformly
-from `available`. That is what seed noise looks like.
+from `available`. Run wide, at twenty seeds and with the stance withheld from
+one arm, **every policy lands inside +/-2 points**. The whole of it was noise.
 
-It is also a reminder of what the harness is measuring. **Neither harness calls
-`generateChips`**; both pick a stance uniformly out of `availableStances`. So
-`COMMON_STANCES` changing has no effect on them at all, and the only thing they
-saw was a twelfth entry in a list they draw from - which reshuffles which
-stance every rng draw lands on. `HARNESS_SEEDS` exists so the next coefficient
-change gets re-run wide before anybody writes a number down.
+Two things worth keeping from that.
+
+**Neither harness calls `generateChips`.** Both pick a stance uniformly out of
+`availableStances`, so `COMMON_STANCES` changing cannot reach them at all - the
+weighting, which is the entire player-facing half of this change, is invisible
+to the only thing that plays a whole campaign. What they *did* see is a twelfth
+entry in a list they draw from, which reshuffles which stance every rng draw
+lands on.
+
+**Which is why a before/after across a stance ADDITION compares two different
+questions.** The honest experiment withholds the stance from one arm rather
+than reverting the code (`HARNESS_EXCLUDE`), so the rng stream and every other
+input stay identical and the arms differ by one thing. `HARNESS_SEEDS` widens
+it. Neither existed before this change needed measuring, and both are the
+reason its number is trustworthy.
 
 #### What replaced what, and why
 
