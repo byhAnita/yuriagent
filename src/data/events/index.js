@@ -77,6 +77,8 @@
  * exposure floor is already high, is the loudest thing the player can do.
  */
 
+import { comebackStyle, renderPressure } from '../comebackStyle.js';
+
 export const EVENTS = {
   concept_meeting: {
     id: 'concept_meeting',
@@ -86,6 +88,27 @@ export const EVENTS = {
     // most: a second concept meeting that cannot see the first one picks the
     // same concept again and calls it a comeback.
     reads: ['concept', 'title_track', 'chart_result', 'fandom_focus', 'company_response'],
+    /**
+     * The one event that gets the style pools (`data/comebackStyle.js`).
+     *
+     * A comeback concept is the only thing in the chain that is invented from
+     * nothing rather than inherited from the event before it, which is exactly
+     * why it was the thing that repeated. Everything downstream - the shoot,
+     * the stage, the fan meeting - is already constrained by what this room
+     * settled, so pushing three more dice at it would be pressure on a day
+     * that has plenty.
+     */
+    pressure: true,
+    stakes: [
+      'This is the first comeback of the year. Nobody in this room has a previous ' +
+        'result to argue from, and whatever gets decided today sets what the rest of ' +
+        'the year is compared against.',
+      'This is the second comeback of the year. The last one is recent enough that ' +
+        'repeating any part of it would be noticed - by the company, and by the people ' +
+        'who bought the last album.',
+      'The third comeback in nine weeks. Everyone in the room is tired, the schedule ' +
+        'has been brutal, and this is the one the year gets remembered by.',
+    ],
     frame: {
       setting:
         'A long table in the meeting room, printouts of mood boards face down until ' +
@@ -123,6 +146,14 @@ export const EVENTS = {
     phase: 'prep',
     slot: 'event_b',
     reads: ['concept', 'title_track', 'styling', 'centre'],
+    stakes: [
+      'The first shoot of the year. Nobody here has worked with this director before, ' +
+        'and the day is being figured out as it goes.',
+      'The second shoot of the year. Everyone remembers what the last one cost them, ' +
+        'and the budget is not any larger.',
+      'The last shoot of the run. Whatever this one turns out to be is what the whole ' +
+        'year looks like when anyone goes back and watches it.',
+    ],
     frame: {
       setting:
         'A closed set in a warehouse dressed for the concept. Forty people who do not work ' +
@@ -148,6 +179,14 @@ export const EVENTS = {
     phase: 'comeback',
     slot: 'event_a',
     reads: ['title_track', 'ending_pose', 'video_lead', 'centre'],
+    stakes: [
+      'The first stage of the promotion, and the first time anybody outside the ' +
+        'company hears the song at all.',
+      'They have already been through one promotion cycle this year, so the ' +
+        'comparison is being made in public whether or not anyone in the room is ' +
+        'reading it.',
+      'The last broadcast of the campaign. There is no next one to fix anything on.',
+    ],
     frame: {
       setting:
         'Broadcast day. A waiting room shared with two other groups, a corridor that ' +
@@ -172,6 +211,14 @@ export const EVENTS = {
     phase: 'comeback',
     slot: 'event_b',
     reads: ['stage_result', 'chart_result', 'promo_plan', 'hero_shot'],
+    stakes: [
+      'The first time this cycle of fans is in a room with them rather than on the ' +
+        'other side of a screen.',
+      'The second fan meeting of the year, and the people in the queue have opinions ' +
+        'about the first one that they are going to say out loud.',
+      'The last event of the campaign, and everyone in the hall knows it, including ' +
+        'the five of them.',
+    ],
     frame: {
       setting:
         'Four hours of faces. A hall, a table, a line that does not visibly shorten, ' +
@@ -318,4 +365,44 @@ export function eventKey(phase, slot, cycle) {
  */
 export function eventFor(phase, slot) {
   return EVENT_IDS.map((id) => EVENTS[id]).find((e) => e.phase === phase && e.slot === slot) ?? null;
+}
+
+/**
+ * This event's frame, for THIS cycle of THIS run. PROPOSALS 24.
+ *
+ * The authored `frame` in the table above is the same object every cycle, which
+ * is correct - the meeting room does not change - and is also exactly why cycle
+ * 2's meeting reproduced cycle 1's answers. Two things vary and neither of them
+ * belongs in the static table:
+ *
+ *   `stakes`   - AUTHORED per cycle, and says what is different about this one.
+ *                Continuity: the second meeting knows it is the second.
+ *   `pressure` - DRAWN per run from `data/comebackStyle.js`. Difference: two
+ *                cycles of one run cannot be handed the same brief.
+ *
+ * They are not alternatives and they do not do each other's job. The clause
+ * asks the room not to repeat itself; the pools make repeating impossible.
+ *
+ * PURE, and derived rather than stored. Nothing about a comeback's style needs
+ * saving - `(seed, cycle)` reproduces it exactly, which is the same reason
+ * `focusId` and the calendar are not in the save file either.
+ *
+ * @param {object|null} event - from `eventFor`
+ * @param {{ cycle: number, seed: number }} at
+ * @returns {object|null} a frame for `renderFrame`, or null
+ */
+export function eventFrame(event, { cycle = 0, seed = 1 } = {}) {
+  if (!event?.frame) return null;
+
+  const frame = { ...event.frame };
+
+  // `stakes` is authored for CYCLES_PER_CAMPAIGN cycles and a campaign cannot
+  // run past that, but an absent line is a missing sentence rather than a
+  // crash: an event with no clause is simply the day it always was.
+  const stakes = event.stakes?.[cycle];
+  if (stakes) frame.stakes = stakes;
+
+  if (event.pressure) frame.pressure = renderPressure(comebackStyle(seed, cycle));
+
+  return frame;
 }

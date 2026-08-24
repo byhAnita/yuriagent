@@ -63,7 +63,7 @@ import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
 import { dateFrame, REGISTERS } from './data/sceneFrames.js';
-import { eventFor, eventKey } from './data/events/index.js';
+import { eventFor, eventFrame, eventKey } from './data/events/index.js';
 import { sharedFrame } from './data/sharedActivities.js';
 
 const SEED = 20260821;
@@ -574,11 +574,20 @@ export default function App() {
        */
       shared: pendingScene.shared ?? null,
 
+      /**
+       * An event's frame is built for THIS cycle rather than read off the
+       * table - `eventFrame` adds the per-cycle stakes clause and, for the
+       * concept meeting, this run's style pressure (PROPOSALS 24). Handing the
+       * static object over is what let cycle 2 reproduce cycle 1.
+       */
       sceneFrame:
         pendingScene.sceneFrame ??
         (pendingScene.date
           ? dateFrame(pendingScene.date, pendingScene.locationId)
-          : (pendingScene.event?.frame ?? null)),
+          : eventFrame(pendingScene.event, {
+              cycle: cycleForWeek(run.week),
+              seed: SEED,
+            })),
       register:
         pendingScene.date || pendingScene.shared
           ? REGISTERS.date

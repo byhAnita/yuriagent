@@ -158,15 +158,44 @@ export function dateFrame(kind, locationId) {
 export function renderFrame(frame) {
   if (!frame) return null;
 
-  const lines = [
-    frame.setting,
+  const lines = [frame.setting];
+
+  /**
+   * What is different about THIS one, and what people outside the room want.
+   * PROPOSALS 24, and both are event-only - `eventFrame` is the only thing that
+   * sets them.
+   *
+   * They sit here, directly under the setting and above the movements, because
+   * that is the order of immediacy section 8 asks for inside a block: where you
+   * are, then what today is, then who is leaning on it, and only then what the
+   * day might pass through. A stakes clause read after four movements is a
+   * footnote; read before them it colours all of them.
+   *
+   * `pressure` is deliberately phrased as things somebody outside WANTS rather
+   * than as a specification, so the room can argue with it. Same rule the
+   * agenda below follows: name what is at stake, never which way it goes.
+   */
+  if (frame.stakes) lines.push('', frame.stakes);
+
+  if (frame.pressure?.length) {
+    lines.push(
+      '',
+      'Nobody in this room decided any of the following, and all of it is in the air:',
+      ...frame.pressure.map((p) => `- ${p}`),
+      '',
+      'That is pressure from outside, not a decision. The room may take it, fight it,',
+      'or land somewhere nobody upstairs asked for.',
+    );
+  }
+
+  lines.push(
     '',
     'The day may pass through any of these, in any order, or none of them:',
     ...frame.movements.map((m) => `- ${m}`),
     '',
     'These are situations, not instructions. What actually happens between the',
     'two of you is hers to decide, from who she is and where the two of you stand.',
-  ];
+  );
 
   if (frame.agenda?.length) {
     lines.push(
