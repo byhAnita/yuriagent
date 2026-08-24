@@ -139,9 +139,15 @@ export function comebackStyle(seed, cycle) {
  */
 export function renderPressure(style) {
   if (!style) return [];
+  /**
+   * The pool entries are long, so the sentence has to put its own words FIRST
+   * and let the drawn phrase run to the full stop. "The label wants X this
+   * time" drags badly once X is nine words; "This time the label wants X" does
+   * not, whatever X turns out to be.
+   */
   return [
-    `The label has been pushing for ${style.sound} this time.`,
+    `This time the label has been pushing for ${style.sound}.`,
     `A&R keep bringing up ${style.occasion}.`,
-    `The reference folder the director sent over is all ${style.place}.`,
+    `Everything in the reference folder the director sent over looks like ${style.place}.`,
   ];
 }
