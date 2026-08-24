@@ -179,7 +179,12 @@ describe.skipIf(!enabled)('what the model actually writes', () => {
 
     const drop = session.meters.guardStart - session.meters.guard;
     log(
-      `[quality] guard drop over the scene: ${drop} (section 6 pays at 15)  fluster peak: ${session.meters.flusterPeak} (pays at 60)`,
+      // Interpolated, not typed. See `pays` above: the literals here said 15
+      // and 60 while the real thresholds were 12 and 30, so the report was
+      // misstating what it had just measured against - the same defect that
+      // comment describes, moved from the arithmetic into the message.
+      `[quality] guard drop over the scene: ${drop} (section 6 pays at ${GUARD_DROP_TO_PAY})` +
+        `  fluster peak: ${session.meters.flusterPeak} (pays at ${FLUSTER_PEAK_TO_PAY})`,
     );
 
     const withMeta = session.beats.filter((b) => !b.inferred).length;
