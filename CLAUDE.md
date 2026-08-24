@@ -988,8 +988,90 @@ Five prompt blocks; four of them frozen while a scene is open.
 | 1 | **Static system** - rules, format contract, identity, all cast cards | whole run, byte-stable | ~2200 tok |
 | 2 | **Ledger** - append-only one-sentence scene summaries + macro state | whole run | ~1200 tok |
 | 3 | **Dossier** - learned facts, **only for members present in this scene** | rebuilt at scene start | ~60 tok / char |
-| 4 | **Scene header** - roster, time, location, exposure, standing, gift note | rebuilt at scene start | ~150 tok |
+| 4 | **Scene header** - roster, time, location, exposure, standing, canon, gift note | rebuilt at scene start | ~150 tok |
 | 5 | **Scene buffer** - dialogue turns in the current room | **purged on exit** | grows |
+
+There are **three** memory stores behind those blocks, and they answer three
+different questions. Confusing them is how a design ends up trying to widen the
+ledger:
+
+| store | question | shape | compacts? |
+|---|---|---|---|
+| **ledger** | what happened, in order | one sentence per scene | **yes** - and eventually drops |
+| **dossier** | what she knows about you | per member, five categories | LRU / FIFO per category |
+| **canon** | what the group decided | per topic, run-level | **never** |
+
+### Canon
+
+> **Designed 2026-08-24, not built yet.** `docs/PROPOSALS.md` entry 20 carries
+> the argument and `docs/PROGRESS.md` "Still open" item 1 carries the build
+> order. Written here first because this file is updated before the code, never
+> after.
+
+The two stores above cannot hold a decision, and an anchor event is a day that
+makes decisions. `dossier` is per member and scoped to the room, so it is the
+wrong shape - everybody in X knows what the group chose. `ledger` is chronology
+that compacts and drops, and it spends its one sentence on whatever the scene
+was emotionally about. **The played evidence is unambiguous**: fifteen turns of
+a meeting that picks a comeback concept produced a ledger line about a plate of
+food.
+
+So `run.canon`, a list of what the campaign has settled:
+
+```js
+canon: [
+  { topic: 'title_track',                      // an id from the event's `agenda`
+    text: 'the title track is Surfin Summer',  // ENGLISH, for the prompt
+    display: '主打歌定为 Surfin Summer',         // meta.lang, for the player
+    cycle: 0, phase: 'prep', slot: 'event_a' },
+]
+```
+
+**Two texts, for the reason section 12 already learned once.** Memory is English
+so a language switch cannot corrupt it (section 19 rule 2) - which means the
+player-facing handbook would otherwise show a `zh` player their own campaign in
+English. `learnableFacts` made exactly this mistake and the fix was the same:
+one id, a canonical English string, and a display string per locale.
+
+**Storage and injection are separate, and that is what keeps it simple.**
+
+| | rule |
+|---|---|
+| **storage** | complete, never compacts, never reordered. This is what the player reads. |
+| **injection** | filtered and capped at ~6 lines of block 4 |
+
+Only the ledger has to fit inside a prompt, so only the ledger needs a
+compaction rule. Canon does not inherit that constraint, which is why "what
+happens when it fills up" is not a question anyone has to answer.
+
+What block 4 carries depends on the scene:
+
+- **ordinary block** - two or three lines of the current cycle. This is the half
+  that makes canon *visible*: Irene mentioning the title track in a wardrobe on
+  a Tuesday is pillar 4 working, and it costs nothing block 4 was not already
+  paying.
+- **anchor event** - the topics its `reads` field names, plus the same-slot
+  entries from previous cycles, which is what lets a second concept meeting
+  escalate rather than repeat.
+
+Capped, because block 4 is ordered by immediacy (section 8) and eighteen world
+facts would drown the standing sentence - the one line in there that makes every
+reaction proportionate.
+
+**Written by events only, and validated rather than trusted.** The scene-exit
+call gains `decisions: [{ topic, text }]`, parsed through the same four-level
+tolerant fallback as the rest of the summarizer. Then:
+
+> **A decision whose topic is not in this event's `agenda` is dropped
+> entirely.**
+
+That is section 9's roster rule in a new place, and it is here for the same
+reason: prompting alone will not hold it. A model asked what a room decided will
+happily report a decision the room never reached, which is the `learnableFacts`
+problem again - **a fact awarded for nothing is worse than a fact never
+awarded.** A topic the day did not reach is simply absent; there is no filler
+and no placeholder, and the only consequence is that the next event in the chain
+reads one line fewer.
 
 ### Dossier
 
@@ -1418,7 +1500,35 @@ livelier meeting that still forgets itself by Tuesday.** There is nowhere to
 record what the room decided: the dossier is per member, and the ledger is
 chronology that compacts and drops - and the played transcript is the evidence
 for what a single sentence spends itself on, because it chose the plate of food.
-That is `run.canon`, and it is designed before it is built.
+That is `run.canon`, and section 7 has it.
+
+### Four of them recur, and two are punctuation
+
+**Designed 2026-08-24, not built.** Five events per campaign means cycles 2 and
+3 have no authored beat at all, and week 9 is the quietest stretch of the game.
+So `flags.firedEvents` keys on `phase:slot:cycle` and four events come back
+every cycle, in a chain where each reads what the one before it settled:
+
+```
+prep_a concept meeting -> prep_b MV shoot -> comeback_a music bank
+   ^                                                 |
+   +------- comeback_b fan meeting <-----------------+
+```
+
+`company_cruise` and `island_trip` stay **once per campaign** and stay out of
+the chain, for two reasons that both come from elsewhere in this document.
+**REST is the repair week** - two mandatory whole-cast days out of its five
+weekdays works against the one week whose job is converting jealousy before it
+hardens. And **an event day generates no daily task**, so event days are a
+supply line as well as a schedule: six recurring events would take 40% of the
+working weekdays and cut credits by roughly the same, against a campaign that
+already ends with 0-2 of them and 36 unspent facts. Four recurring plus two
+punctuation is ~31%, and the harness measures it before any of it merges.
+
+Each recurring event also carries a **per-cycle stakes clause**, so the second
+concept meeting is not the first one with different numbers - it knows the last
+title track and whether it landed. That is the difference between escalating and
+repeating, and it is the largest authoring cost in the whole feature.
 
 ### An event day is the event, and nothing else
 
@@ -2393,11 +2503,25 @@ Uploaded images stay on the device. They are never uploaded anywhere and never s
   dossier:   { irene: { known_facts, shared_moments, open_threads,
                         player_told_her, heard_about } },
   ledger:    [ { id, day, block, type: 'full' | 'summary', text, summary } ],
+  canon:     [ { topic, text, display, cycle, phase, slot } ],  // section 7
   calendar:  { weekPlan, todayTask, taskState },
   flags:     { firedEvents: [], repairUsed: {} },
   scene:     null   // volatile; never serialized
 }
 ```
+
+`canon` is **designed and not yet built** (section 7). When it lands it is a
+`schemaVersion` bump plus a `fromSave` default, so a save written before it
+loads with an empty canon rather than `undefined` - the same merge rule
+`relations` already follows.
+
+`flags.firedEvents` changes shape in the same step, from `phase:slot` to
+`phase:slot:cycle`, which is what lets an event recur. That one **needs an
+actual migration** rather than a default: a two-part key matches nothing under
+the new scheme, so an untouched old save would replay every anchor event the
+player has already had. `fromSave` appends `:0` to any key with two parts.
+Worth writing down because it is the quiet kind of break - the save loads, the
+run continues, and the concept meeting simply happens twice.
 
 `scene` is deliberately excluded from saves: the memory design says a scene is ephemeral, so saving mid-scene means saving at the room door.
 
@@ -2608,13 +2732,15 @@ to the endings screen, saves itself, and installs. It is live at
 17). Four sessions have been played by hand, the most recent on the phone the
 game is designed for.
 
-**PROPOSALS 20 is half built.** An anchor event now opens with a paragraph of
-room and carries an `agenda` of things the day must settle - section 10 has the
-argument. What is still missing is the third deficit: a campaign has nowhere to
-remember what it decided, because the dossier is per member and the ledger is
-chronology that compacts. That is `run.canon`, it is a save-schema change, and
-it is **designed before it is built** - the five questions the design has to
-answer are in `docs/PROGRESS.md` "Still open" item 1.
+**PROPOSALS 20 is half built, and the other half is designed.** An anchor event
+now opens with a paragraph of room and carries an `agenda` of things the day
+must settle - section 10 has the argument. What is still missing is the third
+deficit: a campaign has nowhere to remember what it decided. That is
+`run.canon`, section 7 has the architecture, and the design pass found that it
+cannot be built alone - **PREP has no second event slot and events fire once per
+campaign**, so the chain it needs has a hole and there is no second cycle to
+escalate into. The MV shoot and per-cycle events are therefore prerequisites
+rather than follow-ups. Build order: `docs/PROGRESS.md` "Still open" item 1.
 
 Running state, what is done and what is still open, lives in
 `docs/PROGRESS.md` - that file is updated *before* a milestone closes, and it

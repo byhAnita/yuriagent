@@ -1386,12 +1386,12 @@ directive to buy something (a) mostly already delivers.
 
 ## 20. An anchor event has to decide something
 
-**Status: (a) and (b) BUILT 2026-08-24. (c) is next and is being designed
-before it is implemented, at Yuhan's request. (d) is content and follows.**
-Yuhan raised it after playing the first anchor event, marked it not urgent
-twice, then raised it a third time and asked for it ahead of further hand
-testing. The staged plan and the five open questions (c) has to answer are in
-`docs/PROGRESS.md` "Still open" item 1; the argument for why it is three
+**Status: (a) and (b) BUILT 2026-08-24. (c) and (d) DESIGNED AND ACCEPTED
+2026-08-24, not yet built - see "The settled design for (c)" at the end of this
+entry, which supersedes the sketch in the middle of it.** Yuhan raised it after
+playing the first anchor event, marked it not urgent twice, then raised it a
+third time and asked for it ahead of further hand testing. The build order is
+in `docs/PROGRESS.md` "Still open" item 1; the argument for why it is three
 problems rather than one is here.
 
 **What shipped, and what it did not fix.** An event now opens with a paragraph
@@ -1478,6 +1478,11 @@ sentence a player remembers, and nothing in the current design asks for it.
 
 **(c) is a schema change and should follow.**
 
+> Superseded by "The settled design for (c)" below, which keeps the three
+> reasons and replaces everything else. The sketch here got the shape right and
+> two things wrong: it assumed canon could be injected wholesale, and it did not
+> notice that the chain it implies cannot run on the current calendar.
+
 A run-level **canon**: `run.canon`, a short list of decided facts with the cycle
 they were decided in. Written by an extra field on the event's scene-exit call
 (`decisions[]`), injected into block 4 as one or two lines, and English like all
@@ -1543,6 +1548,207 @@ place to start - they are authored, they already have a frame, and they are
 where a decision has somewhere to go - but (b) should be looked at again for
 ordinary blocks once it is working. `ACTIVITY_DOING` already tells the model
 what she is doing there; what it does not say is what the scene is FOR.
+
+### The settled design for (c), and for (d) with it
+
+Designed with Yuhan 2026-08-24 and accepted whole. This supersedes the sketch
+above. Nothing here is built yet.
+
+#### It is not (c) then (d). (d) and open item 7 are PREREQUISITES.
+
+The sketch assumed canon was a self-contained schema change. Reading the code
+rather than the design says otherwise, and this is the finding that reorders the
+whole thing:
+
+| | what the code does | what it costs the design |
+|---|---|---|
+| **PREP has one event slot** | `PHASE_MAP.prep` carries `event_a: 'meeting_room'` and no `event_b` | the concept meeting has nothing to hand off to, so the chain has a hole at its first link |
+| **Events fire once per CAMPAIGN** | `eventKey(phase, slot)` is `"prep:event_a"`, and `flags.firedEvents` filters `generateWeek` | cycles 2 and 3 have **no events at all**, so there is never a second concept meeting to escalate |
+
+So an event that reads what the last cycle decided is impossible today for a
+reason that has nothing to do with canon: there is no last cycle. `docs/PROGRESS.md`
+open item 7 already says as much from the other direction - *"Item 1's canon is
+the missing input"* - and the two entries were each waiting for the other.
+
+The MV shoot therefore stops being content to do last. It is the second link in
+the chain and it is built first.
+
+#### The chain, and why it is four events rather than six
+
+```
+prep_a  concept meeting  --+
+prep_b  MV shoot          |
+comeback_a  music bank    |   each reads what the one before it settled
+comeback_b  fan meeting  -+
+     |
+     +--> next cycle's prep_a
+```
+
+Four recurring events per cycle, not six. `company_cruise` and `island_trip`
+stay **once-per-campaign punctuation** and stay out of the chain.
+
+Two reasons, and the second one is a number nobody had priced.
+
+**REST is the repair week.** Its job is converting `piqued` jealousy before it
+hardens (section 10), and two mandatory whole-cast days out of its five weekdays
+works directly against that.
+
+**Event days do not generate a daily task**, and that is a supply line. Task ->
+credits -> gifts. Six recurring events would be 6 of 15 weekdays a cycle - 40%
+of the working game, against 11% today - and cutting weekdays by 40% cuts the
+credit supply by roughly the same. Open item 4 already reports **36 facts with
+nothing to spend them on and credits ending a campaign at 0-2**, so this would
+make a known problem measurably worse for a reason that looks unrelated to it.
+Four recurring plus two punctuation events is ~14 event days a campaign, ~31%,
+and the harness measures the credit effect before any of it merges.
+
+The loop also closes better at four: **what the fandom latched onto at the fan
+meeting feeding the next concept meeting** is sharper than an island trip
+feeding it.
+
+#### Storage and injection are different things
+
+The single most useful thing to come out of the design pass, because it dissolves
+the question the sketch could not answer - *what happens when canon fills up?*
+
+- **Storage is complete and never compacts.** Every decision, every cycle. This
+  is what the player reads.
+- **Injection is small and filtered.** Never more than about six lines in block
+  4.
+
+Nothing has to fit in a prompt, so nothing has to be thrown away. The ledger's
+compaction rule (section 7) exists because the ledger IS the prompt; canon is
+not, so it does not inherit the constraint.
+
+#### An agenda item is an id and two texts
+
+`agenda` currently holds bare strings. It becomes:
+
+```js
+agenda: [
+  { id: 'concept',     text: 'which of the mood boards becomes the concept for this comeback' },
+  { id: 'title_track', text: 'which of the demos is the title track' },
+  { id: 'styling',     text: 'the styling the concept commits them to, and which member it asks the most of' },
+  { id: 'centre',      text: 'who gets the centre position for the promotion' },
+],
+reads: ['fan_reaction', 'promotion_lead'],
+```
+
+Three separate things only work with an id, which is why it is not optional:
+
+1. **Superseding.** Cycle 2's `title_track` replaces cycle 1's for injection
+   purposes while both stay in storage.
+2. **The chain.** `reads` names which earlier topics this day is handed.
+3. **Validation** - below, and it is the important one.
+
+A canon entry is then:
+
+```js
+{ topic, text, display, cycle, phase, slot }
+```
+
+**`text` is English and `display` is in `meta.lang`**, and this is not
+symmetry-for-its-own-sake. Section 19 rule 2 keeps all memory English so a
+language switch cannot corrupt history - which means a `zh` player's handbook
+would show their own campaign's decisions in English on an otherwise Chinese
+screen. That is precisely the bug section 12 already fixed once for
+`learnableFacts` (*"a fact is an id, and it has two texts"*), and the summarizer
+already returns `display` beside `summary` for exactly this reason. Getting it
+wrong here would be making the same mistake a third time.
+
+#### What stops a decision being invented
+
+Yuhan's answer was *"strong prompt must decide XX, YY, other topics: ZZ, and
+always only store XX and YY"*, and with ids the second half stops being a hope:
+
+> **A `decisions[]` entry whose topic is not in this event's agenda is dropped
+> entirely.**
+
+That is the parser's roster rule (section 9, rule 3) in a new place, and it is
+here for the same reason: it is the only kind of defence that does not depend on
+the model cooperating. The summarizer's existing four-level tolerant fallback
+handles the rest - a failure returns no decisions and never throws.
+
+The "other topics: ZZ" half needs no new field. `movements` is already exactly
+that list, and it stays unstored, which is what keeps the section 11 rule intact.
+
+**A topic the day never reached is simply absent.** No filler, no placeholder. A
+decision recorded for nothing is worse than one never recorded - the same
+judgement `learnableFacts` makes about a fact awarded for nothing - and the
+consequence is only that the next event in the chain reads one line fewer.
+
+#### Where it goes in the prompt
+
+Block 4, which is rebuilt at every scene start and therefore free in cache terms
+(section 8).
+
+| scene | what it carries |
+|---|---|
+| **ordinary** | two or three lines of the current cycle's canon |
+| **event** | its `reads` topics, plus the same-slot entries from previous cycles |
+
+Ordinary scenes getting it is a deliberate widening of the sketch and most of
+the felt value: **Irene mentioning the title track in a wardrobe conversation on
+a Tuesday** is pillar 4 working - memory that shows in the scene rather than in
+plumbing. It costs nothing that block 4 was not already paying.
+
+Capped at about six lines wherever it appears. Block 4 orders by immediacy
+(section 8), and eighteen world facts would drown the standing sentence, which
+is the one line in there that makes every reaction proportionate.
+
+#### The event knows which time it is
+
+Each recurring event carries a per-cycle stakes clause, so cycle 2's concept
+meeting is not cycle 1's with different numbers: *the last comeback's title
+track was X, and it did or did not land.* This is the difference between
+escalating and repeating, and it is the reason the chain is worth building at
+all.
+
+It is also the largest authoring cost in the whole entry - four events times
+three cycles of stakes - so it is the last thing built and the first thing to
+cut if it does not read well.
+
+#### Where the player sees it
+
+A handbook: the assistant's own notes, listing what each cycle decided, in
+`display` text.
+
+**On the day screen, not as a room action.** A room action reads as costing a
+block, and reading your own notes must not. Section 10's rule that privileging
+something visually turns a choice back into an errand is about *choices*; a
+reference list is not one, and the opposite rule applies to it.
+
+Without this, canon reaches the model and never the player, which is the exact
+failure pillar 4 exists to forbid.
+
+#### Build order
+
+Each step is playable on its own, which is the property that makes it safe to
+stop between any two of them.
+
+| | | why here |
+|---|---|---|
+| 1 | **(d)** the MV shoot - PREP `event_b` | the chain has a hole without it, and it is pure content |
+| 2 | **item 7** - `firedEvents` keyed `phase:slot:cycle`, four recurring | cross-cycle escalation is impossible without it. **Measure the credit and task effect here**, before anything depends on it |
+| 3 | **(c1)** agenda ids, `run.canon`, summarizer `decisions[]`, the drop rule | the schema change: `schemaVersion` bump and a `fromSave` default |
+| 4 | **(c2)** injection into block 4, `reads` chains | the first step where a campaign visibly remembers itself |
+| 5 | **(c3)** the handbook | |
+| 6 | per-cycle stakes clauses | authoring, and cuttable |
+
+#### One thing checked and found already built
+
+Yuhan also asked that the prompt name the player by identity rather than
+assuming assistant. Block 1 has done this since the pronoun fix:
+
+```
+The player is {name}, {identity.promptRole}.
+She is a young woman, and the women in this story are who she is drawn to.
+```
+
+The role comes from the chosen identity with the default identity's own line as
+the fallback, so nothing is hardcoded - MVP simply ships one identity. No change.
+
+---
 
 ## 21. Dating is unreachable in week 1, and the fix is not a lower gate
 

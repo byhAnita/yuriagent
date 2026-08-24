@@ -1174,31 +1174,57 @@ Three reasons it is run-level rather than one of the two stores that exist:
 **Do not implement (c) by widening the ledger.** A summary that must carry both
 a feeling and a fact will carry the feeling every time.
 
-**Open questions the design has to answer before any of it is written**, and
-they are why Yuhan asked for a design pass rather than a build:
+**The design pass happened on 2026-08-24 and it is settled.** The full write-up
+is `docs/PROPOSALS.md` entry 20, "The settled design for (c)", and CLAUDE.md
+section 7 carries the part that is architecture. What follows is only what a
+builder needs at the keyboard.
 
-1. **What is an entry?** A sentence, or a `{ topic, decision }` pair? A sentence
-   is what the summarizer can actually produce and what block 4 wants to read
-   back. A pair is what cycle 2 needs in order to say *the title track last time
-   was X* rather than re-reading prose. Probably a sentence plus a stable topic
-   key, and the key is the part that needs deciding.
-2. **How many, and what happens when it fills?** Canon must not compact the way
-   the ledger does - that is the whole reason it exists - but three cycles times
-   four agenda items is twelve entries and block 4 cannot carry twelve lines of
-   it forever. Superseding is the likely answer (a later decision on the same
-   topic replaces the earlier one), which is another argument for the key.
-3. **Who is allowed to write it?** Events only, or any scene? Events only to
-   start - the agenda is what makes a decision identifiable, and a scene with no
-   agenda has nothing to report.
-4. **What stops it being invented?** The summarizer will happily report a
-   decision the room never reached, which is the `learnableFacts` problem again:
-   a fact awarded for nothing is worse than a fact never awarded. The agenda is
-   the obvious checklist to score against, the same shape section 11 uses for
-   dialogue-taught facts.
-5. **Where does the player see it?** If canon only ever reaches the model it is
-   invisible, which is the failure mode section 1's fourth pillar exists to
-   forbid: *memory that shows*. A day screen line, or the endings screen, or
-   both.
+**The finding that reordered everything: (d) and open item 7 are
+PREREQUISITES, not follow-ups.** Reading the code rather than the design:
+`PHASE_MAP.prep` has no `event_b`, so the chain has a hole at its first link;
+and `eventKey` is `"phase:slot"`, so **cycles 2 and 3 have no events at all**
+and there is never a second concept meeting to escalate. An event that reads
+what the last cycle decided is impossible today for reasons that have nothing
+to do with canon. Item 7 has been saying the same thing from the other side -
+each entry was waiting for the other.
+
+**Four recurring events per cycle, not six.** `prep_a -> prep_b -> comeback_a
+-> comeback_b -> next cycle's prep_a`. The cruise and the island stay
+once-per-campaign punctuation, out of the chain: REST is the repair week, and
+**an event day generates no daily task**, so six recurring events would take
+40% of the working weekdays and cut the credit supply by roughly the same -
+against a known problem (item 4: 36 facts with nothing to spend them on,
+credits ending at 0-2). Four plus two is ~31%. Measure it at step 2.
+
+**Six answers, for the questions that used to be here:**
+
+1. **An entry is an id and two texts.** `{ topic, text, display, cycle, phase,
+   slot }`. `text` English for the prompt, `display` in `meta.lang` for the
+   handbook - otherwise a `zh` player reads their own campaign in English, which
+   is the bug section 12 already fixed once for `learnableFacts`.
+2. **Nothing happens when it fills, because storage and injection are separate.**
+   Storage is complete and never compacts; injection is filtered and capped at
+   ~6 lines. Only the ledger has to fit in a prompt.
+3. **Events write it.** The agenda is what makes a decision identifiable.
+4. **A topic not in this event's agenda is dropped entirely** - the parser's
+   roster rule in a new place, for the same reason: it does not depend on the
+   model cooperating. A topic the day never reached is simply absent; no filler.
+5. **A handbook on the day screen**, not a room action - reading your own notes
+   must not read as costing a block.
+6. **Ordinary scenes get canon too**, two or three lines of the current cycle.
+   Irene mentioning the title track in a wardrobe on a Tuesday is pillar 4
+   working, and block 4 is rebuilt every scene anyway.
+
+**Build order.** Each step is playable on its own.
+
+| | | why here |
+|---|---|---|
+| 1 | **(d)** the MV shoot, PREP `event_b` | the chain has a hole without it; pure content |
+| 2 | **item 7** `firedEvents` keyed `phase:slot:cycle`, four recurring | **measure the credit and task effect here** |
+| 3 | **(c1)** agenda ids, `run.canon`, summarizer `decisions[]`, the drop rule | the schema change, `fromSave` default and all |
+| 4 | **(c2)** block 4 injection, `reads` chains | where a campaign visibly remembers itself |
+| 5 | **(c3)** the handbook | |
+| 6 | per-cycle stakes clauses | authoring, and the first thing to cut |
 
 #### (d) The second PREP event - content, do it last
 
@@ -1316,8 +1342,13 @@ beat and the end of the game is its quietest stretch. The engine already
 supports the escalating reading: key `firedEvents` on `phase:slot:cycle` and
 give each event a per-cycle stakes clause.
 
-**Item 1's canon is the missing input.** An event that can read what the last
-cycle decided is an event that can raise the stakes.
+**Merged into item 1 as step 2, on 2026-08-24.** This entry and item 1 were each
+waiting for the other: canon needs a second cycle of events to escalate into,
+and a second cycle of events needs canon to escalate from. Neither is doable
+alone, so they are now one piece of work with one order. What is decided:
+**four recurring events per cycle** (`prep_a`, `prep_b`, `comeback_a`,
+`comeback_b`), with the cruise and the island staying once-per-campaign - see
+item 1 for why six would cost the credit economy more than it is worth.
 
 ### 8. Content and polish
 
@@ -1458,3 +1489,11 @@ after being written down.
 | 2026-08-24 | **`frame.agenda`** (PROPOSALS 20 b): two to four things the day must decide, on all five events. A separate field from `movements` on purpose - a movement sets the situation and never the outcome, and an agenda item names WHAT gets settled and never WHICH WAY, so the section 11 rule survives intact. Rendered as an obligation where movements are offered, and repeated once by `closingDirective({ settles })` on the turn the client knows is last. |
 | 2026-08-24 | **The rendered agenda says outright that not everything has to go anyone's way.** Not padding: a room told to decide four things will otherwise agree pleasantly about all four, which is the same small talk in a suit. |
 | 2026-08-24 | **(a) and (b) do not fix (c), and shipping them is the evidence for that rather than an argument against it.** A livelier meeting still forgets itself by Tuesday: the dossier is per member and the ledger is chronology that compacts. `run.canon` is designed before it is built, on Yuhan's instruction - five open questions are written into "Still open" item 1. |
+| 2026-08-24 | **(c) designed, and the design reordered the work.** Reading the code rather than the docs: `PHASE_MAP.prep` has no `event_b` and `eventKey` is `phase:slot`, so the chain canon implies has a hole at its first link and cycles 2-3 have no events to escalate into. (d) and open item 7 are therefore PREREQUISITES, not follow-ups - and item 7 had been saying the same thing from the other side since it was written. Each was waiting for the other. |
+| 2026-08-24 | **Four recurring events per cycle, not six.** The cruise and the island stay once-per-campaign punctuation. REST is the repair week; and more sharply, **an event day generates no daily task**, so event days are a supply line - six would take 40% of the working weekdays and cut the credit economy by roughly the same, against a campaign that already ends at 0-2 credits with 36 unspent facts. The connection between event frequency and the gift economy was not visible from either entry alone. |
+| 2026-08-24 | **Storage and injection are separate, which is what dissolved "what happens when canon fills up".** Only the ledger has to fit inside a prompt, so only the ledger needs a compaction rule. Canon storage is complete and permanent (it is what the player reads); injection is filtered to ~6 lines of block 4. |
+| 2026-08-24 | **A canon entry is an id and two texts** - `text` English for the prompt, `display` in `meta.lang` for the handbook. Section 19 rule 2 keeps memory English, so without this a `zh` player would read their own campaign's decisions in English. Section 12 made this exact mistake once with `learnableFacts`; the fix is the same one. |
+| 2026-08-24 | **A decision whose topic is not in the event's `agenda` is dropped entirely.** The parser's roster rule in a new place, and there for the same reason - prompting alone will not hold it. A topic the day never reached is simply absent: a decision recorded for nothing is worse than one never recorded. |
+| 2026-08-24 | **Canon reaches ordinary scenes, not only events.** Two or three lines of the current cycle in block 4, which is rebuilt every scene anyway. Irene mentioning the title track in a wardrobe on a Tuesday is pillar 4 - memory that shows - and it is the half of the feature the original sketch left out. |
+| 2026-08-24 | **The handbook goes on the day screen, not in a room.** A room action reads as costing a block, and reading your own notes must not. Section 10's "do not privilege it visually" argument is about choices; a reference list is not one. |
+| 2026-08-24 | **Checked, already built:** the prompt names the player by chosen identity rather than assuming assistant, and states she is a young woman drawn to women. Block 1 has done both since the pronoun fix. Asked for, and no change needed. |
