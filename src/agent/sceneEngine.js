@@ -597,14 +597,20 @@ function stripMeta(text) {
 }
 
 /**
- * Run it. Returns the session with both halves appended, and the prose.
+ * One paragraph of room, from a directive. Returns the session with both halves
+ * appended, and the prose.
  *
  * A failure returns the session untouched and no text - an event that opens
  * without its establishing paragraph is a slightly flatter event, and section 3
  * has no room for a diagnostic-grade flourish that can take the scene down.
+ *
+ * Shared by `establish` and `interlude` because they are the same call with a
+ * different sentence in it, and the properties that matter - unparsed, stripped
+ * of metadata, silent on failure, `speaker: null` at the far end - are
+ * properties of the SHAPE rather than of either use.
  */
-export async function establish(session, { client, lang = 'en' }) {
-  const frame = appendSystemNote(session.frame, establishingDirective(lang));
+async function narrate(session, { client, directive }) {
+  const frame = appendSystemNote(session.frame, directive);
 
   let raw;
   try {
@@ -620,6 +626,73 @@ export async function establish(session, { client, lang = 'en' }) {
     session: { ...session, frame: appendTurn(frame, { role: 'assistant', content: raw }) },
     text,
   };
+}
+
+export async function establish(session, { client, lang = 'en' }) {
+  return narrate(session, { client, directive: establishingDirective(lang) });
+}
+
+/**
+ * The middle of a day that is DOING something. PROPOSALS 23.
+ *
+ * Three events, one complaint, stated three times in the day-three report:
+ *
+ *   > Still No description of MV shooting scene.
+ *   > Same issue - no description for comeback stage performance.
+ *   > Still no fan-meeting description.
+ *
+ * An anchor event produces a room full of women TALKING ABOUT the day. The
+ * concept meeting survives that, because a meeting is people talking. The other
+ * three do not: a shoot is a shoot, Music Bank is a stage, and a fan meeting is
+ * nine hundred albums and the people who bought them. What the player got at
+ * all three was a green room.
+ *
+ * This is not a model failure. Every mechanism an event has - `movements`, the
+ * `agenda`, the addressee, the interjection - produces DIALOGUE BETWEEN CAST
+ * MEMBERS, because that is what the whole engine is built to produce. Nothing
+ * in it can represent a thing happening TO the room.
+ *
+ * WHY NARRATION AND NOT AN NPC. A director or a broadcast PD is the right
+ * instinct and the expensive answer: a named speaker needs an id, which means a
+ * roster entry, which means the parser's roster rule - the one hard guarantee
+ * against member bleed, and the one rule this project has never softened -
+ * grows a case for somebody who is not a cast member. It would also have to be
+ * excluded from `presentIds` by hand, and given a portrait state that does not
+ * exist. Three load-bearing rules bent.
+ *
+ * The establishing beat already does all of this and bends none of them, and it
+ * was singled out as good in four separate places in the same report. So the
+ * shoot gets a second one in the middle: no roster entry, no speaker id, no
+ * portrait, no jealousy, no new rules. If a played event still reads as people
+ * in a room afterwards, the NPC is the next step and PROPOSALS 23 is the
+ * argument for what it costs.
+ *
+ * WHAT IT ASKS FOR is deliberately not "more atmosphere". The room was
+ * established forty words ago; what is missing is the WORK - a take, a reset,
+ * the light going, the queue moving - which is the one thing dialogue between
+ * five friends cannot show.
+ */
+export const INTERLUDE_PLAIN =
+  'the day has been running for a while now. Write one short paragraph of what is physically ' +
+  'happening in this room right now - what is being set up, shot, played, carried or handed ' +
+  'over, and how that looks and sounds. About forty words. This is the work, not the mood: no ' +
+  'dialogue, no quotation marks, no metadata line, and do not write anyone\'s beat.';
+
+export function interludeDirective(lang = 'en') {
+  if (!lang || lang === 'en') return INTERLUDE_PLAIN;
+  const language = LANG_NAMES[lang] ?? lang;
+  return `${INTERLUDE_PLAIN} Write it in ${language}.`;
+}
+
+/**
+ * Mid-scene, so unlike `establish` there is plenty of prose above it and the
+ * empty-block-5 language trap does not apply. It carries the language anyway,
+ * for about six tokens: this is the one generation in a scene with an English
+ * instruction as its immediate neighbour, which is the exact condition that
+ * produced the split at the opening beat.
+ */
+export async function interlude(session, { client, lang = 'en' }) {
+  return narrate(session, { client, directive: interludeDirective(lang) });
 }
 
 /**

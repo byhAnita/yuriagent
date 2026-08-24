@@ -143,6 +143,13 @@ export const EVENTS = {
    */
   mv_shoot: {
     id: 'mv_shoot',
+    /**
+     * This day DOES something, so it gets a mid-scene interlude of the work
+     * itself (`sceneEngine.interlude`, PROPOSALS 23). The shoot, the stage and
+     * the fan meeting carry it; the concept meeting does not, because a meeting
+     * IS people talking and there is no shot being lit behind them.
+     */
+    physical: true,
     phase: 'prep',
     slot: 'event_b',
     reads: ['concept', 'title_track', 'styling', 'centre'],
@@ -176,6 +183,7 @@ export const EVENTS = {
 
   music_bank: {
     id: 'music_bank',
+    physical: true,
     phase: 'comeback',
     slot: 'event_a',
     reads: ['title_track', 'ending_pose', 'video_lead', 'centre'],
@@ -208,6 +216,7 @@ export const EVENTS = {
 
   fan_meeting: {
     id: 'fan_meeting',
+    physical: true,
     phase: 'comeback',
     slot: 'event_b',
     reads: ['stage_result', 'chart_result', 'promo_plan', 'hero_shot'],

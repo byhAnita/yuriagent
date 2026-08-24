@@ -23,6 +23,7 @@ import {
   openingDirective,
   closingDirective,
   establish,
+  interlude,
   interject,
   isGroupScene,
   turnTo,
@@ -153,6 +154,16 @@ export default function VNStage({
   const hasAgenda = Boolean(setup.scene?.sceneFrame?.agenda?.length);
 
   /**
+   * Does this day DO something, or is it people talking about one?
+   *
+   * Read off the event rather than passed as a prop, the same way `establishing`
+   * and the turn limit are. A shoot, a broadcast and a fan meeting are all
+   * events in which a thing is happening to the room; a concept meeting is not,
+   * and neither is any ordinary block.
+   */
+  const physical = Boolean(setup.scene?.event?.physical);
+
+  /**
    * The deterministic set. Rendered instantly, every turn, no matter what, and
    * replaced in place if a written set arrives (CLAUDE.md section 6). Nothing
    * here ever waits on a model.
@@ -191,6 +202,9 @@ export default function VNStage({
    * in place and never moves a button out from under a finger.
    */
   const turnToken = useRef(0);
+
+  /** The mid-event interlude fires once a scene (PROPOSALS 23). */
+  const interludeDone = useRef(false);
   const chipFailures = useRef(0);
   const chipCooldown = useRef(0);
 
@@ -301,6 +315,7 @@ export default function VNStage({
         gesture = false,
         opening = false,
         establishing = false,
+        interlude: wantsInterlude = false,
         speakerId = null,
       },
     ) => {
@@ -335,6 +350,36 @@ export default function VNStage({
           if (room) {
             base = est;
             setSession(est);
+            setQueue((q) =>
+              enqueue(q, [
+                { speaker: null, emotion: null, guard: 0, fluster: 0, text: room, narration: true },
+              ]),
+            );
+          }
+        }
+
+        /**
+         * The middle of a day that is doing something (PROPOSALS 23).
+         *
+         * Same shape as the establishing beat and the same render path -
+         * `speaker: null`, no name plate, no roster entry, no jealousy - which
+         * is the entire reason it is narration rather than a director with a
+         * speaker id. It is enqueued ahead of her beat, so the player reads
+         * "they reset for the next take" and then what she says over it.
+         *
+         * Fired once per scene, and the guard is a ref rather than the turn
+         * number: a failed call must not burn the interlude, and two sends
+         * racing must not produce two.
+         */
+        if (wantsInterlude && !interludeDone.current) {
+          interludeDone.current = true;
+          const { session: mid, text: room } = await interlude(base, {
+            client,
+            lang: setup.lang,
+          });
+          if (room) {
+            base = mid;
+            setSession(mid);
             setQueue((q) =>
               enqueue(q, [
                 { speaker: null, emotion: null, guard: 0, fluster: 0, text: room, narration: true },
@@ -426,9 +471,20 @@ export default function VNStage({
       const note = last
         ? [args.note, closingDirective({ settles: hasAgenda })].filter(Boolean).join(' ')
         : args.note;
-      return sendFrom(session, { ...args, note });
+
+      /**
+       * The interlude is decided here for the same reason the closing directive
+       * is: only the client knows the budget, and this is where the budget
+       * lives. Two thirds of the way through, so the day has been running long
+       * enough for "a while now" to be true and there is still enough scene
+       * left for the room to react to it.
+       */
+      const interlude =
+        physical && !args.opening && turn >= Math.floor((turnLimit * 2) / 3);
+
+      return sendFrom(session, { ...args, note, interlude });
     },
-    [sendFrom, session, turnLimit, turn, hasAgenda],
+    [sendFrom, session, turnLimit, turn, hasAgenda, physical],
   );
 
   /**
