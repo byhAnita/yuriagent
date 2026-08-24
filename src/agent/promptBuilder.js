@@ -451,6 +451,33 @@ export function buildSceneHeader({
      */
     if (r.speechStyle) lines.push(`${r.name} speaks like this: ${r.speechStyle}`);
 
+    /**
+     * ...and how that sounds in THIS language, when a card says.
+     *
+     * `styleHints` has been on the card schema since M0, section 12 built it
+     * for exactly this - "locale-specific voicing that a generic translation
+     * flattens" - and NOTHING HAS EVER READ IT. Eight cards, every hint null,
+     * one comment mentioning the field further down this file. That is the
+     * `markRisk` shape in its mildest form: a designed slot with no consumer.
+     *
+     * It matters because `speechStyle` above is authored in English and
+     * describes an English voice. "Measured and short. Understates everything"
+     * translated word for word is a woman speaking translated English, which is
+     * precisely what a native reader reported (PROPOSALS 26). Her reticence in
+     * Chinese is made of different material: shorter sentences, fewer
+     * connectives, the modal particle she does not use.
+     *
+     * Here rather than block 1 for the same reason `speechStyle` is repeated
+     * here at all - proximity to where the writing happens - and roster-scoped
+     * like everything else in block 4, so an absent member's voicing is not in
+     * the prompt at all.
+     *
+     * English never has one and never should: it is the language the card is
+     * authored in, so a hint would be the card said twice.
+     */
+    const hint = lang && lang !== 'en' ? r.styleHints?.[lang] : null;
+    if (hint) lines.push(`In ${LANG_NAMES[lang] ?? lang}, ${r.name} sounds like this: ${hint}`);
+
     lines.push(standingLine(r.name, rel));
 
     /**
@@ -615,6 +642,35 @@ export function buildSceneHeader({
       lines.push(
         'Use Simplified characters only - never Traditional.',
         'Every character here is a woman: never use male-coded physical description.',
+        /**
+         * The third `zh` rule, and the one with the largest surface. Reported
+         * by the only person who can report it - a native reader (PROPOSALS 26):
+         *
+         *   > the Chinese expression are very awkward and strange, not native.
+         *   > "cables crawling along the ground like black snakes", "settle the
+         *   > skeleton of the whole video" - feels like using a machine
+         *   > translation from English to Chinese.
+         *
+         * The cause is upstream of the prose. EVERYTHING the model reads before
+         * writing is English - the cards, the ledger, the dossier, the frame,
+         * the register, the agenda - because section 19 rule 2 keeps memory
+         * language-agnostic on purpose. So it is being asked to write Chinese
+         * from an English brief, which is the definition of translationese.
+         *
+         * Note what both reported examples are: STAGE DIRECTIONS. Those come
+         * most directly off the English frame, and they are also where an
+         * English simile survives being carried across word for word.
+         *
+         * The proposed fix was to write memory in `zh`, and that is the one
+         * thing that must not happen - it trades a prose problem for a
+         * data-integrity one, and a player switching language mid-run would
+         * corrupt their own history. This costs nothing and reaches the same
+         * place.
+         */
+        'Write as a Chinese novelist writes, not as a translator does. The notes above are',
+        'a brief in English, not a text to render: say what they mean in the way Chinese',
+        'says it. Prefer the concrete verb to the imported metaphor, and never carry an',
+        'English simile across word for word.',
       );
     }
   }
