@@ -1386,9 +1386,12 @@ directive to buy something (a) mostly already delivers.
 
 ## 20. An anchor event has to decide something
 
-**Status: (a) and (b) BUILT 2026-08-24. (c) and (d) DESIGNED AND ACCEPTED
-2026-08-24, not yet built - see "The settled design for (c)" at the end of this
-entry, which supersedes the sketch in the middle of it.** Yuhan raised it after
+**Status: BUILT 2026-08-24, except the per-cycle stakes clause.** (a), (b),
+(c) and (d) all shipped, together with open item 7 - which the design pass found
+was a prerequisite rather than a follow-up. The design that was actually built
+is "The settled design for (c)" at the end of this entry; it supersedes the
+sketch in the middle. **Nothing here has been played by a human yet**, and
+`docs/PROGRESS.md` "Still open" item 1 says what to look at first.** Yuhan raised it after
 playing the first anchor event, marked it not urgent twice, then raised it a
 third time and asked for it ahead of further hand testing. The build order is
 in `docs/PROGRESS.md` "Still open" item 1; the argument for why it is three

@@ -5,10 +5,17 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, deployed, four sessions played
+## Current: M0-M5 complete, plus PROPOSALS 20. Four sessions played.
 
-**1062 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1161 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
+
+**Newest, and untouched by a human: an anchor event now decides things and the
+campaign remembers them.** Six authored events across fourteen event days, each
+opening with a paragraph of room, each carrying an agenda of what the day must
+settle, chained so the MV shoot shoots the concept the meeting chose and the
+next meeting knows what the fandom made of it. `run.canon` holds the answers
+and the handbook shows them. Item 1 of "Still open" says what to look at first.
 
 **It is live and playable on a phone:** https://byhAnita.github.io/yuriagent/
 Published from `dev` by `bash deploy.sh` (section 17: the Pages site is the
@@ -1079,191 +1086,75 @@ it first.
 
 ---
 
-### 1. PROPOSALS 20 - make an anchor event decide something
+### 1. Play PROPOSALS 20, on the phone  <- PICK UP HERE
 
-**(a) and (b) are BUILT and merged. (c) is the next thing, and Yuhan has asked
-for a detailed design before it is implemented.** (d) is content and comes
-after. The full argument is `docs/PROPOSALS.md` entry 20.
+**Steps 1-5 are built and deployed. Step 6 is deliberately not.** The feature
+has never been touched by a human, and this project's whole history says that
+is the gap that matters: four sessions produced thirty-one fixes, every one in
+code that had tests and passed them.
 
-**The problem, in one line:** every scene in the game - ordinary, group, event,
-date - is pleasant small talk that advances nothing, and a campaign cannot
-remember anything it decided. Reported three times, most sharply of the concept
-meeting: *"not distinguishable from ordinary group chat."* Fifteen turns that
-were supposed to choose a comeback concept produced a joke about ear colour and
-a plate of food, and the ledger line for the whole day was about the food.
+What shipped, in one line each:
 
-**Three deficits, and they must not be conflated.** (a) and (b) have produced a
-livelier meeting that still forgets itself by Tuesday, exactly as predicted -
-which is the argument for (c) rather than a complaint about them.
+| | |
+|---|---|
+| **(a)** | an anchor event opens with a paragraph of room, in the player's language |
+| **(b)** | every event carries an `agenda` of two to four things the day must settle |
+| **(d)** | the MV shoot fills PREP's missing `event_b` |
+| **item 7** | four events recur per cycle; fourteen event days a campaign |
+| **(c)** | `run.canon`, chained through `reads`, injected into block 4, readable in the handbook |
 
-#### (a) Nothing establishes the day - BUILT
+#### What to look at, in the order it will appear
 
-An event now opens with the room. `establishingDirective(lang)` and
-`establish(session, { client, lang })` in `agent/sceneEngine.js`; `VNStage`
-fires it from the opening effect when `scene.event` is set, enqueues the result
-as a beat with `speaker: null`, and `DialogueBox` draws no name plate over it.
+1. **The establishing beat.** An anchor event should open with the room and not
+   with somebody noticing you. In `zh` it must be **wholly Chinese** - this call
+   now owns the empty block 5, which is where the language split lived, and if
+   it comes back it comes back here.
+2. **Does the meeting decide anything?** That was the whole complaint. The
+   concept meeting should name a concept and a title track out loud, and the
+   last turn should settle what is left rather than drift to a parting.
+3. **The handbook** - `notes` in the day-screen header. After the meeting it
+   should hold what the room settled, in the language being played.
+4. **The MV shoot, two days later.** It should be shooting the concept the
+   meeting chose. This is the shortest demonstration that the chain works, and
+   the first place it can visibly fail.
+5. **Ordinary blocks after an event.** Canon reaches them too, capped at a few
+   lines. She should be able to mention the title track in a wardrobe on a
+   Tuesday - and must not state a **previous cycle's** decision as current.
+6. **Week 4, the second concept meeting.** The one that has to read as
+   escalation rather than repetition. If it feels like the same day again, that
+   is what step 6 is for and the evidence for building it.
 
-Four decisions worth not re-litigating:
+#### Two numbers to watch, because the harness says they moved
 
-- **Its own call**, on its own preset (`establish`, 140 tokens, unstreamed). The
-  section 9 contract does not change and the parser's roster rule - the one hard
-  guarantee against member bleed - is not asked to grow a case for prose with no
-  speaker. The client knows this beat is narration because the client asked for
-  it.
-- **It carries `lang`**, which was the trap flagged before the build and was
-  real: this call now owns the empty block 5. The opening beat that follows has
-  Chinese prose above it, so the language split's own condition is gone from the
-  turn it lived on.
-- **Events only.** A date already opens on atmosphere in her own beat, and
-  `REGISTERS.event` had to *stop* asking for it - otherwise the first two beats
-  of every anchor event both open by describing the room.
-- **Every failure path returns the session untouched.** A flatter event is
-  acceptable; a scene that will not open is not.
+**Credits.** Task days went 45 -> 39 -> 31 across this work, and across four
+policies credits at campaign end went `{1,13,2,1}` -> `{2,0,0,0}`, with unspent
+facts `{31,37,22,17}` -> `{36,38,43,31}`. Recurrence **aggravates a problem it
+did not cause** - credits already ended near zero - so it was recorded rather
+than acted on. If the gift economy feels dead in play, that is item 4, and the
+lever is gift prices or per-task credits, not fewer events.
 
-Cost: one extra call five times a campaign. It is enqueued the moment it lands
-rather than held, so the player reads it while the opening call is already in
-flight - the chip call's trade.
+**Event density.** Fourteen event days of 45 weekdays, ~31%. Each is the whole
+cast, one speaker, sixteen turns, and no daily task. If a cycle starts to feel
+like it is all events, dropping `fan_meeting` to a one-off is the cheapest cut -
+one `cycle:` field.
 
-#### (b) The agenda is atmosphere, not business - BUILT
+#### Step 6, and why it is not built
 
-`frame.agenda`, two to four items, on all five events. `renderFrame` states it
-as an obligation where movements are offered (*does not end until it has*), and
-`closingDirective({ settles })` says it once more on the turn the client knows
-is last.
+Each recurring event would carry a per-cycle stakes clause, so cycle 2's concept
+meeting is not cycle 1's with different numbers. It is buildable now that canon
+exists to read from, and it is the largest authoring cost in the whole feature -
+four events times three cycles - and the least certain to read well.
 
-The rendered block also says outright that **not everything has to go anyone's
-way**. That line is not padding: a room told to decide four things will
-otherwise agree pleasantly about all four, which is small talk wearing a suit.
+**Play first.** If the `reads` chain already makes the second cycle feel
+different, the stakes clauses may be unnecessary; if it does not, playing is the
+only thing that will say why.
 
-Two rules are asserted in `data/events/events.test.js` because this is content
-and content drifts: an agenda item names **what** gets decided and never **which
-way**, and it must be about the group and the work rather than about one member
-feeling something. The second is the one that will rot first - a "movement in
-disguise" reads fine and quietly turns the field back into atmosphere.
+#### One rule not to break when returning to this
 
-#### (c) Nothing is recorded - NEXT, and design it first  <- PICK UP HERE
-
-Even if the room decided, there is nowhere to put it. `dossier` is per member.
-`ledger` is chronology - one sentence, compacted and eventually dropped - and
-the summarizer spends that sentence on whatever the scene was emotionally
-about. The played transcript is the evidence: it chose the plate of food.
-
-Add a run-level **canon**: `run.canon`, a short list of decided facts, each
-with the cycle it was decided in.
-
-- Written by an extra field on the **event** scene-exit call (`decisions[]`),
-  parsed through the same four-level tolerant fallback as the rest of the
-  summarizer (section 9) - a failure returns no decisions and never throws.
-- Injected into **block 4** as one or two lines. Block 4 is rebuilt at every
-  scene start anyway, so it is free in cache terms (section 8).
-- **English**, like all memory (section 19 rule 2), so a language switch cannot
-  corrupt it.
-- `schemaVersion` bump plus a `fromSave` default, so an existing save loads
-  with an empty canon rather than `undefined`.
-
-Three reasons it is run-level rather than one of the two stores that exist:
-
-1. **It is not chronology.** "The title track is X" is true from the moment it
-   is decided until the campaign ends. The ledger compacts and drops; canon
-   must not.
-2. **It is not per member**, so the dossier's roster scoping is the wrong shape
-   - everybody knows what the group decided.
-3. It is the missing input for **cycles 2 and 3** (item 7). An event that can
-   read what the last cycle decided is an event that can escalate.
-
-**Do not implement (c) by widening the ledger.** A summary that must carry both
-a feeling and a fact will carry the feeling every time.
-
-**The design pass happened on 2026-08-24 and it is settled.** The full write-up
-is `docs/PROPOSALS.md` entry 20, "The settled design for (c)", and CLAUDE.md
-section 7 carries the part that is architecture. What follows is only what a
-builder needs at the keyboard.
-
-**The finding that reordered everything: (d) and open item 7 are
-PREREQUISITES, not follow-ups.** Reading the code rather than the design:
-`PHASE_MAP.prep` has no `event_b`, so the chain has a hole at its first link;
-and `eventKey` is `"phase:slot"`, so **cycles 2 and 3 have no events at all**
-and there is never a second concept meeting to escalate. An event that reads
-what the last cycle decided is impossible today for reasons that have nothing
-to do with canon. Item 7 has been saying the same thing from the other side -
-each entry was waiting for the other.
-
-**Four recurring events per cycle, not six.** `prep_a -> prep_b -> comeback_a
--> comeback_b -> next cycle's prep_a`. The cruise and the island stay
-once-per-campaign punctuation, out of the chain: REST is the repair week, and
-**an event day generates no daily task**, so six recurring events would take
-40% of the working weekdays and cut the credit supply by roughly the same -
-against a known problem (item 4: 36 facts with nothing to spend them on,
-credits ending at 0-2). Four plus two is ~31%. Measure it at step 2.
-
-**Six answers, for the questions that used to be here:**
-
-1. **An entry is an id and two texts.** `{ topic, text, display, cycle, phase,
-   slot }`. `text` English for the prompt, `display` in `meta.lang` for the
-   handbook - otherwise a `zh` player reads their own campaign in English, which
-   is the bug section 12 already fixed once for `learnableFacts`.
-2. **Nothing happens when it fills, because storage and injection are separate.**
-   Storage is complete and never compacts; injection is filtered and capped at
-   ~6 lines. Only the ledger has to fit in a prompt.
-3. **Events write it.** The agenda is what makes a decision identifiable.
-4. **A topic not in this event's agenda is dropped entirely** - the parser's
-   roster rule in a new place, for the same reason: it does not depend on the
-   model cooperating. A topic the day never reached is simply absent; no filler.
-5. **A handbook on the day screen**, not a room action - reading your own notes
-   must not read as costing a block.
-6. **Ordinary scenes get canon too**, two or three lines of the current cycle.
-   Irene mentioning the title track in a wardrobe on a Tuesday is pillar 4
-   working, and block 4 is rebuilt every scene anyway.
-
-**Build order.** Each step is playable on its own.
-
-| | | why here |
-|---|---|---|
-| 1 | **(d)** the MV shoot, PREP `event_b` | the chain has a hole without it; pure content |
-| 2 | **item 7** `firedEvents` keyed `phase:slot:cycle`, four recurring | **measure the credit and task effect here** |
-| 3 | **(c1)** agenda ids, `run.canon`, summarizer `decisions[]`, the drop rule | the schema change, `fromSave` default and all |
-| 4 | **(c2)** block 4 injection, `reads` chains | where a campaign visibly remembers itself |
-| 5 | **(c3)** the handbook | |
-| 6 | per-cycle stakes clauses | authoring, and the first thing to cut |
-
-#### (d) The second PREP event - content, do it last
-
-PREP carries only `event_a` (`meeting_room`); `comeback` and `rest` carry two
-each, so this is a hole rather than a preference. The group activity `mv_shoot`
-has been on the calendar since M1 with no authored day behind it, and Yuhan
-asked for it by name.
-
-Needs `event_b: 'mv_set'` on the prep map, a location with a high
-`exposureBase` and full `presence`, an entry in `data/events/index.js`,
-`event.*` keys in **both** locales, and a pass against the map assertions -
-`data/soloCoverage.test.js` and `data/phaseMaps.test.js` are what will catch a
-mistake here, which is what they are for.
-
-It is also the best possible test of canon: an MV shoot that reads back the
-concept the meeting chose is the shortest demonstration that a campaign
-remembers itself.
-
-#### Order, and where it is safe to stop
-
-**(a) + (b) shipped together**, as predicted: a directive and a data field, no
-schema change, testable offline. **(c) is next**, designed before it is built,
-with the save migration done properly. **(d) last**, as content, because it is
-also the best possible test of canon - an MV shoot that reads back the concept
-the meeting chose is the shortest demonstration that a campaign remembers
-itself.
-
-It is safe to stop here and play. Nothing in (a) or (b) can strand a scene: the
-establishing call fails silently into an ordinary opening, and an agenda is a
-frame field that renders or does not.
-
-Ordinary scenes are the larger share of the game and the same complaint covers
-them (*"all dialogues are random and shallow small talks"*). Whatever (b)
-establishes for events is worth looking at again for ordinary blocks - section
-8's `ACTIVITY_DOING` already gives a scene a reason to exist, and it may need
-agenda-shaped sharpening rather than new machinery. **Do not simply copy the
-establishing beat there**: it is priced at one extra call five times a campaign,
-and an ordinary block would make that ~190, for a paragraph pillar 1 does not
-want in front of a wardrobe conversation.
+An event's day must not move once another event fires. `eventDays` deals days to
+every slot BEFORE filtering, and reversing that made the second event of a phase
+unreachable in the shipped build - the fan meeting after Music Bank, the island
+after the cruise. Two tests guard it and both fail against the old code.
 
 ### 2. Play the rest of it, on the phone, in both languages
 
@@ -1317,6 +1208,10 @@ on"** per campaign, with credits ending at 0-2.
 
 ### 5. Harness fidelity
 
+Two of these were fixed on 2026-08-24 and are recorded below the line, because
+**a harness that is wrong in the player's favour hides bugs rather than causing
+them** - and both of them were doing exactly that.
+
 - **`presentIds` is unset for every ordinary harness scene**, so co-presence
   jealousy and `riskExposure` are under-modelled everywhere except at events.
 - **It never dates and never spends a dorm evening**, which is what makes item
@@ -1327,6 +1222,15 @@ on"** per campaign, with credits ending at 0-2.
 - **`balanceSim` is superseded and still maintained.** `playthrough.test.js`
   answers the same questions by playing the real loop. Retire it.
 
+Fixed, and both mattered more than they looked:
+
+- **It handed out a daily task on all 45 weekdays**, never passing `eventDay` to
+  `generateDayTask`, so it reported a credit supply the player does not have.
+- **It played the afternoon and evening of every event day**, which `Aftermath`
+  consumes. That one hid a shipped bug: the harness was still standing in the
+  same "today" when the week plan reshuffled, so it walked into a relocated
+  event a block later and never noticed that a real player could not.
+
 ### 6. Repair events
 
 `applyRepair` is implemented and tested, `flags.repairUsed` is in the schema,
@@ -1335,20 +1239,19 @@ rather than higher because `rift` needs sustained neglect to reach and no
 played day has been near it - building the entry point now means building it
 blind.
 
-### 7. Events do not recur, and week 9 is the emptiest week in the game
+### 7. Events recur - BUILT 2026-08-24
 
-Five anchor events fire per **campaign**, so cycles 2 and 3 have no authored
-beat and the end of the game is its quietest stretch. The engine already
-supports the escalating reading: key `firedEvents` on `phase:slot:cycle` and
-give each event a per-cycle stakes clause.
+Kept as a stub because the reasoning is worth finding from this direction too.
+This entry and item 1 were each waiting for the other: canon needs a second
+cycle of events to escalate into, and a second cycle of events needs canon to
+escalate from. Neither was doable alone, and neither entry could see that.
 
-**Merged into item 1 as step 2, on 2026-08-24.** This entry and item 1 were each
-waiting for the other: canon needs a second cycle of events to escalate into,
-and a second cycle of events needs canon to escalate from. Neither is doable
-alone, so they are now one piece of work with one order. What is decided:
-**four recurring events per cycle** (`prep_a`, `prep_b`, `comeback_a`,
-`comeback_b`), with the cruise and the island staying once-per-campaign - see
-item 1 for why six would cost the credit economy more than it is worth.
+`firedEvents` keys on `phase:slot:cycle`; four events recur, the cruise and the
+island are one-offs in cycles 1 and 2. Fourteen event days a campaign. **Week 9
+is no longer the quietest week - it is the island trip.**
+
+What remains of this entry is the per-cycle stakes clause, which is item 1's
+step 6 and is deliberately unbuilt until somebody has played the chain.
 
 ### 8. Content and polish
 
