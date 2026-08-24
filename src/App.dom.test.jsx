@@ -63,6 +63,31 @@ describe('starting a run', () => {
   });
 
   /**
+   * The handbook, and this is the JOIN rather than the component.
+   *
+   * `HandbookModal.dom.test.jsx` covers what it renders; nothing there can tell
+   * whether the day screen offers a way in. That is the shape this project
+   * keeps producing - `markRisk` was implemented, tested, and never called.
+   *
+   * It is a HEADER control and free to open: a room action would read as
+   * costing a block, and reading your own notes must not (section 7).
+   */
+  it('offers the notes from the day screen, and they open', async () => {
+    await startARun('Yuhan');
+
+    const open = screen.getByText(t('handbook.open'));
+    expect(open).toBeTruthy();
+
+    await userEvent.click(open);
+    // A fresh run has decided nothing, and the panel says where the lines
+    // will come from rather than showing an empty box.
+    expect(screen.getByText(t('handbook.empty'))).toBeTruthy();
+
+    // The energy readout is still there, so nothing spent a block.
+    expect(screen.getByText(t('game.energy'))).toBeTruthy();
+  });
+
+  /**
    * The save is written at day rollover and on arrival, which is the only
    * moment section 15 allows: a scene is ephemeral, so a save taken mid-scene
    * would be a save taken at the room door.

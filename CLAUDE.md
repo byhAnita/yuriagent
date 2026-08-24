@@ -1004,10 +1004,9 @@ ledger:
 ### Canon
 
 > **Built 2026-08-24.** `systems/canon.js`, written by the event scene-exit
-> call, injected into block 4, persisted at `schemaVersion` 3. What is still
-> missing is the `reads` chain - an event asking for a named topic the last one
-> settled - and the handbook. `docs/PROGRESS.md` "Still open" item 1 has the
-> rest of the order.
+> call, chained through `reads`, injected into block 4, shown to the player in
+> the handbook, persisted at `schemaVersion` 3. The one part not built is the
+> per-cycle stakes clause - see section 10.
 
 The two stores above cannot hold a decision, and an anchor event is a day that
 makes decisions. `dossier` is per member and scoped to the room, so it is the
@@ -1058,6 +1057,15 @@ What block 4 carries depends on the scene:
 Capped, because block 4 is ordered by immediacy (section 8) and eighteen world
 facts would drown the standing sentence - the one line in there that makes every
 reaction proportionate.
+
+**And the player can read it.** `ui/modals/HandbookModal.jsx`, opened from the
+day screen and free - a room action would read as costing a block, and reading
+your own notes must not. Section 10's "do not privilege it visually" argument is
+about *choices*; a reference list is not one, and the opposite rule applies.
+
+It shows `display`, grouped by cycle, newest first. Without this canon would
+reach the model and never the player, which is the exact failure pillar 4 exists
+to forbid: **memory that shows in mechanics, not only in prose.**
 
 **Written by events only, and validated rather than trusted.** The scene-exit
 call gains `decisions: [{ topic, text }]`, parsed through the same four-level

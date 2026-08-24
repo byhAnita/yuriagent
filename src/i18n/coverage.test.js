@@ -68,6 +68,19 @@ describe('i18n coverage', () => {
       });
 
       /**
+       * The handbook is where canon reaches the PLAYER (section 7). Its empty
+       * state is load-bearing rather than chrome: a campaign in its first week
+       * has decided nothing, and that panel is the only thing that tells the
+       * player where these lines are going to come from.
+       */
+      it('carries the handbook chrome', () => {
+        for (const key of ['title', 'open', 'close', 'cycle', 'empty']) {
+          expect(dict.handbook?.[key], `handbook.${key}`).toBeTruthy();
+        }
+        expect(dict.handbook.empty.length).toBeGreaterThan(20);
+      });
+
+      /**
        * Every room the player can reach needs a name.
        *
        * This assertion was missing, and the phase-map work added twelve rooms

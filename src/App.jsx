@@ -58,6 +58,7 @@ import Endings from './ui/screens/Endings.jsx';
 import SoloAction, { TASK_ACTION } from './ui/screens/SoloAction.jsx';
 import SettingsModal from './ui/modals/SettingsModal.jsx';
 import SaveModal from './ui/modals/SaveModal.jsx';
+import HandbookModal from './ui/modals/HandbookModal.jsx';
 import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
@@ -175,6 +176,7 @@ export default function App() {
   const [canon, setCanon] = useState([]);
 
   const [showDates, setShowDates] = useState(false);
+  const [showHandbook, setShowHandbook] = useState(false);
   const [askedToday, setAskedToday] = useState(null);
   const [refusal, setRefusal] = useState(null);
 
@@ -920,6 +922,7 @@ export default function App() {
           onSkipBlock={() => advance()}
           onOpenSettings={() => setShowSettings(true)}
           onOpenSaves={openSaves}
+          onOpenHandbook={() => setShowHandbook(true)}
           canAskOut={canAskOut}
           onAskOut={() => {
             setRefusal(null);
@@ -1025,6 +1028,10 @@ export default function App() {
           }
           t={t}
         />
+      ) : null}
+
+      {showHandbook ? (
+        <HandbookModal canon={canon} onClose={() => setShowHandbook(false)} t={t} />
       ) : null}
 
       {showSaves ? (

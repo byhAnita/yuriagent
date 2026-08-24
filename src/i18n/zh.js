@@ -91,6 +91,14 @@ export default {
    * 特别事件。只有标题与简介需要本地化；模型读到的场景框架是英文，
    * 写在 `data/events/` 里，永远不翻译（第 19 节）。
    */
+  handbook: {
+    title: "笔记",
+    close: "关闭",
+    cycle: "第",
+    empty: "目前还没有定下任何事。会议、拍摄、打歌台上定下来的事，都会记在这里。",
+    open: "笔记",
+  },
+
   event: {
     today: '今天是',
     wholeDay: '这会花掉一整天。',

@@ -54,6 +54,14 @@ export default {
    * Anchor events. Titles and blurbs only - the frame the model reads is
    * model-facing English in `data/events/` and never localized (section 19).
    */
+  handbook: {
+    title: "Notes",
+    close: "close",
+    cycle: "Cycle",
+    empty: "Nothing has been decided yet. What the group settles at a meeting, a shoot or a broadcast gets written down here.",
+    open: "notes",
+  },
+
   event: {
     today: 'Today is',
     wholeDay: 'It takes the whole day.',

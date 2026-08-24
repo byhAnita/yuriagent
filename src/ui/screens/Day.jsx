@@ -51,6 +51,7 @@ export default function Day({
   onSkipBlock,
   onOpenSettings,
   onOpenSaves,
+  onOpenHandbook,
   canAskOut = false,
   onAskOut,
   t,
@@ -104,6 +105,19 @@ export default function Day({
           className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
         >
           {t('save.open')}
+        </button>
+        {/*
+          What the campaign has decided, free to read.
+
+          A header control and not a room action: a room action reads as
+          costing a block, and reading your own notes must not (section 7).
+        */}
+        <button
+          type="button"
+          onClick={onOpenHandbook}
+          className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+        >
+          {t('handbook.open')}
         </button>
         <button
           type="button"
