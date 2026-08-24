@@ -32,6 +32,19 @@ const LINES = {
     ['neutral', -4, 3, '*She keeps working while she answers, which means she does not mind you being there.* "Mm. Long one today."'],
     ['happy', -6, 5, '"You always say that." *She sounds almost fond about it.*'],
   ],
+  /**
+   * The floor of the relationship, and it is written that way on purpose.
+   *
+   * There is no stance-to-payout table anywhere in the game - guard and fluster
+   * are readings the model reports - so a stance is worth what it is WRITTEN
+   * worth. `work` therefore gets the smallest numbers in this table, below
+   * `casual`: it is what a player picks when they have nothing to spend and
+   * something to get done, and it should feel exactly that way.
+   */
+  work: [
+    ['neutral', -3, 2, '*She pulls the run sheet over without being asked.* "Right. Where are we."'],
+    ['neutral', -2, 1, '"Do that one again from the top." *She is already counting it in.*'],
+  ],
   deflect: [
     ['neutral', 2, -3, '*She lets it go, visibly.* "Sure. The schedule, then."'],
     ['upset', 4, -2, '"Fine." *She turns back to the mirror.*'],
@@ -75,6 +88,7 @@ const PLAYER_LINES = {
   flirt: ['You are enjoying this', 'Say that again, slower', 'You did that on purpose'],
   care: ['I am not going anywhere', 'You did fine out there', 'Have you eaten?'],
   casual: ['Ask how the day went', 'Talk about nothing', 'Just stay a while'],
+  work: ['So - the title track', 'Run it once more', 'Get the day settled'],
   deflect: ['So. The schedule.', 'Ask about the fitting', 'Let it go for now'],
   press: ['Ask what she meant by that', 'Wait her out', 'Push once more'],
   confide: ['Tell her about the call', 'Admit you were nervous too', 'Say the true thing'],

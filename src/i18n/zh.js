@@ -225,6 +225,7 @@ export default {
     flirt: '撩她',
     care: '关心她',
     casual: '闲聊',
+    work: '说正事',
     deflect: '岔开话题',
     joke: '开玩笑',
     press: '追问',

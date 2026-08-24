@@ -798,7 +798,23 @@ describe.skipIf(!process.env.HARNESS_SWEEP)('policy sweep', () => {
   it(
     'reports what each kind of player gets',
     async () => {
-      const seeds = [3, 7, 11, 21, 42];
+      /**
+       * FIVE SEEDS IS A READING, NOT A COMPARISON.
+       *
+       * Adding the `work` stance (PROPOSALS 22) moved `spread` 28 -> 40 and
+       * `balanced` 32 -> 16 on this list - in OPPOSITE directions, and only for
+       * the two policies that pick uniformly from `available`. That is what
+       * seed noise looks like, and at five seeds there is no way to tell it
+       * from an effect. So the list is settable, and a change to a coefficient
+       * gets re-run wide before anybody writes a number down.
+       *
+       * HARNESS_SEEDS=1,2,3,...  and mind the wall clock: about twelve seconds
+       * a campaign, times five policies, times however many seeds.
+       */
+      const seeds = (process.env.HARNESS_SEEDS ?? '3,7,11,21,42')
+        .split(',')
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isFinite(n));
       const table = {};
 
       for (const policy of Object.keys(POLICIES)) {

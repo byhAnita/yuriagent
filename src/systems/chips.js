@@ -23,6 +23,7 @@ export const STANCES = [
   'flirt',
   'care',
   'casual',
+  'work',
   'deflect',
   'joke',
   'press',
@@ -34,13 +35,43 @@ export const STANCES = [
 ];
 
 /**
- * The everyday register: warm, light, obvious, or off the subject.
+ * The everyday register: warm, light, obvious, or getting on with the job.
  *
  * Weighted up in `generateChips`, because most turns in a conversation are not
  * events. A vocabulary where pressing and apologising are as likely as saying
  * something light reads as a random verb generator.
+ *
+ * `work` REPLACED `deflect` HERE, and both halves of that were reported in the
+ * day-three playtest (PROPOSALS 22).
+ *
+ * Every one of the other eleven stances is a move in a RELATIONSHIP - being
+ * warm, being obvious, being funny, pressing, confiding, reaching, leaving,
+ * apologising, asking her out, changing the subject. There was nothing at all
+ * for DOING THE WORK THE TWO OF YOU ARE BOTH THERE TO DO, and the player is an
+ * artist assistant standing in a meeting about a comeback:
+ *
+ *   > the options are still daily small talk options - maybe this is the cause
+ *   > - the whole meeting continue talking about small talks like *Did you
+ *   > sleep well yesterday*
+ *
+ * The workaround was typing every agenda topic in by hand, which is a complete
+ * diagnosis: with a work stance on the bar, the day would have moved itself.
+ *
+ * `casual` does not cover it and was never meant to. It was added on day two
+ * for the opposite problem - there was no LOW-STAKES move, and most turns are
+ * not tactics - so it is deliberately contentless: talk about nothing. "Let us
+ * settle the thing this room is for" is not a lighter version of that, it is a
+ * different axis.
+ *
+ * AND FOUR IS THE NUMBER. `generateChips` fills two of three slots from here
+ * and reserves the third, so a fifth common stance dilutes every other one by a
+ * fifth - including `care`, which the `piqued` conversion runs through. So
+ * `deflect` gives up the slot: evasion is a tactic, and the day-two argument
+ * for `casual` was precisely that most turns are not tactics. It stays fully
+ * legal, offered from the general pool like `joke` or `press`; it has simply
+ * stopped being weighted up.
  */
-export const COMMON_STANCES = ['care', 'casual', 'flirt', 'deflect'];
+export const COMMON_STANCES = ['care', 'casual', 'flirt', 'work'];
 
 /**
  * Always available - a player must never be left without a move.
@@ -49,8 +80,14 @@ export const COMMON_STANCES = ['care', 'casual', 'flirt', 'deflect'];
  * safe in `rift`, which finally gives the strain bands a recovery move that is
  * not `apologize`. Apologising presumes fault, and most of the time nobody is
  * at fault and she just needs somebody to notice.
+ *
+ * `work` is safe for a reason of its own, and it is the second such move the
+ * strain bands wanted: doing the job together is exactly what people fall back
+ * on when everything else between them is difficult. It is never locked by
+ * strain, by jealousy or by low energy, because there is no state of a working
+ * relationship in which the work stops.
  */
-const SAFE_STANCES = ['deflect', 'joke', 'retreat', 'casual', 'care'];
+const SAFE_STANCES = ['deflect', 'joke', 'retreat', 'casual', 'care', 'work'];
 
 /** Minimum intimacy before a stance is even offered. */
 const INTIMACY_GATE = { touch: 50, confide: 30, invite: 20 };

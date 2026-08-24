@@ -198,6 +198,7 @@ export default {
     flirt: 'Flirt',
     care: 'Look after her',
     casual: 'Small talk',
+    work: 'Talk shop',
     deflect: 'Change the subject',
     joke: 'Joke',
     press: 'Press',
