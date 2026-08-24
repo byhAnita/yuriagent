@@ -725,7 +725,33 @@ this harness has ever been given:
 | `devoted` | 20% | drift 80, out 20 |
 
 **The balance ending is 0/20 for every policy**, which is what section 5b wants
-of it and is unchanged.
+of it and is unchanged. The dedicated reachability run (`HARNESS_BALANCE=1`,
+three policies x 20 seeds) says more than that, and it is worth reading
+carefully:
+
+| policy | balance ending | all five good | what the fifth member got |
+|---|---|---|---|
+| `bold` | 0/20 | **5/20** | confidante 4, severance 1, nameless 1 |
+| `expert` | 0/20 | **3/20** | exposure 3, confidante 3, nameless 1 |
+| `balanced` | 0/20 | 0/20 | - |
+
+**The blocker is jealousy, not intimacy.** `bold` gets all five members to a
+good ending in a quarter of its runs and clears the balance bar in none of
+them, so what stops it is the `jealousy < 50` condition rather than anybody
+falling short of `nameless`. That is a coherent story rather than a bug: the
+behaviour that produces good endings here is public risk, public risk produces
+rumors, and rumors are what produce jealousy. Section 5b designed exactly that
+tension - *breadth is cheap while everything is shallow, and becomes punishing
+as any single route deepens.*
+
+What it does **not** yet establish is whether the ending is very rare or
+actually unreachable, and 0/60 cannot tell those apart. The honest caveat is
+the one open item 5 already makes: **no harness policy takes a date**, and a
+date is both the largest admissibility lever in the game and - for a public one
+- a witnessed-tier jealousy event for all four absent members. The policy that
+would test this properly is one that converts `piqued` aggressively while
+taking risks, and it does not exist. Do not move a jealousy coefficient on
+these numbers.
 
 Two things to read out of that table.
 
