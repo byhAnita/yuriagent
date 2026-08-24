@@ -681,6 +681,62 @@ An Adam's apple, on Irene. Section 1b established that the player is a young
 woman and never said the same about the five women she works with, for exactly
 the reason section 1b gives about itself: it was too obvious to write down.
 
+
+### What the chip bug was actually costing, measured
+
+**Run after the day-three fixes, 5 seeds x 5 members per policy**
+(`HARNESS_REPORT=1 HARNESS_SWEEP=1 HARNESS_BALANCE=1`):
+
+| policy | good endings | what it produced |
+|---|---|---|
+| `devoted` | 20% | `drift_end:20 out_end:5` |
+| `spread` | 28% | `confidante_end:18 unspoken_end:7` |
+| `balanced` | 32% | `confidante_end:17 unspoken_end:6 unnamed_end:2` |
+| **`bold`** | **64%** | **`ours_end:7 out_end:7`** confidante_end:5 severance_end:2 ... |
+| `expert` | 56% | `ours_end:9` exposure_end:5 severance_end:4 out_end:4 |
+
+`bold` is the policy that takes the overt move whenever the room allows one.
+**It doubles `balanced`**, and `ours_end` / `out_end` - the two best endings in
+the game - are produced almost exclusively by it and by `expert`. Every policy
+that does not deliberately reach for risk piles up `confidante_end`.
+
+So the reserved risk slot is not a nicety. It is the difference between a 32%
+run and a 64% run, and the written-chip defect was deleting it from the bar on
+every turn the model answered - which left a real player somewhere in the
+`spread`/`balanced` band whatever they intended.
+
+### ...and no harness could have told us
+
+`playthrough.test.js` and `balanceSim` pick stances straight out of
+`availableStances`. **Neither has ever called `generateChips`, let alone
+`writeChips`**, so a risk stance was always available to them and `bold` could
+always play boldly. The table above describes a game the player could not
+actually reach.
+
+That is failure mode 9 for the third time - a harness wrong in the player's
+favour hides a bug rather than finding it - and it has a consequence worth
+stating for next time: **every admissibility figure measured before 2026-08-24
+is an upper bound**, not a measurement.
+
+The guard for this therefore lives at the layer where the defect was, not in a
+harness: `VNStage.dom.test.jsx` holds the chip call open, reads the
+deterministic bar, releases it, and reads the bar again. Against the pre-fix
+code it prints the bug in the player's own terms:
+
+```
+before: ["stance.press", "stance.invite vn.risk", "stance.confide vn.risk"]
+after:  ["stance.care I am here", "stance.joke ...", "stance.casual ..."]
+```
+
+### One number that has still never been seen
+
+**The balance ending is 0/5 under every policy, and 0/20 in the dedicated
+reachability run.** `CLAUDE.md` section 5b quotes 2.8% for `balanced`, which is
+from the older `balanceSim` and predates the plateau brake and the dead risk
+flag. Twenty runs at ~3% expects 0.6 hits, so this is not yet evidence of
+anything - but the engine harness has never once produced the ending the game
+is named after, and nobody should quote 2.8% as though it had.
+
 ### What went RIGHT, because it is evidence too
 
 - The establishing beat landed every time and was singled out as good in four
@@ -1266,13 +1322,19 @@ session:
 4. **26 - the Chinese reads translated.** Two of the three fixes are free.
 5. **25 - reading how close she is.** Mostly already built and unfindable.
 
-#### One number nobody has measured yet
+#### Do NOT reach for the harness to check the chip fix
 
-The chip field is now sampled rather than sliced, so `touch`, `invite` and
-`confide` can be WRITTEN for the first time. That widens what the model is
-offered on every turn of every scene, and nothing yet says what it does to the
-payout distribution. **Re-run `balanceSim` and the campaign harness** before
-trusting any coefficient in section 5b.
+It cannot see it. `playthrough.test.js` and `balanceSim` pick stances straight
+out of `availableStances` and never call `generateChips` or `writeChips`, so a
+risk stance was always available to them - which is why the bug survived two
+harnesses and four played sessions. The guard lives in `VNStage.dom.test.jsx`,
+at the layer where the swap happens.
+
+What the harness DID measure, run after the fixes, is what the bug was costing:
+`bold` reaches a good ending **64%** of the time against `balanced`'s **32%**,
+and `ours_end` / `out_end` come almost only from policies that reach for risk.
+The section above has the table. Treat every admissibility figure measured
+before 2026-08-24 as an upper bound.
 
 ### 2. Play the rest of it, on the phone, in both languages
 
