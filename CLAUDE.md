@@ -1514,10 +1514,10 @@ That is `run.canon`, and section 7 has it.
 
 ### Four of them recur, and two are punctuation
 
-**Designed 2026-08-24, not built.** Five events per campaign means cycles 2 and
-3 have no authored beat at all, and week 9 is the quietest stretch of the game.
-So `flags.firedEvents` keys on `phase:slot:cycle` and four events come back
-every cycle, in a chain where each reads what the one before it settled:
+**Built 2026-08-24.** Five events per campaign meant cycles 2 and 3 had no
+authored beat at all, and week 9 was the quietest stretch of the game. So
+`flags.firedEvents` keys on `phase:slot:cycle` and four events come back every
+cycle, in a chain where each reads what the one before it settled:
 
 ```
 prep_a concept meeting -> prep_b MV shoot -> comeback_a music bank

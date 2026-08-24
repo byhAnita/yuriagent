@@ -10,12 +10,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { EVENTS, EVENT_IDS, eventFor, eventKey } from './index.js';
+import { EVENTS, EVENT_IDS, eventFor, eventKey, recurs, firesInCycle } from './index.js';
 import { PHASE_MAP, PHASES, eventSlots, resolveSlot, overworldFor } from '../phaseMaps.js';
 import { LOCATIONS } from '../locations.js';
 import { eventDays, generateWeek, occupancyAt, isWeekend } from '../../systems/calendar.js';
+import { cycleForWeek, WEEKS_PER_CAMPAIGN } from '../../systems/clock.js';
 import { getCast } from '../cast.js';
-import { SCENE_TURN_LIMITS } from '../../config/constants.js';
+import { SCENE_TURN_LIMITS, CYCLES_PER_CAMPAIGN } from '../../config/constants.js';
 import en from '../../i18n/en.js';
 import zh from '../../i18n/zh.js';
 
@@ -56,7 +57,7 @@ describe('the catalogue', () => {
   });
 
   it('never claims the same slot twice', () => {
-    const keys = EVENT_IDS.map((id) => eventKey(EVENTS[id].phase, EVENTS[id].slot));
+    const keys = EVENT_IDS.map((id) => eventKey(EVENTS[id].phase, EVENTS[id].slot, 0));
     expect(new Set(keys).size).toBe(keys.length);
   });
 
@@ -246,24 +247,160 @@ describe('an event fires once in a campaign', () => {
     const before = eventDays({ phase: 'comeback', seed: SEED, week: 0 });
     expect(before.length).toBe(2);
 
-    const fired = [eventKey('comeback', before[0].slot)];
+    const fired = [eventKey('comeback', before[0].slot, 0)];
     const after = eventDays({ phase: 'comeback', seed: SEED, week: 0, fired });
 
     expect(after.map((e) => e.slot)).not.toContain(before[0].slot);
     expect(after).toHaveLength(1);
   });
 
-  /**
-   * `fired` persists across cycles rather than resetting with the phase, which
-   * is what makes it five events in the campaign and not five per cycle.
-   */
   it('leaves the phase with no event day once both have fired', () => {
-    const fired = ['comeback:event_a', 'comeback:event_b'];
-    const weekPlan = generateWeek({ phase: 'comeback', cards, seed: SEED, week: 3, fired });
+    const cycle = 1;
+    const fired = [
+      eventKey('comeback', 'event_a', cycle),
+      eventKey('comeback', 'event_b', cycle),
+    ];
+    const weekPlan = generateWeek({ phase: 'comeback', cards, seed: SEED, week: 4, fired });
 
     expect(weekPlan.events).toEqual([]);
     // ...and the day goes back to being an ordinary working one.
     const busy = weekPlan.group.length + Object.values(weekPlan.members).flat().length;
     expect(busy).toBeGreaterThan(0);
+  });
+
+  /**
+   * FOURTEEN EVENT DAYS IN A CAMPAIGN, and the number matters as much as the
+   * mechanism: an event day generates no daily task, so this count is a claim
+   * about the credit economy as much as about the schedule (PROPOSALS 20).
+   *
+   * Played forward the way App plays it - each event marked fired on the way
+   * out - because that is the only way to see the interaction between the two
+   * filters.
+   */
+  it('plays fourteen event days across a campaign: four a cycle plus two', () => {
+    let fired = [];
+    const seen = [];
+
+    for (let week = 0; week < WEEKS_PER_CAMPAIGN; week += 1) {
+      const phase = PHASES[week % PHASES.length];
+      for (const e of eventDays({ phase, seed: SEED, week, fired })) {
+        const key = eventKey(e.phase, e.slot, cycleForWeek(week));
+        seen.push(key);
+        fired = [...fired, key];
+      }
+    }
+
+    expect(seen).toHaveLength(14);
+    // Every recurring one, once per cycle...
+    for (const cycle of [0, 1, 2]) {
+      for (const slot of ['event_a', 'event_b']) {
+        expect(seen).toContain(`prep:${slot}:${cycle}`);
+        expect(seen).toContain(`comeback:${slot}:${cycle}`);
+      }
+    }
+    // ...and the two one-offs exactly once each, unkeyed by cycle.
+    expect(seen.filter((k) => k === 'rest:event_a')).toHaveLength(1);
+    expect(seen.filter((k) => k === 'rest:event_b')).toHaveLength(1);
+  });
+
+  /**
+   * The guarantee the cycle key exists for, stated on its own: playing the
+   * first Music Bank must not cancel the second.
+   */
+  it('does not let one cycle fire an event for the next one', () => {
+    const fired = [eventKey('prep', 'event_a', 0)];
+    const next = eventDays({ phase: 'prep', seed: SEED, week: 3, fired });
+    expect(next.map((e) => e.slot).sort()).toEqual(['event_a', 'event_b']);
+  });
+});
+
+/**
+ * Recurrence. PROPOSALS 20, step 2.
+ *
+ * `cycle` is one field doing two jobs on purpose: an event that names one fires
+ * once, in that cycle; an event that names none fires in all of them. A
+ * `recurs: true` flag beside a `cycle` number could disagree with it, and there
+ * is no sensible answer when it does.
+ */
+describe('four come back and two do not', () => {
+  it('recurs exactly when no cycle is named', () => {
+    for (const id of EVENT_IDS) {
+      expect(recurs(EVENTS[id]), id).toBe(EVENTS[id].cycle == null);
+    }
+  });
+
+  it('brings back the four that make a comeback cycle', () => {
+    for (const id of ['concept_meeting', 'mv_shoot', 'music_bank', 'fan_meeting']) {
+      expect(recurs(EVENTS[id]), id).toBe(true);
+    }
+  });
+
+  /**
+   * REST is the repair week, and an event day generates no daily task - so two
+   * mandatory whole-cast days a cycle would cost the credit economy as well as
+   * the week whose job is converting jealousy before it hardens.
+   */
+  it('keeps the rest week clear by making its two one-offs', () => {
+    for (const id of ['company_cruise', 'island_trip']) {
+      expect(recurs(EVENTS[id]), id).toBe(false);
+      expect(EVENTS[id].cycle).toBeGreaterThanOrEqual(0);
+      expect(EVENTS[id].cycle).toBeLessThan(CYCLES_PER_CAMPAIGN);
+    }
+  });
+
+  /**
+   * Its own frame says where it goes: the first day in nine weeks with nothing
+   * scheduled on it, ending on a last ferry. That is the end of a campaign.
+   */
+  it('puts the island trip in the last cycle', () => {
+    expect(EVENTS.island_trip.cycle).toBe(CYCLES_PER_CAMPAIGN - 1);
+  });
+
+  it('fires a one-off in its own cycle and no other', () => {
+    for (const cycle of [0, 1, 2]) {
+      expect(firesInCycle(EVENTS.company_cruise, cycle)).toBe(cycle === 1);
+      expect(firesInCycle(EVENTS.island_trip, cycle)).toBe(cycle === 2);
+      expect(firesInCycle(EVENTS.concept_meeting, cycle)).toBe(true);
+    }
+  });
+
+  it('says no rather than throwing for a slot with nothing authored', () => {
+    expect(firesInCycle(null, 0)).toBe(false);
+    expect(recurs(null)).toBe(false);
+  });
+});
+
+/**
+ * The guard on `eventKey`, and it is not defensive programming for its own
+ * sake.
+ *
+ * A default of 0 would let a caller that forgot to pass a cycle compile, run,
+ * and quietly key every cycle's event to the same string - which is the single
+ * guarantee this function exists to provide, broken silently, in the shape this
+ * project keeps finding. It earned its keep immediately: it caught both stale
+ * call sites the moment the signature changed, as a failing test rather than as
+ * a campaign where the second Music Bank never happened.
+ */
+describe('eventKey will not guess a cycle', () => {
+  it('throws rather than defaulting', () => {
+    expect(() => eventKey('prep', 'event_a')).toThrow(/needs a cycle/);
+    expect(() => eventKey('prep', 'event_a', '0')).toThrow(/needs a cycle/);
+    expect(() => eventKey('prep', 'event_a', null)).toThrow(/needs a cycle/);
+  });
+
+  it('keys a recurring event by cycle and a one-off without one', () => {
+    expect(eventKey('prep', 'event_a', 2)).toBe('prep:event_a:2');
+    expect(eventKey('rest', 'event_a', 2)).toBe('rest:event_a');
+  });
+
+  /**
+   * A slot with nothing authored for it keys WITHOUT a cycle, because
+   * `recurs(null)` is false - "I do not know what this is" should not claim
+   * that it comes back. The key is never consulted in practice (`eventDays`
+   * drops the slot before it gets this far), so the only thing that matters
+   * here is that it does not throw.
+   */
+  it('keys an unauthored slot rather than throwing', () => {
+    expect(eventKey('prep', 'workroom_a', 0)).toBe('prep:workroom_a');
   });
 });

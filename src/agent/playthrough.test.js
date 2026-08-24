@@ -31,8 +31,14 @@ import {
   GOOD_ENDINGS,
 } from '../systems/relationship.js';
 import { generateWeek, occupancyAt } from '../systems/calendar.js';
-import { eventFor, eventKey, EVENT_IDS } from '../data/events/index.js';
-import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from '../systems/clock.js';
+import { eventFor, eventKey } from '../data/events/index.js';
+import {
+  advanceBlock,
+  newRun,
+  spendBlockEnergy,
+  restOvernight,
+  cycleForWeek,
+} from '../systems/clock.js';
 import { generateDayTask, completeTask, failTask, newTaskState, applyPlayerDeltas } from '../systems/tasks.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta } from '../systems/soloWork.js';
 import { actionsFor } from '../data/soloActions.js';
@@ -195,6 +201,7 @@ async function playCampaign({
    * is worse than one that skips it, because its numbers look trustworthy.
    */
   let firedEvents = [];
+  const eventDaysOffered = new Set();
 
   /**
    * Bounded by `n` AND by the clock, because a block is no longer always one
@@ -213,6 +220,18 @@ async function playCampaign({
       fired: firedEvents,
     });
     const placedEvent = (weekPlan.events ?? []).find((e) => e.day === run.day) ?? null;
+    /**
+     * Every event day the campaign OFFERED, whether or not the player went.
+     *
+     * The denominator used to be `EVENT_IDS.length`, which stopped being the
+     * right number the moment four of them started recurring: six events, but
+     * fourteen event days. Counting what was placed also separates "the
+     * schedule is broken" from "this policy did not go", which is exactly the
+     * distinction the reshuffle bug hid.
+     */
+    if (placedEvent) {
+      eventDaysOffered.add(`${run.week}:${placedEvent.slot}`);
+    }
     const occupancy = occupancyAt(weekPlan, {
       day: run.day,
       block: run.block,
@@ -434,7 +453,7 @@ async function playCampaign({
       stats.scenes += 1;
 
       if (eventHere) {
-        const key = eventKey(placedEvent.phase, placedEvent.slot);
+        const key = eventKey(placedEvent.phase, placedEvent.slot, cycleForWeek(run.week));
         if (!firedEvents.includes(key)) firedEvents = [...firedEvents, key];
         stats.eventsPlayed = (stats.eventsPlayed ?? 0) + 1;
         ateTheDay = true;
@@ -593,6 +612,7 @@ async function playCampaign({
   }
 
   const endings = Object.fromEntries(castIds.map((id) => [id, resolveEnding(relations[id])]));
+  stats.eventDaysOffered = eventDaysOffered.size;
   return { stats, relations, memory, player, endings, balance: isBalanceEnding(relations), cards };
 }
 
@@ -614,7 +634,7 @@ function report(label, out) {
     `openers ${stats.openersUsed} (${stats.objectsBought} bought, ${stats.gesturesUsed} said)  rumors ${stats.rumors}`,
   );
   log(`tasks ${stats.tasksDone} done / ${stats.tasksFailed} failed`);
-  log(`anchor events played ${stats.eventsPlayed ?? 0} of ${EVENT_IDS.length}`);
+  log(`anchor events played ${stats.eventsPlayed ?? 0} of ${stats.eventDaysOffered} offered`);
   log(
     `scenes that paid nothing ${stats.scenesThatPaidNothing}/${stats.scenes}  ` +
       `intimacy from scenes ${stats.intimacyFromScenes} (${(

@@ -64,7 +64,7 @@ const aRun = () => ({
     ledger: [{ id: 's1', day: 1, block: 'morning', type: 'full', text: 'They talked.' }],
   },
   calendar: { taskState: { taskId: 'prep_outfits', done: true, day: 2 } },
-  flags: { firedEvents: ['prep:event_a'], usedGestures: ['squats_together'], foundRumors: [] },
+  flags: { firedEvents: ['prep:event_a:0'], usedGestures: ['squats_together'], foundRumors: [] },
   lang: 'zh',
   model: 'deepseek',
 });
@@ -81,7 +81,7 @@ describe('what a save contains', () => {
     expect(out.run.week).toBe(4);
     expect(out.player.name).toBe('Yuhan');
     expect(out.ledger).toHaveLength(1);
-    expect(out.flags.firedEvents).toEqual(['prep:event_a']);
+    expect(out.flags.firedEvents).toEqual(['prep:event_a:0']);
   });
 
   /**
@@ -116,7 +116,7 @@ describe('a round trip', () => {
     expect(back.memory.dossier.irene.known_facts[0].factId).toBe('cold_hands');
     expect(back.memory.ledger).toHaveLength(1);
     expect(back.calendar.taskState.done).toBe(true);
-    expect(back.flags.firedEvents).toEqual(['prep:event_a']);
+    expect(back.flags.firedEvents).toEqual(['prep:event_a:0']);
   });
 
   it('reports and clears itself', () => {
@@ -316,5 +316,44 @@ describe('everything that can be wrong with a record', () => {
     // The list still renders: the slot screen must not be the thing that
     // breaks when storage does.
     expect(listSlots()).toHaveLength(SLOT_IDS.length);
+  });
+});
+
+/**
+ * The migration `firedEvents` needed when it gained a cycle.
+ *
+ * Yuhan has live autosaves on a phone from hand-testing, so this is not a
+ * hypothetical: without it, loading one would reschedule every anchor event the
+ * player already sat through. The save loads, the run continues, and the
+ * concept meeting simply happens twice - the quiet kind of break.
+ */
+describe('firedEvents survives gaining a cycle', () => {
+  const load = (firedEvents) =>
+    fromSave(toSave({ ...aRun(), flags: { firedEvents } }), defaults()).flags.firedEvents;
+
+  it('keys an old recurring event to cycle 0, where it happened', () => {
+    expect(load(['prep:event_a'])).toEqual(['prep:event_a:0']);
+    expect(load(['comeback:event_b'])).toEqual(['comeback:event_b:0']);
+  });
+
+  /**
+   * The half that a blanket "append :0 to two-part keys" would have got wrong.
+   * The cruise and the island are keyed `phase:slot` ON PURPOSE - they fire
+   * once in a campaign - so rewriting them would corrupt the two keys that were
+   * already correct.
+   */
+  it('leaves a one-off event alone, because two parts is its real shape', () => {
+    expect(load(['rest:event_a'])).toEqual(['rest:event_a']);
+    expect(load(['rest:event_b'])).toEqual(['rest:event_b']);
+  });
+
+  it('is idempotent, so loading a migrated save again changes nothing', () => {
+    const once = load(['prep:event_a', 'rest:event_a']);
+    expect(load(once)).toEqual(once);
+  });
+
+  it('drops junk rather than throwing', () => {
+    expect(load(['prep:event_a', 42, null, 'nonsense'])).toEqual(['prep:event_a:0', 'nonsense']);
+    expect(load('not an array')).toEqual([]);
   });
 });

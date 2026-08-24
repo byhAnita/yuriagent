@@ -24,8 +24,9 @@
  */
 
 import { SAVE_KEY } from '../config/constants.js';
+import { eventFor, recurs } from '../data/events/index.js';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * Everything a run is, and nothing else.
@@ -81,12 +82,42 @@ export function fromSave(raw, defaults) {
     },
     calendar: isObject(raw.calendar) ? raw.calendar : {},
     flags: {
-      firedEvents: Array.isArray(raw.flags?.firedEvents) ? raw.flags.firedEvents : [],
+      firedEvents: migrateFiredEvents(raw.flags?.firedEvents),
       usedGestures: Array.isArray(raw.flags?.usedGestures) ? raw.flags.usedGestures : [],
       foundRumors: Array.isArray(raw.flags?.foundRumors) ? raw.flags.foundRumors : [],
       repairUsed: isObject(raw.flags?.repairUsed) ? raw.flags.repairUsed : {},
     },
   };
+}
+
+/**
+ * `firedEvents` gained a cycle, and an untouched old save would replay.
+ *
+ * The keys were `phase:slot`. Recurring events are now `phase:slot:cycle`, so
+ * a two-part key matches nothing under the new scheme and every anchor event
+ * the player already sat through would be scheduled again. That is the quiet
+ * kind of break - the save loads, the run continues, and the concept meeting
+ * simply happens twice.
+ *
+ * It is NOT "append `:0` to anything with two parts", which is what this looked
+ * like before the one-off events existed. The cruise and the island are keyed
+ * `phase:slot` on purpose (see `recurs`), so a blanket rewrite would corrupt
+ * exactly the two keys that were already correct. The catalogue decides, which
+ * also means the migration keeps working if an event's recurrence changes.
+ *
+ * Anything that is already three parts is left alone, so loading twice is safe.
+ */
+export function migrateFiredEvents(stored) {
+  if (!Array.isArray(stored)) return [];
+
+  return stored
+    .filter((key) => typeof key === 'string')
+    .map((key) => {
+      const parts = key.split(':');
+      if (parts.length !== 2) return key;
+      const [phase, slot] = parts;
+      return recurs(eventFor(phase, slot)) ? `${phase}:${slot}:0` : key;
+    });
 }
 
 function mergePerMember(defaults, stored) {

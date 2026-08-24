@@ -2,9 +2,11 @@
  * Anchor events. CLAUDE.md sections 9 and 10.
  *
  * One per event slot on the three phase maps, six in all. Each takes a WEEKDAY
- * and the whole of it, replacing whatever the calendar would
- * otherwise have put there - the Music Bank recording genuinely is that
- * Thursday. Each fires exactly once and its site leaves the map afterwards.
+ * and the whole of it, replacing whatever the calendar would otherwise have put
+ * there - the Music Bank recording genuinely is that Thursday.
+ *
+ * FOUR OF THEM COME BACK EVERY CYCLE and two do not, which is fourteen event
+ * days in a campaign from six authored ones. See `recurs` for which and why.
  *
  * An event is not a branching node and not a script. It is the same scene
  * engine every other scene runs on, given three things an ordinary block does
@@ -163,6 +165,9 @@ export const EVENTS = {
     id: 'company_cruise',
     phase: 'rest',
     slot: 'event_a',
+    // Mid-campaign: one comeback has landed, so there is something for
+    // executives to make speeches about. See `recurs`.
+    cycle: 1,
     frame: {
       setting:
         'The agency has put everyone on a dinner cruise. Fairy lights, a set menu, ' +
@@ -186,6 +191,9 @@ export const EVENTS = {
     id: 'island_trip',
     phase: 'rest',
     slot: 'event_b',
+    // The last week of the campaign, and only there. Its own frame says so:
+    // the first day in nine weeks with nothing scheduled, and a last ferry.
+    cycle: 2,
     frame: {
       setting:
         'A day off the mainland at the end of a cycle. Ferry, rented bicycles, a ' +
@@ -208,9 +216,65 @@ export const EVENTS = {
 
 export const EVENT_IDS = Object.keys(EVENTS);
 
-/** The key `flags.firedEvents` holds, and `calendar.eventDays` filters on. */
-export function eventKey(phase, slot) {
-  return `${phase}:${slot}`;
+/**
+ * Does this event come back every cycle, or does it belong to one of them?
+ *
+ * ONE FIELD, TWO BEHAVIOURS, and no boolean: an event that names a `cycle`
+ * fires once, in that cycle; an event that names none fires in all of them.
+ * A `recurs: true` flag beside a `cycle` number would let the two disagree,
+ * and there is no sensible answer when they do.
+ *
+ * The four working-cycle events recur, because a comeback cycle that decides a
+ * concept, shoots it, performs it and hears back from the fandom is the loop
+ * the whole game is built on, and running it once in nine weeks left cycles 2
+ * and 3 with no authored beat at all.
+ *
+ * The cruise and the island do not, for two reasons that are both about the
+ * REST week. It is the repair week - two mandatory whole-cast days out of its
+ * five weekdays works against the one week whose job is converting jealousy
+ * before it hardens. And an event day generates no daily task, so event days
+ * are a supply line as well as a schedule: six recurring events would take 40%
+ * of the working weekdays and cut credits by roughly the same, against a
+ * campaign that already ends with none.
+ *
+ * Which cycle each one lands in is authored rather than spread by a rule,
+ * because the content says where it goes. The island trip is *"the first day in
+ * nine weeks with nothing at all scheduled on it"* and ends on *"the last
+ * ferry, and whether anyone wants to be on it"* - that is the end of a
+ * campaign and nowhere else. The cruise sits in the middle, after one comeback
+ * has landed and there is something for executives to make speeches about. The
+ * first rest week gets neither, which is the right shape for the week where the
+ * player is still learning that a rest week is theirs.
+ */
+export function recurs(event) {
+  return event != null && event.cycle == null;
+}
+
+/** Is this event scheduled at all in this cycle? */
+export function firesInCycle(event, cycle) {
+  if (!event) return false;
+  return recurs(event) || event.cycle === cycle;
+}
+
+/**
+ * The key `flags.firedEvents` holds, and `calendar.eventDays` filters on.
+ *
+ * Three parts for a recurring event and two for a one-off, which is what lets
+ * one list hold both: `prep:event_a:1` is the second concept meeting, and
+ * `rest:event_a` is the cruise, once, whenever it happened.
+ *
+ * `cycle` THROWS rather than defaulting, and that is deliberate. A default of 0
+ * would let a caller that forgot to pass one compile, run, and quietly key
+ * every cycle's event to the same string - which is the single guarantee this
+ * function exists to provide, broken silently, in the shape this project keeps
+ * finding (`markRisk` was implemented, tested, and never called). A crash in
+ * the suite is the cheap version of that bug.
+ */
+export function eventKey(phase, slot, cycle) {
+  if (!Number.isInteger(cycle)) {
+    throw new TypeError(`eventKey needs a cycle: got ${cycle} for ${phase}:${slot}`);
+  }
+  return recurs(eventFor(phase, slot)) ? `${phase}:${slot}:${cycle}` : `${phase}:${slot}`;
 }
 
 /**

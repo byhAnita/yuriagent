@@ -29,6 +29,8 @@
 
 import { GROUP_ACTIVITIES, SOLO_ACTIVITIES, IDLE_ACTIVITIES } from '../data/activities.js';
 import { resolveSlot, eventSlots } from '../data/phaseMaps.js';
+import { eventFor, eventKey, firesInCycle } from '../data/events/index.js';
+import { cycleForWeek } from './clock.js';
 import { BLOCKS, DAYS_PER_WEEK } from '../config/constants.js';
 import { makeRng, deriveSeed, pick } from './rng.js';
 
@@ -116,20 +118,60 @@ function shuffled(rng, items) {
  * during the M5 design pass; events used to be pencilled into weekend blocks on
  * the grounds that nothing was scheduled there, which had it backwards and cost
  * the player their own two days.
+ *
+ * TWO FILTERS, and they are different questions. `firesInCycle` asks whether
+ * this event belongs to this cycle at all - the cruise is cycle 1 and nowhere
+ * else - and `fired` asks whether it has already happened. Only the second one
+ * used to exist, so a one-off event would have been scheduled in cycle 0 and
+ * every cycle after it until somebody played it.
+ *
+ * The CYCLE IS DERIVED from the week rather than passed in. Every caller would
+ * otherwise have to compute the same `Math.floor(week / 3)` and one of them
+ * would eventually not, which is this project's most reliable bug: two correct
+ * halves and a missing join.
  */
 export function eventDays({ phase, seed, week = 0, fired = [] }) {
-  const slots = eventSlots(phase).filter((slot) => !fired.includes(`${phase}:${slot}`));
-  if (slots.length === 0) return [];
+  const cycle = cycleForWeek(week);
+  const all = eventSlots(phase);
+  if (all.length === 0) return [];
 
+  /**
+   * DEAL THE DAYS FIRST, THEN FILTER. Never the other way round.
+   *
+   * This function used to filter the slots and then take that many days off the
+   * shuffle, so a slot's day depended on how many slots were still unfired -
+   * and firing one MOVED the other. Measured: `event_a` Tuesday and `event_b`
+   * Friday, until `event_a` fired, at which point `event_b` was Tuesday.
+   *
+   * In play that meant the second event of a phase was scheduled for a day that
+   * had already gone, every time, so it never fired at all: **the fan meeting
+   * was unreachable once Music Bank had been played, and the island trip once
+   * the cruise had.** Shipped, and never seen, because PREP was the only phase
+   * anybody had hand-tested and it had one slot - there was nothing to move.
+   *
+   * The harness could not see it either, for a reason worth keeping: it did not
+   * consume the rest of an event day, so it was still standing in the same
+   * "today" when the plan reshuffled and simply walked into the relocated event
+   * a block later. One bug hid the other, and fixing the harness in step 1 is
+   * what uncovered this one.
+   *
+   * A day now belongs to a SLOT, decided before anything is filtered, so what
+   * has already happened cannot move what has not.
+   */
   const rng = makeRng(deriveSeed(seed, `events:${phase}:${week}`));
-  const days = shuffled(rng, workDays()).slice(0, slots.length);
+  const days = shuffled(rng, workDays()).slice(0, all.length);
 
-  return slots.map((slot, i) => ({
-    day: days[i],
-    slot,
-    location: resolveSlot(phase, slot),
-    phase,
-  }));
+  return all
+    .map((slot, i) => ({
+      day: days[i],
+      slot,
+      location: resolveSlot(phase, slot),
+      phase,
+    }))
+    .filter(({ slot }) => {
+      const event = eventFor(phase, slot);
+      return firesInCycle(event, cycle) && !fired.includes(eventKey(phase, slot, cycle));
+    });
 }
 
 /**

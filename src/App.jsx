@@ -38,7 +38,13 @@ import {
   newTaskState,
   applyPlayerDeltas,
 } from './systems/tasks.js';
-import { advanceBlock, newRun, spendBlockEnergy, restOvernight } from './systems/clock.js';
+import {
+  advanceBlock,
+  newRun,
+  spendBlockEnergy,
+  restOvernight,
+  cycleForWeek,
+} from './systems/clock.js';
 import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
@@ -473,7 +479,9 @@ export default function App() {
       rosterIds: group ? ids : [speaker],
       presentIds: ids,
       event: here?.content ?? null,
-      eventKey: here ? eventKey(here.phase, here.slot) : null,
+      // Keyed by cycle, so the second concept meeting is a different event
+      // from the first. `eventKey` throws without one rather than defaulting.
+      eventKey: here ? eventKey(here.phase, here.slot, cycleForWeek(run.week)) : null,
     });
     setScreen('scene');
   };
