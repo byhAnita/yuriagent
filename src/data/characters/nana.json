@@ -3,6 +3,9 @@
   "schema": 1,
   "name": "Nana",
   "nameRoman": "Im Jin-ah",
+  "nameLocal": {
+    "zh": "林珍娜"
+  },
   "emoji": "🦊",
   "origin": "After School",
   "mascot": "fox",

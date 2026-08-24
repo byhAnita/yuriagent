@@ -619,3 +619,79 @@ describe.skipIf(!enabled)('a card written entirely in Chinese', () => {
     expect(hanRatio(words)).toBeGreaterThan(0.9);
   });
 });
+
+/**
+ * The day-three `zh` fixes, against a real model. Both are about what the model
+ * chooses to write once the prompt tells it something it was never told.
+ */
+describe.skipIf(!enabled)('the day-three zh fixes', () => {
+  const ids = cards.map((c) => c.id);
+
+  /**
+   * The model called Irene "Yilin" and Hyewon "Huiyuan" - transliterations it
+   * invented, differently in different scenes, because nothing ever told it
+   * how these names are written in Chinese. The cards carry the spelling now
+   * and block 1 states it.
+   */
+  it('does not invent a spelling for her name', async () => {
+    const irene = cards.find((c) => c.id === 'irene');
+    let session = beginScene(setup());
+    session = await runTurn(session, { text: openingDirective('zh'), client });
+
+    for (const stance of ['care', 'casual', 'joke']) {
+      session = await runTurn(session, { stance, text: '', client });
+    }
+
+    const prose = session.beats.map((b) => b.text).join('\n');
+    const invented = /伊琳|艾琳/;
+
+    log('\n[zh] --- how the model spells her name ---');
+    log(`  card says: ${irene.nameLocal.zh}`);
+    log(`  card spelling in prose: ${prose.includes(irene.nameLocal.zh)}`);
+    log(`  invented spelling: ${invented.test(prose)}`);
+
+    /**
+     * Weak on purpose. A one-to-one scene may never say her name at all, and
+     * that is correct - she is the person being spoken to. What must not
+     * happen is a spelling nobody chose.
+     */
+    expect(invented.test(prose), 'the model invented a transliteration').toBe(false);
+  }, 480000);
+
+  /**
+   * `display` is the only model-written sentence a player reads outside a
+   * scene, and the cover promises the narration always calls them "you". The
+   * day-three run printed the literal noun for "player" on every scene exit.
+   */
+  it('addresses the player as you in the line the player reads', async () => {
+    const s = setup();
+    let session = beginScene(s);
+    session = await runTurn(session, { text: openingDirective('zh'), client });
+    for (const stance of ['care', 'flirt']) {
+      session = await runTurn(session, { stance, text: '', client });
+    }
+
+    const out = await endScene(session, {
+      client,
+      memory: newMemory(ids),
+      relations: Object.fromEntries(ids.map((id) => [id, newRelation(45)])),
+      cards,
+      scene: s.scene,
+      rng: () => 0.99,
+    });
+
+    const display = out.summary?.display ?? '';
+    const summary = out.summary?.summary ?? '';
+    log('\n[zh] --- the two summary lines ---');
+    log(`  memory : ${summary}`);
+    log(`  display: ${display}`);
+
+    expect(display).toBeTruthy();
+    // The literal noun for "player", which is what the report caught.
+    expect(display, 'the display line names the player instead of addressing them').not.toMatch(
+      /玩家/,
+    );
+    // ...while memory keeps naming them, because that line is read by a model.
+    expect(summary).toMatch(/player/i);
+  }, 480000);
+});

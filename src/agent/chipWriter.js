@@ -13,6 +13,46 @@
 
 import { CHIPS_PER_TURN, MAX_CHIP_LABEL } from '../config/constants.js';
 import { buildMessages, LANG_NAMES } from './promptBuilder.js';
+import { RISK_STANCES } from '../systems/chips.js';
+
+/** How many stances the model is offered to pick its three from. */
+export const CHIP_FIELD_SIZE = 6;
+
+/**
+ * The stances the model may choose between this turn.
+ *
+ * Three rules, in order, and the order is the whole of it:
+ *
+ *   1. **everything the static bar is currently showing**, so a written set is
+ *      a relabelling of the move the game actually dealt rather than a
+ *      different move. This is what keeps the reserved risk slot alive.
+ *   2. **the rest, sampled** rather than taken in array order - the field is
+ *      meant to be wider than three so the model can pick the RIGHT move, and
+ *      a fixed head means five of the eleven stances are never offered at all.
+ *   3. capped at `CHIP_FIELD_SIZE`, because the directive is the cache miss on
+ *      this call and every stance name in it is paid for on every turn.
+ *
+ * `rng` is optional so this stays a pure function with a deterministic default
+ * - the caller has no seed to hand it, and a shuffled field does not need to
+ * be reproducible, only unbiased.
+ */
+export function chipField(available = [], fallback = [], rng = Math.random) {
+  const legal = fallback.filter((s) => available.includes(s));
+  const out = [...new Set(legal)];
+
+  const rest = available.filter((s) => !out.includes(s));
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [rest[i], rest[j]] = [rest[j], rest[i]];
+  }
+
+  for (const stance of rest) {
+    if (out.length >= CHIP_FIELD_SIZE) break;
+    out.push(stance);
+  }
+
+  return out.slice(0, CHIP_FIELD_SIZE);
+}
 
 /**
  * The instruction, appended at the tail of the current prefix.
@@ -40,7 +80,17 @@ export function buildChipDirective({
   const lines = [
     "System note: the player's turn. Give exactly three options.",
     'One per line, nothing else: stance|what the player says, max 8 words',
-    `Stances, once each: ${stances.join(', ')}.`,
+    /**
+     * "Choose three of" and not "once each".
+     *
+     * The old wording asked for `exactly three options` and then listed six
+     * stances `once each`, which is a contradiction the model resolved
+     * differently from turn to turn: the day-three report contains replies with
+     * TWO lines and replies with SIX. Two is what the player saw and reported
+     * twice as a bug - "2 live options and 1 offline option" - because the
+     * third slot fell through to a bare static label beside two written ones.
+     */
+    `Choose three of these stances, one each: ${stances.join(', ')}.`,
     `Option text in ${language}; stance ids stay ASCII English.`,
     'Only what the player could see or hear - never her thoughts.',
     'Write what the player tries, not what happens. Never write her reply.',
@@ -119,6 +169,32 @@ export function parseChips(raw, { available = [], absentNames = [], count = CHIP
 }
 
 /**
+ * Never relabel away the bet.
+ *
+ * `generateChips` reserves one of its three slots for a stance outside the
+ * common four, because `touch`, `invite` and `confide` are the only ones that
+ * can move admissibility - a bar of warm everyday verbs is a bar on which the
+ * second axis cannot move. The written set is free to be better writing; it is
+ * not free to take that slot away, and for a whole campaign it did, because
+ * the model was never offered a risk stance to write in the first place.
+ *
+ * `chipField` fixes the offering. This is the belt: if the static bar was
+ * holding a risk and the model's three do not, the risk keeps its slot and
+ * loses only its label. Degrading chip by chip, which is what this module
+ * does everywhere else.
+ */
+export function keepRisk(chips, fallback = [], count = CHIPS_PER_TURN) {
+  const offered = fallback.find((s) => RISK_STANCES.includes(s));
+  if (!offered) return chips;
+  if (chips.some((c) => RISK_STANCES.includes(c.stance))) return chips;
+
+  // Room to simply add it - no written label has to be given up.
+  if (chips.length < count) return [...chips, { stance: offered, label: null }];
+
+  return [...chips.slice(0, count - 1), { stance: offered, label: null }];
+}
+
+/**
  * Fill a short result out to `count` from the set already on screen.
  *
  * Partial failure keeps whatever survived - degrading chip by chip beats
@@ -156,13 +232,29 @@ export async function writeChips({
   addresseeName = null,
   lang = 'en',
   count = CHIPS_PER_TURN,
+  rng = Math.random,
 }) {
   /**
    * Offer the model a wider field than it needs to fill. It picks three from
    * what is legal, which is how a written chip can be the RIGHT move rather
    * than a nicer label on a move the RNG happened to deal.
+   *
+   * THE FIELD IS BUILT, NOT SLICED, and that distinction cost the game its
+   * second axis for a whole campaign. This was `available.slice(0, 6)` - the
+   * head of the `STANCES` array, which is `flirt, care, casual, deflect, joke,
+   * press` and is byte-identical in every scene ever played. `touch`, `invite`
+   * and `confide` sit at indices 7, 6 and 10, so **the only three stances that
+   * can move admissibility could never be written**, and the reserved slot
+   * `generateChips` sets aside for exactly them was overwritten the moment the
+   * call returned.
+   *
+   * Played, that is a public risk the player has to take by out-racing an API
+   * call: the static bar deals `invite`, and a second later it is relabelled
+   * into something warm and deniable. Third occurrence of the `markRisk`
+   * shape, and the third time a deterministic slice of an ordered array stood
+   * in for a choice.
    */
-  const stances = available.slice(0, 6);
+  const stances = chipField(available, fallback, rng);
   if (stances.length === 0) return { chips: backfill([], fallback, count), ok: false };
 
   let parsed = [];
@@ -176,5 +268,5 @@ export async function writeChips({
     parsed = [];
   }
 
-  return { chips: backfill(parsed, fallback, count), ok: parsed.length > 0 };
+  return { chips: backfill(keepRisk(parsed, fallback, count), fallback, count), ok: parsed.length > 0 };
 }

@@ -100,10 +100,36 @@ export function cardForPrompt(card, roles = []) {
   return out;
 }
 
-function renderCard(card, roles, includeHiddenConflict) {
+/**
+ * How her name is written in the language being played.
+ *
+ * A `zh` run called Irene `Yilin` and Hyewon `Huiyuan` - transliterations the
+ * model invented on the spot, differently in different scenes, because nothing
+ * ever told it how these names are spelled in Chinese. Reported in the
+ * day-three playtest with the correct forms attached.
+ *
+ * It lives on the CARD rather than in `i18n/`, for two reasons that both point
+ * the same way. `agent/` deliberately never imports `i18n/` - that module's own
+ * header says the two paths never mix - and a custom card cannot ship an i18n
+ * file at all, which is the argument section 12 already made for facts. It sits
+ * beside `nameRoman` as the same kind of thing: how this person is written
+ * somewhere other than English.
+ *
+ * Absent, the Latin stage name stands, which is normal in Chinese K-pop writing
+ * and in every case better than an invented spelling.
+ */
+export function nameFor(card, lang = 'en') {
+  if (!lang || lang === 'en') return card?.name;
+  return card?.nameLocal?.[lang] || card?.name;
+}
+
+function renderCard(card, roles, includeHiddenConflict, lang = 'en') {
   const c = cardForPrompt(card, roles);
+  const local = nameFor(card, lang);
   const lines = [
-    `${c.name} (id: ${c.id}) - ${roles.join(', ') || 'member'} of X`,
+    local && local !== c.name
+      ? `${c.name} (id: ${c.id}) - ${roles.join(', ') || 'member'} of X. Write her name as ${local}.`
+      : `${c.name} (id: ${c.id}) - ${roles.join(', ') || 'member'} of X`,
     `  mascot: ${c.mascot}. ${c.mascotNote ?? ''}`,
     `  public image: ${c.publicImage ?? ''}`,
     `  personality: ${c.personality ?? ''}`,
@@ -161,7 +187,7 @@ export function buildSystemBlock({ cards, lineup, identity, playerName, lang = '
     'They are colleagues. Everything between them happens inside that constraint.',
     '',
     '## Cast',
-    cards.map((c) => renderCard(c, lineup?.[c.id] ?? [], false)).join('\n\n'),
+    cards.map((c) => renderCard(c, lineup?.[c.id] ?? [], false, lang)).join('\n\n'),
     '',
     /**
      * The differentiation directive.
@@ -508,7 +534,35 @@ export function buildSceneHeader({
    * world facts would drown it.
    */
   const canonText = renderCanon(canon, cycleForWeek(week));
-  if (canonText) lines.push('', '## Where the cycle stands', canonText);
+  if (canonText) {
+    lines.push(
+      '',
+      '## Where the cycle stands',
+      /**
+       * TWO instructions, because the day-three playtest failed both ways.
+       *
+       * NAME IT. Canon reached the model correctly and came back as the word
+       * "concept" - she would say *the concept board* where she should have
+       * said *Day Dream*, every time, until the player asked point-blank. A
+       * decision the group cannot say out loud is memory that shows in
+       * plumbing and not in prose, which is the exact failure pillar 4 exists
+       * to forbid.
+       *
+       * IT HAS ALREADY HAPPENED. `renderCanon` marks an older CYCLE, and
+       * nothing marked anything as done - so a settled decision read as a plan
+       * and the model put it in the future. Played, that is Irene promising
+       * the seaside shoot *tomorrow*, a week after the seaside shoot, and
+       * discussing a music-show stage that had already aired. The entries are
+       * all true; only the tense was invented.
+       */
+      'These are settled and already public knowledge inside the group.',
+      'Name them concretely when they come up - the song, the concept, the',
+      'member - never as "the concept" or "the plan".',
+      'A line marked "earlier in the campaign" has already happened and is done:',
+      'never speak of it as still ahead.',
+      canonText,
+    );
+  }
 
   const frameText = renderFrame(sceneFrame);
   if (frameText) lines.push('', '## The day', frameText);
@@ -540,6 +594,29 @@ export function buildSceneHeader({
       'and do not leave the action in English while translating only the speech.',
       'Metadata lines, speaker ids and emotion names stay ASCII English.',
     );
+
+    /**
+     * Two `zh` rules that a generic language directive cannot reach, which is
+     * the argument section 12 makes for `styleHints` in the first place.
+     *
+     * The first is a script slip: one Traditional character in the middle of an
+     * otherwise clean Simplified scene. "Simplified" is already in the language
+     * NAME, and that turned out not to be enough.
+     *
+     * The second is a Chinese-specific failure with an English-specific cause.
+     * Block 1 says every character here is a woman, and the model still gave
+     * Irene an Adam's apple - because that phrase is stock romance-novel
+     * description for a MALE lead in Chinese web fiction, so it arrives as an
+     * idiom rather than as a claim about anatomy. An English rule about who
+     * these people are does not touch a Chinese cliche about how bodies get
+     * described.
+     */
+    if (lang === 'zh') {
+      lines.push(
+        'Use Simplified characters only - never Traditional.',
+        'Every character here is a woman: never use male-coded physical description.',
+      );
+    }
   }
 
   // `PHASE_WEATHER` and the activity lines can legitimately be absent.

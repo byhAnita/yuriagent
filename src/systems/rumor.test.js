@@ -192,3 +192,80 @@ describe('propagate', () => {
     expect(WEIGHT_WITNESSED).toBeGreaterThan(2);
   });
 });
+
+/**
+ * An anchor event does not charge admission. Day-three playtest, reported five
+ * separate times - once for every event played.
+ *
+ * > A witness error here, I didn't give Irene anything or do special
+ * > interaction. Player just join the special event group chat, there
+ * > shouldn't be a witness.
+ *
+ * `WEIGHT_PRESENT` prices choosing one woman in a room that held three. At an
+ * anchor event the company put all five there, attendance IS the day, and the
+ * engine picks an addressee whether the player singles anybody out or not - so
+ * every event ended with four jealousy hits and four lines on the aftermath
+ * screen for turning up to work.
+ */
+describe('a room nobody chose to be in', () => {
+  const cast = [
+    { id: 'irene', name: 'Irene' },
+    { id: 'nana', name: 'Nana' },
+    { id: 'jisoo', name: 'Jisoo' },
+    { id: 'hyewon', name: 'Hyewon' },
+    { id: 'yeri', name: 'Yeri' },
+  ];
+  const relations = Object.fromEntries(cast.map((c) => [c.id, newRelation(45)]));
+  const subject = { id: 'irene', name: 'Irene' };
+
+  const event = (over = {}) => ({
+    exposure: 35,
+    phase: 'prep',
+    locationId: 'meeting_room',
+    locationLabel: 'Meeting Room',
+    presentIds: cast.map((c) => c.id),
+    collective: true,
+    singledOut: false,
+    ...over,
+  });
+
+  const run = (scene) =>
+    propagate({ scene, subject, cast, relations, rng: makeRng(3) });
+
+  it('charges nobody for attending the concept meeting', () => {
+    const { noticed, jealousyDeltas, rumors } = run(event());
+
+    expect(noticed, 'four bystanders were charged for turning up to work').toEqual([]);
+    expect(jealousyDeltas).toEqual({});
+    expect(rumors).toEqual([]);
+  });
+
+  /**
+   * The half that must NOT change. Section 10: singling somebody out in front
+   * of the other four is the loudest act available to the player, and an event
+   * is where it is loudest. Only the presence tier is exempted.
+   */
+  it('still witnesses a gesture at full weight', () => {
+    const { rumors, jealousyDeltas } = run(event({ singledOut: true }));
+
+    expect(rumors).toHaveLength(4);
+    expect(rumors.every((r) => r.kind === 'witnessed')).toBe(true);
+    for (const c of cast.slice(1)) {
+      expect(jealousyDeltas[c.id], `${c.id} took nothing for watching`).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * ...and an ORDINARY crowded room is untouched, which is the whole reason
+   * this is a flag rather than a change to `WEIGHT_PRESENT`. The player chose
+   * to spend that block on one of the three women standing in it.
+   */
+  it('leaves an ordinary occupied room charging presence', () => {
+    const { noticed, jealousyDeltas } = run(
+      event({ collective: false, locationId: 'practice_room' }),
+    );
+
+    expect(noticed).toHaveLength(4);
+    expect(Object.keys(jealousyDeltas)).toHaveLength(4);
+  });
+});

@@ -3,6 +3,9 @@
   "schema": 1,
   "name": "Hyewon",
   "nameRoman": "Kang Hye-won",
+  "nameLocal": {
+    "zh": "姜惠元"
+  },
   "emoji": "🦌",
   "origin": "IZ*ONE",
   "mascot": "deer",

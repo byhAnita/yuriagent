@@ -809,6 +809,14 @@ export async function endScene(session, { client, memory, relations, cards, scen
       dormWitnessIds: scene.dormWitnessIds ?? [],
       shared: Boolean(scene.shared),
       /**
+       * An anchor event: everyone is here because the company said so.
+       *
+       * Derived from `scene.event` rather than passed separately, because
+       * "is this an anchor event" already has one answer and a second flag
+       * that could disagree with it is a bug waiting to be written.
+       */
+      collective: Boolean(scene.event),
+      /**
        * Whether anything happened that the room could name. Set by the turn
        * loop on a risk stance or an opener; without it, co-presence alone
        * buys nobody a witnessed jealousy event (see `rumor.js`).

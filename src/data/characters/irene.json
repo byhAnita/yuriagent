@@ -3,6 +3,9 @@
   "schema": 1,
   "name": "Irene",
   "nameRoman": "Bae Ju-hyun",
+  "nameLocal": {
+    "zh": "裴珠泫"
+  },
   "emoji": "🐰",
   "origin": "Red Velvet",
   "mascot": "rabbit",

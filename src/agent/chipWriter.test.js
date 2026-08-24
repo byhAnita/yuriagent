@@ -13,11 +13,15 @@ import {
   buildChipDirective,
   chipMessages,
   writeChips,
+  chipField,
+  keepRisk,
+  CHIP_FIELD_SIZE,
 } from './chipWriter.js';
 import { buildMessages } from './promptBuilder.js';
 import { beginScene, runTurn, openingDirective } from './sceneEngine.js';
-import { availableStances, STANCES } from '../systems/chips.js';
+import { availableStances, STANCES, RISK_STANCES } from '../systems/chips.js';
 import { newRelation } from '../systems/relationship.js';
+import { makeRng } from '../systems/rng.js';
 import { newMemory } from './memory.js';
 import { createMockClient } from '../tools/mockClient.js';
 import { getCast } from '../data/cast.js';
@@ -292,5 +296,211 @@ describe('end to end against the offline writer', () => {
     expect(chips).toHaveLength(3);
     expect(chips.every((c) => available.includes(c.stance))).toBe(true);
     expect(chips.filter((c) => c.label).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * THE FIELD THE MODEL PICKS FROM. Day-three playtest, and the worst defect
+ * this project has shipped since `markRisk` - which is the same defect.
+ *
+ * `writeChips` offered `available.slice(0, 6)`: the head of the `STANCES`
+ * array, which is `flirt, care, casual, deflect, joke, press`, identical in
+ * every scene of every campaign. `touch`, `invite` and `confide` are at
+ * indices 7, 6 and 10, so THE ONLY THREE STANCES THAT MOVE ADMISSIBILITY could
+ * never be written - and because a written set replaces the static one
+ * wholesale, the slot `generateChips` reserves for exactly them was destroyed
+ * on every turn the model answered.
+ *
+ * Played, in the report's own words: "I saw the option with a small circle
+ * noted on it to be seen, but the option is changed to LLM options... we now
+ * need to click the need to be seen option very fast before LLM options come."
+ * A public risk, reachable only by out-racing an API call.
+ */
+describe('the model is offered a field, not the head of an array', () => {
+  const ALL = [...STANCES];
+
+  it('always offers what the static bar is already showing', () => {
+    const field = chipField(ALL, ['invite', 'care', 'joke'], () => 0.5);
+
+    for (const stance of ['invite', 'care', 'joke']) {
+      expect(field, `${stance} was dealt and not offered`).toContain(stance);
+    }
+  });
+
+  it('can offer a risk stance at all', () => {
+    const seen = new Set();
+    for (let i = 0; i < 200; i += 1) {
+      for (const s of chipField(ALL, [], Math.random)) seen.add(s);
+    }
+
+    for (const stance of RISK_STANCES) {
+      expect(seen, `${stance} is never offered`).toContain(stance);
+    }
+  });
+
+  it('reaches every legal stance eventually, not just the first six', () => {
+    const seen = new Set();
+    for (let i = 0; i < 400; i += 1) {
+      for (const s of chipField(ALL, [], Math.random)) seen.add(s);
+    }
+    expect(seen.size).toBe(ALL.length);
+  });
+
+  it('never exceeds the field size, because the directive is the cache miss', () => {
+    expect(chipField(ALL, ALL, Math.random)).toHaveLength(CHIP_FIELD_SIZE);
+  });
+
+  /** A stance the relation has locked stays locked, even if it was dealt. */
+  it('drops a fallback stance that is not legal', () => {
+    const field = chipField(['care', 'casual'], ['touch', 'care'], () => 0.5);
+    expect(field).not.toContain('touch');
+    expect(field).toContain('care');
+  });
+
+  it('is deterministic given a deterministic rng', () => {
+    expect(chipField(ALL, ['care'], makeRng(4))).toEqual(chipField(ALL, ['care'], makeRng(4)));
+  });
+});
+
+/**
+ * The belt, for the case where the field is right and the model still writes
+ * three warm verbs. The bet keeps its slot and loses only its label.
+ */
+describe('a written set may not relabel away the bet', () => {
+  const written = [
+    { stance: 'care', label: 'a' },
+    { stance: 'joke', label: 'b' },
+    { stance: 'casual', label: 'c' },
+  ];
+
+  it('puts the risk back when the model wrote none', () => {
+    const out = keepRisk(written, ['care', 'joke', 'invite'], 3);
+
+    expect(out).toHaveLength(3);
+    expect(out.some((c) => c.stance === 'invite')).toBe(true);
+    // Two written labels survive - degrading chip by chip, not all at once.
+    expect(out.filter((c) => c.label).length).toBe(2);
+  });
+
+  it('leaves a set that already has one alone', () => {
+    const withRisk = [{ stance: 'touch', label: 'x' }, ...written.slice(0, 2)];
+    expect(keepRisk(withRisk, ['touch', 'care', 'joke'], 3)).toEqual(withRisk);
+  });
+
+  it('adds nothing when the static bar was not offering a risk either', () => {
+    expect(keepRisk(written, ['care', 'joke', 'casual'], 3)).toEqual(written);
+  });
+
+  /** A short set has room, so nothing has to be given up at all. */
+  it('takes an empty slot rather than a written one when it can', () => {
+    const out = keepRisk(written.slice(0, 2), ['care', 'joke', 'confide'], 3);
+    expect(out).toHaveLength(3);
+    expect(out.filter((c) => c.label).length).toBe(2);
+  });
+});
+
+/**
+ * "Give exactly three options" followed by "Stances, once each: <six>" is a
+ * contradiction, and the model resolved it differently from turn to turn. The
+ * day-three log contains replies with two lines and replies with six; two is
+ * what the player saw and reported as "2 live options and 1 offline option".
+ */
+describe('the directive asks for one thing', () => {
+  it('says choose three OF the stances, not one each', () => {
+    const d = buildChipDirective({ stances: ['care', 'joke', 'flirt', 'invite'] });
+
+    expect(d).toMatch(/choose three of these stances/i);
+    expect(d).not.toMatch(/stances, once each/i);
+  });
+
+  it('still names every stance it is offering', () => {
+    const d = buildChipDirective({ stances: ['care', 'invite'] });
+    expect(d).toContain('care');
+    expect(d).toContain('invite');
+  });
+});
+
+/**
+ * THE JOIN, and the only assertions here that could have caught the shipped
+ * bug. Everything above tests `chipField` and `keepRisk`, which did not exist
+ * when the defect did - a new helper cannot fail against old code. What was
+ * broken was the WIRING in `writeChips`, so that is what these drive.
+ */
+describe('writeChips does not throw the risk slot away', () => {
+  const ALL = [...STANCES];
+
+  /**
+   * A REAL frame, from the real engine.
+   *
+   * A bare `{ rosterIds }` stub makes `buildMessages` throw inside
+   * `writeChips`, which catches everything - so the client is never called and
+   * these assertions pass or fail for reasons unrelated to what they test. Two
+   * of the three did exactly that on their first run, and one of them passed
+   * against broken code because of it. A harness wrong in either direction is
+   * worse than no harness.
+   */
+  const realFrame = async () => {
+    const client = createMockClient({ seed: 5, delay: 0 });
+    const session = await runTurn(beginScene(setup()), { text: openingDirective(), client });
+    return session.frame;
+  };
+
+  /** Records the directive, and answers with three warm verbs like a model. */
+  const warmClient = (seen) => async ({ messages }) => {
+    seen.push(messages.at(-1).content);
+    return 'care|I am here\njoke|Blame the choreographer\ncasual|Just stay a while';
+  };
+
+  it('offers the model the risk stance the bar is holding', async () => {
+    const seen = [];
+    await writeChips({
+      frame: await realFrame(),
+      client: warmClient(seen),
+      available: ALL,
+      // What `generateChips` dealt: two common, and the reserved slot.
+      fallback: ['care', 'casual', 'invite'],
+    });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0], 'the dealt risk stance never reached the model').toContain('invite');
+  });
+
+  it('keeps the bet on the bar when the model writes three warm verbs', async () => {
+    const seen = [];
+    const { chips } = await writeChips({
+      frame: await realFrame(),
+      client: warmClient(seen),
+      available: ALL,
+      fallback: ['care', 'casual', 'invite'],
+    });
+
+    // The model answered, so this is a written set rather than a fallback one.
+    expect(seen).toHaveLength(1);
+    expect(chips).toHaveLength(3);
+    expect(chips.filter((c) => c.label).length).toBeGreaterThan(0);
+    expect(
+      chips.some((c) => RISK_STANCES.includes(c.stance)),
+      'the written set relabelled the public risk out of existence',
+    ).toBe(true);
+  });
+
+  /**
+   * ...and it does this WITHOUT widening what is legal. Section 6: chips.js is
+   * the source of truth, and nothing below it may add a locked stance.
+   */
+  it('still never offers a stance the relation has locked', async () => {
+    const seen = [];
+    const legal = availableStances(rel({ intimacy: 20 }), {}).available;
+    expect(legal).not.toContain('touch');
+
+    await writeChips({
+      frame: await realFrame(),
+      client: warmClient(seen),
+      available: legal,
+      fallback: ['touch', 'care', 'casual'],
+    });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).not.toMatch(/\btouch\b/);
   });
 });

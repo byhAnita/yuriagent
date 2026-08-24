@@ -560,6 +560,142 @@ actually runs at** (`LIVE_BIG_ROOM=1`). Both are cheap. Neither was being done.
 
 ---
 
+## Day-three playtest, 2026-08-24 (`zh`, live DeepSeek V4 Flash)
+
+A nine-week campaign played by hand on the phone, with `?debug=1` on and the
+call log pasted into the report. Fifteen numbered observations, four of them
+carrying several defects, and the most valuable session the project has had -
+because it is the first one that played the SAME feature across two cycles.
+
+**The headline: the `markRisk` bug has now happened three times.** Twice in
+this document already, and once more below, by a door nobody had checked.
+
+### 1. Written chips delete the reserved risk slot  <- the important one
+
+`generateChips` reserves the last of its three slots for a stance outside the
+common four, and the comment above that loop says exactly why:
+
+> `touch`, `invite` and `confide` are the only stances that can move
+> admissibility, so a bar filled entirely with warm everyday verbs is a bar on
+> which the second axis cannot move. That is precisely the shape of the
+> `markRisk` bug - the whole second half of the relationship model quietly
+> unreachable - arriving by a different door.
+
+`writeChips` then threw that reservation away on every turn the model answered,
+because its candidate field was `available.slice(0, 6)` - the HEAD of the
+`STANCES` array, which is `flirt, care, casual, deflect, joke, press`. Every
+chip request in the whole report carries that same six, in that same order, in
+every scene of a nine-week campaign.
+
+`touch`, `invite` and `confide` sit at indices 7, 6 and 10. **They could never
+be written.** The static set could still deal one - and the written set
+replaced it the moment the call returned. The player's own words:
+
+> I saw the option with a small circle noted on it to be seen, but the option
+> is changed to LLM options on common flirting, caring etc. **We now need to
+> click the need to be seen option very fast before LLM options come.**
+
+That is the second axis of the relationship model being reachable only by
+beating an API call in a footrace. Same defect as `markRisk` and as the old
+`sort(() => rng() - 0.5)`: **a deterministic slice of an ordered array,
+standing in for a choice.** The project has now shipped this three times.
+
+Fixed by building the field from what `chips.js` actually dealt plus a sampled
+remainder, and by keeping a risk chip the static set offered when the model's
+three do not include one - degrading chip by chip, which is the rule the
+written-chip design already follows everywhere else.
+
+### 2. An anchor event charged four bystanders for attending it
+
+Reported five separate times, once per event played:
+
+> A witness error here, I didn't give Irene anything or do special interaction.
+> Player just join the special event group chat, there shouldn't be a witness.
+
+`propagate` gives every present non-addressee the `WEIGHT_PRESENT` tier and a
+line on the aftermath screen. That is right for a practice room, where the
+player chose to spend the block on one of the three women in it. It is wrong
+for an anchor event, where **the company put all five in the room and the
+player is staff attending a meeting.** Nobody chose anybody, and the client
+picks an addressee by construction - so the event ended with four "she watched
+you give your time to Irene" lines every single time, fourteen times a
+campaign.
+
+This is the argument `shared` already won for the dorm, in the same file:
+*without it the release valve is its own tax.* An event is not a release valve,
+but it is the same fact - collective attendance is not a choice - so it takes
+the same exemption, and only the presence tier. A **gesture** at an event is
+still witnessed at the full weight, because section 10 is explicit that
+choosing one member in front of the other four is the loudest act in the game.
+
+### 3. The chip directive contradicted itself
+
+`Give exactly three options` followed by `Stances, once each: <six of them>`.
+The model resolved that ambiguity differently from turn to turn: the report
+contains replies with **two** lines and replies with **six**. Two is what the
+player saw as "2 live options and 1 offline option", reported twice as a bug.
+
+### 4. The player is addressed in the third person, in `zh`
+
+`Player` reached the scene-summary line as a literal noun. The `display` string
+is the only model-written text a player reads outside a scene, and section 15's
+cover screen already promises the opposite: *the narration always calls you
+"you"; only they use your name.*
+
+### 5. The cast have no Chinese names
+
+The model transliterates, so the summary called Irene `Yilin` and Hyewon
+`Huiyuan`. Both are wrong, and section 12 has said since M0 that localized
+display names live in `i18n/` - they simply never reached a prompt.
+
+### 6. Traditional characters leak into a Simplified run
+
+One `記` for `记`, in the middle of an otherwise clean scene. Cheap to state and
+impossible for a player to read as anything but a bug.
+
+### 7. Manual save slots are invisible on the cover
+
+The cover offered only the autosave. `App.dom.test.jsx` asserts the opposite
+and passes, which makes this the most interesting bug in the report after the
+first one - see the fix note, because the test was right and the screen was
+still wrong.
+
+### 8. Canon reaches the model and comes back as the word "concept"
+
+Verified injected, verified read - and spoken as `the concept board` rather
+than as `Day Dream`. The player had to ask point-blank before a member would
+name a decision:
+
+> Seems the problem is prompt - need tell character to say concrete fact
+> instead the word "concept".
+
+### 9. Canon has no tense, so a finished day is spoken as tomorrow
+
+`tomorrow at the beach` said a week after the beach shoot happened, and a
+music-bank stage discussed in week 3 as though it were still ahead. The entries
+are true; nothing says WHEN, so the model guesses and guesses forwards.
+
+### 10. Nobody told the model the cast are women
+
+An Adam's apple, on Irene. Section 1b established that the player is a young
+woman and never said the same about the five women she works with, for exactly
+the reason section 1b gives about itself: it was too obvious to write down.
+
+### What went RIGHT, because it is evidence too
+
+- The establishing beat landed every time and was singled out as good in four
+  separate places.
+- The handbook works, and the player used it unprompted to check the campaign.
+- Canon crossed a cycle boundary: week 4's meeting opened on the previous
+  cycle's concept, which is the chain doing its job even though the same
+  property produced defect 9.
+- Yeri named her own locked dossier fact at the second MV shoot, unprompted -
+  memory showing in prose, which is pillar 4.
+- A member mentioned the group's first album at the fan meeting. The player's
+  note: *Surprise! Very good.*
+
+---
+
 ## Day-two playtest fixes (2026-08-23, `zh`)
 
 A second day, played in Chinese this time, one in-game day again. Seven fixes,

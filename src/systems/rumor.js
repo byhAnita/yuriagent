@@ -111,9 +111,13 @@ export function phraseApproach(subjectName) {
  *
  * @param {object} args
  *   scene    - { exposure, phase, locationLabel, presentIds, locationId,
- *                singledOut } - `singledOut` is whether the player made an
- *                overt move toward the subject in front of the room. Without
- *                it, being present buys nobody a witnessed event.
+ *                singledOut, shared, collective } - `singledOut` is whether
+ *                the player made an overt move toward the subject in front of
+ *                the room. Without it, being present buys nobody a witnessed
+ *                event. `shared` (a dorm evening) and `collective` (an anchor
+ *                event) both mean nobody chose to be here, so presence alone
+ *                costs nothing; `shared` additionally suppresses the witnessed
+ *                branch, and `collective` deliberately does not.
  *   subject  - { id, name } the member the scene was actually with
  *   cast     - [{ id, name }]
  *   relations- { [id]: relation }
@@ -143,6 +147,31 @@ export function propagate({ scene, subject, cast, relations, rng }) {
      * anyone in particular. PROPOSALS 15.
      */
     if (scene.shared && present.has(member.id)) continue;
+
+    /**
+     * Nobody chose to be at the concept meeting, including the player.
+     *
+     * `WEIGHT_PRESENT` prices "she was in the room while the player spent the
+     * block on somebody else", and that is exactly right for a practice room
+     * with three of them in it: the player picked one. An ANCHOR EVENT is not
+     * that. The company put all five in the room, attendance is the day, and
+     * the client picks an addressee by construction - so every event ended
+     * with four "she watched you give your time to Irene" lines and four
+     * jealousy hits, fourteen times a campaign, for turning up to work.
+     *
+     * Reported five separate times in the day-three playtest, once per event
+     * played: *"I didn't give Irene anything or do special interaction. Player
+     * just join the special event group chat, there shouldn't be a witness."*
+     *
+     * Same argument `shared` already won for the dorm two rules up - collective
+     * attendance is not a choice - and it takes the same exemption. Only the
+     * presence tier, though: a GESTURE at an event still falls through to the
+     * witnessed branch at full weight, because section 10 is explicit that
+     * singling somebody out in front of the other four is the loudest act in
+     * the game. The event stays the highest-stakes room there is; it just
+     * stops charging admission.
+     */
+    if (scene.collective && present.has(member.id) && !scene.singledOut) continue;
 
     /**
      * She was in the room, and nothing happened that she could name.

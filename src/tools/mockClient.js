@@ -278,13 +278,37 @@ export function createMockClient({
     // can honour the contract exactly - which is what the parser, the roster
     // rule and the backfill path need to be exercised in real play.
     if (preset === 'chips') {
-      const asked = /Stances, once each: ([a-z, ]+)\./.exec(last)?.[1] ?? '';
+      /**
+       * Matches the stance list however the directive words the run-up to it.
+       *
+       * It used to anchor on the exact phrase `Stances, once each:`, so
+       * rewording that line for the live model silently switched the offline
+       * writer off - it found no stances, returned nothing, and every offline
+       * chip set fell through to the static bar. Section 3 makes playing
+       * without a key a supported mode, and a mock that only works against one
+       * revision of a prompt is not one.
+       */
+      const asked = /stances[^:]*:\s*([a-z, ]+)\./i.exec(last)?.[1] ?? '';
       const stances = asked
         .split(',')
         .map((s) => s.trim())
         .filter((s) => playerLines[s]);
 
-      return stances
+      /**
+       * A shuffled pick rather than the first three.
+       *
+       * Same defect as the one this session fixed in `chipWriter`: taking the
+       * head of an ordered list means the tail is never seen, so offline play
+       * would never once be offered the reserved risk stance the field now
+       * deliberately carries.
+       */
+      const shuffled = [...stances];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+
+      return shuffled
         .slice(0, 3)
         .map((s) => `${s}|${pick(rng, playerLines[s])}`)
         .join('\n');

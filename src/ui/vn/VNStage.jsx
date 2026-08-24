@@ -234,9 +234,17 @@ export default function VNStage({
        * that is legal for one and not the other.
        */
       const { available } = availableStances(relFor, { energy: setup.player.energy });
+      /**
+       * Both spellings of an absent member's name.
+       *
+       * The roster rule drops a chip that names somebody who is not in the
+       * room, and it matches on text - so in a `zh` run, where the model has
+       * been told to write Irene as her Chinese name, checking only the Latin
+       * one lets exactly the chips this rule exists to stop straight through.
+       */
       const absentNames = setup.cards
         .filter((c) => !frame.rosterIds.includes(c.id))
-        .map((c) => c.name);
+        .flatMap((c) => [c.name, c.nameLocal?.[setup.lang]].filter(Boolean));
 
       /**
        * Who the player is talking to, in a group scene only.

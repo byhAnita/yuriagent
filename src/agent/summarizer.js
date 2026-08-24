@@ -40,6 +40,20 @@ export const SUMMARIZER_INSTRUCTION = [
   '{',
   '  "summary": "one sentence, under 120 characters, past tense, ENGLISH",',
   '  "display": "the same sentence, in the language the scene was written in",',
+  '',
+  /**
+   * SECOND PERSON in `display`, third in `summary`, and they are different
+   * strings for exactly this kind of reason.
+   *
+   * `summary` is memory: it is read by the model, alongside four other
+   * members, so it has to name who it is about. `display` is the only
+   * model-written sentence a player reads OUTSIDE a scene, and the cover
+   * screen already promises the opposite - *the narration always calls you
+   * "you"; only they use your name.* The day-three `zh` run broke that
+   * promise on every scene exit, printing the literal noun for "player".
+   */
+  'In "display" the player is "you", never "the player" and never her name.',
+  'In "summary" she is "the player", because that line is memory, not prose.',
   '  "dossier_add": [{ "memberId": "id", "category": "known_facts", "text": "short fact" }],',
   '  "dossier_resolve": [{ "memberId": "id", "text": "the thread that got answered" }]',
   '}',

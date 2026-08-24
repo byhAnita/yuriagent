@@ -3,6 +3,9 @@
   "schema": 1,
   "name": "Yeri",
   "nameRoman": "Kim Ye-rim",
+  "nameLocal": {
+    "zh": "金艺琳"
+  },
   "emoji": "🐢",
   "origin": "Red Velvet",
   "mascot": "turtle",

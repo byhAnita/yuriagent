@@ -3,6 +3,9 @@
   "schema": 1,
   "name": "Jisoo",
   "nameRoman": "Kim Ji-soo",
+  "nameLocal": {
+    "zh": "金智秀"
+  },
   "emoji": "🐱",
   "origin": "BLACKPINK",
   "mascot": "cat",

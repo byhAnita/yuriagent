@@ -151,11 +151,23 @@ export default function Start({
             stopped yesterday is here to carry on, not to browse - so the list
             sits behind a line of its own. It shows even when `auto` is empty,
             because a player who restarted still has their five.
+
+            AND IT IS SHAPED LIKE A CONTROL. This was a 9px dim text link sitting
+            under a large bordered Continue button, and the day-three report
+            filed it as a missing feature: "only the auto save slot are
+            displayed... seems you forget to display manually slots to load from
+            in start page". The slots were all there and one tap away. On a
+            390px screen the tap target simply read as a caption for the button
+            above it.
+
+            Section 6 learned this exact lesson once already, about the opener
+            and the pass control, and wrote it down: a move has to be shaped
+            like one. It was never applied outside the chip bar.
           */}
           <button
             type="button"
             onClick={onOpenSaves}
-            className="self-start font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim hover:text-accent"
+            className="w-full rounded-[var(--radius)] border border-hairline px-4 py-3 text-left font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-dim hover:border-accent hover:text-accent"
           >
             {t('save.title')}
           </button>
