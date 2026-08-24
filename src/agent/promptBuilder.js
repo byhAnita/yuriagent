@@ -26,6 +26,7 @@ import { doingLine } from '../data/activities.js';
 import { displayName } from '../store/playerName.js';
 import { renderFrame } from '../data/sceneFrames.js';
 import { renderCanon } from '../systems/canon.js';
+import { cycleForWeek } from '../systems/clock.js';
 import { getIdentity } from '../data/identities.js';
 
 /** The shipped default role, so the fallback cannot drift from the table. */
@@ -506,7 +507,7 @@ export function buildSceneHeader({
    * standing sentence is the most important line in this block and eighteen
    * world facts would drown it.
    */
-  const canonText = renderCanon(canon);
+  const canonText = renderCanon(canon, cycleForWeek(week));
   if (canonText) lines.push('', '## Where the cycle stands', canonText);
 
   const frameText = renderFrame(sceneFrame);

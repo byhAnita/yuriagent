@@ -48,7 +48,7 @@ import {
 import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
-import { addDecisions, canonForCycle } from './systems/canon.js';
+import { addDecisions, canonForCycle, canonForEvent } from './systems/canon.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
 import VNStage from './ui/vn/VNStage.jsx';
@@ -605,7 +605,17 @@ export default function App() {
        * Irene mentioning the title track in a wardrobe on a Tuesday is memory
        * that shows in the scene rather than in plumbing.
        */
-      canon: canonForCycle(canon, cycleForWeek(run.week)),
+      /**
+       * An anchor event additionally gets the topics it was authored to build
+       * on, looked up across every cycle - that is what makes the four
+       * recurring events a chain instead of four separate days.
+       */
+      canon: pendingScene.event
+        ? canonForEvent(canon, {
+            cycle: cycleForWeek(run.week),
+            reads: pendingScene.event.reads ?? [],
+          })
+        : canonForCycle(canon, cycleForWeek(run.week)),
     };
   }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done, settings.lang, canon]);
 

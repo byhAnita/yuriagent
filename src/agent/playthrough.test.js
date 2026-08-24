@@ -45,7 +45,7 @@ import { actionsFor } from '../data/soloActions.js';
 import { LOCATIONS } from '../data/locations.js';
 import { giftsFor, purchase, spendGesture } from '../systems/economy.js';
 import { availableStances, isRiskStance } from '../systems/chips.js';
-import { addDecisions, canonForCycle } from '../systems/canon.js';
+import { addDecisions, canonForCycle, canonForEvent } from '../systems/canon.js';
 import { makeRng, deriveSeed, pick } from '../systems/rng.js';
 import { BLOCKS, DAYS_PER_WEEK, SCENE_TURN_LIMITS } from '../config/constants.js';
 import { REGISTERS } from '../data/sceneFrames.js';
@@ -347,8 +347,14 @@ async function playCampaign({
         dormWitnessIds,
         event: eventHere,
         sceneFrame: eventHere?.frame ?? null,
-        // What the cycle has settled, exactly as App injects it into block 4.
-        canon: canonForCycle(canon, cycleForWeek(run.week)),
+        // Exactly as App injects it into block 4: an event gets its chain,
+        // an ordinary block gets this cycle.
+        canon: eventHere
+          ? canonForEvent(canon, {
+              cycle: cycleForWeek(run.week),
+              reads: eventHere.reads ?? [],
+            })
+          : canonForCycle(canon, cycleForWeek(run.week)),
         register: eventHere ? REGISTERS.event : REGISTERS.ordinary,
       };
 

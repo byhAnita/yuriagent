@@ -14,6 +14,7 @@ import {
   addDecisions,
   latestByTopic,
   canonForCycle,
+  canonForEvent,
   renderCanon,
   CANON_TEXT_MAX,
   CANON_INJECT_MAX,
@@ -206,5 +207,136 @@ describe('against the real events', () => {
   it('returns no ids for a frame with no agenda, like a date', () => {
     expect(agendaIds({ movements: [] })).toEqual([]);
     expect(agendaIds(null)).toEqual([]);
+  });
+});
+
+/**
+ * The chain. PROPOSALS 20 (c), step 4.
+ *
+ * `reads` is what makes the four recurring events a chain rather than four
+ * separate days: the MV shoot shoots the concept the meeting chose, Music Bank
+ * performs the ending pose the shoot landed on, and the next concept meeting
+ * knows what the fandom made of all of it.
+ */
+describe('an event is handed what it was authored to build on', () => {
+  const at = (topic, text, cycle) => ({ topic, text, display: text, cycle });
+
+  it('reaches back into earlier cycles for a topic it reads', () => {
+    const canon = [at('fandom_focus', 'the fandom latched onto the bridge', 0)];
+    const out = canonForEvent(canon, { cycle: 1, reads: ['fandom_focus'] });
+
+    expect(out.map((e) => e.text)).toEqual(['the fandom latched onto the bridge']);
+  });
+
+  it('prefers the current answer when a topic was settled again', () => {
+    const canon = [at('title_track', 'first single', 0), at('title_track', 'second single', 1)];
+    const out = canonForEvent(canon, { cycle: 1, reads: ['title_track'] });
+
+    expect(out).toHaveLength(1);
+    expect(out[0].text).toBe('second single');
+  });
+
+  it('fills the rest of the budget from this cycle', () => {
+    const canon = [at('fandom_focus', 'read me', 0), at('concept', 'this cycle', 1)];
+    const out = canonForEvent(canon, { cycle: 1, reads: ['fandom_focus'] });
+
+    expect(out.map((e) => e.topic).sort()).toEqual(['concept', 'fandom_focus']);
+  });
+
+  it('never lists a topic twice when it is both read and settled this cycle', () => {
+    const canon = [at('title_track', 'old', 0), at('title_track', 'new', 1)];
+    const out = canonForEvent(canon, { cycle: 1, reads: ['title_track'] });
+
+    expect(out).toHaveLength(1);
+  });
+
+  /**
+   * THE CAP HAS TO BITE THE RIGHT END. Four reads plus six current-cycle
+   * entries is ten lines for a six-line budget, and trimming from the wrong
+   * side would quietly delete the chain - the one thing the day was authored
+   * to have - while keeping six facts it did not ask for.
+   */
+  it('keeps the chain and drops from this cycle when the budget runs out', () => {
+    const reads = ['a', 'b', 'c', 'd'];
+    const canon = [
+      ...reads.map((t) => at(t, `chain ${t}`, 0)),
+      ...Array.from({ length: 6 }, (_, i) => at(`x${i}`, `filler ${i}`, 1)),
+    ];
+    const out = canonForEvent(canon, { cycle: 1, reads });
+
+    expect(out).toHaveLength(CANON_INJECT_MAX);
+    for (const t of reads) expect(out.map((e) => e.topic)).toContain(t);
+  });
+
+  it('behaves like an ordinary scene when the event reads nothing', () => {
+    const canon = [at('concept', 'this cycle', 1)];
+    expect(canonForEvent(canon, { cycle: 1 }).map((e) => e.text)).toEqual(['this cycle']);
+    expect(canonForEvent([], { cycle: 0, reads: ['anything'] })).toEqual([]);
+  });
+
+  it('reads history before the present', () => {
+    const canon = [at('fandom_focus', 'last cycle', 0), at('concept', 'this cycle', 1)];
+    const out = canonForEvent(canon, { cycle: 1, reads: ['fandom_focus'] });
+
+    expect(out.map((e) => e.cycle)).toEqual([0, 1]);
+  });
+});
+
+/**
+ * A stale fact with no timestamp is worse than no fact: a model will state last
+ * cycle's title track in the present tense, and the player reads a continuity
+ * error rather than a callback.
+ */
+describe('an older decision says that it is older', () => {
+  it('marks an earlier cycle and leaves the current one bare', () => {
+    const out = renderCanon(
+      [
+        { topic: 'a', text: 'last time', cycle: 0 },
+        { topic: 'b', text: 'this time', cycle: 1 },
+      ],
+      1,
+    );
+
+    expect(out).toContain('- earlier in the campaign: last time');
+    expect(out).toContain('- this time');
+    expect(out).not.toContain('earlier in the campaign: this time');
+  });
+
+  it('marks nothing when the caller does not say which cycle it is', () => {
+    expect(renderCanon([{ topic: 'a', text: 'x', cycle: 0 }])).toBe('- x');
+  });
+});
+
+/**
+ * A `reads` id that matches no agenda anywhere is a DEAD REFERENCE, and it
+ * fails silently - the line simply never appears, and the chain has a hole
+ * nobody notices. Exactly the shape a rename produces.
+ */
+describe('every reads id points at something', () => {
+  it('names only topics some event can actually settle', () => {
+    const settleable = new Set(
+      Object.values(EVENTS).flatMap((e) => e.frame.agenda.map((a) => a.id)),
+    );
+
+    for (const [id, event] of Object.entries(EVENTS)) {
+      for (const topic of event.reads ?? []) {
+        expect(settleable.has(topic), `${id} reads "${topic}", which nothing settles`).toBe(true);
+      }
+    }
+  });
+
+  it('gives every event something to build on', () => {
+    for (const [id, event] of Object.entries(EVENTS)) {
+      expect((event.reads ?? []).length, `${id} reads nothing`).toBeGreaterThan(0);
+    }
+  });
+
+  /**
+   * An event reading its OWN topics is correct and deliberate - a second
+   * concept meeting should know what the first one chose, or it will pick the
+   * same concept again and call it a comeback.
+   */
+  it('lets a recurring event read its own previous answers', () => {
+    expect(EVENTS.concept_meeting.reads).toContain('title_track');
   });
 });

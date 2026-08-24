@@ -151,13 +151,55 @@ export function canonForCycle(canon, cycle, limit = CANON_INJECT_MAX) {
 }
 
 /**
+ * What an anchor event is handed: the topics it was authored to build on, plus
+ * whatever else this cycle has settled.
+ *
+ * `reads` names ids from earlier events in the chain (`data/events/index.js`),
+ * and those are looked up across ALL cycles rather than only this one - that is
+ * the whole point. A cycle-2 concept meeting reading `fandom_focus` wants what
+ * the fan meeting made of cycle 1, because there is no cycle-2 fan meeting yet.
+ *
+ * THE READS WIN WHEN THE CAP BITES. Four reads plus six current-cycle entries
+ * is ten lines for a six-line budget, and dropping from the wrong end would
+ * quietly delete the chain - which is the one thing this day was authored to
+ * have. So the reads are taken first and the current cycle fills what is left.
+ *
+ * Deduped by topic, latest wins, so a topic that is both read and settled this
+ * cycle appears once with the current answer.
+ */
+export function canonForEvent(canon, { cycle, reads = [], limit = CANON_INJECT_MAX } = {}) {
+  const wanted = new Set(reads);
+  const chain = latestByTopic((canon ?? []).filter((e) => wanted.has(e.topic))).slice(-limit);
+
+  const seen = new Set(chain.map((e) => e.topic));
+  const room = limit - chain.length;
+  const rest =
+    room > 0
+      ? canonForCycle(canon, cycle, limit).filter((e) => !seen.has(e.topic)).slice(-room)
+      : [];
+
+  // Chronological, so the model reads the history before the present.
+  return [...chain, ...rest].sort((a, b) => (a.cycle ?? 0) - (b.cycle ?? 0));
+}
+
+/**
  * Render for block 4. Model-facing English, never localized.
  *
  * Returns null rather than an empty heading when there is nothing to say - a
  * campaign in its first week has decided nothing, and a section that says so is
  * worse than no section.
+ *
+ * An entry from an earlier cycle SAYS SO. Without it the last comeback's title
+ * track reads as the current one, which is worse than not carrying it at all: a
+ * model handed a stale fact with no timestamp will state it as present tense,
+ * and the player will read a continuity error rather than a callback.
  */
-export function renderCanon(entries) {
+export function renderCanon(entries, cycle = null) {
   if (!entries || entries.length === 0) return null;
-  return entries.map((e) => `- ${e.text}`).join('\n');
+  return entries
+    .map((e) => {
+      const old = cycle != null && e.cycle != null && e.cycle < cycle;
+      return old ? `- earlier in the campaign: ${e.text}` : `- ${e.text}`;
+    })
+    .join('\n');
 }

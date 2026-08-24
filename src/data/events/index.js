@@ -36,6 +36,28 @@
  * back: a title track, a concept, who the company pushes. "Whether she is
  * happy" is not an agenda item, it is a movement in disguise.
  *
+ * AND `reads` IS THE OTHER END OF THAT, which is what makes the four recurring
+ * events a chain rather than four separate days:
+ *
+ *     concept meeting -> MV shoot -> Music Bank -> fan meeting
+ *          ^                                            |
+ *          +----------------- next cycle ---------------+
+ *
+ * It names topic ids from earlier events, and block 4 hands the day the current
+ * answer for each. So the MV shoot is shooting the concept the meeting chose,
+ * Music Bank is performing the ending pose the shoot landed on, and the next
+ * concept meeting knows what the fandom made of all of it.
+ *
+ * NAMED, rather than handing over the whole of canon. A small model given
+ * eighteen lines of world facts uses none of them; given "the title track is X"
+ * immediately above an agenda that mentions the title track, it uses it. The
+ * same argument as block 4 repeating her `speechStyle` (section 8) - proximity
+ * and selection are what make a fact load-bearing rather than decorative.
+ *
+ * Every id here must be some event's agenda id. A `reads` entry that matches
+ * nothing is a dead reference that fails silently - the line simply never
+ * appears - so it is asserted.
+ *
  * All six are held in one table rather than one file each, because keeping
  * them consistent matters more than keeping them apart: they are short, they
  * are written by a person reading them top to bottom, and the failure mode of
@@ -60,6 +82,10 @@ export const EVENTS = {
     id: 'concept_meeting',
     phase: 'prep',
     slot: 'event_a',
+    // `concept` and `title_track` are its OWN previous answers, and they matter
+    // most: a second concept meeting that cannot see the first one picks the
+    // same concept again and calls it a comeback.
+    reads: ['concept', 'title_track', 'chart_result', 'fandom_focus', 'company_response'],
     frame: {
       setting:
         'A long table in the meeting room, printouts of mood boards face down until ' +
@@ -96,6 +122,7 @@ export const EVENTS = {
     id: 'mv_shoot',
     phase: 'prep',
     slot: 'event_b',
+    reads: ['concept', 'title_track', 'styling', 'centre'],
     frame: {
       setting:
         'A closed set in a warehouse dressed for the concept. Forty people who do not work ' +
@@ -120,6 +147,7 @@ export const EVENTS = {
     id: 'music_bank',
     phase: 'comeback',
     slot: 'event_a',
+    reads: ['title_track', 'ending_pose', 'video_lead', 'centre'],
     frame: {
       setting:
         'Broadcast day. A waiting room shared with two other groups, a corridor that ' +
@@ -143,6 +171,7 @@ export const EVENTS = {
     id: 'fan_meeting',
     phase: 'comeback',
     slot: 'event_b',
+    reads: ['stage_result', 'chart_result', 'promo_plan', 'hero_shot'],
     frame: {
       setting:
         'Four hours of faces. A hall, a table, a line that does not visibly shorten, ' +
@@ -168,6 +197,7 @@ export const EVENTS = {
     // Mid-campaign: one comeback has landed, so there is something for
     // executives to make speeches about. See `recurs`.
     cycle: 1,
+    reads: ['chart_result', 'promo_face', 'fandom_focus'],
     frame: {
       setting:
         'The agency has put everyone on a dinner cruise. Fairy lights, a set menu, ' +
@@ -194,6 +224,7 @@ export const EVENTS = {
     // The last week of the campaign, and only there. Its own frame says so:
     // the first day in nine weeks with nothing scheduled, and a last ferry.
     cycle: 2,
+    reads: ['next_cycle_plan', 'company_push', 'promo_face'],
     frame: {
       setting:
         'A day off the mainland at the end of a cycle. Ferry, rented bicycles, a ' +
