@@ -398,3 +398,94 @@ describe('an anchor event opens with the room', () => {
     await waitFor(() => expect(screen.getByText(/You made it/)).toBeTruthy(), { timeout: 4000 });
   });
 });
+
+/**
+ * THE RISK CHIP SURVIVES THE WRITTEN SWAP.
+ *
+ * This belongs at THIS layer and could not have been caught at any other, which
+ * is the reason to write it here rather than as one more unit test.
+ *
+ * `chipWriter.test.js` drives `writeChips` directly and proves the field and
+ * the belt. What it cannot prove is that the SCREEN keeps the bet, because the
+ * bug was in the swap: `chips.js` deals a risk, the bar renders it, the model
+ * answers a second later, and the written set replaces the whole bar.
+ *
+ * Neither harness could see it either, and that is worth stating plainly.
+ * `playthrough.test.js` and `balanceSim` pick stances straight out of
+ * `availableStances` - they never call `generateChips`, let alone `writeChips`
+ * - so a risk stance was always available to them. Their admissibility numbers
+ * were an upper bound on a game in which the player could not reach the button.
+ * Failure mode 9 for the third time: a harness wrong in the player's favour
+ * hides a bug instead of finding it.
+ */
+describe('a written set never takes the bet off the bar', () => {
+  const RISK = /invite|touch|confide/;
+
+  /**
+   * Legal for every risk stance (`touch` gates at intimacy 50) and public
+   * enough for one to be worth taking.
+   */
+  const riskySetup = () => {
+    const base = setup();
+    return {
+      ...base,
+      relations: Object.fromEntries(ids.map((id) => [id, newRelation(60)])),
+      scene: { ...base.scene, locationId: 'cafe', locationLabel: 'Cafe', block: 'afternoon' },
+    };
+  };
+
+  /**
+   * A client whose chip call is held open until the test releases it.
+   *
+   * That is what makes this an assertion about the SWAP rather than about a
+   * seed: the bar is read while it is still the deterministic set, and again
+   * after the model's three warm verbs land on top of it.
+   */
+  const heldClient = () => {
+    let release;
+    const held = new Promise((r) => {
+      release = r;
+    });
+    const client = ({ preset, onChunk }) => {
+      if (preset === 'chips') return held;
+      const beat = '@irene|neutral|guard40|fluster10\n*She looks up.* "You came."';
+      if (onChunk) onChunk(beat);
+      return Promise.resolve(beat);
+    };
+    return { client, release: () => release('care|I am here\njoke|Blame the choreographer\ncasual|Just stay a while') };
+  };
+
+  it('keeps a dealt risk after the labels land on top of it', async () => {
+    const { client, release } = heldClient();
+    mount({ setup: riskySetup(), client });
+
+    // Read through her opening beats: the bar is one control until they are done.
+    for (let i = 0; i < 6; i += 1) {
+      const more = screen.queryByRole('button', { name: /vn\.continue/ });
+      if (!more) break;
+      await userEvent.click(more);
+    }
+    await waitFor(() => expect(chipButtons().length).toBeGreaterThan(0), { timeout: 4000 });
+
+    // The deterministic bar, before the model has answered.
+    const before = chipButtons().map((b) => b.textContent ?? '');
+    expect(
+      before.some((s) => RISK.test(s)),
+      `fixture dealt no risk to protect: ${JSON.stringify(before)}`,
+    ).toBe(true);
+
+    release();
+
+    // ...and the same bar once three warm, deniable verbs have arrived.
+    await waitFor(
+      () => expect(chipButtons().some((b) => /I am here/.test(b.textContent ?? ''))).toBe(true),
+      { timeout: 4000 },
+    );
+
+    const after = chipButtons().map((b) => b.textContent ?? '');
+    expect(
+      after.some((s) => RISK.test(s)),
+      `the written set relabelled the bet away: ${JSON.stringify(before)} -> ${JSON.stringify(after)}`,
+    ).toBe(true);
+  });
+});
