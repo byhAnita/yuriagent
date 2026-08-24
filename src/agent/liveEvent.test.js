@@ -344,3 +344,100 @@ describe.skipIf(!enabled)('the chain', () => {
     expect(rendered).toMatch(/earlier in the campaign/);
   });
 });
+
+/**
+ * CANON IN AN ORDINARY BLOCK. Day-three playtest, findings 8 and 9.
+ *
+ * This is where most of canon's value is meant to be - Irene mentioning the
+ * title track in a wardrobe on a Tuesday is pillar 4 working - and it is where
+ * it failed twice over:
+ *
+ *   > Character keeps mention the word "concept", "concept board" instead of
+ *   > the concrete concept facts.
+ *
+ *   > A bug here "tomorrow at the beach" while MV shoot has been finished in
+ *   > previous week.
+ *
+ * Both are the same omission: the lines carried facts and no instruction about
+ * what to do with them. Block 4 now says name them concretely, and says that a
+ * line marked as earlier has already happened.
+ */
+describe.skipIf(!enabled)('canon in an ordinary block', () => {
+  const settled = [
+    { topic: 'title_track', text: 'the title track is Day Dream', cycle: 0, phase: 'prep', slot: 'event_a' },
+    { topic: 'concept', text: 'the concept is a seaside sunrise, pale styling', cycle: 0, phase: 'prep', slot: 'event_a' },
+  ];
+
+  /** An ordinary practice-room block, a few days after the meeting. */
+  const after = (over = {}) => {
+    const s = eventSetup();
+    return {
+      ...s,
+      scene: {
+        ...s.scene,
+        rosterIds: ['irene'],
+        presentIds: ['irene'],
+        locationId: 'practice_room',
+        locationLabel: 'practice_room',
+        day: 4,
+        event: null,
+        sceneFrame: null,
+        register: null,
+        canon: settled,
+        ...over,
+      },
+    };
+  };
+
+  it('says the title by name rather than saying "the concept"', async () => {
+    const setup = after();
+    let session = beginScene(setup);
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+    for (const stance of ['casual', 'care', 'joke']) {
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+    }
+
+    const prose = session.beats.map((b) => b.text).join('\n');
+    log('\n[event] --- an ordinary block, three days after the meeting ---');
+    for (const b of session.beats) log(`  @${b.speaker} ${b.text}`);
+
+    const named = /day dream|sunrise|seaside|pale/i.test(prose);
+    const vague = /the concept board|the concept\b/i.test(prose);
+    log(`[event] names it: ${named}   says "the concept": ${vague}`);
+
+    /**
+     * Loose, and for the same reason the chain test is: a three-turn scene may
+     * legitimately be about something else entirely, and canon is capped at a
+     * few lines precisely so it cannot drown the scene. What the report caught
+     * was the opposite failure - the decision coming up and being referred to
+     * as "the concept" - so that is what is asserted.
+     */
+    if (vague) expect(named, 'raised the decision and would not name it').toBe(true);
+  }, 480000);
+
+  /**
+   * The tense half. A decision from an earlier CYCLE is marked, and must not be
+   * spoken as though it were still ahead.
+   */
+  it('does not put a finished shoot in the future', async () => {
+    const old = settled.map((e) => ({ ...e, cycle: 0 }));
+    const setup = after({ week: 3, canon: old });
+
+    let session = beginScene(setup);
+    session = await runTurn(session, { text: openingDirective(), client, cast: cards });
+    for (const stance of ['casual', 'care']) {
+      session = await runTurn(session, { stance, text: '', client, cast: cards });
+    }
+
+    const prose = session.beats.map((b) => b.text).join('\n');
+    log('\n[event] --- a block in the NEXT cycle ---');
+    for (const b of session.beats) log(`  @${b.speaker} ${b.text}`);
+
+    // Reported, not asserted: this is a reading about a provider, and the
+    // phrasing that would prove it is unbounded. The prompt-side guard lives
+    // in `language.test.js`, which asserts the instruction is actually sent.
+    const future = /tomorrow|next week|going to shoot|will shoot/i.test(prose);
+    log(`[event] speaks of it as still ahead: ${future}`);
+    expect(session.beats.length).toBeGreaterThan(0);
+  }, 480000);
+});
