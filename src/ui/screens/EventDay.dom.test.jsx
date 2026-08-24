@@ -43,6 +43,7 @@ function show({
   lang = 'en',
   onEnterSolo = vi.fn(),
   onEnter = vi.fn(),
+  onOpenRelations = vi.fn(),
   task = null,
 } = {}) {
   const t = makeT(lang);
@@ -69,10 +70,11 @@ function show({
       onEnterSolo={onEnterSolo}
       onSkipBlock={vi.fn()}
       onOpenSettings={vi.fn()}
+      onOpenRelations={onOpenRelations}
       t={t}
     />,
   );
-  return { t, onEnterSolo, onEnter };
+  return { t, onEnterSolo, onEnter, onOpenRelations };
 }
 
 describe('the day an anchor event lands on', () => {
@@ -155,5 +157,39 @@ describe('the day an anchor event lands on', () => {
     const { t } = show({ lang: 'zh' });
     expect(t(`event.${todayEvent.content.id}`)).not.toBe(todayEvent.content.id);
     expect(screen.getByText(t(`event.${todayEvent.content.id}`))).toBeTruthy();
+  });
+});
+
+/**
+ * The relationship row is a way in, not just a readout (PROPOSALS 25).
+ *
+ * Asserted at the screen because the failure mode is silent: an `onClick` handed
+ * `undefined` renders, looks exactly right, and does nothing - which is the join
+ * bug this project keeps finding, in the one place a unit test cannot look. The
+ * panel's own contents are `ui/modals/RelationsModal.dom.test.jsx`.
+ */
+describe('the relationship row opens', () => {
+  it('is a control, and it calls out', async () => {
+    const { t, onOpenRelations } = show();
+
+    const opener = screen.getByText(t('relations.open'));
+    expect(opener).toBeTruthy();
+    await userEvent.click(opener);
+
+    expect(onOpenRelations).toHaveBeenCalled();
+  });
+
+  /**
+   * Free, and not a block. Same rule the handbook follows: a room action reads
+   * as costing a block, and reading what you already half-know must not.
+   */
+  it('costs nothing - it does not enter a room or spend the day', async () => {
+    const { t, onEnter, onEnterSolo, onOpenRelations } = show();
+
+    await userEvent.click(screen.getByText(t('relations.open')));
+
+    expect(onOpenRelations).toHaveBeenCalled();
+    expect(onEnter).not.toHaveBeenCalled();
+    expect(onEnterSolo).not.toHaveBeenCalled();
   });
 });

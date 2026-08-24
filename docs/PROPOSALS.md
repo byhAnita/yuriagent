@@ -1386,9 +1386,13 @@ directive to buy something (a) mostly already delivers.
 
 ## 20. An anchor event has to decide something
 
-**Status: BUILT 2026-08-24, except the per-cycle stakes clause.** (a), (b),
+**Status: BUILT 2026-08-24, complete.** (a), (b),
 (c) and (d) all shipped, together with open item 7 - which the design pass found
-was a prerequisite rather than a follow-up. The design that was actually built
+was a prerequisite rather than a follow-up. **Step 6, the per-cycle stakes
+clause, landed later the same day** as half of PROPOSALS 24 - the day-three
+playtest turned it from a nicety into the strongest open item by proving that
+without it the chain actively causes repetition rather than merely failing to
+prevent it. The design that was actually built
 is "The settled design for (c)" at the end of this entry; it supersedes the
 sketch in the middle. **Nothing here has been played by a human yet**, and
 `docs/PROGRESS.md` "Still open" item 1 says what to look at first.** Yuhan raised it after
@@ -1842,6 +1846,16 @@ costs a table and no numbers at all.
 
 ## 22. The vocabulary has no way to do the job
 
+> **BUILT 2026-08-24.** `work` is the twelfth stance, common and safe and cheap, and `deflect` gave up the fourth common slot and only that. Lives in `systems/chips.js`, `tools/mockClient.js`, `tools/mockLines.zh.js`, `i18n/`. Yuhan read this entry and
+> took the recommended option; nothing else here was built.
+
+> The re-measure is the interesting part and it says less than expected: **neither
+> harness calls `generateChips`**, so `COMMON_STANCES` changing cannot reach them
+> at all. The only thing they saw was a twelfth entry in a list they draw from
+> uniformly, which reshuffles every rng draw - and on five seeds that moved
+> `spread` 28 -> 40 and `balanced` 32 -> 16, in opposite directions. `HARNESS_SEEDS`
+> was added so the next coefficient change gets re-run wide first.
+
 **Raised in the day-three playtest, repeatedly and in several disguises.** The
 sharpest statement of it:
 
@@ -1924,6 +1938,16 @@ section has been wrong about magnitudes before.
 
 ## 23. The MV shoot never shoots anything
 
+> **BUILT 2026-08-24.** The cheap version - a second establishing-shaped beat at the two-thirds mark, `speaker: null`, zero new rules. Lives in `agent/sceneEngine.js` (`interlude`), `data/events/index.js` (`physical`), `ui/vn/VNStage.jsx`. Yuhan read this entry and
+> took the recommended option; nothing else here was built.
+
+> Live, the MV shoot's interlude came back as *"The first setup finally rolls: a
+> slow dolly shot across a white void... The director calls cut twice, adjusts a
+> fan, and they reset. A PA carries armfuls of black fabric past you toward the
+> rigging."* That is the shoot shooting. **The NPC stays unbuilt** and this entry
+> stays the argument for what it would cost, if a played event still reads as
+> people in a room.
+
 **Three events, one complaint, stated three times.**
 
 > Still No description of MV shooting scene.
@@ -1992,6 +2016,15 @@ meeting have one, the concept meeting does not.
 ---
 
 ## 24. The second comeback is the first comeback
+
+> **BUILT 2026-08-24.** Both, as recommended - pools first. Lives in `data/comebackStyle.js`, `data/events/index.js` (`stakes`, `eventFrame`), `data/sceneFrames.js`. Yuhan read this entry and
+> took the recommended option; nothing else here was built.
+
+> One change to the design as written: the pools are drawn **without replacement
+> across the campaign** rather than independently per cycle. Three independent
+> draws from an eight-entry pool collide about a third of the time, and a
+> collision is the exact defect this answers - so a shuffle indexed by cycle
+> makes it impossible rather than unlikely.
 
 **The clearest single finding in the day-three report**, and the one PROPOSALS
 20 step 6 was written in advance to answer - so this is evidence rather than a
@@ -2062,6 +2095,13 @@ they need no authoring per event, and they are testable with no model at all.
 
 ## 25. The player cannot see how close she is
 
+> **BUILT 2026-08-24.** Both halves of the recommendation: `REFUSAL.TOO_SOON` split into `NOT_CLOSE` and `NOT_NAMEABLE`, and the day-screen row became a button into a panel. **Nothing on the scene screen.** Lives in `systems/dating.js`, `ui/modals/RelationsModal.jsx`, `ui/screens/Day.jsx`. Yuhan read this entry and
+> took the recommended option; nothing else here was built.
+
+> Worth recording: the panel is the first place `admissibility` has ever appeared
+> in the UI. Half the relationship model, six milestones, invisible - because a
+> one-line row had no room for a second number.
+
 > And no UI display the character's intimacy value in the game. We don't know
 > what value we have now. I'd suggest [it is shown] in dialogue and display the
 > character's intimacy instead or keep them both. And should also find a
@@ -2101,6 +2141,21 @@ Nothing on the scene screen.
 ---
 
 ## 26. The Chinese reads like translated English
+
+> **BUILT 2026-08-24.** Recommendations 1 and 2. Memory stays English (rule 2 stands); the `zh` block gained prose rules and `styleHints` is read. Lives in `agent/promptBuilder.js`, `data/characters/*.json`. Yuhan read this entry and
+> took the recommended option; nothing else here was built.
+
+> **`styleHints` needed building, not filling.** The field has been on the schema
+> since M0 and this proposal assumed it was wired; it was not. Eight cards, every
+> hint `null`, one comment mentioning it, and no consumer anywhere in `agent/`.
+>
+> Recommendation 3 - authoring `REGISTERS` and frame `setting` lines in the target
+> language - is **deliberately not built**, and stays here as the next step if a
+> native reader still finds it translated.
+>
+> A live `zh` pass also produced the "a name is not prose" rule now in section 19:
+> the meeting titled its own song in Chinese inside the English memory line, which
+> is correct and which the test was wrong to reject.
 
 > But I have to say the Chinese expression are very awkward and strange, not
 > native. "cables crawling along the ground like black snakes", "settle the

@@ -5,14 +5,21 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, plus PROPOSALS 20. Five sessions played.
+## Current: M0-M5 complete, plus PROPOSALS 20 and 22-26. Five sessions played.
 
-**1195 tests, lint and build clean.** Everything is on `dev`; `main` is well
+**1278 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.
 
-**Newest: the day-three playtest, and it was the most valuable session the
-project has had** - the first one to play the same feature across two cycles,
-in `zh`, on the phone, with the call log attached. Ten defects fixed, five
+**Newest: PROPOSALS 22-26, all five, built 2026-08-24.** Yuhan read the entries,
+took the recommended option in each, and asked for a plan. The plan is
+`~/.claude/plans/sequential-splashing-falcon.md`; what shipped is the
+"PROPOSALS 22-26" section below. **None of it has been played** - item 1 of
+"Still open" says what to look at, and every one of the five is a judgement no
+test can make.
+
+Before that: the day-three playtest, and it was the most valuable session the
+project has had - the first one to play the same feature across two cycles, in
+`zh`, on the phone, with the call log attached. Ten defects fixed, five
 questions sent to PROPOSALS 22-26. The report is `docs/playtests/TestReport3.txt`
 and the triage is the "Day-three playtest" section below.
 
@@ -29,7 +36,7 @@ the day must settle, chained so the MV shoot shoots the concept the meeting
 chose. `run.canon` holds the answers and the handbook shows them.
 
 **Item 1 of "Still open" is the pick-up point**, and the next thing that
-happens is deciding PROPOSALS 22-26 with Yuhan.
+happens is a played session on the phone.
 
 **It is live and playable on a phone:** https://byhAnita.github.io/yuriagent/
 Published from `dev` by `bash deploy.sh` (section 17: the Pages site is the
@@ -571,6 +578,141 @@ two or three members every test used, and appear only at five:
 A test asserts the thing you thought of, at the size you happened to pick. What
 found these was **playing it, and then building a probe at the size the game
 actually runs at** (`LIVE_BIG_ROOM=1`). Both are cheap. Neither was being done.
+
+---
+
+## PROPOSALS 22-26, built 2026-08-24
+
+The five questions the day-three playtest left open. Yuhan read the entries and
+took the recommended option in each, so this section is what shipped rather
+than what was argued - `docs/PROPOSALS.md` still holds the arguments and now
+carries a BUILT banner on each.
+
+Built in value-per-unit-of-work order, one commit each.
+
+### 24. Cycle 2 cannot be cycle 1
+
+Two mechanisms doing different jobs, and they are not alternatives.
+
+- **`data/comebackStyle.js`** - three pools (a sound, an occasion, a place),
+  eight entries each, **drawn without replacement across the campaign**. That
+  last part is a change to the design as written: three independent draws from
+  an eight-entry pool collide about a third of the time, and a collision is the
+  exact defect. A shuffle indexed by cycle makes it impossible instead.
+- **`stakes[]`** on the four recurring events - one authored line per cycle,
+  twelve in all. This is PROPOSALS 20 step 6, finally.
+
+`eventFrame(event, { cycle, seed })` is the join, and `App` calls it instead of
+handing over the static frame off the table. Derived, never stored.
+
+**The pools reach the model as pressure, never as three nouns** - what the label
+wants, what A&R keep bringing up, what is in the director's reference folder.
+Same rule the agenda follows: name what is at stake, never which way.
+
+### 22. A stance for doing the job
+
+`work` is the twelfth stance: **common** (at work most turns are work), **safe**
+(never locked by strain, jealousy or low energy), and **worth little** - there
+is no stance-to-payout table anywhere, so a stance is worth what it is written
+worth, and the offline tables give it the smallest numbers in the game.
+
+`deflect` gave up the fourth common slot and **only** the slot. Four is
+load-bearing: `generateChips` fills two of three from the set and reserves the
+third, so a fifth dilutes every other one by a fifth - including `care`, which
+the `piqued` conversion runs through.
+
+#### What the re-measure actually said
+
+The plan said to re-run the harness, because a new safe common stance changes
+every scene's payout. It does not, and the reason is worth keeping:
+
+> **Neither harness calls `generateChips`.** Both pick a stance uniformly out of
+> `availableStances`, so `COMMON_STANCES` changing cannot reach them at all. The
+> only thing they saw was a twelfth entry in a list they draw from - which
+> reshuffles which stance every rng draw lands on.
+
+On the default five seeds that moved `spread` 28 -> 40 and `balanced` 32 -> 16,
+**in opposite directions**, and only for the two policies that pick uniformly.
+That is seed noise wearing a result's clothes, and at five seeds there was no
+way to say so - which is why `HARNESS_SEEDS` now exists and why the sweep's
+timeout scales with it.
+
+### 23. The shoot shoots
+
+`physical: true` on the MV shoot, Music Bank and the fan meeting, and one more
+establishing-shaped beat two thirds of the way through: `speaker: null`, no name
+plate, no roster entry, no jealousy, **zero new rules**. `establish` and
+`interlude` are one `narrate` with a different sentence in it.
+
+Live, at the MV shoot:
+
+> The first setup finally rolls: a slow dolly shot across a white void, the five
+> of them in muted tones, moving through a blocked sequence. The director calls
+> cut twice, adjusts a fan, and they reset. A PA carries armfuls of black fabric
+> past you toward the rigging.
+
+The `zh` one is genuinely Chinese and about the lighting rig, the monitor and
+the playback. **The NPC stays unbuilt**, and PROPOSALS 23 stays the argument for
+what it would cost.
+
+### 26. The Chinese
+
+Memory stays English - rule 2 stands, and writing it in `zh` trades a prose
+problem for a data-integrity one. Two cheaper things instead:
+
+1. The `zh` block says **how** to write, not only which language: as a Chinese
+   novelist writes rather than as a translator does, the notes above are a brief
+   and not a text to render, prefer the concrete verb, never carry an English
+   simile across word for word.
+2. **`styleHints` is read.** It has been on the card schema since M0, section 12
+   described what it was for, and **nothing in `agent/` had ever looked at it** -
+   eight cards, every hint `null`, one comment mentioning the field. A designed
+   slot with no consumer, mild only because the absence was invisible. All five
+   MVP cast are now voiced in `zh`.
+
+Recommendation 3 - authoring `REGISTERS` and frame `setting` lines in the target
+language - is deliberately not built and is the next step if a native reader
+still finds it translated. **The measure is a native reader**, and no test here
+stands in for one.
+
+### 25. Legibility, and nothing on the scene screen
+
+- **A refusal names its axis.** `REFUSAL.TOO_SOON` became `NOT_CLOSE` and
+  `NOT_NAMEABLE`, derived from the kind's own axis rather than hardcoded, worded
+  without a number. That is pillar 1 working: the hidden state becomes legible
+  through a decision the player made.
+- **The day-screen relationship row is a button** into a `Sheet` panel - free,
+  no block, the handbook's shape. It is **the first place `admissibility` has
+  ever appeared in the UI**: half the relationship model, six milestones,
+  invisible, because a one-line row had no room for a second number.
+
+Nothing on the scene screen. `Read her` stays rationed.
+
+### Two live assertions that were testing the wrong thing
+
+Both surfaced by running the live suites against the five, and neither fix is a
+loosening - each replaces a proxy with the claim it was named after.
+
+**A name is not prose.** The `zh` concept meeting settled a title track and gave
+it a Chinese name inside the English memory line, with the same name in
+`display`. That is correct: demanding an English title invents a **second name
+for one song**, so the model would say the English one in Chinese prose and the
+handbook would show a different title from the one Irene says out loud. Exactly
+the failure `learnableFacts` had before ids. The check now strips quoted and
+bracketed spans; a bare Chinese word in an English sentence still fails. Section
+19 has the rule.
+
+**"Nobody speaks as somebody else" was asserted by searching the prose for
+another member's name**, which is a different claim entirely. Caught live on
+*"Practice room's free. Yeri took the last of the good towels, so don't bother
+looking."* - five women who share a dorm being written as five women who share a
+dorm, which block 4 names the absent members as absent to make possible. The
+proxy failed on good writing and never tested its own rule: the parser drops an
+off-roster beat before it can reach `s.beats`. Now asserted against the speaker
+of every beat, which is strictly stronger.
+
+### Where the numbers stand
+
 
 ---
 
@@ -1299,37 +1441,42 @@ it first.
 
 ---
 
-### 1. Decide PROPOSALS 22-26, then play the fixes  <- PICK UP HERE
+### 1. Play PROPOSALS 22-26 on the phone  <- PICK UP HERE
 
-**The day-three report is fully triaged. Ten defects fixed, five questions
-open.** The open five are written up as PROPOSALS 22-26 and Yuhan has asked to
-go through them in detail; that conversation is the next thing that happens, and
-nothing below it should be built before it.
+**All five are built and none of them has been played.** Yuhan went through the
+entries, took the recommended option in each, and they shipped the same day. The
+offline suite, both live suites and a wide sweep are green - and every one of
+these five is a judgement no test can make.
 
-#### (a) The five, in the order they are worth discussing
+#### What to look for, in the order it is worth looking
 
-The order is by how much a played session improves per unit of work, not by
-proposal number.
-
-| # | The question it actually asks | Recommendation |
+| | what should have changed | what would mean it did not work |
 |---|---|---|
-| **24** | cycle 2 reproduced cycle 1's concept and title track. Should variety be *asked for* (a stakes clause) or *structurally imposed* (seeded style pools)? | **Both, pools first.** Pools are a table and a seeded draw, need no authoring per event, and are testable with no model at all. The stakes clause is PROPOSALS 20 step 6 and was already designed. |
-| **22** | there is no stance for doing the job, which is why the meeting had to be driven by hand-typed text. Adding `work` means **taking a slot from the common four** - which one? | Build `work`; take the fifth slot from `deflect` in the common set only. Then re-measure: a new safe common stance changes every scene's payout. |
-| **23** | the MV shoot never shoots. A transient NPC (director, fans) would bend three load-bearing rules - is the cheap version enough? | **The cheap version.** A second establishing-shaped beat mid-event: no roster entry, no speaker id, no portrait state, no jealousy, zero new rules. Revisit the NPC only if that still reads as people in a room. |
-| **26** | the Chinese reads translated. Yuhan proposed writing memory in `zh`. | **Not that** - it trades a prose problem for a data-integrity one (section 19 rule 2). Say it in the `zh` block, and fill in `styleHints.zh`, which has existed since M0 and is `null` on every card. |
-| **25** | where the player reads how close she is. | Mostly already built and unfindable. The real ask underneath is that **a date refusal should name the axis it was short on** - which is pillar 1 working, not being bypassed. Nothing on the scene screen. |
+| **a comeback, twice** | cycle 2's concept meeting is pushed toward a different sound, occasion and place, and knows it is the second | the room recites the three nouns at each other instead of arguing about them |
+| **an MV shoot / Music Bank / fan meeting** | two thirds of the way in, a paragraph of the work: a take, a reset, the light going | it reads as a second establishing beat, or as furniture the player taps past |
+| **the chip bar, at an event** | a `work` option most turns, and picking it moves the day's business | `work` is on the bar every turn and nothing else is |
+| **a `zh` scene** | the prose reads written rather than translated - this is the one that needs a native reader and has no test | the stage directions still carry English metaphors |
+| **a date you cannot get** | the refusal says which axis was short, in words | it still reads as a flat "not yet" |
+| **the day screen** | the relationship row opens into a panel with BOTH axes | the player still cannot find it |
 
-Each entry in `docs/PROPOSALS.md` carries the evidence and the argument; this
-table is only the running order and the position I would defend.
+#### The two that would be new defects rather than misses
 
-#### (b) Then play what shipped today
+1. **`work` crowding the bar.** It is common and safe, which means it is legal
+   in every band - so it is the one stance that can appear when nothing else
+   can. If the bar reads as `work` plus two warm verbs for a whole scene, the
+   fix is its weighting, not its existence.
+2. **The interlude firing in the wrong place.** It is pinned to two thirds of
+   the turn limit, which is turn 10 of 16 at an event. If a scene ends before it
+   fires, or it lands on the closing turn, that is the client's arithmetic and
+   not the model's.
 
-**The one that matters first: the risk chip.** Play until the bar deals a
-marked option - the one that says it will be seen - and then WAIT for the
-written labels to arrive. Before today they replaced it and the player had to
-out-race the call. If admissibility still never moves across a played campaign,
-stop and find out why: that would be the fourth time this axis has been
-unreachable.
+#### And the things that were already waiting
+
+Everything under (b) of the previous pick-up is still unplayed, because that
+session ended in this one. **The risk chip is still the one that matters most**:
+play until the bar deals a marked option, WAIT for the written labels, and check
+it survives. If admissibility never moves across a played campaign, stop - that
+would be the fourth time this axis has been unreachable.
 
 | | |
 |---|---|
@@ -1340,18 +1487,13 @@ unreachable.
 | **an ordinary block after an event** | she says the title by name, and does not put a finished shoot in the future |
 | **the cover** | the save list is a bordered control now; the five manual slots were always behind it |
 
-#### Do NOT reach for the harness to check the chip fix
+#### Do NOT reach for the harness for anything about chips
 
-It cannot see it. `playthrough.test.js` and `balanceSim` pick stances straight
-out of `availableStances` and never call `generateChips` or `writeChips`, so a
-risk stance was always available to them - which is why the bug survived two
-harnesses and four played sessions. The guard lives in `VNStage.dom.test.jsx`,
-at the layer where the swap happens.
-
-What the harness DID measure, run after the fixes, is what the bug was costing:
-`bold` reaches a good ending **64%** of the time against `balanced`'s **32%**,
-and `ours_end` / `out_end` come almost only from policies that reach for risk.
-Treat every admissibility figure measured before 2026-08-24 as an upper bound.
+It cannot see them. `playthrough.test.js` and `balanceSim` pick stances straight
+out of `availableStances` and **never call `generateChips` or `writeChips`** -
+which is why the written-chip bug survived two harnesses and four played
+sessions, and why adding `work` to `COMMON_STANCES` is invisible to both. The
+guards live in `VNStage.dom.test.jsx` and `systems/workStance.test.js`.
 
 ### 2. Play the rest of it, on the phone, in both languages
 

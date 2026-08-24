@@ -756,15 +756,69 @@ Locking: `press` / `touch` / `confide` unavailable in `rift`; `touch` requires `
 
 ### Four of them are the everyday register, and the rest are events
 
-**`care`, `casual`, `flirt` and `deflect` are the common tones.** They are what
-an ordinary turn is made of - being warm, saying something light, being
-obvious about liking her, and moving off a subject. Everything else is a move
+**`care`, `casual`, `flirt` and `work` are the common tones.** They are what an
+ordinary turn is made of - being warm, saying something light, being obvious
+about liking her, and getting on with the job. Everything else is a move
 somebody would notice making: pressing, confiding, reaching, leaving,
-apologising, asking her somewhere.
+apologising, asking her somewhere, refusing a subject.
 
 `generateChips` weights the four accordingly. A vocabulary where every stance
 is equally likely reads as a random verb generator, because most turns in a
 conversation are not events.
+
+#### There was no way to do the job
+
+**`work` is the twelfth stance and it took the fourth common slot from
+`deflect`.** Reported at an anchor event about a comeback:
+
+> the options are still daily small talk options - maybe this is the cause -
+> the whole meeting continue talking about small talks like *Did you sleep well
+> yesterday*
+
+Every one of the other eleven stances is a move in a **relationship**. There
+was nothing for **doing the work you are both there to do**, and the player is
+an artist assistant standing in a meeting about a comeback. Their workaround
+was typing every agenda topic in by hand, which is a complete diagnosis: with a
+work stance on the bar, the day would have moved itself.
+
+`casual` does not cover it and was never meant to. It was added for the
+opposite problem - there was no *low-stakes* move - so it is deliberately
+contentless: talk about nothing. *Let us settle the thing this room is for* is
+a different axis, not a lighter version of that.
+
+Three properties, all falling out of the existing model:
+
+| | |
+|---|---|
+| **common** | at work, most turns are work |
+| **safe** | never locked by strain, jealousy or low energy. There is no state of a working relationship in which the work stops - and section 6 already wanted a second move that survives `rift` |
+| **worth little** | there is no stance-to-payout table anywhere: `guard` and `fluster` are readings the model reports, so a stance is worth what it is *written* worth. The offline tables give `work` the smallest numbers in the game, below `casual` |
+
+**And the agenda is what it acts on.** At an anchor event a `work` chip written
+by the model has the agenda sitting in block 4, so it becomes *"so - the title
+track"* rather than a generic verb. That is the whole feature: the day's
+business becomes a thing the player can pick instead of a thing they must type.
+
+**Four common stances stays four.** `generateChips` fills two of three slots
+from the set and reserves the third, so a fifth dilutes every other one by a
+fifth - including `care`, which the `piqued` conversion runs through. `deflect`
+gives up the slot and **only** the slot: still legal, still offered from the
+general pool, no longer weighted up. Evasion is a tactic, and the argument for
+`casual` was that most turns are not tactics.
+
+#### What the harness could and could not say about it
+
+Five seeds is a **reading, not a comparison**, and this is the change that
+proved it. On the default list `spread` went 28 -> 40 and `balanced` 32 -> 16 -
+in **opposite directions**, and only for the two policies that pick uniformly
+from `available`. That is what seed noise looks like.
+
+It is also a reminder of what the harness is measuring. **Neither harness calls
+`generateChips`**; both pick a stance uniformly out of `availableStances`. So
+`COMMON_STANCES` changing has no effect on them at all, and the only thing they
+saw was a twelfth entry in a list they draw from - which reshuffles which
+stance every rng draw lands on. `HARNESS_SEEDS` exists so the next coefficient
+change gets re-run wide before anybody writes a number down.
 
 #### What replaced what, and why
 
@@ -1119,6 +1173,37 @@ about *choices*; a reference list is not one, and the opposite rule applies.
 It shows `display`, grouped by cycle, newest first. Without this canon would
 reach the model and never the player, which is the exact failure pillar 4 exists
 to forbid: **memory that shows in mechanics, not only in prose.**
+
+### The same lesson, the second time: the relationship row opens
+
+`ui/modals/RelationsModal.jsx`, and it is the handbook's argument again in a
+place nobody expected to need it. The day screen has printed every member's
+stage and intimacy since M4 - and the player went looking for a menu that was
+already a row:
+
+> And no UI display the character's intimacy value in the game... should also
+> find a place/menu in outside scene - the game main screen - to present
+> character's intimacy & emotion stage
+
+**A thing the player has to discover is a thing that does not exist.** So the
+row is a button into a `Sheet`, free and costing no block, for the same reason
+the handbook is.
+
+**And it is the first place `admissibility` has ever appeared in the UI.** That
+is half the relationship model - it decides the plateau, the public date and
+four of the endings - and a one-line row had no room for a second number, so a
+player could not see there *were* two, let alone that one of them was stuck.
+The panel carries both axes, the standing sentence in the player's language, the
+jealousy and strain bands when there is something to say, and what the plateau
+wants.
+
+**Nothing goes on the scene screen.** Pillar 1 is the player *reading* hidden
+state, and section 6 already gives the scene bar standing in words beside the
+three volatile meters. A readout there retires `Read her` in one stroke.
+
+`standing.*` in `i18n/` is player-facing, second person, and deliberately not
+the `STANDING` table in `promptBuilder.js` - that one is model-facing English
+that never localizes. Same sentence, different reader, allowed to drift.
 
 **Written by events only, and validated rather than trusted.** The scene-exit
 call gains `decisions: [{ topic, text }]`, parsed through the same four-level
@@ -1606,10 +1691,96 @@ working weekdays and cut credits by roughly the same, against a campaign that
 already ends with 0-2 of them and 36 unspent facts. Four recurring plus two
 punctuation is ~31%, and the harness measures it before any of it merges.
 
-Each recurring event also carries a **per-cycle stakes clause**, so the second
-concept meeting is not the first one with different numbers - it knows the last
-title track and whether it landed. That is the difference between escalating and
-repeating, and it is the largest authoring cost in the whole feature.
+### The second comeback must not be the first one again
+
+**Built. Two mechanisms, and they are not alternatives.**
+
+The chain worked exactly as designed and that is what caused the failure.
+`concept_meeting` reads its own previous `concept` and `title_track` precisely
+so a second meeting can escalate rather than start from nothing - and handed its
+own last answer, the model reproduced it. Played, week 4:
+
+> Oh no she's talking same concept of 1st concept.
+> Oh no, the song name is same as 1st comeback, and the concept is similar.
+
+**Reading the previous cycle and being different from it are two instructions,
+and only one of them was being given.**
+
+| | what it does | where it lives |
+|---|---|---|
+| **stakes clause** | continuity - the second meeting knows it is the second, that the last one is recent enough for a repeat to be noticed, and that the third is the one the year gets remembered by | authored, one line per cycle per recurring event, `data/events/` |
+| **style pools** | difference - a **sound**, an **occasion** and a **place**, drawn per cycle | `data/comebackStyle.js` |
+
+**Drawn without replacement across the campaign**, which is the whole point and
+the one thing an independent per-cycle draw cannot promise: three cycles drawing
+from an eight-entry pool collide about a third of the time, and a collision is
+precisely the defect. Each pool is shuffled once from the run seed and indexed
+by cycle, so different runs get different comebacks and no run ever repeats
+itself.
+
+This is the calendar's own argument applied to content. The schedule is
+deterministic and seeded because it is replayable, testable, instant and free,
+and *the LLM may write a flavour label; it may never decide the slot.* A comeback
+concept is a slot. **Three dice make cycle 2 structurally unable to be cycle 1,
+where a clause only asks it not to be.**
+
+**It reaches the model as pressure, never as three nouns.** A prompt that says
+`{jazz, christmas, forest}` produces a room reciting three nouns at each other.
+It arrives as what people outside the room want - what the label has been
+pushing for, what A&R keep bringing up, what is in the director's reference
+folder - so the room can argue with it. Same rule the `agenda` follows: name
+what is at stake, never which way it goes.
+
+**The concept meeting alone gets the pools**, because it is the only event in
+the chain that invents rather than inherits. Everything downstream is already
+constrained by what that room settled.
+
+`eventFrame(event, { cycle, seed })` is the join, and it is **derived, never
+stored**: `(seed, cycle)` reproduces a comeback exactly, the same reason
+`focusId` and the calendar stay out of the save file.
+
+### The shoot has to actually shoot
+
+**Built.** One complaint, stated three times in one played session:
+
+> Still No description of MV shooting scene.
+> Same issue - no description for comeback stage performance.
+> Still no fan-meeting description.
+
+An anchor event produces a room full of women *talking about* the day. The
+concept meeting survives that, because a meeting **is** people talking. The
+other three do not: a shoot is a shoot, Music Bank is a stage, and a fan meeting
+is nine hundred albums and the people who bought them. What the player got at
+all three was a green room.
+
+**Not a model failure.** Every mechanism an event has - `movements`, the
+`agenda`, the addressee, the interjection - produces dialogue *between cast
+members*, because that is what the whole engine is built to produce. Nothing in
+it can represent a thing happening **to** the room.
+
+**Narration, not an NPC.** A director with a speaker id is the right instinct
+and the expensive answer, and it bends three load-bearing rules: the parser
+roster rule would grow a case for somebody who is not a cast member, `presentIds`
+would need a hand exclusion, and portraits, meters and the addressee row are all
+per cast member. The establishing beat already does the job and bends none of
+them - and it was singled out as good in four separate places in the same
+report.
+
+So an event carrying `physical: true` gets **one more establishing-shaped beat
+at the two-thirds mark**: `speaker: null`, no name plate, no roster entry, no
+jealousy, no new rules. It asks for the **work** rather than the mood - a take,
+a reset, the light going, the queue moving - because the room was established
+forty words ago and the work is the one thing dialogue between five friends
+cannot show.
+
+`establish` and `interlude` are one `narrate` with a different sentence in it.
+The properties that matter - unparsed, metadata stripped, silent on failure -
+belong to the shape rather than to either use. The client decides *when*, for
+the same reason it owns the closing directive: only the client can see the turn
+budget.
+
+If a played event still reads as people in a room after this, the NPC is the
+next step and PROPOSALS 23 has the argument for what it costs.
 
 ### An event day is the event, and nothing else
 
@@ -1742,6 +1913,22 @@ plainly as the game can.
 **A refusal is not a failure.** It is the first time a hidden number becomes a
 visible yes or no, which is pillar 1 working. An early ask costs the block and
 nothing else.
+
+**And it names the axis it was short on.** For a long time both gates returned
+one reason - "not yet" - which tells the player nothing about *which* of two
+completely different questions they failed. Reported as *"Oh no we have no
+dating access to anyone."*
+
+So there are two: **not close enough** and **not nameable enough**, derived from
+the kind's own axis rather than hardcoded, and worded without a number - *she
+would spend the day with you; somewhere people could watch her do it is another
+question.*
+
+The ask underneath that report was for `intimacy` on the scene screen, and the
+answer to that is no: pillar 1 is the player reading hidden state and betting on
+it, and `Read her` is rationed so that reading her costs something. Naming the
+axis is the opposite of a readout - **the hidden state becomes legible through a
+decision the player made.**
 
 Two things keep a public date distinct from simply meeting her at the cafe on a
 Tuesday evening, which would otherwise offer most of the same exposure for a
@@ -2437,6 +2624,22 @@ speaker id stays ASCII in every locale (section 9); only the prose changes.
 
 **Semantic fields stay English.** `personality`, `speechStyle`, and `queerTexture` are authored once in English and translated by the model at generation time. This keeps cards portable across locales and keeps them a single source of truth. `styleHints` is the escape hatch for locale-specific voicing that a generic translation flattens - Korean honorific level, Chinese sentence-final particles - and is `null` unless a locale actually needs it.
 
+**It is read in block 4, beside `speechStyle`, and for six milestones it was
+not read anywhere.** The field has been on the schema since M0, this paragraph
+described what it was for, every card had `null` in it, and nothing in
+`agent/` ever looked at it - a designed slot with no consumer, which is the
+`markRisk` shape in its mildest form. Mild only because every hint was null, so
+the absence was invisible.
+
+It matters because `speechStyle` is authored in English and describes an
+*English* voice. "Measured and short. Understates everything" rendered word for
+word is a woman speaking translated English, which is exactly what a native
+reader reported (section 19). Her reticence in Chinese is made of different
+material. All five of the MVP cast now carry a `zh` line; the library cards
+deliberately do not, and the English card stands - the same rule `nameLocal`
+follows. English never gets one and never should: it is the language the card
+is written in, so a hint would be the card said twice.
+
 `learnableFacts` is the pool solo-work snooping draws from (section 10b).
 
 ### A fact is an id, and it has two texts
@@ -2709,6 +2912,7 @@ src/
     identities/*.json
     activities.js            # group / solo / idle activity tables
     locations.js             # exposureBase + presence + zone per location
+    comebackStyle.js         # seeded sound/occasion/place pools, drawn per cycle
     soloActions.js           # what the assistant does in an empty room
     gifts.js
     cast.js                  # card loader; PROMPT_EXCLUDED_FIELDS
@@ -2717,7 +2921,8 @@ src/
     vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar,
                              # ThoughtBubble, SceneHeader, beatQueue
     map/                     # LocationGrid, DormMap, WeekCalendar
-    modals/                  # GiftModal, SettingsModal, SaveModal (M5)
+    modals/                  # Sheet + GiftModal, SettingsModal, SaveModal,
+                             # HandbookModal, DateModal, RelationsModal
     screens/                 # Day, SoloAction, Cover/Ending (M5)
   i18n/                      # zh/en (ko/pt stubs)
   config/
@@ -2828,16 +3033,17 @@ to the endings screen, saves itself, and installs. It is live at
 17). Five sessions have been played by hand, the last two on the phone the game
 is designed for.
 
-**PROPOSALS 20 is built, except step 6.** An anchor event opens with a
-paragraph of room, carries an `agenda` of what the day must settle, and writes
-what it settled into `run.canon` - which the chain reads, block 4 injects, and
-the handbook shows the player. Six events across fourteen event days, four of
-them recurring per cycle. What is deliberately not built is the **per-cycle
-stakes clause**, and the day-three playtest turned that from a nicety into the
-strongest open item: handed its own previous answer and no instruction to
-differ from it, the second concept meeting reproduced the first one's concept
-and title track. PROPOSALS 24 has the argument and a better fix than the one
-originally designed.
+**PROPOSALS 20 is complete**, and so are 22-26 - the five questions the
+day-three playtest left open, all built on 2026-08-24 after Yuhan went through
+them and took the recommended option in each:
+
+| # | What shipped | Where |
+|---|---|---|
+| **24** | seeded style pools + the per-cycle stakes clause, so cycle 2 cannot be cycle 1 | section 10 |
+| **22** | the `work` stance; `deflect` gives up the common slot | section 6 |
+| **23** | a mid-event interlude for the three events that DO something | section 10 |
+| **26** | `zh` prose rules, and `styleHints` finally read | sections 12, 19 |
+| **25** | a refusal names its axis; the relationship row opens into a panel | sections 7, 10 |
 
 **The day-three playtest also found the largest bug the chip system has had.**
 Written chips offered the model `available.slice(0, 6)` - the head of the
@@ -2847,6 +3053,13 @@ model answered. Section 6 has it. Two things worth carrying: it is the third
 occurrence of a deterministic slice standing in for a choice, and **neither
 harness could see it, because neither calls `writeChips`** - so every
 admissibility figure measured before 2026-08-24 is an upper bound.
+
+**Nothing in 22-26 has been played by hand yet.** The offline suite, both live
+suites and a twenty-seed sweep are green; what none of them can judge is
+whether a comeback now feels like a different comeback, whether the interlude
+reads as the day happening or as furniture, and whether the Chinese still reads
+translated. That last one has no test and cannot have one - the measure is a
+native reader (section 19).
 
 Running state, what is done and what is still open, lives in
 `docs/PROGRESS.md` - that file is updated *before* a milestone closes, and it
@@ -2876,6 +3089,55 @@ Metadata lines, speaker ids, emotion names, and all field names remain in ASCII 
 1. **Machine tokens never localize.** Speaker ids, emotion names, stance ids, JSON keys - ASCII English in every locale. See section 9.
 2. **Memory is always English.** Ledger summaries and dossier entries are written in English regardless of `meta.lang`. Consequences: the player can switch language mid-run without corrupting history; block 1 stays byte-stable across the switch; and one card library serves every locale.
 3. **Card semantics are English, with a per-locale escape hatch.** See `styleHints` in section 12.
+
+### ...but a name is not prose
+
+Rule 2 is a rule about **prose**, and a name is not prose. Found live: a `zh`
+concept meeting settled a title track and wrote the memory line as *the
+road-trip demo titled 《...》 was chosen as the title track* - English sentence,
+Chinese title - with the same title in `display`.
+
+That is correct, and demanding an English title would be the `learnableFacts`
+mistake again: **it invents a second name for one song.** The model would then
+say the English one in Chinese prose, and the player would read a different
+title in the handbook from the one Irene says out loud. One id, one name, two
+*sentences* around it - the same shape `nameLocal` gives the members
+themselves.
+
+So the assertion strips quoted and bracketed spans and asks whether what is
+**left** is English. A bare Chinese word in an English sentence still fails.
+
+### Writing Chinese is not translating English
+
+Reported by the only person who can report it - a native reader:
+
+> the Chinese expression are very awkward and strange, not native. "cables
+> crawling along the ground like black snakes", "settle the skeleton of the
+> whole video" - feels like using a machine translation from English to Chinese.
+
+**The cause is upstream of the prose.** Everything the model reads before
+writing is English - the cards, the ledger, the dossier, the frame, the
+register, the agenda - because rule 2 keeps memory language-agnostic *on
+purpose*. It is being asked to write Chinese from an English brief, which is
+the definition of translationese. Note what both reported examples are: **stage
+directions**, which come most directly off the English frame and are exactly
+where a simile survives being carried across word for word.
+
+The proposed fix was to write memory in `zh`, and that is the one thing that
+must not be done: it trades a prose problem for a data-integrity one, and a
+player switching language mid-run would corrupt their own history. Two cheaper
+things reach the same place:
+
+1. **The `zh` block says how to write, not only which language.** Write as a
+   Chinese novelist writes rather than as a translator does; the notes above are
+   a brief and not a text to render; prefer the concrete verb to the imported
+   metaphor; never carry an English simile across word for word.
+2. **`styleHints[lang]`, which is now read** (section 12). Her voice in Chinese
+   is not her voice in English rendered word by word.
+
+**The measure is a native reader, not a test.** That is what produced the
+finding, and no assertion can stand in for it - the tests here only prove the
+join.
 
 ### Locale support
 
