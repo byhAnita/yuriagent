@@ -561,6 +561,11 @@ export default {
     offline: 'Offline demo',
     offlineNote: 'Plays without an API key. The writing is placeholder.',
     sceneOver: 'Scene over',
+    /**
+     * Zero is the normal answer (Part I.8), so this is not a failure notice and
+     * must not read like one.
+     */
+    nothingMoved: 'An ordinary hour',
     again: 'Another scene',
     turnsLeft: 'left',
     speakingTo: 'to {name}',

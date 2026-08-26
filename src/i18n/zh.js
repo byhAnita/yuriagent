@@ -572,6 +572,7 @@ export default {
     offline: '离线试玩',
     offlineNote: '无需 API Key。文本为占位内容。',
     sceneOver: '这一幕结束了',
+    nothingMoved: '普通的一小时',
     again: '再来一幕',
     turnsLeft: '剩余',
     speakingTo: '对 {name} 说',

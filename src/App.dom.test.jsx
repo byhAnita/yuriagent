@@ -340,3 +340,78 @@ describe('save slots', () => {
     await waitFor(() => expect(peekSlot('1').empty).toBe(true));
   });
 });
+
+/**
+ * One whole block, map to map. CLAUDE.md Part I.3.
+ *
+ * The reason this exists: the aftermath screen was still reporting v1's three
+ * computed numbers - intimacy, admissibility, strain - none of which the v2
+ * result carries, so it would have crashed the moment a scene ended. The whole
+ * suite was green, because nothing walked past the last option of a scene.
+ *
+ * That is the join shape this project keeps shipping: two correct halves and
+ * nothing calling between them. A test that plays a block is the cheapest thing
+ * that can see one.
+ */
+describe('playing a block through', () => {
+  const optionButtons = () =>
+    screen
+      .getAllByRole('button')
+      .filter((b) => b.className.includes('py-2.5') && b.className.includes('text-left'));
+
+  it('goes map -> room -> scene -> aftermath -> map', async () => {
+    await startARun('Yuhan');
+
+    // Into a room, and out again if nobody is home. Walking in costs nothing.
+    let talk = null;
+    for (const locId of ['practice_room', 'wardrobe', 'drink_room', 'bistro']) {
+      const row = screen.queryAllByText(t(`location.${locId}`)).find((el) => el.closest('li'));
+      if (!row) continue;
+      await userEvent.click(row);
+      talk = screen
+        .getAllByRole('button')
+        .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+      if (talk) break;
+      await userEvent.click(screen.getByText(new RegExp(t('map.back'))));
+    }
+    expect(talk).toBeTruthy();
+    await userEvent.click(talk);
+
+    // Play the block out. The bar is REPLACED by the door when it is spent.
+    await waitFor(() => expect(optionButtons().length).toBe(4), { timeout: 10000 });
+    for (let i = 0; i < 10; i += 1) {
+      if (screen.queryByText(t('vn.outOfTurns'))) break;
+      const options = optionButtons();
+      if (options.length === 0) break;
+      await userEvent.click(options[0]);
+      /**
+       * Wait on the BAR, not on the placeholder. The placeholder only shows
+       * while there is no prose at all, so it is gone a moment after the stream
+       * opens - and every click landing in that window is swallowed by the
+       * engine's own re-entry guard, which is invisible from out here.
+       */
+      await waitFor(
+        () =>
+          expect(
+            screen.queryByText(t('vn.outOfTurns')) || optionButtons().some((b) => !b.disabled),
+          ).toBeTruthy(),
+        { timeout: 10000 },
+      );
+    }
+    expect(screen.getByText(t('vn.outOfTurns'))).toBeTruthy();
+    await userEvent.click(screen.getAllByText(t('vn.leave')).at(-1));
+
+    // The aftermath, which is a diff and not a payout - nothing computes what a
+    // scene was worth any more.
+    await waitFor(() => expect(screen.getByText(t('vn.sceneOver'))).toBeTruthy(), {
+      timeout: 10000,
+    });
+
+    // And back to the day, one block later.
+    await userEvent.click(screen.getByText(t('game.nextBlock')));
+    await waitFor(() => expect(screen.getByText(t('map.calendar'))).toBeTruthy(), {
+      timeout: 10000,
+    });
+    expect(screen.getByText(t('block.afternoon'), { exact: false })).toBeTruthy();
+  }, 30000);
+});

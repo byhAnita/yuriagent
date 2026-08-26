@@ -28,7 +28,7 @@ import { getCast } from './data/cast.js';
 import { getIdentity, DEFAULT_IDENTITY } from './data/identities.js';
 import { buildLineup } from './systems/castBuilder.js';
 import { doingLine } from './data/activities.js';
-import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
+import { newRelation, applySceneOutcome } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
 import { generateWeek, occupancyAt } from './systems/calendar.js';
 import {
@@ -642,7 +642,18 @@ export default function App() {
         }),
       );
     }
-    setOutcome({ ...result, date: pendingScene?.date ?? null, event: pendingScene?.event ?? null });
+    /**
+     * `relations` here is still the PRE-scene value - `setRelations` above is
+     * queued, not applied - which is what lets the aftermath show a diff rather
+     * than a payout. Nothing in v2 computes what a scene was worth, so the only
+     * honest report is what actually changed.
+     */
+    setOutcome({
+      ...result,
+      before: relations,
+      date: pendingScene?.date ?? null,
+      event: pendingScene?.event ?? null,
+    });
     setSceneNo((n) => n + 1);
     setPendingScene(null);
     setScreen('after');
@@ -973,8 +984,6 @@ export default function App() {
         <Aftermath
           outcome={outcome}
           cards={cards}
-          relations={relations}
-          memory={memory}
           /**
            * A date, and an anchor event, eat the day.
            *
@@ -1045,101 +1054,82 @@ export default function App() {
   );
 }
 
-function Aftermath({ outcome, cards, relations, memory, onContinue, t }) {
-  const { delta, rumors, noticed = [] } = outcome;
+/**
+ * What the scene did. CLAUDE.md Part I.8.
+ *
+ * v1's version reported three numbers the CODE had computed - intimacy,
+ * admissibility, strain - which was honest about v1 and would be a lie about
+ * v2. Nothing here is computed any more: the model moved her, the world clamped
+ * it, and this screen says what actually landed.
+ *
+ * So it is a diff rather than a payout. Each member who moved, by how much, and
+ * the one sentence the scene left behind. Anybody who did not move is not
+ * listed, because "0" reads as a result and an absence reads as what it is.
+ */
+function Aftermath({ outcome, cards, onContinue, t }) {
+  const before = outcome.before ?? {};
+  const after = outcome.relations ?? {};
+
+  const moved = cards
+    .map((card) => {
+      const a = before[card.id] ?? {};
+      const b = after[card.id] ?? {};
+      return {
+        card,
+        affection: Math.round((b.affection ?? 0) - (a.affection ?? 0)),
+        admissibility: Math.round((b.admissibility ?? 0) - (a.admissibility ?? 0)),
+        value: b,
+      };
+    })
+    .filter((m) => m.affection !== 0 || m.admissibility !== 0);
+
+  const sign = (n) => `${n > 0 ? '+' : ''}${n}`;
 
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-5 px-5 py-8">
       <h2 className="font-display text-[1.5rem] tracking-wide">{t('vn.sceneOver')}</h2>
 
-      <ul className="flex flex-col gap-1 font-mono text-[0.6875rem] uppercase tracking-[0.12em]">
-        {['intimacy', 'admissibility', 'strain'].map((k) => (
-          <li key={k} className="flex justify-between border-b border-hairline pb-1 text-dim">
-            <span>{k}</span>
-            <span className={delta[k] > 0 ? 'text-accent' : 'text-faint'}>
-              {delta[k] > 0 ? '+' : ''}
-              {delta[k]}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/*
-        Who was standing there. Section 5b: presence writes NO dossier entry,
-        so it produces no rumor - and the aftermath rendered only rumors, which
-        meant a 1v1 in an occupied room ended completely silent while three
-        people's jealousy moved. What she knows and what the player is told are
-        different questions.
-      */}
-      {noticed.length > 0 ? (
-        <ul className="flex flex-col gap-1">
-          {noticed.map((n, i) => (
-            <li key={i} className="font-body text-[0.8125rem] italic text-faint">
-              {t('rumorLine.present')
-                .replace('{name}', cards.find((c) => c.id === n.memberId)?.name ?? '')
-                .replace('{subject}', n.subjectName ?? '')}
+      {moved.length > 0 ? (
+        <ul className="flex flex-col gap-1.5">
+          {moved.map(({ card, affection, admissibility, value }) => (
+            <li
+              key={card.id}
+              className="flex items-baseline gap-2 border-b border-hairline pb-1.5 font-mono text-[0.6875rem]"
+            >
+              <span className="w-14 shrink-0 truncate font-display text-[0.8125rem]" style={{ color: card.palette?.accent }}>
+                {card.name}
+              </span>
+              <span className="flex-1 truncate text-[0.5625rem] uppercase tracking-[0.14em] text-dim">
+                {t('relations.close')}
+              </span>
+              <span className={`tabular-nums ${affection > 0 ? 'text-accent' : affection < 0 ? 'text-warn' : 'text-faint'}`}>
+                {sign(affection)}
+              </span>
+              <span className="w-8 text-right tabular-nums text-dim">
+                {Math.round(value.affection ?? 0)}
+              </span>
+              {admissibility !== 0 ? (
+                <span className="tabular-nums text-meter-exposure">
+                  {t('relations.nameable')} {sign(admissibility)}
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>
-      ) : null}
-
-      {rumors.length > 0 ? (
-        <section>
-          <h3 className="mb-1 font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-warn">
-            {t('exposureBand.public')}
-          </h3>
-          <ul className="flex flex-col gap-1">
-            {/*
-              Rendered from the rumor's SHAPE, never from `r.text`.
-
-              `r.text` is the dossier line and it is English on purpose -
-              section 19 keeps memory language-agnostic so the player can switch
-              language mid-run without corrupting history. Printing it put
-              English sentences into a Chinese run.
-            */}
-            {rumors.map((r, i) => (
-              <li key={i} className="font-body text-[0.875rem] italic text-dim">
-                {t(`rumorLine.${r.kind ?? 'heard'}`)
-                  .replace('{name}', cards.find((c) => c.id === r.memberId)?.name ?? '')
-                  .replace('{subject}', r.subjectName ?? '')
-                  .replace('{where}', r.locationId ? t(`location.${r.locationId}`) : '')}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <section>
-        <ul className="flex flex-col gap-1">
-          {cards.map((c) => {
-            const rel = relations[c.id];
-            return (
-              <li key={c.id} className="flex items-baseline gap-2 font-mono text-[0.625rem]">
-                <span className="w-14 text-dim">{c.name}</span>
-                <span className="flex-1 text-dim">
-                  {t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}
-                </span>
-                <span className="tabular-nums text-dim">{Math.round(rel.intimacy)}</span>
-                <span className="tabular-nums text-warn">{Math.round(rel.jealousy)}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {/*
-        The player reads `display`, never the ledger line.
-
-        The ledger is memory, and section 19 rule 2 keeps memory in English so
-        the player can switch language mid-run without corrupting history. The
-        summarizer now returns both: `summary` for the ledger and `display` in
-        the language of the run. Falling back to the ledger shows the wrong
-        language rather than nothing, which is the right way round.
-      */}
-      {outcome.summary?.display || memory.ledger.length > 0 ? (
-        <p className="font-body text-[0.875rem] italic text-dim">
-          {outcome.summary?.display || memory.ledger.at(-1)?.text}
+      ) : (
+        /**
+         * Zero is the normal answer (Part I.8), so a scene that moved nothing is
+         * not a failed scene and must not be drawn as one. At ~650 rounds a
+         * campaign, an average of +0.4 a round is what a favoured route needs -
+         * most conversations are simply conversations.
+         */
+        <p className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-faint">
+          {t('vn.nothingMoved')}
         </p>
+      )}
+
+      {outcome.summary ? (
+        <p className="font-body text-[0.875rem] italic text-dim">{outcome.summary}</p>
       ) : null}
 
       <button
