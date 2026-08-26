@@ -43,6 +43,21 @@ export const DEFAULT_MODEL = 'deepseek-v4-flash';
 
 /** Per-call shapes. Scene turns are short by design (CLAUDE.md section 1). */
 export const CALL_PRESETS = {
+  /**
+   * One round of the v2 engine: ~80 words of prose, four options, a handful of
+   * machine lines. PROPOSALS 27.
+   *
+   * STREAMED, and that is the point of the whole wire format - the prose comes
+   * first, so the player is reading her line while the options are still being
+   * written. A round that lands whole after 2.5s feels three times slower than
+   * the same round whose first word arrives in 400ms.
+   *
+   * 500 rather than 320 because truncation is the one failure that cannot be
+   * recovered from: a round cut off mid-sentence loses its options AND its
+   * deltas, and in `zh` the same eighty words cost noticeably more tokens than
+   * in English. Cheaper to over-budget a ceiling almost never reached.
+   */
+  round: { temperature: 0.9, maxTokens: 500, stream: true },
   turn: { temperature: 0.9, maxTokens: 320, stream: true },
   thought: { temperature: 0.8, maxTokens: 80, stream: false },
   summarize: { temperature: 0.2, maxTokens: 400, stream: false },

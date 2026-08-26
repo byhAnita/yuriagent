@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node \"C:/Users/Yuhan/AppData/Local/Temp/claude/d--Simulator-YuriAgent/46aadebb-fa4e-4e7e-8d68-345790b7a87b/scratchpad/ireneZh.cjs\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
