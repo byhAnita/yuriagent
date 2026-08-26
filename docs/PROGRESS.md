@@ -4,7 +4,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 3a complete. On `feat/v2-engine`.
+## Current: v2 engine, phase 3a and 3b built. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
@@ -12,8 +12,11 @@ to end - and live against DeepSeek in `zh`, four rounds, four options each.
 Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
 hand-test build, not a release (section 17). `?debug=1` for the in-page console.
 
-**Phase 3a is built and NOT yet on that URL.** The deployed build is
-`f4263c0`; strain, jealousy and the scene-screen rework all landed after it.
+**What is on that URL right now: `e85067a`** - the one-screen scene, the
+collapsed value strip, and phase 3a. A report against an older build will still
+show two-line value rows for everybody in the room, a page that scrolls every
+round, and strain and jealousy in the relationship panel; all three are fixed,
+so check the build before triaging any of them.
 
 ### Read these three, in this order
 
