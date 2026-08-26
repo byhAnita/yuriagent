@@ -219,3 +219,61 @@ describe('the floor moves, and the scene remembers where it ended', () => {
     expect(endScene(s).addresseeId).toBe('nana');
   });
 });
+
+/**
+ * THE FACE CHANGES WITH THE ROUND, NOT WITH ITS ANSWER.
+ *
+ * Reported from the second hand test:
+ *
+ *   > when primary character changed for next round, the next round lines start
+ *   > streaming while the portrait is still last round speaker until streaming
+ *   > finish.
+ *
+ * `session.turn` only lands when the promise resolves, so the screen drew the
+ * previous speaker for the whole of the stream - her name over the dialogue box
+ * while somebody else's words arrived under it, for the three or four seconds
+ * the player spends reading them. The worst possible moment to be wrong.
+ *
+ * The decision is already made before the request goes out; it has to be, the
+ * prompt is built from it. So this is a synchronous announcement rather than a
+ * second decision, and the assertion that matters is ORDERING: `onTurn` fires
+ * before the first chunk, and it names the same people the session ends up with.
+ */
+describe('the turn is announced before the round streams', () => {
+  it('fires onTurn ahead of the first chunk, and of the result', async () => {
+    const client = scripted(aRound());
+    const order = [];
+    let announced = null;
+
+    const { session } = await runRound(open(), {
+      client,
+      onTurn: (t) => {
+        announced = t;
+        order.push('turn');
+      },
+      onChunk: () => {
+        if (order.at(-1) !== 'chunk') order.push('chunk');
+      },
+    });
+
+    expect(order).toEqual(['turn', 'chunk']);
+    expect(announced).toEqual(session.turn);
+  });
+
+  /** It is a report, not a decision - the prompt was already built from it. */
+  it('names the same speaker the prompt was built from', async () => {
+    const client = scripted(aRound());
+    let announced = null;
+    await runRound(open(), { client, onTurn: (t) => (announced = t) });
+
+    const tail = tailOf(client);
+    expect(tail).toContain(`(${announced.primary}) has the player`);
+    expect(tail).toContain(`(${announced.second}) cuts in once`);
+  });
+
+  /** A caller that does not want to know must not be broken by not asking. */
+  it('does not require the callback', async () => {
+    const client = scripted(aRound());
+    await expect(runRound(open(), { client })).resolves.toBeTruthy();
+  });
+});

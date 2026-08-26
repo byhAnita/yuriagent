@@ -23,6 +23,31 @@
  */
 
 import { GIFTS, getGift } from '../data/gifts.js';
+import { entryText, entryFactId } from './dossierEntry.js';
+
+/**
+ * Does the player know why this object would matter to HER?
+ *
+ * Matched on the fact id and nothing else. v1 matched `requires` needles against
+ * dossier text by substring and it broke twice during content rewrites, because
+ * the summarizer writes a fact in its own words. An id cannot be reworded.
+ *
+ * Two conditions, and both are necessary. The gift must name a fact, and THAT
+ * MEMBER must be the one who has it - a mugwort pack handed to Nana matches
+ * nothing, which is correct: it is a warm pack, and she has no reason to care.
+ *
+ * Returns the fact as the DOSSIER holds it, not as `data/facts.js` phrases it.
+ * The dossier line is what tier 3 is already showing the model two blocks up, so
+ * quoting it verbatim reinforces something present rather than introducing a
+ * second wording of the same thing.
+ */
+export function matchedFact(gift, dossier) {
+  if (!gift?.factId) return null;
+  for (const entry of dossier?.facts ?? []) {
+    if (entryFactId(entry) === gift.factId) return entryText(entry);
+  }
+  return null;
+}
 
 /**
  * What the Give sheet shows.
@@ -58,19 +83,42 @@ export function canPurchase(giftId, credits, stock = {}) {
 /**
  * Hand it over. Returns the spend plus the note that goes into tier 3.
  *
- * The note says what the object is and who is holding it, and stops there. It
- * does NOT say whether this was a good idea - the model has her `facts` two
- * lines above it in the same block, so whether a mugwort pack is uncanny
- * attention or a baffling object is something it can read for itself. Scripting
- * that here is what made every gift scene open the same way.
+ * THE NOTE SAYS WHY, WHEN THERE IS A WHY THE PLAYER KNOWS.
+ *
+ * The first ungated build said only *the player has just handed Irene a mugwort
+ * pack*, on the argument that the model has her `facts` in tier 3 and can join
+ * the two. Played, it could not: it reached for the commonest use of a herbal
+ * pack and invented a sore back, then had her brew it like tea. Section 11
+ * measured exactly this once before and drew the rule this now follows -
+ * **an inference that can be stated should be stated.** The step from
+ * `mugwort_pack` to a line about cold hands three blocks up is an inference.
+ *
+ * Three notes, and which one you get depends only on what the PLAYER knows:
+ *
+ * | | |
+ * |---|---|
+ * | the object answers a fact she has learned about *this* member | the fact is quoted, and the note says nobody had to be told |
+ * | the object is specific but the player has not learned the fact | plain. She has no reason to read anything into it, and neither should the model |
+ * | a rose, a coffee, anything generic | plain, and correctly so |
+ *
+ * Note what this is NOT: a gate. Anybody can buy anything and hand it to
+ * anybody. What the knowledge buys is the difference between *"thank you"* and
+ * *"how did you know?"*, which is the whole product (section 11) - and it is
+ * bought by having done the work, not by passing a check at the till.
+ *
+ * @param {object} dossier - HER dossier, for the fact match. Omitted, every
+ *   note is the plain one, which is the right degradation: a caller that cannot
+ *   say what the player knows should not be claiming they knew anything.
  */
-export function purchase(giftId, credits, memberName, stock = {}) {
+export function purchase(giftId, credits, memberName, { stock = {}, dossier = null } = {}) {
   if (!canPurchase(giftId, credits, stock)) return null;
   const gift = getGift(giftId);
   const name = giftId.replace(/_/g, ' ');
+  const fact = dossier ? matchedFact(gift, dossier) : null;
 
-  const sceneNote =
-    gift.stock === 'dishes'
+  const sceneNote = fact
+    ? `The player has just handed ${memberName} a ${name}. She let this slip once: "${fact}". She never told them she needed one - only somebody who had been paying attention would have known to bring it.`
+    : gift.stock === 'dishes'
       ? `The player has just handed ${memberName} something they cooked themselves, in the dorm kitchen, earlier. Not bought - made, and carried around since.`
       : `The player has just handed ${memberName} a ${name}.`;
 
@@ -79,6 +127,8 @@ export function purchase(giftId, credits, memberName, stock = {}) {
     credits: credits - gift.cost,
     /** Which player counter this opener consumed, if not credits. */
     spentStock: gift.stock ?? null,
+    /** The line that earned the reaction, or null. For the aftermath screen. */
+    fact,
     sceneNote,
   };
 }

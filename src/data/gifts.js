@@ -47,19 +47,36 @@ export const GIFTS = [
   { id: 'snack_box', cost: 2 },
 
   /**
-   * The specific ones. These used to be locked behind the matching fact; now
-   * they are simply on the shelf, and knowing which of them means something to
-   * which member is the player's job. They cost more because a mugwort pack
-   * costs more than a rose, not because they are worth more to her.
+   * The specific ones. These used to be LOCKED behind the matching fact and now
+   * they are simply on the shelf: knowing which of them means something to whom
+   * is the player's job. They cost more because a mugwort pack costs more than a
+   * rose, not because they are worth more to her.
+   *
+   * `factId` IS NOT A GATE. It is the answer to "why would she care", and it
+   * exists because the first ungated build could not supply one. Played:
+   *
+   *   > I give Irene a mugwort pack - her cold hand facts - while her reply is
+   *   > to use it for waist ache and use it like a tea bag??
+   *
+   * The note said only *the player has just handed Irene a mugwort pack*, so the
+   * model reached for the commonest thing a herbal pack is for and invented a
+   * sore back. Part I.10 said it would read her `facts` in tier 3 and connect
+   * them, and that was the one claim in it that overreached: **an inference that
+   * can be stated should be stated** (section 11 measured this once already).
+   *
+   * So the id names the fact this object answers, exactly - never a substring,
+   * which is what broke twice - and `economy.js` quotes that fact into the note
+   * only when the player has actually learned it. Nothing is locked; the shelf
+   * is still open; what changes is whether the note can say why.
    */
-  { id: 'chicken_free_dinner', cost: 4 },
-  { id: 'mugwort_pack', cost: 3 },
-  { id: 'cold_sikhye', cost: 3 },
-  { id: 'pink_plushie', cost: 4 },
-  { id: 'late_night_ramen', cost: 3 },
-  { id: 'insulated_water_jug', cost: 4 },
-  { id: 'hot_takoyaki_box', cost: 4 },
-  { id: 'magical_girl_figure', cost: 4 },
+  { id: 'chicken_free_dinner', cost: 4, factId: 'no_chicken' },
+  { id: 'mugwort_pack', cost: 3, factId: 'cold_hands' },
+  { id: 'cold_sikhye', cost: 3, factId: 'drinks_sikhye' },
+  { id: 'pink_plushie', cost: 4, factId: 'pink_and_kitty' },
+  { id: 'late_night_ramen', cost: 3, factId: 'ramen_before_bed' },
+  { id: 'insulated_water_jug', cost: 4, factId: 'five_litres_of_water' },
+  { id: 'hot_takoyaki_box', cost: 4, factId: 'takoyaki_rounds' },
+  { id: 'magical_girl_figure', cost: 4, factId: 'magical_girl_figures' },
 ];
 
 export function getGift(id) {

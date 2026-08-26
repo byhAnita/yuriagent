@@ -85,6 +85,8 @@ export default function RoundStage({
   const [pending, setPending] = useState(false);
   const [thought, setThought] = useState(null);
   const [giftOpen, setGiftOpen] = useState(false);
+  /** Who has the floor, set the moment the engine decides and not a round later. */
+  const [turn, setTurn] = useState({ primary: null, second: null });
   const busy = useRef(false);
 
   const present = setup.scene.present ?? [];
@@ -102,7 +104,17 @@ export default function RoundStage({
    * decoration, its buttons called an `onTurnTo` that was never passed, and the
    * only way to reach anybody else was to type.
    */
-  const { primary, second } = session.turn;
+  /**
+   * `turn` is state of its own rather than read off the session, because the
+   * portrait has to change BEFORE the prose does.
+   *
+   * `session.turn` only lands when `runRound` resolves, so the screen drew the
+   * previous speaker for the whole of the stream - her name over the dialogue
+   * box while somebody else's words arrived under it, for the three or four
+   * seconds the player spends reading them. `runRound` now announces the turn
+   * synchronously before the request goes out, and this is where it lands.
+   */
+  const { primary, second } = turn;
   const speakingId = primary ?? roster[0] ?? null;
   const addresseeId = session.floor.addresseeId ?? session.floor.lastSpeakerId ?? roster[0] ?? null;
 
@@ -132,6 +144,16 @@ export default function RoundStage({
           client,
           choice,
           note,
+          /**
+           * Before the request, so the face changes with the round rather than
+           * with the round's ANSWER. It is also why the emotion is reset here:
+           * a new speaker inherits nothing from the last one, and a blush left
+           * on the wrong woman for four seconds is worse than neutral.
+           */
+          onTurn: (next) => {
+            setTurn(next);
+            setEmotion('neutral');
+          },
           onChunk: (chunk) => setProse((p) => p + chunk),
         });
         // The stream emits raw; the parsed prose is what stands (Part I.4).

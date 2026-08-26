@@ -196,7 +196,10 @@ export function leave(session) {
  * @param {Function?} ctx.onChunk - prose, as it streams
  * @returns {Promise<{session: object, round: object}>}
  */
-export async function runRound(session, { client, choice = null, note = null, onChunk } = {}) {
+export async function runRound(
+  session,
+  { client, choice = null, note = null, onChunk, onTurn } = {},
+) {
   const first = roundCount(session.pool) === 0;
 
   // The player's line belongs to the round it answered, not to this one.
@@ -215,6 +218,27 @@ export async function runRound(session, { client, choice = null, note = null, on
    */
   const roster = rosterOf(session);
   const turn = speakersFor(session.floor, { roster, rng: session.floorRng });
+
+  /**
+   * ...AND THE CALLER IS TOLD BEFORE THE REQUEST GOES OUT.
+   *
+   * `session.turn` only lands when the promise resolves, so the screen drew the
+   * PREVIOUS speaker for the whole of the stream. Reported:
+   *
+   *   > when primary character changed for next round, the next round lines
+   *   > start streaming while the portrait is still last round speaker until
+   *   > streaming finish.
+   *
+   * Which is the worst possible moment to be wrong: her name is over the
+   * dialogue box while somebody else's words arrive under it, for the three or
+   * four seconds the player spends reading them.
+   *
+   * The decision is already made at this point - it has to be, the prompt is
+   * built from it - so this costs nothing and cannot disagree with what the
+   * model was asked. Same shape as `onChunk`: a synchronous callback, fired
+   * once, before anything can await.
+   */
+  onTurn?.(turn);
 
   const tier3 = buildTier3({
     cards: session.cards,

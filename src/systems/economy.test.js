@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { giftsFor, canPurchase, purchase, earn } from './economy.js';
 import { GIFTS } from '../data/gifts.js';
+import { getCast } from '../data/cast.js';
 import { generateDayTask, completeTask, failTask, canAttempt, applyPlayerDeltas } from './tasks.js';
 
 /**
@@ -9,12 +10,16 @@ import { generateDayTask, completeTask, failTask, canAttempt, applyPlayerDeltas 
  * Everything below used to have a second question in front of it - had the
  * player LEARNED the fact this gift is waiting on - answered by matching
  * substrings against her dossier. That gate is gone, and with it `isUnlocked`,
- * `matchedFact`, `canGesture` and `spendGesture`.
+ * `canGesture` and `spendGesture`.
  *
- * What is asserted now is only what the world genuinely decides: can the player
+ * What is asserted here is only what the world genuinely decides: can the player
  * afford it, and are they carrying it. Whether it was the RIGHT thing to bring
- * her is the model's to answer, in the round it writes in reaction, with her
- * `facts` sitting two lines above the note in tier 3.
+ * her is the model's to answer, in the round it writes in reaction.
+ *
+ * `matchedFact` came BACK, and it is worth being clear about what changed. It
+ * used to answer "may this be bought"; it now answers "can the note say why she
+ * would care" - see the last describe in this file. Nothing is locked either
+ * way, and the assertions there check that as hard as they check the note.
  */
 describe('the give sheet', () => {
   it('shows every gift, with nothing locked', () => {
@@ -86,25 +91,30 @@ describe('purchase', () => {
     const out = purchase('mugwort_pack', 10, 'Irene');
     expect(out).not.toHaveProperty('affectionDelta');
     expect(out).not.toHaveProperty('tier');
-    expect(out).not.toHaveProperty('fact');
+    // `fact` survives, and is a STRING for the note rather than a number for a
+    // relation. What it earned is the model's to decide, like everything else.
+    expect(out.fact).toBeNull();
   });
 
   /**
-   * The note says what it is and who has it, and stops. It must not tell the
-   * model this was uncanny attention - the model reads her facts and decides
-   * that for itself, which is what makes the same object read two ways.
+   * WITHOUT THE FACT, THE NOTE SAYS ONLY WHAT THE OBJECT IS.
+   *
+   * The player has not learned why a mugwort pack would matter to her, so
+   * neither has the note. She has no reason to read anything into it and
+   * neither should the model.
    */
-  it('does not script her reaction', () => {
+  it('does not claim attention the player has not paid', () => {
     const out = purchase('mugwort_pack', 10, 'Irene');
-    expect(out.sceneNote).not.toMatch(/never told anyone|paying very close attention|not expecting/i);
+    expect(out.sceneNote).toContain('mugwort pack');
+    expect(out.sceneNote).not.toMatch(/never told|paying attention|let this slip/i);
   });
 
   /** A dish is the one opener that says something the object name cannot. */
   it('says a cooked dish was made rather than bought', () => {
-    const out = purchase('home_cooked', 0, 'Irene', { dishes: 1 });
+    const out = purchase('home_cooked', 0, 'Irene', { stock: { dishes: 1 } });
     expect(out.spentStock).toBe('dishes');
     expect(out.sceneNote).toMatch(/cooked themselves/i);
-    expect(purchase('home_cooked', 99, 'Irene', { dishes: 0 })).toBeNull();
+    expect(purchase('home_cooked', 99, 'Irene', { stock: { dishes: 0 } })).toBeNull();
   });
 
   it('never lets credits go negative', () => {
@@ -160,5 +170,102 @@ describe('tasks', () => {
     expect(out.competence).toBe(0);
     expect(out.energy).toBe(0);
     expect(out.credits).toBe(0);
+  });
+});
+
+/**
+ * WHY SHE WOULD CARE, WHEN THE PLAYER KNOWS WHY. CLAUDE.md Part I.10, section 11.
+ *
+ * Reported from the second hand test, and it is section 11's own rule arriving
+ * for the second time:
+ *
+ *   > I give Irene a mugwort pack - her cold hand facts - while her reply is to
+ *   > use it for waist ache and use it like a tea bag??
+ *
+ * The first ungated build said only "the player has just handed Irene a mugwort
+ * pack" on the argument that the model has her `facts` in tier 3 and can join
+ * the two. It could not: it reached for the commonest use of a herbal pack and
+ * invented a sore back. **An inference that can be stated should be stated.**
+ *
+ * What this is NOT is the return of the gate. Anybody can still buy anything and
+ * hand it to anybody - `canPurchase` does not look at a dossier at all, and the
+ * assertions below check that as hard as they check the note.
+ */
+describe('a gift that answers something she once let slip', () => {
+  const knows = { facts: [{ text: 'has extremely cold hands', factId: 'cold_hands' }] };
+  const knowsOther = { facts: [{ text: 'will not eat chicken', factId: 'no_chicken' }] };
+
+  it('quotes the fact into the note, and says nobody had to tell them', () => {
+    const out = purchase('mugwort_pack', 10, 'Irene', { dossier: knows });
+
+    expect(out.fact).toBe('has extremely cold hands');
+    expect(out.sceneNote).toContain('has extremely cold hands');
+    expect(out.sceneNote).toMatch(/never told them she needed one/i);
+  });
+
+  /**
+   * MATCHED ON THE ID, NEVER ON TEXT. v1 matched `requires` needles by
+   * substring and it broke twice during content rewrites, because a fact that
+   * came up in dialogue is written by the summarizer in its own words. An id
+   * cannot be reworded.
+   */
+  it('matches the id rather than the wording', () => {
+    const reworded = { facts: [{ text: 'her hands go cold in the studio', factId: 'cold_hands' }] };
+    expect(purchase('mugwort_pack', 10, 'Irene', { dossier: reworded }).fact).toBe(
+      'her hands go cold in the studio',
+    );
+
+    const noId = { facts: [{ text: 'has extremely cold hands' }] };
+    expect(purchase('mugwort_pack', 10, 'Irene', { dossier: noId }).fact).toBeNull();
+  });
+
+  /** A warm pack handed to somebody with no reason to want one is just a pack. */
+  it('says nothing extra when the fact belongs to somebody else', () => {
+    const out = purchase('mugwort_pack', 10, 'Nana', { dossier: knowsOther });
+    expect(out.fact).toBeNull();
+    expect(out.sceneNote).not.toMatch(/let this slip/i);
+  });
+
+  it('says nothing extra for a gift that answers no fact at all', () => {
+    expect(purchase('rose', 10, 'Irene', { dossier: knows }).fact).toBeNull();
+  });
+
+  /**
+   * THE SHELF IS STILL OPEN, which is the half that must not regress. Knowing
+   * the fact changes the NOTE and nothing else - not the price, not whether it
+   * can be bought, not who it can be handed to.
+   */
+  it('is not a gate: the same purchase succeeds either way', () => {
+    expect(canPurchase('mugwort_pack', 3)).toBe(true);
+    expect(purchase('mugwort_pack', 10, 'Irene').credits).toBe(
+      purchase('mugwort_pack', 10, 'Irene', { dossier: knows }).credits,
+    );
+    expect(giftsFor(99).find((g) => g.id === 'mugwort_pack').affordable).toBe(true);
+  });
+
+  /**
+   * A caller that cannot say what the player knows should not be claiming they
+   * knew anything - the right degradation is the plain note, never a guess.
+   */
+  it('degrades to the plain note when no dossier is passed', () => {
+    expect(purchase('mugwort_pack', 10, 'Irene').fact).toBeNull();
+    expect(purchase('mugwort_pack', 10, 'Irene', {}).fact).toBeNull();
+  });
+
+  /** Every specific object names exactly one fact, and it has to be a real one. */
+  it('names a fact that some member actually has', () => {
+    const owned = new Set(getCast().flatMap((c) => c.learnableFacts ?? []));
+    for (const gift of GIFTS.filter((g) => g.factId)) {
+      expect(owned.has(gift.factId), `${gift.id} -> ${gift.factId}`).toBe(true);
+    }
+  });
+
+  /** ...and no two objects answer the same fact, or one of them says nothing. */
+  it('does not point two objects at one fact', () => {
+    const seen = new Set();
+    for (const gift of GIFTS.filter((g) => g.factId)) {
+      expect(seen.has(gift.factId), gift.factId).toBe(false);
+      seen.add(gift.factId);
+    }
   });
 });

@@ -192,7 +192,7 @@ describe('the dish', () => {
   });
 
   it('spends the dish rather than any credits, and says so to the model', () => {
-    const bought = purchase('home_cooked', 20, 'Irene', { dishes: 1 });
+    const bought = purchase('home_cooked', 20, 'Irene', { stock: { dishes: 1 } });
 
     expect(bought.credits).toBe(20);
     expect(bought.spentStock).toBe('dishes');
@@ -202,7 +202,7 @@ describe('the dish', () => {
   });
 
   it('leaves an ordinary shop gift untouched', () => {
-    const bought = purchase('rose', 20, 'Irene', { dishes: 0 });
+    const bought = purchase('rose', 20, 'Irene', { stock: { dishes: 0 } });
     expect(bought.credits).toBe(19);
     expect(bought.spentStock).toBeNull();
   });

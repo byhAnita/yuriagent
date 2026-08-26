@@ -810,7 +810,15 @@ export default function App() {
 
       give: (giftId, card) => {
         const bought = purchase(giftId, player.credits, card.name, {
-          dishes: player.dishes ?? 0,
+          stock: { dishes: player.dishes ?? 0 },
+          /**
+           * HER dossier, so the note can say why this object matters to her -
+           * and only when the player has actually learned it. Not a gate: the
+           * shelf is open and anybody can hand anybody anything. What the
+           * knowledge buys is the difference between a thank-you and "how did
+           * you know", which is the whole point of the economy.
+           */
+          dossier: memory.dossier[card.id],
         });
         if (!bought) return null;
 
@@ -824,7 +832,7 @@ export default function App() {
         return bought.sceneNote;
       },
     }),
-    [player.credits, player.dishes],
+    [player.credits, player.dishes, memory.dossier],
   );
 
   /**
