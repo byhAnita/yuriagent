@@ -192,4 +192,131 @@ describe.skipIf(!enabled)('the round engine, live', () => {
     },
     600000,
   );
+
+  /**
+   * THE ROOM WITH EVERYBODY IN IT, which is the half this harness never drove.
+   *
+   * Every case above is a one-to-one in an empty practice room - and every
+   * defect the first phone session found lived in the other case. A five-member
+   * scene ran five paragraphs, aimed all four options at whoever the player last
+   * answered, and let a member who was two locations away walk in with coffee.
+   * None of it could surface here, because the harness only ever put one woman
+   * in the room. **A harness that plays the easy case is a harness that agrees
+   * with you** - the same lesson `balanceSim` taught by modelling a scene as a
+   * number.
+   *
+   * Four things it looks for, and only the first two are strictly assertable:
+   *
+   *   1. the round stays about the two members the floor named;
+   *   2. nobody who is absent is written into the room;
+   *   3. the prose does not grow with the size of the room;
+   *   4. the four options are not all aimed at one woman.
+   *
+   * (3) and (4) are printed rather than asserted. Length is a soft target and a
+   * long round is a layout cost rather than a broken one; and "who is this
+   * option aimed at" has no reliable test that is not itself a model call.
+   */
+  it(
+    'holds a five-member room to two voices, in Chinese',
+    async () => {
+      const client = createClient({ apiKey, modelId });
+      const ids = cards.map((c) => c.id);
+      /**
+       * HER NAME IN THE PROSE IS HER `zh` NAME, not the card's.
+       *
+       * Section 12: `nameLocal` exists because a `zh` run called Irene *Yilin*
+       * and Hyewon *Huiyuan* - transliterations the model invented on the spot,
+       * differently in different scenes. It works, which is why a first draft of
+       * this assertion failed against perfectly correct output: it looked for
+       * "Irene" in a paragraph that says 裴珠泫.
+       */
+      const nameOf = (id) => {
+        const card = cards.find((c) => c.id === id);
+        return card.nameLocal?.zh ?? card.name;
+      };
+
+      let session = beginScene({
+        cards,
+        lineup,
+        identity: getIdentity(),
+        player: { name: 'Yuhan', selfId: 40, mood: 55, secrecy: 70, energy: 80 },
+        relations: Object.fromEntries(ids.map((id) => [id, { affection: 5, admissibility: 0 }])),
+        dossier: {},
+        lang: 'zh',
+        pool: newPool(),
+        seed: 21,
+        scene: {
+          id: 'live-group',
+          locationId: 'practice_room',
+          locationLabel: 'X Practice Room',
+          present: ids,
+          roster: ids,
+          activity: 'The group is running the new choreography, between takes.',
+          week: 0,
+          day: 1,
+          block: 'afternoon',
+          phase: 'prep',
+        },
+      });
+
+      const seen = [];
+      let choice = null;
+
+      while (!isOver(session)) {
+        const out = await runRound(session, { client, choice });
+        const turn = out.session.turn;
+        session = out.session;
+        seen.push(turn);
+
+        log(
+          `\n--- group round ${seen.length}: ${nameOf(turn.primary)}` +
+            `${turn.second ? ` + ${nameOf(turn.second)}` : ''} ---`,
+        );
+        log(out.round.prose);
+        out.round.options.forEach((o, i) => log(`  ${'ABCD'[i]}. ${o}`));
+
+        /**
+         * NOBODY ABSENT IS IN THE ROOM. There is nobody absent from this scene,
+         * so the check that matters is the silent ones: a member the floor did
+         * not name may be mentioned in passing, but the round must be ABOUT the
+         * two it did. Asserted as "the primary is named", which is the weakest
+         * true thing - a stronger claim would be a claim about prose.
+         */
+        expect(out.round.prose).toContain(nameOf(turn.primary));
+
+        choice = out.round.options[0] ?? null;
+      }
+
+      const closed = endScene(session);
+      const chars = (s) => s.replace(/\s/g, '').length;
+
+      log('\n================ GROUP READINGS ================');
+      log(`rounds: ${seen.length}`);
+      log(`voices per round: ${seen.map((t) => (t.second ? 2 : 1)).join(', ')}`);
+      log(`primary: ${seen.map((t) => nameOf(t.primary)).join(' -> ')}`);
+      log(`second:  ${seen.map((t) => (t.second ? nameOf(t.second) : '-')).join(' -> ')}`);
+      log(`addressee at exit: ${nameOf(closed.addresseeId)}`);
+      log('\nCompare the prose length above against the 1v1 scene. Five members');
+      log('used to mean five paragraphs; two names should mean roughly two.');
+
+      /**
+       * THE FLOOR CIRCULATES. Nobody tapped anybody, so the primary is sticky by
+       * construction and the SECOND voice is the whole rotation - if it is the
+       * same woman every round, the silence counter is not being aged and the
+       * room is a two-hander with an audience.
+       */
+      expect(new Set(seen.map((t) => t.second)).size).toBeGreaterThan(1);
+      expect(seen.every((t) => t.second !== t.primary)).toBe(true);
+
+      // Whoever the floor ended on is the subject `propagate` will price.
+      expect(ids).toContain(closed.addresseeId);
+
+      log(
+        `pool text length: ${poolEntries(closed.pool)
+          .map((e) => chars(e.text ?? e.summary ?? ''))
+          .join(', ')}`,
+      );
+    },
+    600000,
+  );
 });
