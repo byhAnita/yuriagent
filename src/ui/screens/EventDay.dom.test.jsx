@@ -111,26 +111,32 @@ describe('the day an anchor event lands on', () => {
   });
 
   /**
-   * The whole cast is there, and the DAY says so rather than the row.
+   * The whole cast is there, and now the row shows it - but it still offers no
+   * ONE of them.
    *
-   * The map draws no faces anywhere from v2 on (Part I.11), and an anchor event
-   * loses nothing by that: it is the one day whose occupancy was never a guess.
-   * The banner announces it, the site is the only row on the map, and walking in
-   * is joining them.
+   * That is the half of Part I.11 that survives the map showing occupancy again.
+   * The two are separate features: faces on a row are information, a per-member
+   * BUTTON on a row is a shortcut past the room. An anchor event is where the
+   * shortcut would hurt most - the whole point of the day is one player in a room
+   * with five women, and picking her at the door skips the room entirely.
    *
-   * The row still offers no one of them, which is the older half of this rule
-   * and the one worth keeping tested: choosing a member at the door is the bet
-   * placed before the room is visible.
+   * (It is also where v1's version broke worst: its crowded rows offered only
+   * per-member buttons, so on an event day the row was five faces and no way in.)
    */
-  it('names the day and offers no one member at the door', () => {
+  it('names the day, shows the cast, and still offers no one of them', () => {
     const { t } = show();
     const row = mapRow(t(`location.${todayEvent.location}`));
 
     expect(screen.getByText(t('event.today'))).toBeTruthy();
+
+    // Everybody is on the row...
     for (const card of cards) {
-      expect(row.textContent).not.toContain(card.name);
-      expect(row.textContent).not.toContain(card.emoji);
+      expect(row.querySelector(`[title="${card.name}"]`), card.name).toBeTruthy();
     }
+
+    // ...and the row is ONE control, which opens the room. Five faces and five
+    // buttons would be the version that skips it.
+    expect(row.querySelectorAll('button').length).toBe(1);
   });
 
   /**

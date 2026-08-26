@@ -317,7 +317,6 @@ export default {
     task: 'Task',
     empty: 'nobody',
     seen: 'seen',
-    witnesses: 'eyes',
     dormNote: 'The dorm hides you from the world, and from nobody who lives in it.',
     week: 'Week',
     close: 'Close',

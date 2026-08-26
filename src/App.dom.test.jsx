@@ -110,12 +110,18 @@ describe('starting a run', () => {
 });
 
 /**
- * From the map to her, now that the map does not say where she is.
+ * From the map to her.
  *
- * The two rules being asserted are different from v1's and are both Part I.11.
- * The MAP names rooms and nothing else - no faces, no counts - so the player
- * bets on a door. The ROOM is where they find out, and walking in is free until
- * they pick something to do with the block.
+ * THE MAP SAYS WHERE EVERYONE IS AGAIN. Part I.11 hid occupancy to make the map
+ * a search, and one phone session said what a hidden map actually produces:
+ * tapping into rooms one at a time to see who is in them, which is not a bet,
+ * it is a lottery with the same block spent either way.
+ *
+ * What did NOT come back is the per-member button on the row. Those are separate
+ * features and only the information was wanted: v1's crowded row offered only
+ * faces, so the task, the snoop and the solo work were all locked out by
+ * company. Every row still opens the ROOM, and choosing one member in front of
+ * the others still happens inside it.
  *
  * The opener still lives inside the scene, which is v1's own lesson and
  * unchanged: it used to open at the door of every scene, before the player had
@@ -147,17 +153,39 @@ describe('walking into a room', () => {
     return null;
   }
 
-  it('names rooms and never who is in them', async () => {
+  /**
+   * Somebody is visible on the map before a single door is opened.
+   *
+   * Asserted by NAME rather than by counting faces, because the face is an emoji
+   * on a coloured disc and `title` is the only text it carries - which is also
+   * what makes it reachable here and to a screen reader.
+   */
+  it('says who is in a room before the player walks in', async () => {
+    await startARun('Yuhan');
+    expect(screen.getByText(t('map.calendar'))).toBeTruthy();
+
+    const onMap = ['Irene', 'Nana', 'Jisoo', 'Hyewon', 'Yeri'].filter((name) =>
+      document.querySelector(`li [title="${name}"]`),
+    );
+    expect(onMap.length, 'the whole cast vanished from the map').toBeGreaterThan(0);
+  }, 15000);
+
+  /**
+   * ...and a row is still a ROOM, never a shortcut to one of the people in it.
+   *
+   * This is the half of Part I.11 that stands. v1's crowded row offered only
+   * per-member buttons, so the daily task, the snoop and the solo work were
+   * silently unreachable whenever two members happened to be standing there -
+   * worst on an event day, where all five are.
+   */
+  it('never turns a face on the map into a way to skip the room', async () => {
     await startARun('Yuhan');
 
-    // The map is on screen. No member is.
-    expect(screen.getByText(t('map.calendar'))).toBeTruthy();
-    const named = screen
-      .getAllByRole('button')
-      .filter((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
-    // The relationship row is the one place names appear, and it is a readout.
-    for (const b of named) {
-      expect(b.textContent).toMatch(new RegExp(t('relations.open'), 'i'));
+    for (const face of document.querySelectorAll('li [title]')) {
+      const row = face.closest('button');
+      expect(row, 'a face on the map that is not part of a room row').toBeTruthy();
+      // The room's own name is in the same control, so the tap opens the room.
+      expect(row.textContent).not.toBe('');
     }
   }, 15000);
 

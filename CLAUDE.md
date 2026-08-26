@@ -62,7 +62,7 @@ out explicitly.
 | where each member is, each block | code |
 | which day an event falls on, what the phase is | code |
 | `exposure` of a location x time | code |
-| who is in the room when the player walks in | code, and **hidden from the player** |
+| who is in the room when the player walks in | code, and **shown on the map** (I.11 - reversed on played evidence) |
 | the ~80-word round: the room and her lines | model |
 | the four options | model, written from the current moment |
 | affection and player-stat deltas | model, bounded |
@@ -401,7 +401,12 @@ this project has already made unreachable three separate times.
 - **Free text survives** as a fifth control. The played evidence demands it: at
   the concept meeting the player had to type every agenda topic in by hand.
 
-## I.11 An empty room is what happens when you guess wrong
+## I.11 ~~An empty room is what happens when you guess wrong~~
+
+> **REVERSED, on played evidence, after one phone session.** The map shows
+> occupancy again. The argument below is kept because half of it survives and
+> because it is the record of how this was arrived at - but where it and the
+> paragraph after it disagree, **the reversal wins.**
 
 Occupancy is **hidden**. In v1 the player saw who was where and *chose* an empty
 room to work in; now they guess, and solo work is the consolation rather than a
@@ -411,6 +416,45 @@ That finally pays off something §10 has wanted since M1 and never delivered:
 *"a fact that tells you where she will be is more interesting than one that tells
 you what to purchase."* It never delivered because the map already told you.
 **Snooping's best prize stops being an object and becomes access.**
+
+### ...but a guess with no information is a lottery, not a bet
+
+> Now the click to come in and find character doesn't give good play experience.
+> Let's change UI back to show where they are.
+
+**The argument above is good and it is about the wrong thing.** Hiding occupancy
+does turn the map from a menu into a search. What the player actually *does* with
+a hidden map is tap into rooms one at a time until they find her - and there is
+no decision anywhere in that. The block costs the same however many doors it
+took; the only variable is tedium.
+
+It also contradicts §10, which this file has agreed with since M1: **the calendar
+is deterministic specifically so it can be shown in full before the player
+commits anything, because opportunity cost only bites when it is visible.** The
+week grid has always been open. Hiding *this* block while showing the other
+twenty was the inconsistency, not the fix.
+
+The real cost was always the one §10 names, and it is untouched: three blocks, five
+members, and one of them gets this one.
+
+**Two things this does NOT give back**, and the distinction is what saves the
+paragraph above from being wrong twice:
+
+1. **A row is not a shortcut.** The faces come back; the per-member *button* on
+   the row does not. Choosing one woman in front of the others happens **inside**
+   the room, where it costs what it should. v1's crowded row offered *only*
+   per-member buttons, so the daily task, the snoop and the solo work were all
+   silently locked out by company - worst on an event day, when all five are
+   standing there and the row offered no way in at all.
+2. **Access is still worth snooping for.** The map says where she is **now**; a
+   routine says where she will be on an evening nobody has reached yet, and the
+   week grid shows *scheduled work slots*, never idle ones. So *"she practises
+   alone on Wednesday nights"* is still something that has to be learned - which
+   keeps §10's prize intact without the map having to lie about the present.
+
+The row therefore carries the room, who is in it, and how visible it is. **The
+abstract witness count is gone** - it was the room's *capacity* for witnesses,
+which is a worse answer to the same question now that the faces are the real one.
 
 ## I.12 What is not measurable any more
 

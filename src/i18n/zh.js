@@ -334,7 +334,6 @@ export default {
     task: '任务',
     empty: '没人',
     seen: '曝光',
-    witnesses: '在场',
     dormNote: '宿舍能挡住外面的眼睛，挡不住住在里面的人。',
     week: '第',
     close: '关闭',

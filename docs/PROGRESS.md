@@ -12,11 +12,12 @@ to end - and live against DeepSeek in `zh`, four rounds, four options each.
 Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
 hand-test build, not a release (section 17). `?debug=1` for the in-page console.
 
-**What is on that URL right now: `6bdd71b`** - the one-screen scene, the
-collapsed value strip, and all of phase 3. A report against an older build will still
-show two-line value rows for everybody in the room, a page that scrolls every
-round, and strain and jealousy in the relationship panel; all three are fixed,
-so check the build before triaging any of them.
+**`deploy.sh` prints the commit it published; that is the triage anchor.** A
+report against an older build will still show two-line value rows for everybody
+in the room, a page that scrolls every round, strain and jealousy in the
+relationship panel, a map that names rooms and no faces, and `Read her` counting
+down from 2. All five are changed, so check the build before triaging any of
+them.
 
 ### Read these three, in this order
 
@@ -112,7 +113,7 @@ answer:
    ways of agreeing - the rules forbid it, which is not the same as it not
    happening.
 3. Is the genre there - 试探/心动/克制 - or is it a well-observed workplace drama?
-4. Hidden occupancy: a search, or a lottery? Walking in is free but costs a tap.
+4. ~~Hidden occupancy: a search, or a lottery?~~ **Answered: a lottery.** Part I.11 is reversed - the map shows who is in each room again. Faces only; the per-member button on the row stays gone.
 5. ~~The value bar: too many numbers?~~ **Answered: yes.** Phase 3b, above.
 
 ### Phase 3a, built: the second and third numbers are gone
@@ -192,6 +193,35 @@ block to trade against anything.
 
 The control shows the **price** now (`-1`), not a count: the same number every
 time, dead when it cannot be afforded.
+
+### Phase 3d, built: the map shows where everyone is again
+
+**Part I.11 is reversed**, on played evidence after one phone session:
+
+> Now the click to come in and find character doesn't give good play experience.
+
+Hiding occupancy does turn the map from a menu into a search. What a player
+actually does with a hidden map is tap into rooms one at a time until they find
+her, and there is no decision anywhere in that - the block costs the same however
+many doors it took. It also contradicted §10, which has said since M1 that the
+calendar is deterministic *specifically* so it can be shown in full, because
+opportunity cost only bites when it is visible. The week grid was always open;
+hiding this one block while showing the other twenty was the inconsistency.
+
+**Two things did not come back**, and they are what keeps the old argument from
+being wrong twice:
+
+- **The per-member button on the row.** Faces are information; a button is a
+  shortcut past the room. v1's crowded row offered *only* per-member buttons, so
+  the task, the snoop and the solo work were locked out by company - worst on an
+  event day, where all five stand there and the row offered no way in at all.
+  Asserted in `EventDay.dom.test.jsx`: five faces, one control.
+- **Snooping's prize.** The map says where she is NOW; a routine says where she
+  will be on an evening nobody has reached, and the week grid shows scheduled
+  work slots and never idle ones. Phase 4 item 4 is unaffected.
+
+The abstract witness count is gone from the row - it was the room's *capacity*
+for witnesses, a worse answer to the same question now that the faces are real.
 
 ### PICK UP HERE: phase 4
 
