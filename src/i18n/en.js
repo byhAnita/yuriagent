@@ -12,7 +12,6 @@ export default {
     customCast: 'Build your own five',
     soon: 'soon',
     begin: 'Begin',
-    continue: 'Pick it back up',
     savedAt: '{name}, week {week}, day {day}',
     beginOver: 'Start over',
   },
@@ -229,23 +228,8 @@ export default {
     stalled: 'Stalled. She will not get any closer until the two of you have been seen together, doing something neither of you could deny.',
   },
 
-  stance: {
-    flirt: 'Flirt',
-    care: 'Look after her',
-    casual: 'Small talk',
-    work: 'Talk shop',
-    deflect: 'Change the subject',
-    joke: 'Joke',
-    press: 'Press',
-    confide: 'Confide',
-    touch: 'Touch',
-    retreat: 'Retreat',
-    apologize: 'Apologize',
-    invite: 'Invite',
-  },
 
   exposureBand: { private: 'private', quiet: 'quiet', public: 'seen' },
-  meter: { guard: 'Guard', fluster: 'Fluster', exposure: 'Exposure' },
 
   role: {
     leader: 'Leader',
@@ -549,7 +533,6 @@ export default {
     sayIt: 'Say something',
     send: 'Send',
     readHer: 'Read her',
-    pass: 'Let it be',
     give: 'Give / bring up',
     turnTo: 'Turn to {name}',
     leave: 'Leave',
@@ -568,11 +551,7 @@ export default {
     nothingMoved: 'An ordinary hour',
     again: 'Another scene',
     turnsLeft: 'left',
-    speakingTo: 'to {name}',
     outOfTurns: 'The block is over.',
-    risk: 'seen',
-    continue: 'Continue',
-    roomSpeaking: 'Somebody else is saying something',
     /**
      * When fewer than four options parsed. Deliberately contentless - these are
      * not a stance system in hiding, they are four ways to keep a conversation

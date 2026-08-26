@@ -3,7 +3,7 @@ import { witnessedExposure, sceneExposure } from './exposure.js';
 import { propagate, WEIGHT_WITNESSED, WEIGHT_RUMOR, WEIGHT_PRESENT } from './rumor.js';
 import { newRelation } from './relationship.js';
 import { jealousyGain } from './jealousy.js';
-import { isRiskStance } from './chips.js';
+import { applyDeltas } from './values.js';
 import { RISK_EXPOSURE_THRESHOLD, WITNESS_EXPOSURE_FLOOR } from '../config/constants.js';
 
 const cast = [
@@ -36,22 +36,36 @@ describe('witnessedExposure', () => {
 
   /**
    * The consequence that matters: reaching for her hand in a practice room is
-   * a PRIVATE act alone and a PUBLIC one with the others there. The second axis
-   * only moves on risks, so this is the difference between a gesture that
-   * counts and one that does not.
+   * a PRIVATE act alone and a PUBLIC one with the others there.
    */
-  it('turns a stance that would not count into one that does', () => {
+  it('turns a room where nothing could count into one where it can', () => {
     const alone = sceneExposure({ locationId: 'practice_room', block: 'evening', phase: 'prep' });
     expect(alone).toBeLessThan(RISK_EXPOSURE_THRESHOLD);
-    expect(isRiskStance('touch', alone)).toBe(false);
-    expect(isRiskStance('touch', witnessedExposure(alone, 2))).toBe(true);
+    expect(witnessedExposure(alone, 2)).toBeGreaterThanOrEqual(RISK_EXPOSURE_THRESHOLD);
   });
 
-  it('still does not make a deniable stance count', () => {
-    // Section 6: a witness has to be able to DESCRIBE what they saw. `flirt`
-    // and `press` are loud and deniable, and deniable cannot move admissibility.
-    expect(isRiskStance('flirt', witnessedExposure(20, 3))).toBe(false);
-    expect(isRiskStance('press', witnessedExposure(20, 3))).toBe(false);
+  /**
+   * And the consequence, at the only place it has one now.
+   *
+   * This used to be asserted against `isRiskStance` - whether `touch` at this
+   * exposure counted as a risk and `flirt` did not. v2 has no stances, so there
+   * is no list of moves that count: the model writes what happened and proposes
+   * what it was worth, and the world's one veto is Part I.9 - admissibility may
+   * not RISE where nobody could see. Company is what changes that, so this is
+   * the same claim in the mechanism that replaced the old one.
+   */
+  it('is what lets the second axis move at all', () => {
+    const alone = sceneExposure({ locationId: 'practice_room', block: 'evening', phase: 'prep' });
+    const args = {
+      relations: { irene: { affection: 60, admissibility: 20 } },
+      present: ['irene'],
+      deltas: { irene_adm: 2 },
+    };
+
+    expect(applyDeltas({ ...args, exposure: alone }).relations.irene.admissibility).toBe(20);
+    expect(
+      applyDeltas({ ...args, exposure: witnessedExposure(alone, 2) }).relations.irene.admissibility,
+    ).toBe(22);
   });
 });
 

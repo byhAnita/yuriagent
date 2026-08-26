@@ -12,7 +12,6 @@ export default {
     customCast: '自己组一个五人团',
     soon: '待开放',
     begin: '开始',
-    continue: '继续上次',
     savedAt: '{name}，第 {week} 周，第 {day} 天',
     beginOver: '重新开始',
   },
@@ -251,23 +250,8 @@ export default {
     stalled: '停滞了。除非你们一起被人看见、做一件谁都否认不了的事，否则她不会再靠近。',
   },
 
-  stance: {
-    flirt: '撩她',
-    care: '关心她',
-    casual: '闲聊',
-    work: '说正事',
-    deflect: '岔开话题',
-    joke: '开玩笑',
-    press: '追问',
-    confide: '倾诉',
-    touch: '触碰',
-    retreat: '退开',
-    apologize: '道歉',
-    invite: '邀约',
-  },
 
   exposureBand: { private: '无人', quiet: '安静', public: '被看见' },
-  meter: { guard: '戒备', fluster: '心乱', exposure: '曝光' },
 
   role: {
     leader: '队长',
@@ -560,7 +544,6 @@ export default {
     sayIt: '说点什么',
     send: '发送',
     readHer: '读心',
-    pass: '不接话',
     give: '送礼 / 提起',
     turnTo: '转向 {name}',
     leave: '离开',
@@ -575,11 +558,7 @@ export default {
     nothingMoved: '普通的一小时',
     again: '再来一幕',
     turnsLeft: '剩余',
-    speakingTo: '对 {name} 说',
     outOfTurns: '这个时段结束了。',
-    risk: '会被看见',
-    continue: '继续',
-    roomSpeaking: '旁边有人接话',
     fallback: {
       a: '接她的话',
       b: '问问她',

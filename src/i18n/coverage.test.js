@@ -12,9 +12,8 @@ import en from './en.js';
 import zh from './zh.js';
 import { FACT_IDS } from '../data/facts.js';
 import { GENERIC_GIFTS, BUYABLE_GIFTS, KNOWLEDGE_GIFTS } from '../data/gifts.js';
-import { STANCES } from '../systems/chips.js';
 import { SOLO_ACTIONS } from '../data/soloActions.js';
-import { EMOTIONS } from '../agent/promptBuilder.js';
+import { EMOTIONS } from '../agent/roundParser.js';
 import { PHASES, mapFor } from '../data/phaseMaps.js';
 
 const LOCALES = { en, zh };
@@ -39,12 +38,6 @@ describe('i18n coverage', () => {
       it('labels the gesture for every knowledge gift', () => {
         for (const gift of KNOWLEDGE_GIFTS) {
           expect(dict.gesture?.[gift.id], `gesture.${gift.id}`).toBeTruthy();
-        }
-      });
-
-      it('labels every stance', () => {
-        for (const stance of STANCES) {
-          expect(dict.stance?.[stance], `stance.${stance}`).toBeTruthy();
         }
       });
 
@@ -106,8 +99,12 @@ describe('i18n coverage', () => {
       });
 
       it('carries the scene chrome', () => {
-        for (const key of ['continue', 'leave', 'outOfTurns', 'turnsLeft', 'readHer', 'sayIt']) {
+        for (const key of ['leave', 'outOfTurns', 'turnsLeft', 'readHer', 'sayIt', 'give', 'send']) {
           expect(dict.vn?.[key], `vn.${key}`).toBeTruthy();
+        }
+        /** The four options are backfilled when fewer than four parsed. */
+        for (const key of ['a', 'b', 'c', 'd']) {
+          expect(dict.vn?.fallback?.[key], `vn.fallback.${key}`).toBeTruthy();
         }
       });
     });
