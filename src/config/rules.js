@@ -19,8 +19,23 @@
  * is a rulebook that gets sampled from rather than followed.
  */
 
-/** Roughly how long a round's prose should be. One number, easy to move. */
-export const ROUND_WORDS = 80;
+/**
+ * Roughly how long a round's prose should be. One number, easy to move.
+ *
+ * SIXTY, DOWN FROM EIGHTY, because a round is one voice now rather than a room.
+ * Eighty was measured and kept when a round was everybody in it talking - about
+ * 240-330 characters in `zh`, which is ~30 seconds of reading against a ~4
+ * second wait, and that ratio was right for five rounds a scene.
+ *
+ * One speaker at eighty words is a monologue. The scene budget doubled to
+ * compensate (`SCENE_ROUNDS_MIN/MAX`), so the same conversation now arrives as
+ * twice as many shorter moments - which is the shape a room of five actually
+ * has, and the reason the skip control exists.
+ *
+ * A PLAY NUMBER, and this is the first guess at it. Too short and every round is
+ * a fragment; too long and one voice fills the screen the way five used to.
+ */
+export const ROUND_WORDS = 60;
 
 /**
  * And how long ONE option may be. The other number worth having.
@@ -59,7 +74,7 @@ const LANG_NAMES = {
 /**
  * The wire format.
  *
- * NOT JSON, and that is measured rather than preferred: at 80 words of prose,
+ * NOT JSON, and that is measured rather than preferred: at this length of prose,
  * JSON scaffolding is about a fifth of the output, and a broken object costs
  * the whole round where a broken line costs one line. Prose comes FIRST so it
  * can stream to the screen from the first token - the player is reading while
@@ -149,7 +164,9 @@ the player as their own words.
   Never explain it, never append a gloss after a dash or a bracket saying what
   it means or why. "Ask if she is warm enough" - not "Ask if she is warm enough
   - hand the concern back without naming it".
-- When more than one person may speak, do not aim all four at the same one.`;
+- They answer the ONE person who just spoke. The player turns to somebody else
+  by tapping her, not by picking an option, so never write an option that
+  addresses a member who did not speak this round.`;
 
 /**
  * The genre brief, and the reason it exists.

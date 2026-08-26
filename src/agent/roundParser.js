@@ -64,6 +64,26 @@ const STRICT_OPTION = /^([A-D])\s*[|｜]\s*(.+)$/;
 const STRICT_FIELD = /^([a-z_]+)\s*[|｜]\s*(.*)$/i;
 
 /**
+ * ...and a third, which the live harness found rather than a reader.
+ *
+ * Tier 2 renders the player's line as `> what they said`, and a five-member `zh`
+ * scene came back having imitated it: four `> "..."` lines at the foot of the
+ * prose, and then the same four options again, properly, after the sentinel.
+ * The player saw every option twice, once as narration.
+ *
+ * It belongs here rather than in the rules. This parser's contract is liberal
+ * inward and conservative outward, and "a stray machine line must never reach
+ * the player" does not care which machine line it was. Instructing the model not
+ * to imitate its own history would be one more rule for a Flash-tier model to
+ * hold, against a defect one pattern closes for good.
+ *
+ * Safe to delete because `>` at the start of a line is not something narrative
+ * prose does in any of the four locales - it is a markdown quote marker, and
+ * nothing in the contract asks for markdown.
+ */
+const STRICT_ECHO = /^>\s/;
+
+/**
  * The sentinel, as written rather than as specified.
  *
  * Measured live, in `zh`: about one round in six comes back with `%%`. Two
@@ -144,7 +164,10 @@ export function splitRound(raw) {
 function cleanProse(text) {
   return String(text ?? '')
     .split('\n')
-    .filter((line) => !STRICT_OPTION.test(line.trim()) && !STRICT_FIELD.test(line.trim()))
+    .filter((line) => {
+      const t = line.trim();
+      return !STRICT_OPTION.test(t) && !STRICT_FIELD.test(t) && !STRICT_ECHO.test(t);
+    })
     .join('\n')
     .trim();
 }

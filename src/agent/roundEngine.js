@@ -35,7 +35,7 @@ import { applyDeltas, newBudget } from '../systems/values.js';
 import { sceneExposure } from '../systems/exposure.js';
 import { SCENE_ROUNDS_MIN, SCENE_ROUNDS_MAX, ENERGY_PER_READ } from '../config/constants.js';
 import { makeRng, deriveSeed } from '../systems/rng.js';
-import { newFloor, turnTo, speakersFor, noteSpoke, addresseeOf } from '../systems/floor.js';
+import { newFloor, turnTo, nextSpeaker, noteSpoke, addresseeOf } from '../systems/floor.js';
 
 /**
  * Open a scene.
@@ -126,9 +126,8 @@ export function beginScene({
 
     /**
      * Seeded on the scene, so a reloaded save circulates the room the same way
-     * it was going to. The floor's only random decision is which of several
-     * equally-silent members cuts in - and on round one that is the whole room,
-     * so it is drawn rather than taken off the front of an array.
+     * it was going to. Every round after the first is a weighted draw, so this
+     * is consumed once per round and must not be touched by anything else.
      */
     floorRng: makeRng(deriveSeed(seed, `floor:${scene.id}`)),
 
@@ -141,7 +140,7 @@ export function beginScene({
      * room from the prompt. Deciding it once per round and keeping the answer is
      * the only version of this that cannot drift.
      */
-    turn: { primary: null, second: null },
+    turn: { primary: null, mode: 'answers' },
   };
 }
 
@@ -198,12 +197,23 @@ export function leave(session) {
  */
 export async function runRound(
   session,
-  { client, choice = null, note = null, onChunk, onTurn } = {},
+  { client, choice = null, note = null, skip = false, onChunk, onTurn } = {},
 ) {
   const first = roundCount(session.pool) === 0;
 
   // The player's line belongs to the round it answered, not to this one.
   let pool = choice ? recordChoice(session.pool, choice) : session.pool;
+
+  /**
+   * DID THE PLAYER SAY ANYTHING? The floor reads this and so does the tail.
+   *
+   * A skip is not the absence of a move - it is the player letting the room
+   * carry it, which is section 10c's `pass` under a different name, and it
+   * spends a round like everything else. What it changes is the POSTURE of the
+   * round that follows: nobody was answered, so whoever takes the floor is
+   * either continuing or cutting in.
+   */
+  const spoke = Boolean(choice || note);
 
   const left = Math.max(0, session.total - roundCount(pool) - 1);
   const last = session.leaving || left === 0;
@@ -217,7 +227,12 @@ export async function runRound(
    * stateful generator and let the three disagree.
    */
   const roster = rosterOf(session);
-  const turn = speakersFor(session.floor, { roster, rng: session.floorRng });
+  const turn = nextSpeaker(session.floor, {
+    roster,
+    relations: session.relations,
+    spoke,
+    rng: session.floorRng,
+  });
 
   /**
    * ...AND THE CALLER IS TOLD BEFORE THE REQUEST GOES OUT.
@@ -261,6 +276,8 @@ export async function runRound(
     roundIndex: roundCount(pool),
     roundsLeft: last ? 0 : left,
     lastChoice: choice,
+    /** The player let the round pass. The tail says so; it is not silence. */
+    skipped: skip && !spoke,
     owed: session.scene.owed ?? null,
     note,
     lang: session.lang,
@@ -323,7 +340,7 @@ export async function runRound(
        * back to zero and everybody else is one round quieter, which is what
        * hands the next second voice to somebody new without a rota.
        */
-      floor: noteSpoke(session.floor, turn),
+      floor: noteSpoke(session.floor, { primary: turn.primary }),
       turn,
       ended: last,
     },

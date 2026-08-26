@@ -101,7 +101,7 @@ describe('i18n coverage', () => {
       });
 
       it('carries the scene chrome', () => {
-        for (const key of ['leave', 'outOfTurns', 'turnsLeft', 'readHer', 'sayIt', 'give', 'send']) {
+        for (const key of ['leave', 'outOfTurns', 'turnsLeft', 'readHer', 'sayIt', 'give', 'skip', 'send']) {
           expect(dict.vn?.[key], `vn.${key}`).toBeTruthy();
         }
         /** The four options are backfilled when fewer than four parsed. */

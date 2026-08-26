@@ -108,8 +108,42 @@ export const MAX_INTERACTIVE_MEMBERS = 2;
  * the player cannot count down to the end of a conversation. It is the one thing
  * about a scene they are not told.
  */
-export const SCENE_ROUNDS_MIN = 4;
-export const SCENE_ROUNDS_MAX = 6;
+/**
+ * EIGHT TO TWELVE, up from four to six, because a round is one voice now.
+ *
+ * The old figure was set when a round was the whole room talking - two voices
+ * after the first floor build, five before it - so four to six rounds covered a
+ * conversation. One voice a round is roughly half the prose, and a skip spends
+ * from the same pot, so the same scene needs about twice as many.
+ *
+ * This is a PLAY number and the first guess at it. Too few and a group scene
+ * ends before three of the five have said anything; too many and the block stops
+ * feeling like a block. `ROUND_WORDS` is the other half of the same dial.
+ */
+export const SCENE_ROUNDS_MIN = 8;
+export const SCENE_ROUNDS_MAX = 12;
+
+// --- who speaks (systems/floor.js) -------------------------------------------
+/**
+ * The weights behind the draw. `floor.js` has the argument; these are the dials.
+ *
+ * Silence is deliberately NOT here, because it is not a coefficient - it is the
+ * raw count of rounds since she last spoke, unbounded, and everything below is
+ * measured against it. A member quiet for four rounds carries a 4; the largest
+ * any of these can contribute is 2. That ordering is the design and moving these
+ * past it would hand the room to whoever is most liked, which is the exact
+ * defect the first hand test reported.
+ */
+export const AFFECTION_PULL = 2;
+export const CONTINUITY_PULL = 1.5;
+/** Nobody is ever impossible, however recently she spoke. */
+export const FLOOR_FLOOR = 0.5;
+/**
+ * ...and nobody holds the floor longer than this unless the player asked for
+ * her by name. The weights are a distribution, a distribution can roll badly,
+ * and rolling badly here looks exactly like the bug this replaced.
+ */
+export const MAX_STREAK = 2;
 
 /**
  * v1's turn cap. Superseded by the two above and kept only while the v1 engine

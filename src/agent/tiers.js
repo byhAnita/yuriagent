@@ -163,6 +163,8 @@ export function buildTier3({
   roundIndex = 0,
   roundsLeft = 0,
   lastChoice = null,
+  /** The player let the round pass rather than answering. Not the same as null. */
+  skipped = false,
   /**
    * What the player still owes the agency today, or null. Model-facing English,
    * composed by `systems/tasks.js` - see `chorePhrase`.
@@ -225,17 +227,43 @@ export function buildTier3({
      * costs nothing, where v1 spent a whole extra call per round on it.
      */
     if (speaking?.primary) {
-      lines.push(
-        '',
-        '## WHO SPEAKS',
-        `${nameOf(speaking.primary)} (${speaking.primary}) has the player's attention. She answers.`,
-      );
-      if (speaking.second) {
-        lines.push(
-          `${nameOf(speaking.second)} (${speaking.second}) cuts in once - a line or two, from the side.`,
-        );
+      const who = `${nameOf(speaking.primary)} (${speaking.primary})`;
+
+      /**
+       * ONE VOICE, AND THE POSTURE IS WHAT MAKES IT A ROOM.
+       *
+       * `mode` costs six tokens and is the difference between a queue and a
+       * conversation: she is answering the player, she is carrying on because
+       * nobody stopped her, or she has taken the floor off somebody else. v1
+       * spent a whole extra call per round on that last one.
+       */
+      const posture =
+        speaking.mode === 'continues'
+          ? `${who} still has the floor. Nobody answered her, so she carries on - a second thought, or the thing she did not say first time.`
+          : speaking.mode === 'cuts_in'
+            ? `${who} takes the floor, unasked. She is cutting in on what was going on - answer it or ignore it, but she does not wait to be invited.`
+            : `${who} has the player's attention. She answers.`;
+
+      lines.push('', '## WHO SPEAKS', posture, 'Write HER and nobody else. One voice this round.');
+
+      /**
+       * NAME HER, BECAUSE THE SUBJECT JUST CHANGED.
+       *
+       * Found by the live harness rather than by reading: a round handed the
+       * floor to somebody new and came back written entirely in the third
+       * person - 她 did this, 她 said that - which is what good prose does for
+       * a subject already established, and exactly wrong on the round it stops
+       * being the same subject. The player had no way to tell who was talking.
+       *
+       * Only on a change. Telling the model to name her every round would
+       * produce a paragraph that says her name three times, which is worse
+       * writing than the problem.
+       */
+      if (speaking.changed) {
+        lines.push('Name her in the first sentence - the player cannot see who took the floor.');
       }
-      const silent = roster.filter((id) => id !== speaking.primary && id !== speaking.second);
+
+      const silent = roster.filter((id) => id !== speaking.primary);
       if (silent.length > 0) {
         lines.push(`Nobody else speaks this round: ${silent.map(nameOf).join(', ')}.`);
       }
@@ -312,6 +340,22 @@ export function buildTier3({
     lines.push('This is the LAST round. Land the scene, and write the sum| line.');
   }
   if (lastChoice) lines.push('', `The player chose: ${lastChoice}`);
+
+  /**
+   * THE PLAYER SAID NOTHING, ON PURPOSE.
+   *
+   * Stated rather than left as an absent line, because an absent line is
+   * ambiguous - the model cannot tell "the player did not speak" from "the
+   * player's move was not recorded", and it will write around the gap by having
+   * her ask a question into it. Section 10c's `pass` is the same move: letting
+   * the room breathe is a choice, and it should read as one.
+   */
+  if (skipped) {
+    lines.push(
+      '',
+      'The player says nothing and lets the room carry it. They are still here, still listening - this is attention, not absence. Do not have anyone ask whether they are alright.',
+    );
+  }
 
   /**
    * A note is something the player DID that no option covers: handing her a

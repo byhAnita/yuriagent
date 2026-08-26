@@ -86,7 +86,7 @@ export default function RoundStage({
   const [thought, setThought] = useState(null);
   const [giftOpen, setGiftOpen] = useState(false);
   /** Who has the floor, set the moment the engine decides and not a round later. */
-  const [turn, setTurn] = useState({ primary: null, second: null });
+  const [turn, setTurn] = useState({ primary: null, mode: 'answers' });
   const busy = useRef(false);
 
   const present = setup.scene.present ?? [];
@@ -114,7 +114,7 @@ export default function RoundStage({
    * seconds the player spends reading them. `runRound` now announces the turn
    * synchronously before the request goes out, and this is where it lands.
    */
-  const { primary, second } = turn;
+  const { primary } = turn;
   const speakingId = primary ?? roster[0] ?? null;
   const addresseeId = session.floor.addresseeId ?? session.floor.lastSpeakerId ?? roster[0] ?? null;
 
@@ -131,7 +131,7 @@ export default function RoundStage({
    * render - two taps in the same frame both see the old `pending`.
    */
   const advance = useCallback(
-    async ({ choice = null, note = null } = {}) => {
+    async ({ choice = null, note = null, skip = false } = {}) => {
       if (busy.current) return;
       busy.current = true;
       setPending(true);
@@ -144,6 +144,7 @@ export default function RoundStage({
           client,
           choice,
           note,
+          skip,
           /**
            * Before the request, so the face changes with the round rather than
            * with the round's ANSWER. It is also why the emotion is reset here:
@@ -246,7 +247,6 @@ export default function RoundStage({
               rosterIds={roster}
               speakingId={speakingId}
               addresseeId={addresseeId}
-              secondId={second}
               emotion={emotion}
               disabled={pending}
               onTurnTo={onTurnTo}
@@ -297,6 +297,7 @@ export default function RoundStage({
         onReadHer={focusCard ? onReadHer : null}
         onGive={openers && focusCard ? () => setGiftOpen(true) : null}
         onChoose={(choice) => advance({ choice })}
+        onSkip={() => advance({ skip: true })}
         onLeave={exit}
         t={t}
       />

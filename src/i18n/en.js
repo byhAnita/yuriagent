@@ -502,6 +502,7 @@ export default {
     sayIt: 'Say something',
     send: 'Send',
     readHer: 'Read her',
+    skip: 'Let it be',
     give: 'Give / bring up',
     turnTo: 'Turn to {name}',
     leave: 'Leave',

@@ -4,7 +4,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 4 built + hand test 1 fixed. On `feat/v2-engine`.
+## Current: v2 engine, phase 4 built + hand tests 1 and 2 fixed. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
@@ -29,6 +29,10 @@ triaging any of it.
 | an English sentence under the numbers on the aftermath screen | `1f322be` |
 | four options all aimed at the same woman | `1f322be` |
 | other members' portraits sitting on top of the speaker's | `1f322be` |
+| a gift note that invents why she would care about the object | `08117db` |
+| the portrait staying on the last speaker while the next round streams | `08117db` |
+| two members speaking in one round; no skip control | the one-voice floor |
+| an option printed twice, once inside the prose | the one-voice floor |
 
 ### Read these three, in this order
 
@@ -435,6 +439,79 @@ every live assertion in this codebase: the harness speaks English and the game
 does not.
 
 **914 tests, lint clean, build clean.**
+
+## Hand test 2 of v2 (2026-08-27, `zh`, phone, live DeepSeek V4 Flash)
+
+*"No big issue in my handtest2."* Four reports, two of them bugs and two design.
+
+### The gift note could not say why
+
+A mugwort pack handed to Irene got a reply about waist ache and brewing it like
+tea. Part I.10 claimed the model would read her `facts` in tier 3 and connect
+them; it cannot, and §11 had already measured that once - **an inference that can
+be stated should be stated.**
+
+`factId` on the specific objects, matched on the id and never a substring, and
+the note quotes the fact only when the player has learned it about that member.
+Not the gate returning: `canPurchase` never sees a dossier.
+
+### The portrait lagged a round behind the stream
+
+`session.turn` only landed when `runRound` resolved, so the previous speaker's
+face and name sat over somebody else's words for the whole three or four seconds
+the player spends reading them. `runRound` announces the turn synchronously
+before the request - the decision was already made, so it is a report rather than
+a second choice. Emotion resets with it.
+
+### Regenerating options on a tap: NO, and the reason is not cost
+
+An option answers **the line that was just said**. It does not belong to whoever
+speaks next, so tapping somebody does not invalidate it - answering Irene while
+turning to Nana is an ordinary thing to do in a room of five. The cost argument
+is real too (in v2 the options come out of the round call, so regenerating means
+rewriting prose the player has read) but it is the second argument.
+
+### One voice a round
+
+The two-voice build worked and did not go far enough. Now: one speaker, a
+weighted draw where **silence dominates**, affection a mild tilt, continuity a
+fading bonus, a hard streak cap, and a tap that outranks all of it. `mode` -
+answers / continues / cuts_in - is what stops one voice reading as a queue.
+
+The skip spends a round, which is §10c's `pass`, and it never replaces the
+options.
+
+### The live harness found two things no reader would have
+
+Both from one nine-round `zh` scene, both only visible at full size.
+
+1. **A new speaker written entirely as 她.** Correct for an established subject,
+   wrong on the round it changes. The floor carries `changed`; tier 3 says name
+   her on that round alone.
+2. **The prose echoed the options** as `> "..."` lines, imitating tier 2's own
+   marker for the player's line. Every option appeared twice, once as narration.
+   Fixed in the parser, where "a stray machine line must never reach the player"
+   already lives.
+
+### Measured, five members, nine rounds
+
+```
+speaker: Irene -> Yeri -> Jisoo -> Nana -> Irene -> Hyewon -> Nana -> Hyewon -> Yeri
+mode:    answers  answers  cuts_in  answers  answers  cuts_in  answers  answers  cuts_in
+prose:   137, 185, 273, 232, 202, 202, 327, 199, 299 chars   (mean 228)
+```
+
+All five circulate, nobody dominates, three cut-ins across nine rounds. **The
+transcript reads as a conversation** - a metaphor introduced in round 7 gets
+picked up and passed between three different members over the next two.
+
+**The number to watch is the mean.** 228 characters is what the TWO-voice build
+produced per round, so one speaker is now writing what two used to. `ROUND_WORDS`
+went 80 -> 60 and the model did not follow it down. If a round still reads long
+on the phone, that is the dial - and the second dial is `SCENE_ROUNDS`, since 9
+rounds of 228 is a longer scene than 5 of 225.
+
+**943 tests, lint clean, build clean.**
 
 ### Then phase 5
 

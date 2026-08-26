@@ -229,6 +229,66 @@ deterministic index standing in for a choice **four** times now
 (`sort(() => rng() - 0.5)`, `available.slice(0, 6)`, `presentIds[0]`, and the
 `FACE_LIMIT` off-by-one).
 
+#### One voice a round, after two voices worked
+
+The two-voice build was measured and it worked - a five-member room went from
+five paragraphs a round to two, and all four others got a line each across four
+rounds. What it did not fix is that a round was still two paragraphs, and the
+player still had to answer every one of them.
+
+> ~1 character per round ... increase the number of round/scene gives the
+> feeling of group chat. The player don't need to choose option each round and
+> gives back the skip button
+
+So a round is one person saying one thing, a scene is twice as many of them
+(`SCENE_ROUNDS` 4-6 -> **8-12**, `ROUND_WORDS` 80 -> **60**), and the player may
+let one pass. Both numbers are play dials and these are first guesses.
+
+**The draw, when nobody has tapped.** Silence dominates and is the reason this
+circulates at all: it is unbounded, so a member quiet for four rounds carries a
+4, while every other term is capped below that.
+
+| term | | why |
+|---|---|---|
+| **silence** | unbounded | the room always comes round, however the rest falls |
+| `AFFECTION_PULL` | 2 | the woman who likes you most seeks you out - a real feedback loop for a route, worth two rounds of silence and no more |
+| `CONTINUITY_PULL` | 1.5 | she tends to get a second round, which is what makes somebody *continue* rather than the room ping-pong |
+| `MAX_STREAK` | 2 | **the belt.** The weights are a distribution, a distribution rolls badly, and rolling badly here looks exactly like the bug this replaced |
+
+**A tap outranks all of it, cap included.** Asking for somebody by name is an
+instruction, and a pacing rule that overrides one is a pacing rule deciding who
+the player may talk to.
+
+**`mode` is what stops one voice reading as a queue**, and it costs six tokens:
+she *answers* the player, she *continues* because nobody stopped her, or she
+*cuts in* and takes the floor. v1 spent a whole extra call per round on the last
+of those; this is the round that was happening anyway, given to somebody else.
+
+**The skip spends a round.** That is §10c's `pass` - the player letting the room
+breathe, not a fast-forward - and it is an *addition*: the four options never
+leave the screen. §6 found the other version twice in one day, and a bar that
+becomes a lone continue button reads as a frozen screen.
+
+#### Two things the live harness found that no reader would have
+
+Both from one nine-round `zh` scene, and both are the kind of defect that only
+exists at full size.
+
+**A new speaker written entirely as 她.** Round 8 handed the floor to somebody
+new and the prose never named her - which is *correct* for an established
+subject and exactly wrong on the round it stops being the same one. Only the
+code knows the subject changed, so the floor carries `changed` and tier 3 says
+**name her in the first sentence** on that round alone. Every round would
+produce a paragraph saying her name three times, which is worse than the bug.
+
+**The prose echoed the options.** Tier 2 renders the player's line as
+`> what they said`, and the model imitated it: four `> "..."` lines at the foot
+of the prose, then the same four again after the sentinel. The player saw every
+option twice, once as narration. Fixed in `roundParser` rather than in the
+rules - *a stray machine line must never reach the player* does not care which
+machine line it was, and one pattern closes it for good where an instruction is
+one more thing a Flash-tier model has to hold.
+
 #### The roster is not the room, and for six weeks nothing knew the difference
 
 `onEnter` has computed `rosterIds` correctly since v2's first day - `[speaker]`
@@ -564,6 +624,38 @@ member, none of them locked. Knowing which of them means something to whom moves
 out of a `requires` array and into the player's head, which is the only place it
 was ever interesting. `GESTURE_EFFECT`, `matchedFact`, `isUnlocked`, `canGesture`,
 `spendGesture`, `usedGestures` and 25 `gesture.*` keys per locale go with it.
+
+### ...but the note has to say WHY, and the first build could not
+
+Played, hand test 2:
+
+> I give Irene a mugwort pack - her cold hand facts - while her reply is to use
+> it for waist ache and use it like a tea bag??
+
+The note said only *the player has just handed Irene a mugwort pack*, on the
+argument two paragraphs up: the model has her `facts` in tier 3 and will connect
+them. **That is the one claim in I.10 that overreached.** The model reached for
+the commonest use of a herbal pack and invented a sore back.
+
+§11 measured this once already and drew the rule: **an inference that can be
+stated should be stated.** The step from `mugwort_pack` to a line about cold
+hands three blocks up is an inference, and at this model tier an unreliable one.
+
+So a specific object carries a `factId` - matched on the **id**, never a
+substring, which is the half that broke twice - and the note quotes the fact when
+the player has learned it *about that member*. Three notes:
+
+| | |
+|---|---|
+| the object answers a fact she has learned about **this** member | the fact is quoted, and the note says nobody had to be told |
+| specific object, fact not learned | plain. She has no reason to read anything into it, and neither should the model |
+| a rose, a coffee | plain, correctly |
+
+**This is not the gate coming back**, and the distinction is the whole point.
+`canPurchase` never sees a dossier; the shelf stays open, the price is unchanged,
+anybody may hand anybody anything. What the knowledge buys is the difference
+between *"thank you"* and *"how did you know?"* - bought by having done the work,
+not by passing a check at the till.
 
 ### Snooping's prize is access, and it took until now to be true
 

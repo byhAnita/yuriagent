@@ -25,12 +25,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { beginScene, runRound, endScene, turnToMember } from './roundEngine.js';
+import { beginScene, runRound, endScene, turnToMember, roundsLeft } from './roundEngine.js';
 import { newPool } from './pool.js';
 import { SENTINEL } from '../config/rules.js';
 import { getCast } from '../data/cast.js';
 import { getIdentity } from '../data/identities.js';
 import { newRelation } from '../systems/relationship.js';
+import { MAX_STREAK } from '../config/constants.js';
 
 const room = getCast();
 const everyone = room.map((c) => c.id);
@@ -81,15 +82,25 @@ function open({ present = everyone, roster = present, seed = 3, id = 's1' } = {}
 const tailOf = (client) => client.seen.at(-1).at(-1).content;
 
 describe('the tail says who has the floor', () => {
-  it('names one member who answers and one who cuts in', async () => {
+  it('names exactly one member, and says to write her alone', async () => {
     const client = scripted(aRound());
     const { session } = await runRound(open(), { client });
     const tail = tailOf(client);
 
     expect(tail).toContain('## WHO SPEAKS');
-    expect(tail).toContain(`(${session.turn.primary}) has the player`);
-    expect(tail).toContain(`(${session.turn.second}) cuts in once`);
-    expect(session.turn.second).not.toBe(session.turn.primary);
+    expect(tail).toContain(`(${session.turn.primary})`);
+    expect(tail).toContain('One voice this round');
+
+    /**
+     * ...and nobody else is named as A SPEAKER. The silent list names everybody
+     * else by display name on purpose; what must not appear is a second
+     * `(id)` handle, which is what the model reads as "write this person".
+     */
+    const block = tail.slice(tail.indexOf('## WHO SPEAKS'), tail.indexOf('## VALUES'));
+    expect(block).toBeTruthy();
+    for (const id of everyone.filter((x) => x !== session.turn.primary)) {
+      expect(block, id).not.toContain(`(${id})`);
+    }
   });
 
   /**
@@ -103,9 +114,7 @@ describe('the tail says who has the floor', () => {
     const tail = tailOf(client);
 
     expect(tail).toContain('Nobody else speaks this round');
-    const silent = everyone.filter(
-      (id) => id !== session.turn.primary && id !== session.turn.second,
-    );
+    const silent = everyone.filter((id) => id !== session.turn.primary);
     expect(silent.length).toBeGreaterThan(0);
     for (const id of silent) {
       expect(tail, id).toMatch(new RegExp(`Nobody else speaks[^\\n]*${nameOf(id)}`));
@@ -128,10 +137,11 @@ describe('the tail says who has the floor', () => {
     const tail = tailOf(client);
 
     expect(session.turn.primary).toBe('yeri');
-    expect(session.turn.second).toBeNull();
     expect(tail).toContain('Present: Nana (nana), Yeri (yeri)');
     expect(tail).toMatch(/Nana is in the room and does not speak/);
-    expect(tail).not.toContain('cuts in once');
+    // Escaped, because `(nana)` unescaped is a capture group and matches nothing
+    // useful - a regex that passes for the wrong reason is worse than no test.
+    expect(tail).not.toMatch(/\(nana\) (has|still has|takes)/);
   });
 
   /**
@@ -168,17 +178,19 @@ describe('the tail says who has the floor', () => {
 });
 
 describe('the floor moves, and the scene remembers where it ended', () => {
-  it('hands the second voice to somebody new each round', async () => {
-    const client = scripted(aRound(), aRound(), aRound());
+  it('hands the floor around when the player keeps letting it pass', async () => {
+    const client = scripted(...Array(9).fill(aRound()));
     let s = open({ seed: 11, id: 's9' });
 
-    const seconds = [];
-    for (let i = 0; i < 3; i += 1) {
-      ({ session: s } = await runRound(s, { client }));
-      seconds.push(s.turn.second);
+    const heard = [];
+    for (let i = 0; i < 9; i += 1) {
+      ({ session: s } = await runRound(s, { client, skip: true }));
+      heard.push(s.turn.primary);
     }
 
-    expect(new Set(seconds).size).toBe(3);
+    // Everybody, without a rota - and nobody holding it for more than the cap.
+    expect(new Set(heard).size).toBe(everyone.length);
+    expect(Math.max(...Object.values(s.floor.streak))).toBeLessThanOrEqual(MAX_STREAK);
   });
 
   /**
@@ -266,14 +278,79 @@ describe('the turn is announced before the round streams', () => {
     let announced = null;
     await runRound(open(), { client, onTurn: (t) => (announced = t) });
 
-    const tail = tailOf(client);
-    expect(tail).toContain(`(${announced.primary}) has the player`);
-    expect(tail).toContain(`(${announced.second}) cuts in once`);
+    expect(tailOf(client)).toContain(`(${announced.primary})`);
   });
 
   /** A caller that does not want to know must not be broken by not asking. */
   it('does not require the callback', async () => {
     const client = scripted(aRound());
     await expect(runRound(open(), { client })).resolves.toBeTruthy();
+  });
+});
+
+/**
+ * LETTING THE ROUND PASS. CLAUDE.md Part I.3, section 10c.
+ *
+ * Asked for twice, across two engines - once about a member continuing across
+ * several turns in v1, and again as *"the player don't need to choose option
+ * each round and gives back the skip button"*. A round is one voice now, so
+ * hearing her out is a real thing to want.
+ *
+ * It is section 10c's `pass`: **the player letting the room breathe, not a
+ * fast-forward.** So it spends a round like everything else, and the tail says
+ * outright that nobody left - an absent choice line is ambiguous, and a model
+ * that cannot tell "said nothing" from "move not recorded" writes around the gap
+ * by having somebody ask whether the player is alright.
+ */
+describe('the player lets the round pass', () => {
+  it('says so, rather than leaving the choice line absent', async () => {
+    const client = scripted(aRound());
+    await runRound(open(), { client, skip: true });
+    const tail = tailOf(client);
+
+    expect(tail).toMatch(/says nothing and lets the room carry it/i);
+    expect(tail).toMatch(/attention, not absence/i);
+    expect(tail).not.toContain('The player chose:');
+  });
+
+  /** It costs a round. That is what makes it a move rather than a skip button. */
+  it('spends a round', async () => {
+    const client = scripted(aRound(), aRound());
+    let s = open();
+    const before = roundsLeft(s);
+
+    ({ session: s } = await runRound(s, { client, skip: true }));
+    expect(roundsLeft(s)).toBe(before - 1);
+  });
+
+  /**
+   * A skip hands the floor to the draw, so she carries on or somebody takes it.
+   * Answering is never either of those - the player moved the conversation.
+   */
+  it('is what makes a round continue or be cut into', async () => {
+    const client = scripted(...Array(6).fill(aRound()));
+    let s = open({ seed: 2, id: 'sk' });
+
+    const modes = [];
+    for (let i = 0; i < 6; i += 1) {
+      ({ session: s } = await runRound(s, { client, skip: true }));
+      modes.push(s.turn.mode);
+    }
+
+    // Round one has nobody to continue from; everything after is one or other.
+    expect(modes.slice(1).every((m) => m === 'continues' || m === 'cuts_in')).toBe(true);
+    expect(modes).toContain('cuts_in');
+  });
+
+  /** Answering and skipping in the same call is answering. A note counts too. */
+  it('is not a skip if the player actually said something', async () => {
+    const client = scripted(aRound(), aRound());
+    let s = open();
+    ({ session: s } = await runRound(s, { client }));
+    await runRound(s, { client, choice: 'I say this', skip: true });
+
+    const tail = tailOf(client);
+    expect(tail).toContain('The player chose: I say this');
+    expect(tail).not.toMatch(/lets the room carry it/i);
   });
 });

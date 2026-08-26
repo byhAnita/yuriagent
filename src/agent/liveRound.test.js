@@ -23,7 +23,7 @@ import { createClient } from '../tools/client.js';
 import { beginScene, runRound, endScene, isOver } from './roundEngine.js';
 import { newPool, poolEntries } from './pool.js';
 import { DELTA_MAX, SENTINEL } from '../config/rules.js';
-import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
+import { RISK_EXPOSURE_THRESHOLD, MAX_STREAK } from '../config/constants.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { getIdentity } from '../data/identities.js';
@@ -217,7 +217,7 @@ describe.skipIf(!enabled)('the round engine, live', () => {
    * option aimed at" has no reliable test that is not itself a model call.
    */
   it(
-    'holds a five-member room to two voices, in Chinese',
+    'holds a five-member room to one voice a round, in Chinese',
     async () => {
       const client = createClient({ apiKey, modelId });
       const ids = cards.map((c) => c.id);
@@ -228,7 +228,7 @@ describe.skipIf(!enabled)('the round engine, live', () => {
        * and Hyewon *Huiyuan* - transliterations the model invented on the spot,
        * differently in different scenes. It works, which is why a first draft of
        * this assertion failed against perfectly correct output: it looked for
-       * "Irene" in a paragraph that says 裴珠泫.
+       * "Irene" in a paragraph that says the right thing in Chinese.
        */
       const nameOf = (id) => {
         const card = cards.find((c) => c.id === id);
@@ -263,59 +263,56 @@ describe.skipIf(!enabled)('the round engine, live', () => {
       let choice = null;
 
       while (!isOver(session)) {
-        const out = await runRound(session, { client, choice });
+        /**
+         * EVERY THIRD ROUND IS LET PASS, so the harness exercises the two
+         * postures a skip produces. Answering every round can only ever produce
+         * `answers`, which is the one mode that needed no proving.
+         */
+        const skip = seen.length > 0 && seen.length % 3 === 2;
+        const out = await runRound(session, { client, choice: skip ? null : choice, skip });
         const turn = out.session.turn;
         session = out.session;
-        seen.push(turn);
+        seen.push({ ...turn, chars: out.round.prose.replace(/\s/g, '').length });
 
-        log(
-          `\n--- group round ${seen.length}: ${nameOf(turn.primary)}` +
-            `${turn.second ? ` + ${nameOf(turn.second)}` : ''} ---`,
-        );
+        log(`\n--- round ${seen.length}: ${nameOf(turn.primary)} [${turn.mode}]${skip ? ' (player let it pass)' : ''} ---`);
         log(out.round.prose);
         out.round.options.forEach((o, i) => log(`  ${'ABCD'[i]}. ${o}`));
 
         /**
-         * NOBODY ABSENT IS IN THE ROOM. There is nobody absent from this scene,
-         * so the check that matters is the silent ones: a member the floor did
-         * not name may be mentioned in passing, but the round must be ABOUT the
-         * two it did. Asserted as "the primary is named", which is the weakest
-         * true thing - a stronger claim would be a claim about prose.
+         * ONE VOICE. The weakest true claim is that the one the floor named is
+         * in the prose; a stronger one would be a claim about writing. What the
+         * READINGS below are for is the half no assertion can reach.
          */
         expect(out.round.prose).toContain(nameOf(turn.primary));
+        for (const o of out.round.options) expect(o.length).toBeLessThan(60);
 
         choice = out.round.options[0] ?? null;
       }
 
       const closed = endScene(session);
-      const chars = (s) => s.replace(/\s/g, '').length;
+      const chars = seen.map((t) => t.chars);
 
       log('\n================ GROUP READINGS ================');
-      log(`rounds: ${seen.length}`);
-      log(`voices per round: ${seen.map((t) => (t.second ? 2 : 1)).join(', ')}`);
-      log(`primary: ${seen.map((t) => nameOf(t.primary)).join(' -> ')}`);
-      log(`second:  ${seen.map((t) => (t.second ? nameOf(t.second) : '-')).join(' -> ')}`);
+      log(`rounds: ${seen.length} of ${session.total}`);
+      log(`speaker: ${seen.map((t) => nameOf(t.primary)).join(' -> ')}`);
+      log(`mode:    ${seen.map((t) => t.mode).join(' -> ')}`);
+      log(`prose chars: ${chars.join(', ')}`);
+      log(`  mean ${Math.round(chars.reduce((a, b) => a + b, 0) / chars.length)}`);
       log(`addressee at exit: ${nameOf(closed.addresseeId)}`);
-      log('\nCompare the prose length above against the 1v1 scene. Five members');
-      log('used to mean five paragraphs; two names should mean roughly two.');
+      log('\nRead the rounds above. Does one voice at a time read as a room,');
+      log('or as five monologues taking turns?');
 
       /**
-       * THE FLOOR CIRCULATES. Nobody tapped anybody, so the primary is sticky by
-       * construction and the SECOND voice is the whole rotation - if it is the
-       * same woman every round, the silence counter is not being aged and the
-       * room is a two-hander with an audience.
+       * THE ROOM CIRCULATES, and nobody holds it past the cap. Both are the
+       * belt against the defect this replaced - one member taking over so that
+       * every round is her, which is what the first hand test reported.
        */
-      expect(new Set(seen.map((t) => t.second)).size).toBeGreaterThan(1);
-      expect(seen.every((t) => t.second !== t.primary)).toBe(true);
+      expect(new Set(seen.map((t) => t.primary)).size).toBeGreaterThan(2);
+      expect(seen.some((t) => t.mode !== 'answers')).toBe(true);
+      expect(Math.max(...Object.values(session.floor.streak))).toBeLessThanOrEqual(MAX_STREAK);
 
       // Whoever the floor ended on is the subject `propagate` will price.
       expect(ids).toContain(closed.addresseeId);
-
-      log(
-        `pool text length: ${poolEntries(closed.pool)
-          .map((e) => chars(e.text ?? e.summary ?? ''))
-          .join(', ')}`,
-      );
     },
     600000,
   );

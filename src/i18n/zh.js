@@ -508,6 +508,7 @@ export default {
     sayIt: '说点什么',
     send: '发送',
     readHer: '读心',
+    skip: '不接话',
     give: '送礼 / 提起',
     turnTo: '转向 {name}',
     leave: '离开',

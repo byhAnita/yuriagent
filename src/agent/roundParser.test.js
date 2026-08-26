@@ -242,3 +242,51 @@ describe('a sentinel the model got slightly wrong', () => {
     expect(reader.result().emotion).toBe('shy');
   });
 });
+
+/**
+ * THE PROSE ECHOING THE OPTIONS. Found by the live harness, not by reading.
+ *
+ * Tier 2 renders the player's line as `> what they said`, and a five-member `zh`
+ * scene imitated it: four `> "..."` lines at the foot of the prose, then the
+ * same four options again after the sentinel. The player saw every option twice,
+ * once as narration.
+ *
+ * Fixed in the parser rather than in the rules, because the contract here is
+ * liberal inward and conservative outward - "a stray machine line must never
+ * reach the player" does not care which machine line it was.
+ */
+describe('an echoed option block never reaches the player', () => {
+  const echoed = [
+    'She looks up from the mirror.',
+    '> "So you remembered."',
+    '> "I did not think you would."',
+    SENTINEL,
+    'A|Say you remembered',
+    'B|Say nothing',
+    'C|Ask about the run-through',
+    'D|Leave it',
+    'emo|neutral',
+  ].join('\n');
+
+  it('strips the quoted echo and keeps the narration', () => {
+    const round = parseRound(echoed);
+    expect(round.prose).toBe('She looks up from the mirror.');
+    expect(round.prose).not.toContain('So you remembered');
+    expect(round.options).toHaveLength(4);
+  });
+
+  /**
+   * Only at the START of a line, and only with a space after it. A `>` inside a
+   * sentence is arithmetic or an arrow, and eating a line of her dialogue to
+   * catch a leaked field is the trade this parser exists to refuse.
+   */
+  it('leaves a > inside a sentence alone', () => {
+    const round = parseRound(['The counter reads 3 > 2 on the monitor.', SENTINEL, 'A|ok'].join('\n'));
+    expect(round.prose).toContain('3 > 2');
+  });
+
+  it('leaves prose that merely starts with an angle bracket glyph alone', () => {
+    const round = parseRound(['>>> the cue light', SENTINEL, 'A|ok'].join('\n'));
+    expect(round.prose).toContain('>>> the cue light');
+  });
+});

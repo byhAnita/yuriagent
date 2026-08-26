@@ -40,7 +40,7 @@
 import { useState } from 'react';
 
 /** Everything in this row spends the round. Everything below it does not. */
-const GLYPH = { say: '✎', give: '✉' };
+const GLYPH = { say: '✎', give: '✉', skip: '…' };
 
 function SecondaryAction({ glyph, label, ...props }) {
   return (
@@ -59,6 +59,8 @@ export default function OptionBar({
   options = [],
   onChoose,
   onGive = null,
+  /** Let the round pass. Spends a round like any other move; never replaces one. */
+  onSkip = null,
   onReadHer = null,
   /** What one look costs, in energy. Shown, because a price has to be visible. */
   readHerCost = 0,
@@ -163,6 +165,34 @@ export default function OptionBar({
             onClick={onGive}
             glyph={GLYPH.give}
             label={t('vn.give')}
+          />
+        ) : null}
+
+        {/*
+          LET THE ROOM CARRY IT.
+
+          Asked for twice, across two engines - once about a member continuing
+          across several turns in v1, and again as "the player don't need to
+          choose option each round and gives back the skip button". A round is
+          one voice now, so hearing her out is a real thing to want.
+
+          It is an ADDITION and never a replacement: the four options stay on
+          screen. Section 6 found the other version twice in one day - a bar
+          that becomes a lone continue button reads as a frozen screen, and a
+          player who must skip to hear more is not being offered a choice.
+
+          It sits in this row rather than the thin one below because it SPENDS
+          THE ROUND, which is the rule that decides what goes where. Letting the
+          room breathe costs what speaking costs; that is what makes it a move
+          rather than a fast-forward, and it is section 10c's `pass` under a
+          name the player will recognise.
+        */}
+        {onSkip ? (
+          <SecondaryAction
+            disabled={disabled}
+            onClick={onSkip}
+            glyph={GLYPH.skip}
+            label={t('vn.skip')}
           />
         ) : null}
       </div>
