@@ -12,8 +12,8 @@ to end - and live against DeepSeek in `zh`, four rounds, four options each.
 Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
 hand-test build, not a release (section 17). `?debug=1` for the in-page console.
 
-**What is on that URL right now: `e85067a`** - the one-screen scene, the
-collapsed value strip, and phase 3a. A report against an older build will still
+**What is on that URL right now: `6bdd71b`** - the one-screen scene, the
+collapsed value strip, and all of phase 3. A report against an older build will still
 show two-line value rows for everybody in the room, a page that scrolls every
 round, and strain and jealousy in the relationship panel; all three are fixed,
 so check the build before triaging any of them.
