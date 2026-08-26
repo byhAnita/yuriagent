@@ -52,7 +52,7 @@ async function playWeek({ lang = 'en', days = 3 } = {}) {
   const rooms = ['practice_room', 'wardrobe', 'cafe', 'dorm_living', 'drink_room'];
 
   const relations = Object.fromEntries(
-    cards.map((c) => [c.id, { affection: c.startIntimacy ?? 5, admissibility: 0 }]),
+    cards.map((c) => [c.id, { affection: c.startAffection ?? 5, admissibility: 0 }]),
   );
   let player = { name: 'Yuhan', selfId: 40, mood: 55, secrecy: 70 };
   let pool = newPool();

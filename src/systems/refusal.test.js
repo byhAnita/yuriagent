@@ -1,7 +1,7 @@
 /**
  * A refusal names the axis it was short on. PROPOSALS 25.
  *
- * The report asked for `intimacy` on the scene screen, and the answer to that
+ * The report asked for `affection` on the scene screen, and the answer to that
  * is no: pillar 1 is the player READING hidden state and betting on it, and
  * `Read her` is rationed precisely so that reading her costs something. A
  * readout retires both in one stroke.
@@ -11,7 +11,7 @@
  *
  *   > Oh no we have no dating access to anyone.
  *
- * A public date gates on `admissibility` and a private one on `intimacy` - two
+ * A public date gates on `admissibility` and a private one on `affection` - two
  * completely different questions - and both came back as `too_soon`. Naming the
  * axis is pillar 1 WORKING: the hidden state becomes readable through a
  * decision the player made, not through a number on the screen.
@@ -29,18 +29,18 @@ const rich = { credits: 999 };
 
 describe('the two axes give two different answers', () => {
   /**
-   * The plateau, stating its terms. Enormous intimacy and no admissibility: the
+   * The plateau, stating its terms. Enormous affection and no admissibility: the
    * private day is easy and the public one is shut, and the player should be
    * able to tell those apart from the refusal alone.
    */
   it('tells the plateau it is not nameable, not that it is not close', () => {
-    const stalled = rel({ intimacy: 90, admissibility: 5, stage: 'confidante' });
+    const stalled = rel({ affection: 90, admissibility: 5, stage: 'confidante' });
     expect(blockedReason(stalled, 'private', rich)).toBeNull();
     expect(blockedReason(stalled, 'public', rich)).toBe(REFUSAL.NOT_NAMEABLE);
   });
 
   it('tells a reckless run it is not close, not that it is not nameable', () => {
-    const reckless = rel({ intimacy: 10, admissibility: 70 });
+    const reckless = rel({ affection: 10, admissibility: 70 });
     expect(blockedReason(reckless, 'public', rich)).toBeNull();
     expect(blockedReason(reckless, 'private', rich)).toBe(REFUSAL.NOT_CLOSE);
   });
@@ -73,14 +73,14 @@ describe('the two axes give two different answers', () => {
  */
 describe('the ordering is unchanged', () => {
   it('says the damage first', () => {
-    expect(blockedReason(rel({ intimacy: 0, strain: 70 }), 'private', rich)).toBe(REFUSAL.STRAIN);
-    expect(blockedReason(rel({ intimacy: 0, jealousy: 90 }), 'private', rich)).toBe(
+    expect(blockedReason(rel({ affection: 0, strain: 70 }), 'private', rich)).toBe(REFUSAL.STRAIN);
+    expect(blockedReason(rel({ affection: 0, jealousy: 90 }), 'private', rich)).toBe(
       REFUSAL.JEALOUSY,
     );
   });
 
   it('still says the price last, once she would have said yes', () => {
-    expect(blockedReason(rel({ intimacy: 0, admissibility: 90 }), 'public', { credits: 0 })).toBe(
+    expect(blockedReason(rel({ affection: 0, admissibility: 90 }), 'public', { credits: 0 })).toBe(
       REFUSAL.CREDITS,
     );
   });
@@ -109,7 +109,7 @@ describe('the player can read it', () => {
   /** The offer list carries it, which is where the player meets it first. */
   it('reaches the offers', () => {
     const cast = [{ id: 'irene' }];
-    const relations = { irene: rel({ intimacy: 90, admissibility: 5 }) };
+    const relations = { irene: rel({ affection: 90, admissibility: 5 }) };
     const offers = dateOffers({ phase: 'prep', cast, relations, player: rich });
 
     const publicOffer = offers.find((o) => o.kind === 'public');

@@ -51,7 +51,7 @@
     "speed_shopper",
     "ramen_before_bed"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/jisoo.svg"

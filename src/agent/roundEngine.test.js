@@ -6,6 +6,7 @@ import { SCENE_ROUNDS_MIN, SCENE_ROUNDS_MAX } from '../config/constants.js';
 import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 import { getCast } from '../data/cast.js';
 import { getIdentity } from '../data/identities.js';
+import { newRelation } from '../systems/relationship.js';
 
 const cards = getCast().filter((c) => c.id === 'irene');
 
@@ -196,5 +197,26 @@ describe('the round engine', () => {
     expect(r.prose).toBe('She does not answer straight away.');
     expect(r.options).toEqual([]);
     expect(session.relations.irene.affection).toBe(20);
+  });
+
+  /**
+   * THE JOIN, and it is the one this project keeps shipping broken.
+   *
+   * Every test above builds `relations` by hand, with the field name v2 uses.
+   * `App` does not - it calls `newRelation`, which wrote `intimacy` for six
+   * milestones. So on a real run `rel.affection` was `undefined`, the value bar
+   * showed every member at 0 while the day screen showed 5, and tier 3 told the
+   * model `affection NaN` - which is the number the entire pacing band, and
+   * therefore the whole genre correction, is read off.
+   *
+   * Both halves were correct. Nothing joined them, and 879 tests were green.
+   */
+  it('reads a relation built the way App builds one', async () => {
+    const client = scripted(round());
+    await runRound(open({ relations: { irene: newRelation(12) } }), { client });
+
+    const tail = client.seen[0][2].content;
+    expect(tail).toContain('affection 12');
+    expect(tail).not.toMatch(/NaN|undefined/);
   });
 });

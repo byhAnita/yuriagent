@@ -20,16 +20,16 @@ import { makeT } from '../../i18n/index.js';
 
 const cards = getCast();
 const t = makeT('en');
-const GATE = LOCATIONS.dorm_room.entryIntimacy;
+const GATE = LOCATIONS.dorm_room.entryAffection;
 
 afterEach(cleanup);
 
 /** Everyone idle somewhere harmless, then whatever the test cares about. */
-function show({ where = {}, intimacy = GATE + 10, onEnterRoom = vi.fn() } = {}) {
+function show({ where = {}, affection = GATE + 10, onEnterRoom = vi.fn() } = {}) {
   const occupancy = Object.fromEntries(
     cards.map((c) => [c.id, { locationId: where[c.id] ?? 'practice_room' }]),
   );
-  const relations = Object.fromEntries(cards.map((c) => [c.id, newRelation(intimacy)]));
+  const relations = Object.fromEntries(cards.map((c) => [c.id, newRelation(affection)]));
 
   render(
     <DormMap
@@ -67,14 +67,14 @@ describe('her door', () => {
    * hers and in a shared room on the ones that are not.
    */
   it('stays dark while she is in the kitchen, however close she is', () => {
-    show({ where: { nana: 'dorm_kitchen' }, intimacy: 100 });
+    show({ where: { nana: 'dorm_kitchen' }, affection: 100 });
 
     expect(door('Nana').disabled).toBe(true);
     expect(door('Nana').textContent).toContain(t('map.notHome'));
   });
 
   it('stays dark while she is in the living room too', () => {
-    show({ where: { nana: 'dorm_living' }, intimacy: 100 });
+    show({ where: { nana: 'dorm_living' }, affection: 100 });
     expect(door('Nana').disabled).toBe(true);
   });
 
@@ -92,7 +92,7 @@ describe('her door', () => {
    * a spoiler - and it stays locked even on an evening that is hers.
    */
   it('names the threshold while it is locked', () => {
-    show({ where: { nana: 'dorm_room' }, intimacy: GATE - 10 });
+    show({ where: { nana: 'dorm_room' }, affection: GATE - 10 });
 
     expect(door('Nana').disabled).toBe(true);
     expect(door('Nana').textContent).toContain(String(GATE));

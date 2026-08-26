@@ -57,7 +57,7 @@ const aRun = () => ({
   cast: MVP_CAST,
   relations: {
     ...Object.fromEntries(MVP_CAST.map((id) => [id, newRelation(5)])),
-    irene: { ...newRelation(5), intimacy: 62, admissibility: 24, peakIntimacy: 62 },
+    irene: { ...newRelation(5), affection: 62, admissibility: 24, peakAffection: 62 },
   },
   memory: {
     dossier: { irene: { known_facts: [{ text: 'has cold hands', factId: 'cold_hands' }] } },
@@ -98,7 +98,7 @@ describe('what a save contains', () => {
     expect(JSON.parse(text).settings).toBeUndefined();
   });
 
-  /** `focusId` is derived from intimacy (section 15). Storing it lets it lie. */
+  /** `focusId` is derived from affection (section 15). Storing it lets it lie. */
   it('never stores focusId', () => {
     expect(JSON.stringify(toSave(aRun()))).not.toContain('focusId');
   });
@@ -112,7 +112,7 @@ describe('a round trip', () => {
     expect(back.run.week).toBe(4);
     expect(back.player.name).toBe('Yuhan');
     expect(back.player.dishes).toBe(1);
-    expect(back.relations.irene.intimacy).toBe(62);
+    expect(back.relations.irene.affection).toBe(62);
     expect(back.memory.dossier.irene.known_facts[0].factId).toBe('cold_hands');
     expect(back.memory.ledger).toHaveLength(1);
     expect(back.calendar.taskState.done).toBe(true);
@@ -198,11 +198,11 @@ describe('slots', () => {
    * A slot has to be legible before it is loaded, or six saves of one campaign
    * are indistinguishable. `focusId` is DERIVED at read time and never stored.
    */
-  it('names whoever holds the highest intimacy without storing it', () => {
+  it('names whoever holds the highest affection without storing it', () => {
     saveTo('1', aRun());
 
     expect(peekSlot('1').focusId).toBe('irene');
-    expect(peekSlot('1').focusIntimacy).toBe(62);
+    expect(peekSlot('1').focusAffection).toBe(62);
     expect(JSON.stringify(localStorage.getItem(SAVE_KEY))).not.toContain('focusId');
   });
 
@@ -269,9 +269,9 @@ describe('everything that can be wrong with a record', () => {
    * `relations[id]` assumes it is there.
    */
   it('keeps a member the save had never heard of', () => {
-    const back = fromSave({ relations: { irene: { intimacy: 70 } } }, defaults());
+    const back = fromSave({ relations: { irene: { affection: 70 } } }, defaults());
 
-    expect(back.relations.irene.intimacy).toBe(70);
+    expect(back.relations.irene.affection).toBe(70);
     // ...and the rest are still whole, not missing.
     for (const id of MVP_CAST) {
       expect(back.relations[id], id).toBeTruthy();

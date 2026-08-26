@@ -43,8 +43,8 @@ describe('exclusivity', () => {
 
 describe('jealousyGain', () => {
   it('is negligible for a stranger and consequential at nameless', () => {
-    const stranger = jealousyGain(1, rel({ intimacy: 10, stage: 'stranger' }));
-    const deep = jealousyGain(1, rel({ intimacy: 70, stage: 'nameless' }));
+    const stranger = jealousyGain(1, rel({ affection: 10, stage: 'stranger' }));
+    const deep = jealousyGain(1, rel({ affection: 70, stage: 'nameless' }));
 
     // Assertions are about the SHAPE of the curve, not the current scale
     // factor - that number belongs to balanceSim and is expected to move.
@@ -59,14 +59,14 @@ describe('jealousyGain', () => {
   });
 
   it('scales linearly with rumor weight', () => {
-    const r = rel({ intimacy: 60, stage: 'nameless' });
+    const r = rel({ affection: 60, stage: 'nameless' });
     expect(jealousyGain(2.5, r)).toBeCloseTo(jealousyGain(1, r) * 2.5, 10);
   });
 
   it('is the mechanism that makes breadth expensive as a route deepens', () => {
-    const shallow = jealousyGain(1, rel({ intimacy: 20, stage: 'colleague' }));
-    const mid = jealousyGain(1, rel({ intimacy: 45, stage: 'good_friends' }));
-    const deep = jealousyGain(1, rel({ intimacy: 90, stage: 'ours' }));
+    const shallow = jealousyGain(1, rel({ affection: 20, stage: 'colleague' }));
+    const mid = jealousyGain(1, rel({ affection: 45, stage: 'good_friends' }));
+    const deep = jealousyGain(1, rel({ affection: 90, stage: 'ours' }));
     expect(shallow).toBeLessThan(mid);
     expect(mid).toBeLessThan(deep);
   });
@@ -91,13 +91,13 @@ describe('convert', () => {
   });
 
   it('turns pressure into closeness', () => {
-    const out = convert(rel({ jealousy: 40, intimacy: 50 }));
+    const out = convert(rel({ jealousy: 40, affection: 50 }));
     expect(out.jealousy).toBe(20);
-    expect(out.intimacy).toBe(52);
+    expect(out.affection).toBe(52);
   });
 
   it('is a no-op outside the band', () => {
-    const input = rel({ jealousy: 70, intimacy: 50 });
+    const input = rel({ jealousy: 70, affection: 50 });
     expect(convert(input)).toEqual(input);
   });
 });

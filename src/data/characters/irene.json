@@ -51,7 +51,7 @@
     "gym_between_practice",
     "drinks_sikhye"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/irene.svg"

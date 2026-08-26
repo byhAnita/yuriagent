@@ -7,7 +7,7 @@
  * the whole day. The gate comes straight off the two axes:
  *
  *   public date  -> admissibility. How nameable is this?
- *   private date -> intimacy.      How close are we?
+ *   private date -> affection.      How close are we?
  *
  * So the two are not substitutes. A player deep in the `confidante` plateau
  * gets the private date easily and cannot get the public one at all, which is
@@ -31,13 +31,13 @@ export const DATE_KIND_IDS = Object.keys(DATE_KINDS);
  *
  * `TOO_SOON` USED TO BE ONE REASON FOR TWO AXES, and that was the whole of the
  * legibility problem PROPOSALS 25 describes. A public date gates on
- * `admissibility` and a private one on `intimacy` - two completely different
+ * `admissibility` and a private one on `affection` - two completely different
  * questions - and both came back as "not yet", which tells the player nothing
  * about which of the two things they were short of. Reported as:
  *
  *   > Oh no we have no dating access to anyone.
  *
- * The ask underneath that report was for an intimacy readout on the scene
+ * The ask underneath that report was for an affection readout on the scene
  * screen, and that would retire pillar 1 in one stroke: the player reads hidden
  * state and bets on it, and `Read her` is rationed precisely so that reading
  * her costs something. NAMING THE AXIS ON A REFUSAL is the opposite - the
@@ -50,7 +50,7 @@ export const DATE_KIND_IDS = Object.keys(DATE_KINDS);
  * follows (section 8).
  */
 export const REFUSAL = {
-  /** Not close enough - a private date, short on `intimacy`. */
+  /** Not close enough - a private date, short on `affection`. */
   NOT_CLOSE: 'not_close',
   /** Not nameable enough - a public date, short on `admissibility`. */
   NOT_NAMEABLE: 'not_nameable',

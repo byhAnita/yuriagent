@@ -193,7 +193,7 @@ export const LOCATIONS = {
     presence: 'solo',
     perMember: true,
     /** You may enter her room at the same point you may reach for her hand. */
-    entryIntimacy: 50,
+    entryAffection: 50,
     label: 'X Dorm - Bedroom',
     approachWitnessed: true,
     note: 'The scene is private. The approach is not - the others see you go in.',

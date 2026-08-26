@@ -40,7 +40,7 @@
   "likesSeed": [
     "being chosen visibly, in front of other people"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/joy.svg"

@@ -114,7 +114,7 @@ export default function App() {
     ...getIdentity(DEFAULT_IDENTITY).startStats,
   }));
   const [relations, setRelations] = useState(() =>
-    Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
+    Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startAffection ?? c.startIntimacy ?? 5)])),
   );
   /**
    * `memory` is now the DOSSIER and nothing else that matters.
@@ -246,7 +246,7 @@ export default function App() {
   const focusId = useMemo(
     () =>
       castIds.reduce(
-        (best, id) => (relations[id].intimacy > relations[best].intimacy ? id : best),
+        (best, id) => (relations[id].affection > relations[best].affection ? id : best),
         castIds[0],
       ),
     [relations, castIds],
@@ -419,7 +419,7 @@ export default function App() {
       if (ids.length > 0) {
         setRelations((rs) => {
           const out = { ...rs };
-          for (const id of ids) out[id] = applySceneOutcome(out[id], { intimacy: 1, good: true });
+          for (const id of ids) out[id] = applySceneOutcome(out[id], { affection: 1, good: true });
           return out;
         });
       }
@@ -527,7 +527,7 @@ export default function App() {
    * A group scene with a frame and, crucially, `shared` - which is what stops
    * it generating four witnessed jealousy events for an evening in which
    * nothing happened to anyone in particular, and what pays everyone present a
-   * little intimacy instead. The dorm needed one thing that is unambiguously
+   * little affection instead. The dorm needed one thing that is unambiguously
    * restorative.
    */
   const onShared = (activity) => {
@@ -663,12 +663,12 @@ export default function App() {
    * The knowledge economy, handed to the scene rather than gating entry to it.
    *
    * App still owns every number - credits, the dish counter, which gestures
-   * have been spent, the intimacy the opener is worth - and `VNStage` owns only
+   * have been spent, the affection the opener is worth - and `VNStage` owns only
    * when the player reaches for one. Both spend functions return the scene note
    * on success and `null` on refusal, so the scene never has to know why an
    * opener did not go through; it simply does not spend the turn.
    *
-   * The intimacy lands here and not at scene exit on purpose. `computeDeltas`
+   * The affection lands here and not at scene exit on purpose. `computeDeltas`
    * pays for what the SCENE did to her, and an opener is paid for by what the
    * player knew and spent - two different currencies, and adding the gift to
    * the scene's own delta would make a bought reaction indistinguishable from
@@ -678,7 +678,7 @@ export default function App() {
     const pay = (memberId, delta) =>
       setRelations((rs) => ({
         ...rs,
-        [memberId]: applySceneOutcome(rs[memberId], { intimacy: delta, good: true }),
+        [memberId]: applySceneOutcome(rs[memberId], { affection: delta, good: true }),
       }));
 
     return {
@@ -700,7 +700,7 @@ export default function App() {
             ? { [bought.spentStock]: Math.max(0, (p[bought.spentStock] ?? 0) - 1) }
             : {}),
         }));
-        pay(card.id, bought.intimacyDelta);
+        pay(card.id, bought.affectionDelta);
         return bought.sceneNote;
       },
 
@@ -709,7 +709,7 @@ export default function App() {
         if (!said) return null;
 
         setUsedGestures(said.usedGestures);
-        pay(card.id, said.intimacyDelta);
+        pay(card.id, said.affectionDelta);
         return said.sceneNote;
       },
     };
@@ -776,7 +776,7 @@ export default function App() {
       run: newRun({ seed: SEED }),
       player: { name: '', dishes: 0, ...identity.startStats },
       cast: castIds,
-      relations: Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
+      relations: Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startAffection ?? c.startIntimacy ?? 5)])),
       memory: newMemory(castIds),
     });
     if (!loaded) return;
@@ -829,7 +829,7 @@ export default function App() {
    */
   const restart = () => {
     setRun(newRun({ seed: SEED }));
-    setRelations(Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])));
+    setRelations(Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startAffection ?? c.startIntimacy ?? 5)])));
     setMemory(newMemory(castIds));
     setPool(newPool());
     setTaskState(newTaskState());
@@ -1057,7 +1057,7 @@ export default function App() {
 /**
  * What the scene did. CLAUDE.md Part I.8.
  *
- * v1's version reported three numbers the CODE had computed - intimacy,
+ * v1's version reported three numbers the CODE had computed - affection,
  * admissibility, strain - which was honest about v1 and would be a lie about
  * v2. Nothing here is computed any more: the model moved her, the world clamped
  * it, and this screen says what actually landed.

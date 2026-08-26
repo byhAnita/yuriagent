@@ -15,7 +15,7 @@
  *    pressure comes off.
  * 2. **No jealousy.** Nobody is being singled out, which is the whole point,
  *    and charging for it would put the cost straight back.
- * 3. **A small intimacy gain for everyone present.** The dorm needs one thing
+ * 3. **A small affection gain for everyone present.** The dorm needs one thing
  *    that is unambiguously restorative, or the tension it carries has nowhere
  *    to go.
  *

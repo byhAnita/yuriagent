@@ -75,7 +75,7 @@ describe('purchase', () => {
   it('spends credits and writes the scene-opening note', () => {
     const out = purchase('mugwort_pack', knowsCold, 10, 'Irene');
     expect(out.credits).toBe(7);
-    expect(out.intimacyDelta).toBe(5);
+    expect(out.affectionDelta).toBe(5);
     expect(out.sceneNote).toContain('Irene');
     expect(out.sceneNote).toContain('mugwort pack');
   });
@@ -83,7 +83,7 @@ describe('purchase', () => {
   it('is worth far more than a generic gift', () => {
     const generic = purchase('rose', empty, 10, 'Irene');
     const known = purchase('mugwort_pack', knowsCold, 10, 'Irene');
-    expect(known.intimacyDelta).toBeGreaterThan(generic.intimacyDelta * 4);
+    expect(known.affectionDelta).toBeGreaterThan(generic.affectionDelta * 4);
   });
 
   it('never lets credits go negative', () => {
@@ -148,14 +148,14 @@ describe('a gesture is the other way to spend a fact', () => {
   it('costs nothing and needs no credits', () => {
     expect(canGesture('mugwort_pack', knowsLaundry, [])).toBe(true);
     const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    expect(said.intimacyDelta).toBe(GESTURE_EFFECT);
+    expect(said.affectionDelta).toBe(GESTURE_EFFECT);
   });
 
   /** Free has to mean weaker, or the shop is decoration. */
   it('lands smaller than buying the object', () => {
     const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
     const bought = purchase('mugwort_pack', knowsLaundry, 99, 'Irene');
-    expect(said.intimacyDelta).toBeLessThan(bought.intimacyDelta);
+    expect(said.affectionDelta).toBeLessThan(bought.affectionDelta);
   });
 
   /** ...and once, or it stops being attention and becomes a script. */

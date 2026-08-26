@@ -66,8 +66,8 @@ function Row({ card, rel, t }) {
         this.
       */}
       <span className="mt-2 flex items-baseline gap-3 font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-faint">
-        <span>{t(`stage.${resolveStage(rel.intimacy, rel.admissibility)}`)}</span>
-        <span className="tabular-nums">I {Math.round(rel.intimacy)}</span>
+        <span>{t(`stage.${resolveStage(rel.affection, rel.admissibility)}`)}</span>
+        <span className="tabular-nums">I {Math.round(rel.affection)}</span>
         <span className="tabular-nums">A {Math.round(rel.admissibility)}</span>
       </span>
     </li>
@@ -87,7 +87,7 @@ export default function Endings({ cards, relations, onRestart, t }) {
     (a, b) =>
       order[kindOf(resolveEnding(relations[a.id]))] -
         order[kindOf(resolveEnding(relations[b.id]))] ||
-      relations[b.id].intimacy - relations[a.id].intimacy,
+      relations[b.id].affection - relations[a.id].affection,
   );
 
   return (

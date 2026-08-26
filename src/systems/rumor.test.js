@@ -163,8 +163,8 @@ describe('propagate', () => {
   it('costs a deeply invested member far more than a distant one', () => {
     const mixed = {
       irene: newRelation(50),
-      nana: { ...newRelation(80), intimacy: 80, stage: 'unspoken' },
-      jisoo: { ...newRelation(10), intimacy: 10, stage: 'stranger' },
+      nana: { ...newRelation(80), affection: 80, stage: 'unspoken' },
+      jisoo: { ...newRelation(10), affection: 10, stage: 'stranger' },
     };
     const { jealousyDeltas } = propagate({
       scene,

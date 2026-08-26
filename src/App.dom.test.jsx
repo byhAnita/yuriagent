@@ -345,7 +345,7 @@ describe('save slots', () => {
  * One whole block, map to map. CLAUDE.md Part I.3.
  *
  * The reason this exists: the aftermath screen was still reporting v1's three
- * computed numbers - intimacy, admissibility, strain - none of which the v2
+ * computed numbers - affection, admissibility, strain - none of which the v2
  * result carries, so it would have crashed the moment a scene ended. The whole
  * suite was green, because nothing walked past the last option of a scene.
  *

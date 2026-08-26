@@ -25,8 +25,8 @@ const cards = [
 ];
 
 const slots = [
-  { id: 'auto', auto: true, empty: false, savedAt: Date.now(), week: 2, day: 3, name: 'Yuhan', focusId: 'irene', focusIntimacy: 55 },
-  { id: '1', auto: false, empty: false, savedAt: Date.now(), week: 0, day: 1, name: 'Yuhan', focusId: 'nana', focusIntimacy: 20 },
+  { id: 'auto', auto: true, empty: false, savedAt: Date.now(), week: 2, day: 3, name: 'Yuhan', focusId: 'irene', focusAffection: 55 },
+  { id: '1', auto: false, empty: false, savedAt: Date.now(), week: 0, day: 1, name: 'Yuhan', focusId: 'nana', focusAffection: 20 },
   { id: '2', auto: false, empty: true },
 ];
 

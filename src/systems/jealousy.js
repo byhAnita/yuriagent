@@ -2,7 +2,7 @@
  * Jealousy. CLAUDE.md section 5b.
  *
  * Jealousy is PRESSURE, not damage. It feeds strain only when left unaddressed,
- * and in its lower band it converts into intimacy - noticing that she minds and
+ * and in its lower band it converts into affection - noticing that she minds and
  * visibly choosing her is one of the strongest gains available.
  *
  * The load-bearing idea is that gain scales with HER investment. A stranger does
@@ -40,7 +40,7 @@ export function exclusivity(stage) {
  * @param {object} rel         - the relation of the member who is learning
  */
 export function jealousyGain(rumorWeight, rel) {
-  return rumorWeight * (rel.intimacy / 100) * exclusivity(rel.stage) * JEALOUSY_GAIN_SCALE;
+  return rumorWeight * (rel.affection / 100) * exclusivity(rel.stage) * JEALOUSY_GAIN_SCALE;
 }
 
 /** Attention is the currency: a scene with her that produces no new rumor. */
@@ -66,7 +66,7 @@ export function convert(rel) {
   return {
     ...rel,
     jealousy: clamp(rel.jealousy + JEALOUSY_CONVERT.jealousy),
-    intimacy: clamp(rel.intimacy + JEALOUSY_CONVERT.intimacy),
+    affection: clamp(rel.affection + JEALOUSY_CONVERT.affection),
   };
 }
 

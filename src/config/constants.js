@@ -25,7 +25,7 @@ export const STAGE_A_MIN = {
   ours: 60,
   out: 86,
 };
-export const RECKLESS_GAP = 20; // admissibility > intimacy + this => 'reckless'
+export const RECKLESS_GAP = 20; // admissibility > affection + this => 'reckless'
 export const PLATEAU_SLACK = 10; // admissibility < aMin - this => 'confidante'
 
 export const STRAIN_BANDS = { stable: 0, tense: 40, rift: 60, critical: 90 };
@@ -36,12 +36,12 @@ export const REPAIR_STRAIN_DROP = 30;
 // --- jealousy ---------------------------------------------------------------
 export const JEALOUSY_BANDS = { calm: 0, piqued: 25, sharp: 50, corrosive: 75 };
 export const JEALOUSY_DECAY_PER_ATTENTIVE_SCENE = 5;
-export const JEALOUSY_CONVERT = { jealousy: -20, intimacy: 2 };
+export const JEALOUSY_CONVERT = { jealousy: -20, affection: 2 };
 
 /**
  * Scale factor on jealousy gain.
  *
- * Found by balanceSim: the raw formula (weight * intimacy/100 * exclusivity)
+ * Found by balanceSim: the raw formula (weight * affection/100 * exclusivity)
  * tops out near 2.5, while the bands sit at 25/50/75 and decay is 5 per
  * attentive scene. Unscaled, jealousy could never reach even `piqued` and the
  * whole pressure system was inert - a competent spread player hit the balance
@@ -159,7 +159,7 @@ export const SCENE_TURN_LIMIT_MAX = 16;
  */
 export const DATE_KINDS = {
   public: { axis: 'admissibility', floor: 30, sure: 55, credits: 12 },
-  private: { axis: 'intimacy', floor: 50, sure: 75, credits: 0 },
+  private: { axis: 'affection', floor: 50, sure: 75, credits: 0 },
 };
 
 /** She will not be asked out while this hurt. Section 5b's bands. */
@@ -176,7 +176,7 @@ export const DATE_REFUSING_STRAIN = 'rift';
 export const DATE_JEALOUSY_FACTOR = { calm: 1, piqued: 1.15, sharp: 0.6, corrosive: 0 };
 
 /**
- * What a scene has to achieve before it pays any intimacy (section 6).
+ * What a scene has to achieve before it pays any affection (section 6).
  *
  * These moved when the unit of measurement did. They were 15 and 60 against a
  * meter that SUMMED every beat, so a reply carrying three beats moved it three
@@ -270,7 +270,7 @@ export const SNOOP_COST_MAX_MULTIPLIER = 2.5;
  *
  * The first build had exactly one bar, priced for jealousy, and the arithmetic
  * made ordinary conversation structurally impossible: a week-1 bystander at
- * intimacy 10 who had said nothing for four turns scored 0.66 against a bar of
+ * affection 10 who had said nothing for four turns scored 0.66 against a bar of
  * 1.0, so the ONLY thing that could ever produce a second voice was a jealousy
  * band. Five women in a practice room either sat in silence or sniped at each
  * other, and there was no third option anywhere in the number.
@@ -294,7 +294,7 @@ export const INTERJECT_THRESHOLD = 1.0;
  *
  * `piqued` is deliberately excluded even though it scores 0.5. Section 5b calls
  * piqued an OPPORTUNITY rather than a tax - she probes, and noticing it is one
- * of the strongest intimacy gains in the game. Letting her interrupt about it
+ * of the strongest affection gains in the game. Letting her interrupt about it
  * spends the moment before the player can read it.
  */
 export const CUT_IN_BANDS = ['sharp', 'corrosive'];
@@ -307,7 +307,7 @@ export const CUT_IN_BANDS = ['sharp', 'corrosive'];
  * standing there saying nothing.
  */
 export const INTERJECT_STAKE = {
-  intimacy: 0.6,
+  affection: 0.6,
   jealousy: { calm: 0, piqued: 0.5, sharp: 1.0, corrosive: 1.6 },
   mentioned: 0.7,
   perSilentTurn: 0.15,
@@ -326,7 +326,7 @@ export const INTERJECT_STAKE = {
  * talked about is the most natural reason in the world to speak up.
  */
 export const CHIME_STAKE = {
-  intimacy: 0.25,
+  affection: 0.25,
   mentioned: 0.6,
   perSilentTurn: 0.45,
 };

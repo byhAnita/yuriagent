@@ -40,23 +40,23 @@ const at = (patch) => ({ ...newRelation(5), ...patch });
 
 const OURS = at({
   stage: 'ours',
-  intimacy: 90,
+  affection: 90,
   admissibility: 65,
-  peakIntimacy: 90,
+  peakAffection: 90,
   peakAdmissibility: 65,
 });
 const NAMELESS = at({
   stage: 'nameless',
-  intimacy: 60,
+  affection: 60,
   admissibility: 25,
-  peakIntimacy: 60,
+  peakAffection: 60,
   peakAdmissibility: 25,
 });
-const DRIFT = at({ stage: 'stranger', intimacy: 8, peakIntimacy: 8 });
+const DRIFT = at({ stage: 'stranger', affection: 8, peakAffection: 8 });
 const BROKEN = at({
   stage: 'good_friends',
-  intimacy: 20,
-  peakIntimacy: 80,
+  affection: 20,
+  peakAffection: 80,
   admissibility: 10,
   endingLocked: 'nameless_end',
 });

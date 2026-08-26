@@ -9,7 +9,7 @@
  * A slot has to be legible before it is loaded, or six saves of one campaign
  * are indistinguishable and the whole feature is a lottery - so a row carries
  * the player name, the week and day, and whoever currently holds the highest
- * intimacy (derived at read time; section 15 never stores `focusId`).
+ * affection (derived at read time; section 15 never stores `focusId`).
  *
  * Overwrite and delete are the only destructive actions in the game, so both
  * arm on the first tap and act on the second. A confirmation dialog would be

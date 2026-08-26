@@ -5,7 +5,7 @@
  * different things: a living room everyone can see you in, a kitchen, your own
  * room - the only place that gives anything back - and five closed doors.
  *
- * Her door opens at the same intimacy the `touch` stance does, so "you may go
+ * Her door opens at the same affection the `touch` stance does, so "you may go
  * into her room" and "you may reach for her hand" unlock together. A locked
  * door shows her name and the threshold: that is a goal, not a spoiler.
  */
@@ -57,7 +57,7 @@ export default function DormMap({ cards, relations, occupancy, onBack, onEnterRo
   const inLiving = cards.filter((c) => occupancy[c.id]?.locationId === 'dorm_living');
   const inKitchen = cards.filter((c) => occupancy[c.id]?.locationId === 'dorm_kitchen');
 
-  const gate = LOCATIONS.dorm_room.entryIntimacy;
+  const gate = LOCATIONS.dorm_room.entryAffection;
 
   const faces = (list) => (
     <span className="flex shrink-0 items-center gap-1">
@@ -128,7 +128,7 @@ export default function DormMap({ cards, relations, occupancy, onBack, onEnterRo
         {cards.map((c) => {
           const rel = relations[c.id];
           const home = homeIds.includes(c.id);
-          const open = rel.intimacy >= gate;
+          const open = rel.affection >= gate;
 
           return (
             <Room

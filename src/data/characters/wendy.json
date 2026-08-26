@@ -39,7 +39,7 @@
   "likesSeed": [
     "learning a recipe just because someone mentioned missing it"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/wendy.svg"

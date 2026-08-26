@@ -135,7 +135,7 @@ export function spendGesture(giftId, dossier, usedGestures, memberName) {
     giftId,
     tier: 'gesture',
     fact,
-    intimacyDelta: GESTURE_EFFECT,
+    affectionDelta: GESTURE_EFFECT,
     usedGestures: [...usedGestures, giftId],
     sceneNote:
       `the player has brought ${memberName} nothing at all. They opened by bringing up something she once let slip: "${fact}". ` +
@@ -187,7 +187,7 @@ export function purchase(giftId, dossier, credits, memberName, stock = {}) {
     credits: credits - gift.cost,
     /** Which player counter this opener consumed, if not credits. */
     spentStock: gift.stock ?? null,
-    intimacyDelta: gift.effect,
+    affectionDelta: gift.effect,
     sceneNote,
   };
 }

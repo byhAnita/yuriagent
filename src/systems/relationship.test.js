@@ -12,7 +12,7 @@ import {
 } from './relationship.js';
 
 describe('resolveStage', () => {
-  it('walks the intimacy ladder when admissibility keeps pace', () => {
+  it('walks the affection ladder when admissibility keeps pace', () => {
     expect(resolveStage(5, 0)).toBe('stranger');
     expect(resolveStage(25, 5)).toBe('colleague');
     expect(resolveStage(45, 20)).toBe('good_friends');
@@ -22,12 +22,12 @@ describe('resolveStage', () => {
     expect(resolveStage(95, 90)).toBe('out');
   });
 
-  it('flags reckless when admissibility outruns intimacy by more than the gap', () => {
+  it('flags reckless when admissibility outruns affection by more than the gap', () => {
     expect(resolveStage(40, 61)).toBe('reckless');
     expect(resolveStage(40, 60)).not.toBe('reckless');
   });
 
-  it('flags confidante when intimacy outran admissibility and stalled', () => {
+  it('flags confidante when affection outran admissibility and stalled', () => {
     // nameless wants admissibility >= 20; 9 is more than PLATEAU_SLACK below it
     expect(resolveStage(65, 9)).toBe('confidante');
     expect(resolveStage(65, 10)).toBe('nameless');
@@ -54,11 +54,11 @@ describe('strainBand', () => {
 describe('applySceneOutcome', () => {
   it('tracks high-water marks monotonically', () => {
     let rel = newRelation(5);
-    rel = applySceneOutcome(rel, { intimacy: 60, admissibility: 40 });
-    expect(rel.peakIntimacy).toBe(65);
-    rel = applySceneOutcome(rel, { intimacy: -50, admissibility: -30 });
-    expect(rel.intimacy).toBe(15);
-    expect(rel.peakIntimacy).toBe(65);
+    rel = applySceneOutcome(rel, { affection: 60, admissibility: 40 });
+    expect(rel.peakAffection).toBe(65);
+    rel = applySceneOutcome(rel, { affection: -50, admissibility: -30 });
+    expect(rel.affection).toBe(15);
+    expect(rel.peakAffection).toBe(65);
     expect(rel.peakAdmissibility).toBe(40);
   });
 
@@ -72,16 +72,16 @@ describe('applySceneOutcome', () => {
 
   it('clamps both axes to 0-100', () => {
     let rel = newRelation(5);
-    rel = applySceneOutcome(rel, { intimacy: 999, admissibility: 999 });
-    expect(rel.intimacy).toBe(100);
+    rel = applySceneOutcome(rel, { affection: 999, admissibility: 999 });
+    expect(rel.affection).toBe(100);
     expect(rel.admissibility).toBe(100);
-    rel = applySceneOutcome(rel, { intimacy: -999, admissibility: -999 });
-    expect(rel.intimacy).toBe(0);
+    rel = applySceneOutcome(rel, { affection: -999, admissibility: -999 });
+    expect(rel.affection).toBe(0);
     expect(rel.admissibility).toBe(0);
   });
 
   it('locks a bad end only after two consecutive critical scenes', () => {
-    let rel = { ...newRelation(75), peakIntimacy: 75, strain: 85 };
+    let rel = { ...newRelation(75), peakAffection: 75, strain: 85 };
     rel = applySceneOutcome(rel, { strain: 10 }); // 95, first critical
     expect(rel.endingLocked).toBeNull();
     rel = applySceneOutcome(rel, { strain: 0 }); // still critical, second
@@ -89,7 +89,7 @@ describe('applySceneOutcome', () => {
   });
 
   it('resets the critical counter when strain drops out of the band', () => {
-    let rel = { ...newRelation(75), peakIntimacy: 75, strain: 95 };
+    let rel = { ...newRelation(75), peakAffection: 75, strain: 95 };
     rel = applySceneOutcome(rel, {});
     expect(rel.criticalScenes).toBe(1);
     rel = applySceneOutcome(rel, { strain: -40 });
@@ -99,9 +99,9 @@ describe('applySceneOutcome', () => {
 });
 
 /**
- * The plateau. Section 5 calls `confidante` "intimacy outran admissibility and
+ * The plateau. Section 5 calls `confidante` "affection outran admissibility and
  * stalled", and for a long time nothing stalled - a campaign ended with every
- * member at intimacy 100, admissibility near zero and `confidante_end` for all
+ * member at affection 100, admissibility near zero and `confidante_end` for all
  * five, with no good ending reachable by any policy. The stage was computed
  * correctly and the outcome was applied correctly; only the join was missing.
  */
@@ -114,13 +114,13 @@ describe('the plateau stalls', () => {
 
   it('refuses further closeness while she is on it', () => {
     const rel = onPlateau();
-    const after = applySceneOutcome(rel, { intimacy: 5, good: true });
-    expect(after.intimacy).toBe(rel.intimacy);
+    const after = applySceneOutcome(rel, { affection: 5, good: true });
+    expect(after.affection).toBe(rel.affection);
   });
 
   it('but never takes any away - a stall is not a punishment', () => {
     const rel = onPlateau();
-    expect(applySceneOutcome(rel, { intimacy: -8 }).intimacy).toBe(rel.intimacy - 8);
+    expect(applySceneOutcome(rel, { affection: -8 }).affection).toBe(rel.affection - 8);
   });
 
   it('still lets the way out move', () => {
@@ -133,7 +133,7 @@ describe('the plateau stalls', () => {
     let rel = onPlateau();
     rel = applySceneOutcome(rel, { admissibility: 20 });
     expect(rel.stage).not.toBe('confidante');
-    expect(applySceneOutcome(rel, { intimacy: 4 }).intimacy).toBe(rel.intimacy + 4);
+    expect(applySceneOutcome(rel, { affection: 4 }).affection).toBe(rel.affection + 4);
   });
 
   it('lets the scene that walks her onto it count', () => {
@@ -141,14 +141,14 @@ describe('the plateau stalls', () => {
     // can watch yourself hit is a rule; one that catches you mid-step is a bug.
     const below = applySceneOutcome({ ...newRelation(48), admissibility: 2 }, {});
     expect(below.stage).toBe('good_friends');
-    const after = applySceneOutcome(below, { intimacy: 6 });
-    expect(after.intimacy).toBe(54);
+    const after = applySceneOutcome(below, { affection: 6 });
+    expect(after.affection).toBe(54);
     expect(after.stage).toBe('confidante');
   });
 
   it('strain still decays on the plateau, so a stall is not a death spiral', () => {
     const rel = { ...onPlateau(), strain: 30 };
-    expect(applySceneOutcome(rel, { intimacy: 3, good: true }).strain).toBe(27);
+    expect(applySceneOutcome(rel, { affection: 3, good: true }).strain).toBe(27);
   });
 });
 
@@ -162,23 +162,23 @@ describe('applyRepair', () => {
 
 describe('resolveBadEnd', () => {
   it('returns null when there was never enough there to break', () => {
-    expect(resolveBadEnd({ ...newRelation(30), peakIntimacy: 39 })).toBeNull();
+    expect(resolveBadEnd({ ...newRelation(30), peakAffection: 39 })).toBeNull();
   });
 
   it('prefers severance when the collapse happened in the reckless zone', () => {
-    const rel = { ...newRelation(50), peakIntimacy: 80, peakAdmissibility: 90, stage: 'reckless' };
+    const rel = { ...newRelation(50), peakAffection: 80, peakAdmissibility: 90, stage: 'reckless' };
     expect(resolveBadEnd(rel)).toBe('severance_end');
   });
 
   it('picks exposure when admissibility had gone public', () => {
-    const rel = { ...newRelation(50), peakIntimacy: 80, peakAdmissibility: 60, stage: 'unspoken' };
+    const rel = { ...newRelation(50), peakAffection: 80, peakAdmissibility: 60, stage: 'unspoken' };
     expect(resolveBadEnd(rel)).toBe('exposure_end');
   });
 
   it('picks nameless when it was deep and never nameable', () => {
     const rel = {
       ...newRelation(50),
-      peakIntimacy: 75,
+      peakAffection: 75,
       peakAdmissibility: 20,
       admissibility: 20,
       stage: 'confidante',
@@ -201,17 +201,17 @@ describe('resolveEnding', () => {
 describe('isAftermath', () => {
   it('distinguishes a fresh low/low from a collapsed one', () => {
     expect(isAftermath(newRelation(5))).toBe(false);
-    expect(isAftermath({ ...newRelation(5), peakIntimacy: 75 })).toBe(true);
+    expect(isAftermath({ ...newRelation(5), peakAffection: 75 })).toBe(true);
   });
 });
 
 describe('isBalanceEnding', () => {
   const good = (jealousy) => ({
     ...newRelation(80),
-    intimacy: 80,
+    affection: 80,
     admissibility: 50,
     stage: 'unspoken',
-    peakIntimacy: 80,
+    peakAffection: 80,
     jealousy,
   });
 

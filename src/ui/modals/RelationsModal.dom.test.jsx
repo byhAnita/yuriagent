@@ -27,7 +27,7 @@ const show = ({ relations, lang = 'en', onClose = vi.fn() } = {}) => {
   render(
     <RelationsModal
       cards={cards}
-      relations={relations ?? Object.fromEntries(cards.map((c) => [c.id, rel({ intimacy: 40 })]))}
+      relations={relations ?? Object.fromEntries(cards.map((c) => [c.id, rel({ affection: 40 })]))}
       onClose={onClose}
       t={makeT(lang)}
     />,
@@ -45,7 +45,7 @@ describe('it shows both axes', () => {
   it('prints both numbers for every member', () => {
     show({
       relations: Object.fromEntries(
-        cards.map((c) => [c.id, rel({ intimacy: 72, admissibility: 18 })]),
+        cards.map((c) => [c.id, rel({ affection: 72, admissibility: 18 })]),
       ),
     });
 
@@ -61,7 +61,7 @@ describe('it shows both axes', () => {
   it('says where you stand in words as well as numbers', () => {
     show({
       relations: Object.fromEntries(
-        cards.map((c) => [c.id, rel({ intimacy: 60, admissibility: 25 })]),
+        cards.map((c) => [c.id, rel({ affection: 60, admissibility: 25 })]),
       ),
     });
 
@@ -79,7 +79,7 @@ describe('it explains the states the player cannot infer', () => {
   it('tells the plateau what to do about it', () => {
     show({
       relations: Object.fromEntries(
-        cards.map((c) => [c.id, rel({ intimacy: 90, admissibility: 2, stage: 'confidante' })]),
+        cards.map((c) => [c.id, rel({ affection: 90, admissibility: 2, stage: 'confidante' })]),
       ),
     });
 
@@ -93,8 +93,8 @@ describe('it explains the states the player cannot infer', () => {
   });
 
   it('surfaces both once there is', () => {
-    const relations = Object.fromEntries(cards.map((c) => [c.id, rel({ intimacy: 40 })]));
-    relations[cards[0].id] = rel({ intimacy: 40, jealousy: 60, strain: 70 });
+    const relations = Object.fromEntries(cards.map((c) => [c.id, rel({ affection: 40 })]));
+    relations[cards[0].id] = rel({ affection: 40, jealousy: 60, strain: 70 });
     show({ relations });
 
     expect(screen.getAllByText(new RegExp(en.relations.jealousy, 'i')).length).toBe(1);
@@ -120,7 +120,7 @@ describe('it is a sheet like every other', () => {
     const { container } = render(
       <RelationsModal
         cards={cards}
-        relations={Object.fromEntries(cards.map((c) => [c.id, rel({ intimacy: 40 })]))}
+        relations={Object.fromEntries(cards.map((c) => [c.id, rel({ affection: 40 })]))}
         onClose={vi.fn()}
         t={makeT('en')}
       />,
@@ -142,7 +142,7 @@ describe('it is a sheet like every other', () => {
       render(
         <RelationsModal
           cards={cards}
-          relations={{ [cards[0].id]: rel({ intimacy: 40 }) }}
+          relations={{ [cards[0].id]: rel({ affection: 40 }) }}
           onClose={vi.fn()}
           t={makeT('en')}
         />,

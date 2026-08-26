@@ -39,7 +39,7 @@
   "likesSeed": [
     "staying late to fix eight counts nobody else noticed"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/seulgi.svg"

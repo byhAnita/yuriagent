@@ -2,7 +2,7 @@
  * The relationship model. CLAUDE.md section 5.
  *
  * Two axes plus a wound counter:
- *   intimacy      - how emotionally close
+ *   affection      - how emotionally close
  *   admissibility - how nameable / showable it is
  *   strain        - accumulated damage; the only thing that produces a Bad End
  *
@@ -34,34 +34,34 @@ export const STAGE_LADDER = [
   'out',
 ];
 
-export function newRelation(startIntimacy = 5) {
+export function newRelation(startAffection = 5) {
   return {
-    intimacy: startIntimacy,
+    affection: startAffection,
     admissibility: 0,
     strain: 0,
     jealousy: 0,
-    peakIntimacy: startIntimacy,
+    peakAffection: startAffection,
     peakAdmissibility: 0,
     criticalScenes: 0,
-    stage: resolveStage(startIntimacy, 0),
+    stage: resolveStage(startAffection, 0),
     endingLocked: null,
   };
 }
 
 /** Where on the map this relationship currently sits. */
-export function resolveStage(intimacy, admissibility) {
-  if (admissibility > intimacy + RECKLESS_GAP) return 'reckless';
+export function resolveStage(affection, admissibility) {
+  if (admissibility > affection + RECKLESS_GAP) return 'reckless';
 
   const tier =
-    intimacy <= 15
+    affection <= 15
       ? 'stranger'
-      : intimacy <= 30
+      : affection <= 30
         ? 'colleague'
-        : intimacy <= 50
+        : affection <= 50
           ? 'good_friends'
-          : intimacy <= 70
+          : affection <= 70
             ? 'nameless'
-            : intimacy <= 85
+            : affection <= 85
               ? 'unspoken'
               : admissibility >= STAGE_A_MIN.out
                 ? 'out'
@@ -80,7 +80,7 @@ export function strainBand(strain) {
 
 /** True once this relationship has been somewhere worth losing. */
 export function hasHistory(rel) {
-  return rel.peakIntimacy >= 40;
+  return rel.peakAffection >= 40;
 }
 
 /**
@@ -88,14 +88,14 @@ export function hasHistory(rel) {
  * Same coordinates, different framing and a different chip set.
  */
 export function isAftermath(rel) {
-  return hasHistory(rel) && rel.intimacy < 30;
+  return hasHistory(rel) && rel.affection < 30;
 }
 
 /**
  * Apply the accumulated result of one scene.
  *
  * `delta` is computed by the systems that watched the scene, never reported by
- * the model: { intimacy, admissibility, strain, good }.
+ * the model: { affection, admissibility, strain, good }.
  * `good` marks a scene that went well, which is what lets strain decay.
  */
 export function applySceneOutcome(rel, delta = {}) {
@@ -104,10 +104,10 @@ export function applySceneOutcome(rel, delta = {}) {
   /**
    * The plateau has to actually plateau.
    *
-   * `confidante` is described as "intimacy outran admissibility and stalled"
+   * `confidante` is described as "affection outran admissibility and stalled"
    * in section 5 and as a plateau everywhere else, but nothing stalled: a
-   * relationship on the plateau went on gaining intimacy scene after scene, so
-   * a full campaign ended with all five members at intimacy 100, admissibility
+   * relationship on the plateau went on gaining affection scene after scene, so
+   * a full campaign ended with all five members at affection 100, admissibility
    * near zero, and `confidante_end` for everybody. Not one good ending was
    * reachable by any policy, including one that took a public risk in every
    * scene it could - the headless campaign harness found this immediately and
@@ -125,9 +125,9 @@ export function applySceneOutcome(rel, delta = {}) {
    * hit reads as a rule; one that catches you mid-step reads as a bug.
    */
   const stalled = rel.stage === 'confidante';
-  const intimacyGain = delta.intimacy ?? 0;
+  const affectionGain = delta.affection ?? 0;
 
-  next.intimacy = clamp(next.intimacy + (stalled && intimacyGain > 0 ? 0 : intimacyGain));
+  next.affection = clamp(next.affection + (stalled && affectionGain > 0 ? 0 : affectionGain));
   next.admissibility = clamp(next.admissibility + (delta.admissibility ?? 0));
   next.strain = clamp(next.strain + (delta.strain ?? 0));
 
@@ -135,9 +135,9 @@ export function applySceneOutcome(rel, delta = {}) {
     next.strain = clamp(next.strain - STRAIN_DECAY_PER_GOOD_SCENE);
   }
 
-  next.peakIntimacy = Math.max(next.peakIntimacy, next.intimacy);
+  next.peakAffection = Math.max(next.peakAffection, next.affection);
   next.peakAdmissibility = Math.max(next.peakAdmissibility, next.admissibility);
-  next.stage = resolveStage(next.intimacy, next.admissibility);
+  next.stage = resolveStage(next.affection, next.admissibility);
 
   next.criticalScenes = strainBand(next.strain) === 'critical' ? next.criticalScenes + 1 : 0;
 
@@ -159,10 +159,10 @@ export function applyRepair(rel) {
  * Returns null when there was never enough there to break.
  */
 export function resolveBadEnd(rel) {
-  if (rel.peakIntimacy < 40) return null;
+  if (rel.peakAffection < 40) return null;
   if (rel.stage === 'reckless') return 'severance_end';
   if (rel.peakAdmissibility >= 60) return 'exposure_end';
-  if (rel.peakIntimacy >= 70 && rel.admissibility < 30) return 'nameless_end';
+  if (rel.peakAffection >= 70 && rel.admissibility < 30) return 'nameless_end';
   return 'severance_end';
 }
 
@@ -172,7 +172,7 @@ export function resolveBadEnd(rel) {
  */
 export function resolveEnding(rel) {
   if (rel.endingLocked) return rel.endingLocked;
-  if (rel.peakIntimacy < 40) return 'drift_end';
+  if (rel.peakAffection < 40) return 'drift_end';
 
   switch (rel.stage) {
     case 'out':

@@ -285,7 +285,7 @@ export function soloLedgerText(result, { locationLabel, playerName = 'The player
   return `${playerName} worked alone at ${locationLabel}.`;
 }
 
-/** Small intimacy bump to everyone who benefited from a goodwill action. */
+/** Small affection bump to everyone who benefited from a goodwill action. */
 export function goodwillTargets(cards, occupancy, locationId) {
   if (!occupancy) return [];
   return cards

@@ -5,18 +5,18 @@
  *
  * INSIDE A SCENE: no. Pillar 1 is the player READING hidden emotional state and
  * betting on it, and `Read her` is rationed precisely so that reading her costs
- * something. An intimacy readout on the scene screen hands over the answer key
+ * something. An affection readout on the scene screen hands over the answer key
  * for free and retires the rationed action in one stroke. The scene bar carries
  * STANDING IN WORDS beside the three volatile meters, and that is deliberate.
  *
  * OUTSIDE A SCENE: yes - and it mostly existed already. The day screen has
- * printed every member's stage and intimacy since M4. What it did not do was
+ * printed every member's stage and affection since M4. What it did not do was
  * EXPLAIN the number or make it findable, so the player went looking for a menu
  * that was already a row:
  *
- *   > And no UI display the character's intimacy value in the game... should
+ *   > And no UI display the character's affection value in the game... should
  *   > also find a place/menu in outside scene - the game main screen - to
- *   > present character's intimacy & emotion stage
+ *   > present character's affection & emotion stage
  *
  * That is section 7's handbook lesson again: a thing the player has to discover
  * is a thing that does not exist.
@@ -83,7 +83,7 @@ export default function RelationsModal({ cards = [], relations = {}, onClose, t 
           const rel = relations[c.id];
           if (!rel) return null;
 
-          const stage = resolveStage(rel.intimacy, rel.admissibility);
+          const stage = resolveStage(rel.affection, rel.admissibility);
           const jband = jealousyBand(rel.jealousy ?? 0);
           const sband = strainBand(rel.strain ?? 0);
 
@@ -101,7 +101,7 @@ export default function RelationsModal({ cards = [], relations = {}, onClose, t 
                 </span>
               </div>
 
-              <Axis label="relations.close" value={rel.intimacy} tone="var(--meter-fluster)" t={t} />
+              <Axis label="relations.close" value={rel.affection} tone="var(--meter-fluster)" t={t} />
               <Axis
                 label="relations.nameable"
                 value={rel.admissibility}

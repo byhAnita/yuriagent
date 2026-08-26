@@ -19,7 +19,7 @@
  *   device should not drag somebody else's font scale with it.
  *
  * `focusId` is likewise absent because section 15 says it is DERIVED - whoever
- * currently holds the highest intimacy. Storing it would let it disagree with
+ * currently holds the highest affection. Storing it would let it disagree with
  * the relations it is computed from.
  */
 
@@ -196,7 +196,7 @@ function writeAll(slots) {
  * Who the run is about, derived at read time.
  *
  * Section 15 keeps `focusId` out of a save because it is DERIVED - whoever
- * holds the highest intimacy - and storing it would let it disagree with the
+ * holds the highest affection - and storing it would let it disagree with the
  * relations it comes from. That argument does not change just because a slot
  * list wants to display it, so it is computed here instead.
  */
@@ -204,10 +204,10 @@ function focusOf(relations) {
   if (!isObject(relations)) return null;
   let best = null;
   for (const [id, rel] of Object.entries(relations)) {
-    const intimacy = rel?.intimacy ?? 0;
-    if (!best || intimacy > best.intimacy) best = { id, intimacy };
+    const affection = rel?.affection ?? 0;
+    if (!best || affection > best.affection) best = { id, affection };
   }
-  return best && best.intimacy > 0 ? best : null;
+  return best && best.affection > 0 ? best : null;
 }
 
 /** The header a slot list needs, without deserialising the whole run. */
@@ -225,7 +225,7 @@ function headerOf(id, raw) {
     phase: raw.run?.phase ?? null,
     name: raw.player?.name ?? '',
     focusId: focus?.id ?? null,
-    focusIntimacy: focus?.intimacy ?? 0,
+    focusAffection: focus?.affection ?? 0,
   };
 }
 

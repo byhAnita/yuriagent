@@ -85,19 +85,64 @@ past the last option. `App.dom.test.jsx` now plays a whole block.
 **`buildTier2`'s `(nothing yet)` placeholder** made the first append a full cache
 miss instead of the cheapest one in the run.
 
+### The hand test that is running against this
+
+Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
+hand-test build, not a release (section 17).
+
+**Play Monday and Wednesday of week 1.** Tuesday and Thursday are the two
+authored event days and events are unwired until phase 5: five people in a room
+with no agenda and no establishing beat. It does not crash; it is simply flat.
+Same for a weekend date and a shared dorm evening.
+
+**Inert until phase 3, so not bugs:** jealousy (nobody hears about anything
+yet) and `strain` in the relationship panel.
+
+Five questions, none of which has a test and none of which anybody but Yuhan can
+answer:
+
+1. Is ~80 words the right size *in play*? So far it is a transcript decision.
+2. Do model-written options beat stances? The failure mode to watch for is four
+   ways of agreeing - the rules forbid it, which is not the same as it not
+   happening.
+3. Is the genre there - 试探/心动/克制 - or is it a well-observed workplace drama?
+4. Hidden occupancy: a search, or a lottery? Walking in is free but costs a tap.
+5. The value bar: too many numbers, now that they are not hidden?
+
 ### PICK UP HERE: phase 3
 
-Deploy is deliberately **not** done - Yuhan chose to hand-test first.
+**Split deliberately in two**, because half of it depends on the hand test and
+half does not. Do the independent half first.
+
+**Independent of the hand test - safe to build while it runs:**
 
 | | |
 |---|---|
-| `systems/relationship.js` | delete `applySceneOutcome` and `strain`; keep `resolveStage`, `resolveBadEnd`, `resolveEnding`, `GOOD_ENDINGS`, the peaks |
-| `systems/rumor.js` | `propagate` writes `heard_about` only - no jealousy. Absent members do not react until seen |
-| dossier panel | beside the existing `RelationsModal` |
-| `Read her` | built in `roundEngine.readHer` and on screen; the dossier half is phase 4 |
+| `systems/relationship.js` | delete `strain` and `applySceneOutcome`. Keep `resolveStage`, `resolveBadEnd`, `resolveEnding`, `GOOD_ENDINGS`, `newRelation`, the peaks. The `intimacy` -> `affection` rename is already done (below) |
+| `systems/rumor.js` | `propagate` writes `heard_about` entries only. **No jealousy** - Part I.8 makes jealousy a scene rather than a number ticking in the background, so an absent member does not react until she is in front of the player |
+| `App.jsx` | call `propagate` at scene exit. It has not been called since `onSceneEnd` was rewritten, which is why jealousy is inert |
+| `systems/jealousy.js` | probably deleted. Check whether anything still reads a band once rumors stop carrying deltas |
+| `RelationsModal` | drop the strain and jealousy rows |
+
+**Waits on the hand test**, because each is a judgement the answers change:
+
+- the value bar's contents and density (question 5)
+- whether `Read her` is rationed by energy, by uses, or at all
+- the dossier panel
 
 Then phase 4 (dossier cut to three categories, gifts stop being knowledge-gated)
 and phase 5 (events, canon injection, endings).
+
+**The rename is DONE, and it was a live bug rather than tidying.** `intimacy`
+is `affection` everywhere, including `startAffection` on the cards,
+`affectionDelta` in `economy.js`, `entryAffection` on the dorm door and
+`focusAffection` in a save. For a while both names existed: `newRelation` wrote
+one and `systems/values.js` wrote the other, so a fresh run had `affection:
+undefined` - the value bar showed 0 while the day screen showed 5, and tier 3
+told the model **`affection NaN`**, which is the number the pacing bands and the
+whole genre correction are read off. 879 tests were green, because every test
+built its relations by hand with the name it expected and only `App` called
+`newRelation`. `roundEngine.test.js` now asserts that join.
 
 **Currently unwired, pending phase 5, and each is a live import that was
 removed from `App.jsx`:** canon injection into tier 3 (the parser and engine

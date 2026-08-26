@@ -276,7 +276,7 @@ export default function Day({
           {cards.map((c) => {
             const rel = relations[c.id];
             const band = jealousyBand(rel.jealousy);
-            const stage = resolveStage(rel.intimacy, rel.admissibility);
+            const stage = resolveStage(rel.affection, rel.admissibility);
             /**
              * The plateau is the one state that demands a specific answer -
              * take her somewhere visible and make an overt move - and it is
@@ -305,7 +305,7 @@ export default function Day({
                   </span>
                 ) : null}
                 <span className="w-6 text-right tabular-nums text-dim">
-                  {Math.round(rel.intimacy)}
+                  {Math.round(rel.affection)}
                 </span>
               </li>
             );

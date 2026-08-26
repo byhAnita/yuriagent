@@ -50,7 +50,7 @@
     "skinship_monster",
     "kang_photo"
   ],
-  "startIntimacy": 5,
+  "startAffection": 5,
   "portraitMode": "mascot",
   "portraits": {
     "neutral": "portraits/hyewon.svg"

@@ -28,6 +28,22 @@ meant two things.
 clock. **Retired outright: `stance`, `chip`, `beat`, `turn`.** If you find one in
 the code, it is v1 and it is on the way out.
 
+**And `intimacy` is now `affection`, everywhere.** Part II still says `intimacy`
+because that is the record of how this was arrived at; the code says `affection`.
+
+That rename is not cosmetic, and it is worth the paragraph. For a while both
+names existed at once: `newRelation` wrote `intimacy` and `systems/values.js`
+wrote `affection`, so a fresh run started with `intimacy: 5` and `affection:
+undefined`. The value bar showed every member at 0 while the day screen showed 5,
+and tier 3 told the model **`affection NaN`** - which is the number the pacing
+bands are read off, and therefore the number the whole genre correction in I.7
+runs on. Both halves were correct and 879 tests were green, because every test
+built its `relations` by hand with the name it expected. Only `App` used
+`newRelation`.
+
+**One number, one name.** `agent/roundEngine.test.js` asserts the join by
+building a relation the way App does and looking for `NaN` in the tail.
+
 ---
 
 # Part I - The v2 engine

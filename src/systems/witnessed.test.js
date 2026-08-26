@@ -13,7 +13,7 @@ const cast = [
 ];
 
 const relations = Object.fromEntries(
-  cast.map((c) => [c.id, { ...newRelation(5), intimacy: 60, stage: 'nameless' }]),
+  cast.map((c) => [c.id, { ...newRelation(5), affection: 60, stage: 'nameless' }]),
 );
 
 /**
@@ -118,8 +118,8 @@ describe('the others in the room take the jealousy', () => {
   });
 
   it('scales with how invested the watcher already is', () => {
-    const shallow = { ...newRelation(5), intimacy: 10, stage: 'colleague' };
-    const deep = { ...newRelation(5), intimacy: 90, stage: 'unspoken' };
+    const shallow = { ...newRelation(5), affection: 10, stage: 'colleague' };
+    const deep = { ...newRelation(5), affection: 90, stage: 'unspoken' };
 
     expect(jealousyGain(WEIGHT_WITNESSED, deep)).toBeGreaterThan(
       jealousyGain(WEIGHT_WITNESSED, shallow),
