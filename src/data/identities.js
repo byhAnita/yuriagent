@@ -22,7 +22,8 @@
  * @typedef {object} Identity
  * @property {string} id
  * @property {boolean} available   - false means the picker shows it, disabled
- * @property {string} promptRole   - block 1, model-facing English, never localized
+ * @property {string} promptRole   - one clause, model-facing English fallback
+ * @property {object} [prompt]     - per-locale paragraph the model actually reads
  * @property {string[]} slots      - role slots this identity has business in
  * @property {string[]} taskPool   - keys into systems/tasks.js TASKS
  * @property {object} startStats   - competence / energy / secrecy / credits
@@ -46,6 +47,28 @@ export const IDENTITIES = {
     id: 'assistant',
     available: true,
     promptRole: 'an artist assistant of X Entertainment',
+    /**
+     * The identity as the MODEL reads it, in the player's language.
+     *
+     * `promptRole` is one clause and it was never enough: a model told only
+     * "an artist assistant" invents the job, so every scene opened with the
+     * same vague hovering. `rv-simulator` gives its identities a paragraph -
+     * what the job is, three typical days, and what it costs - and that
+     * paragraph is most of why its scenes have specific things happening in
+     * them.
+     *
+     * The last clause is the important one for this game. *Any ambiguity could
+     * be read as misconduct* is the `admissibility` axis stated as a fact
+     * about the workplace rather than as a number, and it is the reason
+     * restraint here is professional as well as personal.
+     *
+     * Locale, like the character profiles - the model is instructed in English
+     * and immersed in the player's language (PROPOSALS 27).
+     */
+    prompt: {
+      en: "You are X's new staff member - assistant and road manager. You run the group's music show schedules, coordinate hair and make-up, and look after them backstage. Typical days: bringing milk tea for the whole team on a practice room visit and catching one of them off guard with it; driving somebody back to the dorm late after a schedule, and being there for the version of her that only comes out in a car at 2am; checking on her backstage at a music show and making sure she actually eats. Your advantage is access to who they are with the cameras off. Your disadvantage is that the workplace boundary is explicit, and anything ambiguous could be read as misconduct.",
+      zh: "你是 X 新任的 Staff（助理兼经纪），负责组合的打歌行程、妆发协调，以及在后台照顾她们。典型的一天：去练习室探班，给全组带奶茶，她们有点意外，也有点受宠若惊；深夜行程结束后开车送她回宿舍，接住她只有在凌晨两点的车里才会露出来的那一面；打歌后台看一眼她的状态，盯着她把饭吃完。优势：你能接触到镜头关掉之后的她们。劣势：职场边界写得很清楚，任何暧昧都可能被认定为失职。",
+    },
     slots: ['workroom_a', 'workroom_b', 'solo_site', 'social', 'venue'],
     taskPool: [
       'prep_outfits',

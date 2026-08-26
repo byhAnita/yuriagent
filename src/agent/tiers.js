@@ -70,6 +70,15 @@ export function buildTier1({ cards = [], lineup = {}, identity, playerName = '',
     '',
     `## THE PLAYER`,
     `${who} - ${identity?.promptRole ?? 'an artist assistant'} at the agency.`,
+    /**
+     * The identity paragraph, in the player's language.
+     *
+     * One clause was never enough: a model told only "an artist assistant"
+     * invents the job, and every scene opens with the same vague hovering. The
+     * paragraph gives it three typical days to draw on, and - the part that
+     * matters here - what the job costs.
+     */
+    identity?.prompt?.[lang] ?? identity?.prompt?.en ?? '',
     'Refer to the player as "you" in narration. Members may use her name when they speak.',
     '',
     '## THE MEMBERS',

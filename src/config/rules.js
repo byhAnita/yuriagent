@@ -67,6 +67,27 @@ Rules for the machine lines:
 - Omit any line you have nothing to say for. Omitting a line is always safe.
 - Write NOTHING after the last machine line.`;
 
+/**
+ * The register, lifted almost verbatim from `rv-simulator`.
+ *
+ * The spike proved the language architecture works - the Chinese came back
+ * native on the first try. What it did NOT come back with was genre: correct,
+ * well-observed prose that could have been any workplace drama. `rv-simulator`
+ * gets its genre from two lines at the top of its rules, and they are the
+ * cheapest quality in the whole file.
+ *
+ * The tone ratio is the useful half. "60% sweet" alone produces syrup; the 30%
+ * is what keeps a comeback schedule in the room, and the 10% is what stops a
+ * scene resolving too cleanly. A model given three proportions writes a
+ * different scene from one given an adjective.
+ */
+const REGISTER = `## REGISTER
+
+- Literary and emotional. Sensory detail: sight, sound, touch, smell.
+- Tone: 60% sweet, 30% the real pressure of the job, 10% youthful regret.
+- Specific over general. One true object - a cooling cup, a taped-down cable,
+  a hairpin on the floor - does more than a paragraph about atmosphere.`;
+
 const PROSE = `## THE PROSE
 
 - About ${ROUND_WORDS} words. This is one moment, not a scene.
@@ -177,10 +198,19 @@ const DELTAS = `## DELTA RULES
  * as an idiom, not as a claim about anatomy, so an English rule about who these
  * people are does not touch it.
  *
+ * AND THE ENGLISH RULE ALONE STILL DOES NOT HOLD IT. The spike reproduced the
+ * exact phrase in round two, with "never use male-coded physical description"
+ * sitting in the prompt. So the token is now named outright - the one place
+ * this file breaks section 21's ASCII rule, deliberately, because a rule about
+ * a Chinese idiom that cannot say the idiom has already been measured failing
+ * twice.
+ *
  * The third is the one this whole redesign is for.
  */
 const ZH_RULES = `- Use Simplified characters only, never Traditional.
 - Every character here is a woman. Never use male-coded physical description.
+- Never write 喉结. It is stock romance description for a male lead in Chinese
+  web fiction, and it arrives as an idiom rather than as a claim about a body.
 - Write as a Chinese novelist writes, not as a translator does. Prefer the
   concrete verb to the imported metaphor, and never carry an English simile
   across word for word.`;
@@ -212,6 +242,8 @@ export function rulesBlock(lang = 'en') {
     'between two women working in the Korean pop industry. It is fiction.',
     '',
     FORMAT,
+    '',
+    REGISTER,
     '',
     PROSE,
     '',

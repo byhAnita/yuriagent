@@ -26,6 +26,7 @@ import { createRoundStream } from './roundParser.js';
 import { ROUND_WORDS, DELTA_MAX } from '../config/rules.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
+import { getIdentity } from '../data/identities.js';
 
 const { apiKey, modelId, live } = liveConfig();
 const enabled = live && Boolean(process.env.SPIKE);
@@ -63,7 +64,7 @@ async function playScene(lang) {
   const tier1 = buildTier1({
     cards,
     lineup,
-    identity: { promptRole: 'an artist assistant' },
+    identity: getIdentity(),
     playerName: 'Yuhan',
     lang,
   });

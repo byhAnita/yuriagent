@@ -5,7 +5,94 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 
 ---
 
-## Current: M0-M5 complete, plus PROPOSALS 20 and 22-26. Five sessions played.
+## Current: v2 engine, phase 0 complete. On `feat/v2-spike`.
+
+**The v1 game is finished, deployed and playable** at
+https://byhAnita.github.io/yuriagent/ - `dev@8c7a051`, 1297 tests green. It is
+also being replaced, and this section is about the replacement.
+
+### Read these three, in this order
+
+1. **`CLAUDE.md` Part 0 and Part I** - the v2 design. Part II is v1, with the
+   superseded sections banner-marked.
+2. **`docs/PROPOSALS.md` §27** - the decision record: 21 decisions from a
+   `grill-with-docs` interview, why each was taken, what was measured.
+3. **`~/.claude/plans/sequential-splashing-falcon.md`** - the build order,
+   phases 0 to 5, with what is deleted and what survives.
+
+### Why v2 exists
+
+A `zh` hand test returned two verdicts: the Chinese read machine-translated, and
+the stance chips were rigid and wrong about the genre.
+
+> As a Lesbian myself, I got to remind you Yuri relationship contains lots of
+> 试探、心动、克制 texture, not direct flirting in a work place at a very early
+> stage.
+
+Both came from one decision: **v1 made the code the author and the model a
+renderer.** The reference is Yuhan's own `rv-simulator`, read in full for the
+design session - `mainAgent.js`, `memoryPool.js`, `probabilityEngine.js`,
+`specialEvents.js` and its `CLAUDE.md`.
+
+### PHASE 0 IS DONE AND IT PASSED
+
+`src/agent/spike.test.js` - five rounds in a practice room, live, both languages.
+Run it: `LIVE_PROVIDER=1 SPIKE=1 npx vitest run spike`
+
+| question | answer |
+|---|---|
+| does the Chinese read native? | **yes, on the first try** |
+| does the model hold the two axes apart unaided? | **yes** - affection 8 -> 12, admissibility 0 -> 0 in an empty room, no veto in play |
+| do the deltas behave? | **yes** - 0 on round one, 0 the common answer, never outside the bound |
+| is ~80 words right? | it writes ~2x that in `zh` and **Yuhan read it and kept it** |
+
+Unedited, from the run: 「她话没说完，把后半句留在空气里。」and 「她耳廓泛着一点不太
+明显的红——也许是练久了，也许不是。」
+
+Then Yuhan asked for `rv-simulator`'s register lines, and they landed
+immediately - smell and sound arrived in the next run, and round two produced
+「要路过，得先经过七扇门。」which is the 试探 texture exactly.
+
+**Built in phase 0:** `config/rules.js` (the English directive half of tier 1),
+`agent/tiers.js`, `agent/roundParser.js` + tests, `irene.json` `profileLocal.zh`
+lifted from `rv-simulator`'s own X group file, `identities.js` `prompt.{en,zh}`,
+and a `round` call preset.
+
+### PICK UP HERE: phase 1, then phase 2
+
+**Phase 1 is finished** - `CLAUDE.md` Part 0 and Part I are written. Nothing to
+do there unless a decision changes.
+
+**Phase 2 is the loop**, and it is the next work. Branch `feat/v2-engine` off
+`dev`, and end the phase with **one playable day**:
+
+| | |
+|---|---|
+| `agent/roundEngine.js` | replaces `sceneEngine.js`. A scene is 4-6 rounds; Leave forfeits the rest |
+| `agent/pool.js` | replaces `memory.js` + `summarizer.js`. Stepped window: 3 full in locale, collapsed in place to English summaries |
+| options / free text / Give | replaces `ChipBar.jsx` |
+| `ui/map/LocationGrid.jsx` | **stop rendering occupancy** - `occupancy` at lines 18/45/47 |
+| `tools/mockClient.js` | rewrite for the new wire format; offline stays supported |
+| the other four cards | Yeri lifts from `rv-simulator/public/groups/red_velvet/zh.json`; Nana, Jisoo, Hyewon need research. **Jisoo and Hyewon are already in `x/zh.json`** - only Nana and Yeri are missing |
+| smoke harness | ~40 rounds offline, replacing `playthrough.test.js` |
+
+Then deploy to Pages and hand-test a day on the phone.
+
+### Two things a fresh session must not lose
+
+**The `zh` profiles already exist and are already this fiction.**
+`rv-simulator/public/groups/x/zh.json` holds irene, jisoo and hyewon written for
+a cross-group "X" - the same invention §1b made independently. `curl` it; do not
+re-author what is already written.
+
+**One `zh` round in ten returns unparseable options, and it is punctuation.** The
+parser handles it now (`| ｜ . ． 、 :`), but if it recurs in a new call site,
+that is the cause - not the model failing to follow structure.
+
+
+---
+
+## Previously (v1): M0-M5 complete, plus PROPOSALS 20 and 22-26. Five sessions played.
 
 **1278 tests, lint and build clean.** Everything is on `dev`; `main` is well
 behind and should stay there until a full campaign has been played by hand.

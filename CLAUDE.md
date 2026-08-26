@@ -1,9 +1,362 @@
 # YuriAgent - Project Blueprint
 
-> Status: **design locked, pre-implementation**. No game code written yet.
-> Read this file before touching anything. Update this file *before* changing code, never after.
+> **Status: v2 engine, phase 0 complete.** The spike is built and validated; the
+> loop is not. Read Part 0 and Part I first - they are the current design. Part
+> II is the v1 engine, most of which still stands, with the superseded sections
+> marked.
+>
+> `docs/PROPOSALS.md` §27 is the decision record behind Part I: twenty-one
+> decisions, why each was taken, and what was measured. Read it before arguing
+> with anything here.
 
 ---
+
+# Part 0 - Vocabulary
+
+Settled first, because five words were about to collide and one of them already
+meant two things.
+
+| term | means | replaced |
+|---|---|---|
+| **Day** | one in-game day | - |
+| **Block** | morning / afternoon / evening | - |
+| **Scene** | one location visit, 4-6 rounds long | - |
+| **Round** | one model call: ~80 words plus four options | `turn`, `beat` |
+| **Tier** | a prompt layer - 1 static, 2 ledger, 3 tail | `block 1-5` |
+
+`Tier` is lifted from `rv-simulator`'s own docs, which frees `block` for the
+clock. **Retired outright: `stance`, `chip`, `beat`, `turn`.** If you find one in
+the code, it is v1 and it is on the way out.
+
+---
+
+# Part I - The v2 engine
+
+## I.1 The one sentence
+
+**The model decides what the scene MEANS. The code decides what the world IS.**
+
+Everything below is a consequence of that. v1 had it backwards - code picked a
+stance, priced the outcome, and asked the model to write a label for it - and
+the result was a stat machine with prose on top, which is the non-goal §1 rules
+out explicitly.
+
+| | who decides |
+|---|---|
+| where each member is, each block | code |
+| which day an event falls on, what the phase is | code |
+| `exposure` of a location x time | code |
+| who is in the room when the player walks in | code, and **hidden from the player** |
+| the ~80-word round: the room and her lines | model |
+| the four options | model, written from the current moment |
+| affection and player-stat deltas | model, bounded |
+| `admissibility` delta | model proposes, code vetoes a rise at low exposure |
+| who hears about it afterwards | code |
+| jealousy | model |
+
+## I.2 Pillar 1, rewritten
+
+v1's first pillar was *the player reads hidden emotional state and bets on it*,
+and `Read her` was rationed so that reading her cost something. **That pillar is
+what produced the stance bar**: it hid the numbers and then handed the player a
+labelled lever instead, which is the worst of both.
+
+So: **the numbers are on screen.** Affection, admissibility, selfId, mood,
+secrecy, the round counter, the location. `rv-simulator` does this and has been
+played for months; the intensity comes from the writing, not from concealment.
+
+`Read her` survives with a different job - one extra call, still rationed,
+returning her **unspoken thought** rather than a number. With the values visible,
+that is the only hidden state left, and it is where the tension moves.
+
+## I.3 The round
+
+```
+[round: the room and her line, ~80 words, in the player's language]
+        |
+[four options - these ARE the player's line, shown verbatim as theirs]
+        |
+[next round: her reaction]
+```
+
+**The model never writes the player's dialogue.** `rv-simulator` does, because
+it is a story generator; this is a game, and the chosen option *is* the player's
+line. That keeps §1's third pillar for free.
+
+A scene is **4-6 rounds**, then the block ends. A Leave control forfeits the
+rest. The block stays the unit of opportunity cost, so rounds inside it are free.
+
+**Length: ~80 words is the instruction, and the model writes about twice that in
+`zh` (240-330 characters).** Measured, read, and kept - at that length a round is
+~30 seconds of reading against a ~4 second wait, which is the right ratio.
+`ROUND_WORDS` in `config/rules.js` is the one number to move.
+
+### One call per round
+
+The options come out of the same call as the prose. That is the whole saving:
+
+| per scene | v1 (8 turns) | v2 (5 rounds) |
+|---|---|---|
+| prose calls | 8 | **5** |
+| chip calls | 8 | **0** |
+| interjections | up to 6 | 0 |
+| summarizer | 1 | 0 (folded in) |
+| **total** | **~18-25** | **~5** |
+
+**Never split the machine fields into a second call.** That architecture is
+exactly what v1's `writeChips` was: ~500 extra calls a campaign, and §6's warning
+against routing it elsewhere - *"that abandons the shared prefix and turns a
+20-token miss into 2200"* - still applies. There is a quality argument too: the
+model that just wrote her reaction is the one that should say how far she moved.
+
+## I.4 The wire format
+
+Prose first, a sentinel, then pipe-delimited machine lines. **Not JSON.**
+
+```
+<~80 words, in the player's language, the room and her line>
+%%%
+A|<option>
+B|<option>
+C|<option>
+D|<option>
+emo|blush
+irene+2
+sum|<one English sentence, last round of the scene only>
+canon|title_track|<what the room settled>
+```
+
+Three reasons, and the first is v1's own measured note: *"Not JSON - more tokens,
+and small models break it more often."*
+
+1. **JSON scaffolding is proportionally far worse here.** `rv-simulator`'s story
+   is 350-450 words, so braces and key names vanish into it. At 80 words it is a
+   fifth of the output.
+2. **Prose streams from the first token.** ~1.2s to first word against ~4s for a
+   complete round, measured live. A JSON object cannot be shown until it closes.
+3. **The failure mode is a line, not the round.** A missing `sum|` costs a
+   summary; a malformed option costs one option and backfills. A broken JSON
+   object costs everything.
+
+Machine tokens - field names, member ids, emotion names - stay **ASCII English in
+every locale**. That rule survives from v1 and is free.
+
+### The parser is liberal inward and conservative outward
+
+`agent/roundParser.js`. **Measured: about one `zh` round in ten came back with
+its options unparseable, and the cause was punctuation rather than structure.** A
+model writing Chinese reaches for the full-width pipe, or writes the list the way
+one is *displayed* - `A.`, `A、` - because that is what an option list looks like
+in Chinese prose. The line is otherwise perfect.
+
+So the machine half accepts `| ｜ . ． 、 :` as separators, and the prose half
+stays strict about what it *deletes*: `.` and `:` appear in narration constantly,
+and eating a line of her dialogue to catch a leaked field is a far worse trade.
+
+The streaming reader emits **raw** and cleans at the end, because a stream has
+half a line rather than a line. Holding every line back until its newline arrives
+would throw away most of the latency this format exists to buy.
+
+## I.5 Three tiers
+
+```
+TIER 1  static   rules, profiles, identity      100% cache hit after round 1
+TIER 2  ledger   append-only history            hit except on a collapse
+TIER 3  tail     values, place, time, who       always a miss, kept small
+```
+
+**The rule that makes it work: nothing volatile may appear above tier 3.**
+Affection, mood, who is in the room, what time it is - all of it lives in the
+tail and nowhere else. Put one live number in tier 1 or 2 and every round after
+it is a full miss.
+
+Tier 3 also carries **where and when**: `Location: X Practice Room`, `Week 2,
+Tuesday, evening`. v1 carried this and it is what let one practice room open
+three different ways under three different activities, for about forty tokens in
+a block being rebuilt anyway.
+
+### The stepped window
+
+From `rv-simulator/src/agent/memoryPool.js`. Three full entries in the player's
+language; when a fourth arrives all three collapse **in place** to their
+one-sentence English summaries. Never reordered, never deleted mid-ledger, so the
+token prefix stays byte-identical between rounds.
+
+**One summary per scene, not per round.** The client knows which round is last,
+so only that round emits `sum|`.
+
+## I.6 Language: instructed in English, immersed in the locale
+
+This is the single thing v1 got backwards, and fixing it fixed the prose on the
+first try.
+
+| | language |
+|---|---|
+| rules, wire format, pacing, the axes | **English** - `config/rules.js`, never localized |
+| member profiles, player identity | **locale** - `profileLocal[lang]`, `identity.prompt[lang]` |
+| the round's prose and its options | **locale** |
+| the one-sentence summary | **English** |
+| recent full text in the ledger | **locale** |
+
+**§19 rule 2 - "memory is always English" - is repealed.** The only thing it
+bought was mid-run language switching, and that is now explicitly unsupported: a
+`zh` player plays the whole campaign in `zh`.
+
+Three `zh` rules a generic language directive cannot reach, all found live:
+Simplified only; every character is a woman; and **never write 喉结**. The last is
+the one place this codebase deliberately breaks §21's ASCII rule - the phrase is
+stock romance description for a male lead in Chinese web fiction, so it arrives
+as an idiom rather than as a claim about a body, and the English rule *"never use
+male-coded physical description"* has now been measured failing to hold it twice.
+
+## I.7 Register and pacing - the actual fix for the genre
+
+v1 had no pacing brief at all, which is why `flirt` was reachable in week one, in
+an office. The correction came from the person this game is for:
+
+> Yuri relationship contains lots of 试探、心动、克制 texture, not direct flirting
+> in a work place at a very early stage... Emotions develop in hidden care and
+> small details during the work.
+
+Two things carry it, both in `config/rules.js` and both cheap.
+
+**The register**, adapted from `rv-simulator`: literary and emotional; sensory
+detail across sight, sound, touch and smell; and a tone ratio of **60% sweet, 30%
+the real pressure of the job, 10% youthful regret**. The ratio is the useful
+half - "sweet" alone produces syrup, the 30% keeps a comeback schedule in the
+room, and the 10% stops a scene resolving too cleanly.
+
+**The pacing bands**, stated against affection rather than round number, because
+this game runs ~650 rounds to `rv-simulator`'s ~60:
+
+| affection | what may happen |
+|---|---|
+| 0-15 | strangers; professional politeness; **no romantic moves at all** |
+| 16-30 | warmth shows only as noticing - how she takes her coffee |
+| 31-50 | friends, and both would say so; proximity that stays deniable |
+| 51-70 | **the heart of the game** - close, unnamed, and restrained |
+| 71-85 | both know; neither says it |
+| 86+ | named, at least to each other |
+
+And three rules at every band: **probe, do not declare**; the flutter is
+**physical and unstated**; **restraint is affection, not its absence.**
+
+**The identity paragraph does more work than it looks.** `rv-simulator` gives its
+identities a paragraph - the job, three typical days, and what it costs - and the
+last clause of ours is load-bearing: *any ambiguity could be read as misconduct*
+is the `admissibility` axis stated as a fact about the workplace rather than as a
+number.
+
+## I.8 The two numbers
+
+Per romanceable member:
+
+| | range | means |
+|---|---|---|
+| `affection` | 0-100 | how emotionally close she is |
+| `admissibility` | 0-100 | how far either of them could let this **be seen** |
+
+**`admissibility` is restraint as a number**, and it is the whole reason this is
+not a generic romance. It rises only when something happened where others could
+see it and it survived. Deeply close and completely unable to name it is a
+stable, interesting place to be - not a failure.
+
+**`strain` is gone.** It locked stances (retired), shortened scenes (retired),
+gated repair events (never built), and decided bad ends. With the model deciding
+affection, a bad scene simply moves affection down - *that is the damage* - and a
+second damage axis only code can read is exactly the hidden machinery this
+redesign removes. `mood` replaces it on the player's side, where it belongs.
+
+Player stats: `selfId`, `energy`, `secrecy`, `credits`, `mood`. `competence` is
+dropped; `selfId` is lifted from `rv-simulator` and is the one stat that is
+actually about being a queer woman in this industry.
+
+### The delta bound does not port
+
+`rv-simulator` allows ±1-10 a round over ~60 rounds. This game is ~650 rounds - a
+favoured member appears in maybe 40 scenes, so ~200 rounds, and moving her 5 → 85
+across those needs an average of **+0.4 a round**. ±5 would be ten times too hot.
+
+**±2 a round, 0 is the normal answer, first round of a scene is always 0**, and
+code clamps the scene total to ±6. Clamping a total is the same kind of rule as
+clamping to 0-100: it bounds, it does not choose.
+
+**Only present members move.** A rumor lands in an absent member's dossier and
+does nothing until she is in front of the player. Jealousy stops being a number
+ticking in the background and becomes a scene - and the day screen's reading for
+anyone not recently seen is *correctly* stale. You do not know how she took it
+until you see her.
+
+## I.9 The one code-side value rule
+
+`admissibility` may not **rise** when the scene's exposure was low. The model
+still picks the number; the world gets to say *nobody saw that*.
+
+**The spike says this is a safety net rather than the mechanism.** Five rounds in
+an empty practice room at night, with no veto in play: affection 8 → 12,
+admissibility 0 → 0, unprompted. The model holds the axes apart on its own. Keep
+the veto anyway - it costs one comparison, and the axis it protects is the one
+this project has already made unreachable three separate times.
+
+## I.10 The knowledge economy, and what is left of it
+
+- **Dossier: three categories**, one per real question - `facts` (what the player
+  knows about her), `told_her` (what she knows about the player), `heard_about`
+  (what she has heard and not yet reacted to). `shared_moments` duplicated the
+  ledger; `open_threads` existed only to feed `strain`.
+- **Knowledge reaches the player as an option.** The model has her `facts` in
+  tier 3, so when it is apt one of the four options simply *is* the gesture -
+  contextual, unspammable, impossible to turn into a checklist. The opener sheet
+  is retired.
+- **Objects keep a Give control**, because choosing among things you are carrying
+  and paying for one needs a list. Giving is a round action; the next round is her
+  reaction.
+- **Gifts stop being knowledge-gated.** `requires` matched substrings against
+  dossier text and broke twice; it existed only because code had to decide whether
+  the player had earned a gift. The model reads her `facts` and reacts accordingly.
+- **Free text survives** as a fifth control. The played evidence demands it: at
+  the concept meeting the player had to type every agenda topic in by hand.
+
+## I.11 An empty room is what happens when you guess wrong
+
+Occupancy is **hidden**. In v1 the player saw who was where and *chose* an empty
+room to work in; now they guess, and solo work is the consolation rather than a
+strategy.
+
+That finally pays off something §10 has wanted since M1 and never delivered:
+*"a fact that tells you where she will be is more interesting than one that tells
+you what to purchase."* It never delivered because the map already told you.
+**Snooping's best prize stops being an object and becomes access.**
+
+## I.12 What is not measurable any more
+
+Once the model sets deltas, `balanceSim` and the 189-block campaign harness
+cannot report an ending distribution. **That is a decision, not an accident.**
+`rv-simulator` has no such apparatus and does not miss it, and both v1 harnesses
+missed the largest bug the chip system ever had - so balance becomes permanently
+a play question.
+
+What replaces them is a thin smoke harness: ~40 rounds against the offline
+writer, proving the loop, the calendar and the memory pool do not crash or drift.
+
+---
+
+# Part II - The v1 engine
+
+> **Read the banner on each section.** Much of what follows still stands - the
+> setting, the calendar, the map, exposure, locations, dating, art direction,
+> theming, git workflow and the content guardrails are unchanged and still
+> authoritative.
+>
+> **Superseded by Part I:** §5 (relationship model - `strain` and the delta
+> engine), §6 (interaction loop - stances and chips **in their entirety**), §7
+> (memory - five blocks become three tiers), §8 (prompt assembly), §9 (the beat
+> contract), §11 (gift gating), §19 rule 2 (memory in English).
+>
+> They are kept rather than deleted because the *arguments* in them are the
+> record of how this design was arrived at, and several are still load-bearing
+> for the parts that survive. Where Part I and Part II disagree, **Part I wins.**
+
 
 ## 1. Goal & Pillars
 
@@ -179,6 +532,8 @@ All LLM traffic goes through `tools/llmTool.js`. Nothing else calls a model endp
 ---
 
 ## 5. Relationship Model (core system)
+
+> **SUPERSEDED IN PART by Part I.8 - `strain` is gone and the model sets the deltas. The two axes, the stage map, the plateau and the endings all still stand.**
 
 Per romanceable character:
 
@@ -496,6 +851,8 @@ The ordering is the design working: skill beats spreading, spreading beats chanc
 ---
 
 ## 6. Interaction Loop
+
+> **SUPERSEDED ENTIRELY by Part I.3 and I.7. Stances, chips and beats no longer exist. Kept for the arguments, which are the record of how the v2 design was arrived at.**
 
 ### Scene meters (volatile, reset every scene)
 
@@ -1098,6 +1455,8 @@ Inner thought is **not** streamed on every line - that hands the player the answ
 
 ## 7. Memory Architecture
 
+> **SUPERSEDED by Part I.5 - five blocks become three tiers, and the dossier is cut to three categories. Canon (below) survives unchanged.**
+
 Five prompt blocks; four of them frozen while a scene is open.
 
 | Block | Structure | Lifetime | Size |
@@ -1269,6 +1628,8 @@ Ledger compaction (kept from rv-simulator): when full entries exceed `LEDGER_FUL
 
 ## 8. Prompt Assembly & Cache Rules
 
+> **SUPERSEDED by Part I.5. The cache argument is unchanged and still correct; only the block count and the language split differ.**
+
 ```
 [ block 1  system       ]  byte-stable for the whole run
 [ block 2  ledger       ]  append-only; gains an entry at every scene boundary
@@ -1380,6 +1741,8 @@ Result: turn 1 of a scene is a cache miss; every subsequent turn is a near-total
 ---
 
 ## 9. LLM Output Contract
+
+> **SUPERSEDED by Part I.4. The tolerant-parser discipline survives; the beat contract does not.**
 
 Metadata on the **first line**, machine-readable, then prose. Metadata first means the portrait reacts before the text arrives.
 
@@ -2419,6 +2782,8 @@ room can see where it points, and moving it is witnessed.
 
 ## 11. Gift & Knowledge Economy
 
+> **SUPERSEDED IN PART by Part I.10 - gifts are no longer knowledge-gated and the opener sheet is retired. The economy itself survives.**
+
 The loop that ties memory to mechanics:
 
 ```
@@ -3082,6 +3447,8 @@ M1 before M2 is deliberate: the relationship model is the product, and it must b
 ---
 
 ## 19. Multilingual Design
+
+> **SUPERSEDED IN PART by Part I.6 - rule 2 (memory always English) is REPEALED. Rules 1 and 3 stand.**
 
 UI strings are pre-written in `i18n/`. Generated prose is produced by the model. The two are kept strictly apart.
 
