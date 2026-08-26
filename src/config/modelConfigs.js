@@ -52,12 +52,20 @@ export const CALL_PRESETS = {
    * written. A round that lands whole after 2.5s feels three times slower than
    * the same round whose first word arrives in 400ms.
    *
-   * 500 rather than 320 because truncation is the one failure that cannot be
-   * recovered from: a round cut off mid-sentence loses its options AND its
-   * deltas, and in `zh` the same eighty words cost noticeably more tokens than
-   * in English. Cheaper to over-budget a ceiling almost never reached.
+   * Truncation is also the one failure that cannot be recovered from: a round
+   * cut off loses its options AND its deltas, and in `zh` the same eighty words
+   * cost noticeably more tokens than in English.
+   *
+   * 800, not 500, and the extra 300 is a measured lesson rather than padding.
+   *
+   * A `zh` round writes 240-330 characters of prose (Part I.3 - measured, read
+   * and kept), and four options in Chinese are another hundred on top. At 500
+   * the ceiling was being reached: one live round stopped one line short of
+   * `emo|`. The ceiling is almost never the binding cost here - a round that
+   * ends cleanly stops when it stops - so over-budgeting it is close to free and
+   * running out is expensive.
    */
-  round: { temperature: 0.9, maxTokens: 500, stream: true },
+  round: { temperature: 0.9, maxTokens: 800, stream: true },
   turn: { temperature: 0.9, maxTokens: 320, stream: true },
   thought: { temperature: 0.8, maxTokens: 80, stream: false },
   summarize: { temperature: 0.2, maxTokens: 400, stream: false },

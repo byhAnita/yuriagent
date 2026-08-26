@@ -23,7 +23,7 @@
  * native reader called the result machine translation.
  */
 
-import { rulesBlock } from '../config/rules.js';
+import { rulesBlock, SENTINEL } from '../config/rules.js';
 
 /**
  * Her card as the model reads it, in the player's language.
@@ -226,7 +226,25 @@ export function buildTier3({
    */
   if (note) lines.push('', note);
 
-  lines.push('', 'Write the next round now. Prose first.');
+  /**
+   * THE FORMAT, SAID AGAIN, AT THE TAIL.
+   *
+   * It is already in tier 1 - and tier 1 is roughly two thousand tokens above
+   * the generation, which is exactly the distance section 8 measured flattening
+   * two adjacent cards onto each other. Measured here on a live `zh` scene: one
+   * round in four came back as four paragraphs of very good prose and NO machine
+   * block at all, and the round after it wrote the options and stopped before
+   * `emo|`. The model was not disobeying the contract; it had stopped being able
+   * to see it.
+   *
+   * Twelve tokens, in a block that is rebuilt every round anyway, so it is free
+   * in cache terms - the same trade that put `speechStyle` in v1's block 4.
+   */
+  lines.push(
+    '',
+    `Write the next round now: the prose, then a line of exactly ${SENTINEL}, then the machine lines.`,
+    'The four options are not optional. Never stop before them.',
+  );
 
   return lines.join('\n');
 }

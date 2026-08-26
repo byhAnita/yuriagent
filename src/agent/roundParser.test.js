@@ -170,3 +170,75 @@ describe('streaming', () => {
     expect(reader.result().prose).toBe('She says nothing.');
   });
 });
+
+/**
+ * The missing percent sign. Found live, in `zh`, at about one round in six.
+ *
+ * `%%` instead of `%%%`, on a line of its own, with a perfect machine half
+ * underneath - and it used to cost the whole round in the worst possible way.
+ * With no sentinel found the response is all prose, and `cleanProse` then
+ * deletes exactly the lines that should have been parsed: the player got a good
+ * paragraph, no options, no emotion, no movement, and no way to tell why.
+ *
+ * Ruled out as a client bug first. Teeing the raw SSE bytes showed `stream()`
+ * reassembling them byte-perfect, so the model really did write two.
+ */
+describe('a sentinel the model got slightly wrong', () => {
+  const machine = ['A|first', 'B|second', 'C|third', 'D|fourth', 'sum|It happened.', 'irene+1', 'emo|shy'].join('\n');
+
+  it.each(['%%', '%%%%', '％％％', ' %% '])('accepts %j on a line of its own', (mark) => {
+    const round = parseRound(`She looks up.\n${mark}\n${machine}`);
+    expect(round.prose).toBe('She looks up.');
+    expect(round.options).toEqual(['first', 'second', 'third', 'fourth']);
+    expect(round.emotion).toBe('shy');
+    expect(round.deltas).toEqual({ irene: 1 });
+    expect(round.summary).toBe('It happened.');
+  });
+
+  /** The one-in-ten case: no sentinel at all. The option block is the boundary. */
+  it('falls back to the option block when there is no sentinel', () => {
+    const round = parseRound(`She looks up.\n\n${machine}`);
+    expect(round.prose).toBe('She looks up.');
+    expect(round.options).toEqual(['first', 'second', 'third', 'fourth']);
+    expect(round.emotion).toBe('shy');
+  });
+
+  /** ...and a percent sign inside a sentence is a percent sign. */
+  it('does not cut prose on a percent that is part of a line', () => {
+    const round = parseRound(`She says the mix is 50% there.\n%%%\n${machine}`);
+    expect(round.prose).toBe('She says the mix is 50% there.');
+    expect(round.options).toHaveLength(4);
+  });
+
+  it('leaves a round with no machine half alone', () => {
+    const round = parseRound('She does not answer straight away.');
+    expect(round.prose).toBe('She does not answer straight away.');
+    expect(round.options).toEqual([]);
+  });
+
+  /**
+   * The stream has to close on it too. Otherwise the player watches four
+   * options and an emo line scroll onto the screen and then vanish, one round
+   * in six - which is worse than the bug it replaced, because it is visible.
+   */
+  it('closes the stream on a degraded sentinel', () => {
+    const reader = createRoundStream();
+    let shown = '';
+    for (const chunk of ['She looks ', 'up.\n%', '%\nA|first\nB|second\n', 'emo|shy']) {
+      shown += reader.push(chunk);
+    }
+    expect(shown).not.toContain('A|first');
+    expect(shown).not.toContain('%');
+    expect(reader.result().options).toEqual(['first', 'second']);
+  });
+
+  it('still closes on the exact sentinel split across chunks', () => {
+    const reader = createRoundStream();
+    let shown = '';
+    for (const chunk of ['She looks up.\n%', '%', '%\nA|first\n', 'emo|shy']) {
+      shown += reader.push(chunk);
+    }
+    expect(shown.trim()).toBe('She looks up.');
+    expect(reader.result().emotion).toBe('shy');
+  });
+});

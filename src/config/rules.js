@@ -43,6 +43,16 @@ const LANG_NAMES = {
  * the whole round where a broken line costs one line. Prose comes FIRST so it
  * can stream to the screen from the first token - the player is reading while
  * the machine lines are still being written.
+ *
+ * THE FIELD ORDER IS AN ORDER OF IMPORTANCE, because a response that stops
+ * early stops from the bottom. Measured live: a `zh` round wrote its four
+ * options and then stopped, one line short of `emo|`.
+ *
+ * So: the options first, because a round with none of them is a dead screen.
+ * Then the summary, which is the scene's only permanent memory and is written
+ * exactly once. Then the deltas, because a scene that moved nothing is a
+ * disappointment rather than a defect. Then the emotion, which costs a portrait
+ * expression and nothing else.
  */
 export const SENTINEL = '%%%';
 
@@ -56,9 +66,9 @@ A|<option>
 B|<option>
 C|<option>
 D|<option>
-emo|<emotion>
-<memberId><+ or -><number>
 sum|<one English sentence>
+<memberId><+ or -><number>
+emo|<emotion>
 
 Rules for the machine lines:
 - Every line is one field. Never wrap them in JSON, markdown, or code fences.

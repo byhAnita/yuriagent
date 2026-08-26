@@ -63,6 +63,36 @@ const DELTA_LINE = /^([a-z][a-z0-9_]*)\s*([+-])\s*(\d+)$/i;
 const STRICT_OPTION = /^([A-D])\s*[|｜]\s*(.+)$/;
 const STRICT_FIELD = /^([a-z_]+)\s*[|｜]\s*(.*)$/i;
 
+/**
+ * The sentinel, as written rather than as specified.
+ *
+ * Measured live, in `zh`: about one round in six comes back with `%%`. Two
+ * percent signs instead of three, on a line of its own, with a perfect machine
+ * half underneath it.
+ *
+ * That single missing character used to cost the ENTIRE round, and in the worst
+ * possible way: with no sentinel found, `splitRound` calls the whole response
+ * prose, and `cleanProse` then DELETES exactly the lines it should have parsed.
+ * The player got a good paragraph, no options, no emotion, and no movement -
+ * and nothing on screen or in the log said why. Ruled out as a client bug first
+ * by teeing the raw SSE bytes: `stream()` reassembles them byte-perfect, so the
+ * model really did write two.
+ *
+ * Same discipline as the separator set: liberal in what the machine half
+ * accepts. A line of nothing but percent signs is not something prose does.
+ */
+const SENTINEL_LINE = /^\s*[%％]{2,}\s*$/;
+
+/**
+ * ...and the anchor for when there is no sentinel at all.
+ *
+ * A line that is a single capital A-D, a pipe, and some text is not a sentence
+ * anybody writes. So if the model forgot the sentinel entirely - the documented
+ * one-in-ten - the option block still says where the prose ended, and the round
+ * degrades to "lost a separator" instead of "lost everything after it".
+ */
+const OPTION_ANCHOR = /^\s*[A-D]\s*[|｜]\s*\S/;
+
 /** Labels have to survive `zh` at fontScale 1.25 on a 390px screen. */
 const OPTION_MAX = 120;
 
@@ -76,12 +106,31 @@ const OPTION_MAX = 120;
  */
 export function splitRound(raw) {
   const text = String(raw ?? '');
+
+  // The contract, met exactly. The common case, and the cheapest.
   const at = text.indexOf(SENTINEL);
-  if (at === -1) return { prose: cleanProse(text), machine: '' };
-  return {
-    prose: cleanProse(text.slice(0, at)),
-    machine: text.slice(at + SENTINEL.length),
-  };
+  if (at !== -1) {
+    return { prose: cleanProse(text.slice(0, at)), machine: text.slice(at + SENTINEL.length) };
+  }
+
+  /**
+   * Two fallbacks, in order of how sure they are. A degraded sentinel line is
+   * unambiguous - nothing else in a round is a line of percent signs - so it is
+   * consumed. An option block is a boundary rather than a separator, so the line
+   * that anchors it belongs to the MACHINE half and must not be eaten.
+   */
+  const lines = text.split('\n');
+  let cut = lines.findIndex((line) => SENTINEL_LINE.test(line));
+  if (cut !== -1) {
+    return { prose: cleanProse(lines.slice(0, cut).join('\n')), machine: lines.slice(cut + 1).join('\n') };
+  }
+
+  cut = lines.findIndex((line) => OPTION_ANCHOR.test(line));
+  if (cut !== -1) {
+    return { prose: cleanProse(lines.slice(0, cut).join('\n')), machine: lines.slice(cut).join('\n') };
+  }
+
+  return { prose: cleanProse(text), machine: '' };
 }
 
 /**
@@ -173,6 +222,26 @@ export function parseRound(raw) {
   return { prose, ...parseMachine(machine) };
 }
 
+/** A line that begins with two or more percent signs. Never prose. */
+const STREAM_CLOSE = /\n[ \t]*[%％]{2,}/;
+
+/** Longest close marker a chunk boundary could split: `\n` plus two signs. */
+const HOLD = 3;
+
+/**
+ * Where the prose stops, in a partial buffer.
+ *
+ * Whichever comes first: the sentinel as specified, or a line that starts with
+ * two percent signs. `-1` when neither is in yet.
+ */
+function earliestClose(buffer) {
+  const exact = buffer.indexOf(SENTINEL);
+  const loose = buffer.search(STREAM_CLOSE);
+  if (exact === -1) return loose;
+  if (loose === -1) return exact;
+  return Math.min(exact, loose);
+}
+
 /**
  * A streaming reader, for showing prose as it arrives.
  *
@@ -208,7 +277,15 @@ export function createRoundStream() {
       buffer += String(chunk ?? '');
       if (closed) return '';
 
-      const at = buffer.indexOf(SENTINEL);
+      /**
+       * The degraded sentinel closes the stream too, and it has to.
+       *
+       * `splitRound` already salvages a `%%` round, but that runs at the END -
+       * so without this the player watches four option lines and an `emo|`
+       * scroll onto the screen and then vanish, roughly one round in six. A line
+       * that begins with two percent signs is not prose.
+       */
+      const at = earliestClose(buffer);
       if (at !== -1) {
         closed = true;
         const out = buffer.slice(emitted, at);
@@ -217,11 +294,11 @@ export function createRoundStream() {
       }
 
       /**
-       * Hold back a sentinel's worth of tail, because a chunk boundary can land
-       * inside `%%%` and half a sentinel on screen is the one artefact the
+       * Hold back a close marker's worth of tail, because a chunk boundary can
+       * land inside `%%%` and half a sentinel on screen is the one artefact the
        * player would certainly notice.
        */
-      const safe = buffer.length - (SENTINEL.length - 1);
+      const safe = buffer.length - HOLD;
       if (safe <= emitted) return '';
       const out = buffer.slice(emitted, safe);
       emitted = safe;
