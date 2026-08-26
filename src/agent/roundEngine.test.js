@@ -7,6 +7,7 @@ import { RISK_EXPOSURE_THRESHOLD } from '../config/constants.js';
 import { getCast } from '../data/cast.js';
 import { getIdentity } from '../data/identities.js';
 import { newRelation } from '../systems/relationship.js';
+import { chorePhrase, TASKS } from '../systems/tasks.js';
 
 const cards = getCast().filter((c) => c.id === 'irene');
 
@@ -266,5 +267,74 @@ describe('the round engine', () => {
 
       expect(endScene(s).gestured).toBe(true);
     });
+  });
+});
+
+/**
+ * WHAT THE PLAYER OWES, IN THE TAIL. CLAUDE.md section 10, Part I.8.
+ *
+ * The chore line is the join that phase 3a deliberately left open. `failTask`
+ * used to return a per-member `strain` delta when `affectsMembers` was set,
+ * and Part I.8 deleted the axis - so the ONLY way a member can know the outfits
+ * are not ready is that the model is told, and says so in her own words.
+ *
+ * Asserted end to end rather than on `chorePhrase` alone, because a phrase
+ * nobody passes is exactly the shape of every bug this file exists for:
+ * `ENERGY_PER_READ`, `markRisk`, `propagate`, and the dossier category that
+ * tier 3 read under a different name. Both halves are always correct.
+ */
+describe('what the player still owes today', () => {
+  const tailOf = (client) => client.seen.at(-1).at(-1).content;
+
+  it('reaches the tail, and says who wears it', async () => {
+    const client = scripted(round());
+    await runRound(
+      open({
+        scene: {
+          ...open().scene,
+          owed: chorePhrase({ taskId: 'prep_outfits', affectsMembers: true }),
+        },
+      }),
+      { client },
+    );
+
+    const tail = tailOf(client);
+    expect(tail).toContain('stage outfits still need prepping');
+    expect(tail).toMatch(/members who wear it/i);
+  });
+
+  /** A job that lands on nobody says so by omission, not by a second clause. */
+  it('drops the clause for a task that touches nobody', async () => {
+    const client = scripted(round());
+    await runRound(
+      open({
+        scene: {
+          ...open().scene,
+          owed: chorePhrase({ taskId: 'handle_press_kit', affectsMembers: false }),
+        },
+      }),
+      { client },
+    );
+
+    const tail = tailOf(client);
+    expect(tail).toContain('press kit still has to go out');
+    expect(tail).not.toMatch(/members who wear it/i);
+  });
+
+  /** A finished job, a weekend, or an event day is silence rather than a line. */
+  it('says nothing at all when there is nothing owed', async () => {
+    const client = scripted(round());
+    await runRound(open(), { client });
+    expect(tailOf(client)).not.toMatch(/still owes the agency/i);
+
+    expect(chorePhrase(null)).toBeNull();
+    expect(chorePhrase({ taskId: 'prep_outfits' }, { done: true })).toBeNull();
+  });
+
+  /** Every task in the pool needs a sentence, or the line is silently empty. */
+  it('has a sentence for every task the identity can be given', () => {
+    for (const taskId of Object.keys(TASKS)) {
+      expect(chorePhrase({ ...TASKS[taskId], taskId }), taskId).toBeTruthy();
+    }
   });
 });

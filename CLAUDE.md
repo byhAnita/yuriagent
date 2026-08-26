@@ -401,6 +401,76 @@ this project has already made unreachable three separate times.
 - **Free text survives** as a fifth control. The played evidence demands it: at
   the concept meeting the player had to type every agenda topic in by hand.
 
+### The rename was not cosmetic either, and it had been broken the whole time
+
+`known_facts` -> `facts` and `player_told_her` -> `told_her` reads like tidying,
+and it is the fourth instance of this project's signature bug. **`agent/tiers.js`
+was written against `facts` and `told_her` from its first line**, while
+`agent/memory.js` went on writing the v1 names - so for the whole of phases 2 and
+3 every fact a snoop awarded landed in a key the prompt pipeline never looked at,
+and the knowledge economy reached the model through `heard_about` and nothing
+else.
+
+Both halves were correct. The join was one word wrong in each of two places, 879
+tests were green, and **every one of them asked `memory.js` what it had just
+written.** `renderDossier` is the reason it survived: v1's builder pasted a block
+this module rendered, v2's tail writes its own, and keeping both left the dead
+one as the only path anything tested. It is deleted - two answers to *how does
+the dossier reach the model* is one too many - and `agent/memory.test.js` now
+reads `tiers.js` and asserts the categories against it.
+
+### What a gift costs, and what it no longer decides
+
+The gate went, and so did **every number on a gift except its price.** A
+knowledge gift used to be worth a flat `+5` applied the moment it was handed
+over - on top of whatever the model then moved in the round it wrote in reaction.
+That is I.1 upside down, and it double-counted by two routes only one of which
+was on screen.
+
+So `purchase` answers two questions, both genuinely the world's: **can the player
+afford it, and are they carrying it.** The note reaches tier 3 with her `facts`
+two lines above it, and says what the object is and who is holding it - *not*
+that this was uncanny attention. Whether a mugwort pack is somebody paying very
+close attention or a baffling object is exactly what the model can read for
+itself, and scripting it was what made every gift scene open the same way.
+
+**The shelf is open on day one.** Thirteen objects, eight of them specific to one
+member, none of them locked. Knowing which of them means something to whom moves
+out of a `requires` array and into the player's head, which is the only place it
+was ever interesting. `GESTURE_EFFECT`, `matchedFact`, `isUnlocked`, `canGesture`,
+`spendGesture`, `usedGestures` and 25 `gesture.*` keys per locale go with it.
+
+### Snooping's prize is access, and it took until now to be true
+
+§10 has said since M1 that *a fact that tells you where she will be is more
+interesting than one that tells you what to purchase*, and it was never true,
+because a fact could only ever buy an object. Now that nothing is gated there is
+nothing to purchase with one - so the second kind of find is **which evenings she
+is in her own room.**
+
+I.11 claimed the hidden map was what made this possible, and that was wrong in
+the useful direction: the two answer different questions, which is what survives
+the reversal.
+
+> **The map says where she is NOW. A routine says where she will be on an evening
+> nobody has reached yet** - and the week grid shows scheduled *work* slots, never
+> idle ones, so it is the one thing no screen in the game will tell you.
+
+`roomRoutine` has fixed those evenings from the seed since M1 precisely so they
+could be learned rather than knocked on. Four properties, all asserted:
+
+- **Weighted between the two.** Rarer than a fact - five against twenty-five -
+  and dearer than a rumor, because it is a plan rather than a warning.
+- **It is what the PLAYER knows.** No dossier entry, nothing that reaches a
+  prompt. Telling the model would hand it the player's plans as though they were
+  a fact about her, and `heard_about` would leak them into her next scene.
+- **Derived, never stored**, the rule `focusId` and the calendar both follow.
+  The save holds `member:phase:week` keys; the evenings come back out of the
+  seed. A key learned last week resolves to nothing this week, so *this week's
+  access* is true without an expiry pass.
+- **Spent at the dorm door**, which used to say `not home` and nothing else -
+  a fact the player could already see by standing there. It now says *Wed / Fri*.
+
 ## I.11 ~~An empty room is what happens when you guess wrong~~
 
 > **REVERSED, on played evidence, after one phone session.** The map shows
@@ -2536,7 +2606,27 @@ has her in it. Spending the block on the outfits while she is standing there is
 the task system working exactly as designed.
 
 - Success: `competence +`, positive ledger entry.
-- Failure: `competence -`, `energy -`, and if the failure touched her, `strain += 8`.
+- Failure: `competence -`, `energy -`, and **nothing else, to anybody.**
+
+#### ...and what a failure costs her is now a line in the tail
+
+`failTask` used to return a per-member `strain` delta when `affectsMembers` was
+set, which Part I.8 deleted along with the axis. That left the flag on the task
+with no reader, which is how this codebase loses things - so tier 3 carries what
+the player still owes, in one sentence, and names whether it lands on anybody:
+
+> The player still owes the agency one job today: the stage outfits still need
+> prepping, and it is the members who wear it if it does not get done.
+
+`chorePhrase` in `systems/tasks.js`, model-facing English beside the ids, the
+same rule `doingLine` follows. It is the other half of §8's *why this scene is
+not the last one*: `activity` says what **she** is doing here, this says what the
+player is supposed to be doing instead of standing in the room talking to her.
+Forty tokens in a block rebuilt every round anyway.
+
+**Her saying so, in her own words, is a better consequence than the eight strain
+it replaces** - and it is the only one v2 has, so the join is asserted end to
+end rather than on `chorePhrase` alone.
 
 ### Energy is the pacing mechanism
 
@@ -2956,7 +3046,14 @@ room can see where it points, and moving it is witnessed.
 
 ## 11. Gift & Knowledge Economy
 
-> **SUPERSEDED IN PART by Part I.10 - gifts are no longer knowledge-gated and the opener sheet is retired. The economy itself survives.**
+> **SUPERSEDED, and now actually deleted.** Part I.10 is the current design and
+> this section is history. `requires`, `factIds` on a gift, `matchedFact`,
+> `isUnlocked`, `canGesture`, `spendGesture`, `GESTURE_EFFECT`, `usedGestures`,
+> the eighteen `object: false` openers and the "locked gifts are not shown" rule
+> are all gone from the code. **Credits, the dish, and the note that opens the
+> scene survive.** The arguments below are kept because two of them outlived the
+> mechanism: *the reaction is generated, never authored*, and *an opener is a
+> turn, not a door*.
 
 The loop that ties memory to mechanics:
 
@@ -3374,6 +3471,23 @@ run continues, and the concept meeting simply happens twice.
 `scene` is deliberately excluded from saves: the memory design says a scene is ephemeral, so saving mid-scene means saving at the room door.
 
 Save key: `yuriagent_saves_v1`. On load, unknown or missing fields fill from defaults rather than throwing.
+
+### `schemaVersion` 4 is the v2 engine
+
+Four things changed shape at once, and the merge rules are what make an older
+record load at all rather than being refused:
+
+| | |
+|---|---|
+| `relations` | lost `strain`, `jealousy`, `criticalScenes` and the stored `stage`; `intimacy` became `affection`. Merged per member, so a name that is gone is simply not read |
+| `dossier` | five categories to three, and **two of them renamed** - `known_facts` -> `facts`, `player_told_her` -> `told_her`. `migrateDossier` renames rather than discards, and normalises FORWARD: a record from any build comes back holding exactly the categories `DOSSIER_CAPS` names today |
+| `flags.usedGestures` | retired with the opener sheet. Not migrated and not kept - an old record still carries the key and nothing reads it |
+| `flags.foundRoutines` | new. `member:phase:week` keys for the evenings the player has worked out; the evenings themselves come back out of the seed |
+
+Normalising forward is the part worth keeping. A key nothing reads is a key that
+survives in every save file written after it stopped meaning anything, and the
+dossier had just spent a milestone proving that a category name nobody checks is
+a category name that can be wrong.
 
 **Six slots: one that writes itself, five the player writes.** The day boundary
 is the only moment the schema permits either of them - a scene is ephemeral, so

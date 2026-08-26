@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import en from './en.js';
 import zh from './zh.js';
 import { FACT_IDS } from '../data/facts.js';
-import { GENERIC_GIFTS, BUYABLE_GIFTS, KNOWLEDGE_GIFTS } from '../data/gifts.js';
+import { GIFTS } from '../data/gifts.js';
 import { SOLO_ACTIONS } from '../data/soloActions.js';
 import { EMOTIONS } from '../agent/roundParser.js';
 import { PHASES, mapFor } from '../data/phaseMaps.js';
@@ -21,28 +21,30 @@ const LOCALES = { en, zh };
 describe('i18n coverage', () => {
   for (const [name, dict] of Object.entries(LOCALES)) {
     describe(name, () => {
-      /** Only things you can buy need a shop label; gesture-only openers do not. */
-      it('labels every buyable gift', () => {
-        for (const gift of [...GENERIC_GIFTS, ...BUYABLE_GIFTS]) {
+      it('labels every gift', () => {
+        for (const gift of GIFTS) {
           expect(dict.gift?.[gift.id], `gift.${gift.id}`).toBeTruthy();
         }
       });
 
-      it('carries no shop label for an opener that is not an object', () => {
-        for (const gift of KNOWLEDGE_GIFTS.filter((g) => g.object === false)) {
-          expect(dict.gift?.[gift.id], `gift.${gift.id} should not exist`).toBeUndefined();
+      /**
+       * A label for a gift that no longer exists is worse than a missing one:
+       * it is invisible, and it is what makes a locale file grow forever. The
+       * gesture openers went in the Part I.10 cut, taking twenty-five keys per
+       * locale with them, and nothing on screen would have noticed them staying.
+       */
+      it('carries no label for a gift that is not in the catalogue', () => {
+        const chrome = new Set(['title', 'who', 'free', 'skip']);
+        const ids = new Set(GIFTS.map((g) => g.id));
+        for (const key of Object.keys(dict.gift ?? {})) {
+          if (chrome.has(key)) continue;
+          expect(ids.has(key), `gift.${key} is not a gift`).toBe(true);
         }
+        expect(dict.gesture, 'gesture.* was retired with the opener sheet').toBeUndefined();
       });
 
-      /** Knowledge gifts can also be spent as a line, and that needs its own text. */
-      it('labels the gesture for every knowledge gift', () => {
-        for (const gift of KNOWLEDGE_GIFTS) {
-          expect(dict.gesture?.[gift.id], `gesture.${gift.id}`).toBeTruthy();
-        }
-      });
-
-      it('carries the gift modal chrome', () => {
-        for (const key of ['title', 'generic', 'knowledge', 'gesture', 'free', 'locked', 'hint', 'skip']) {
+      it('carries the give sheet chrome', () => {
+        for (const key of ['title', 'who', 'free', 'skip']) {
           expect(dict.gift?.[key], `gift.${key}`).toBeTruthy();
         }
       });

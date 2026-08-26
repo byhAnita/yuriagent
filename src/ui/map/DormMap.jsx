@@ -11,6 +11,7 @@
  */
 
 import { LOCATIONS } from '../../data/locations.js';
+import { DAY_NAMES } from '../../systems/calendar.js';
 
 function Room({ label, note, right, disabled, onClick, tone = 'default' }) {
   return (
@@ -37,7 +38,22 @@ function Room({ label, note, right, disabled, onClick, tone = 'default' }) {
   );
 }
 
-export default function DormMap({ cards, relations, occupancy, onBack, onEnterRoom, onEnterSolo, t }) {
+export default function DormMap({
+  cards,
+  relations,
+  occupancy,
+  /**
+   * `{ [memberId]: number[] }` for the routines the player has WORKED OUT, and
+   * only those. Resolved by App from `foundRoutines`, never from the calendar
+   * directly - a door that showed every routine would hand the player for free
+   * the one thing snooping is left to buy.
+   */
+  routines = {},
+  onBack,
+  onEnterRoom,
+  onEnterSolo,
+  t,
+}) {
   /**
    * A lit door means she is BEHIND it, not that she is somewhere in the dorm.
    *
@@ -130,6 +146,22 @@ export default function DormMap({ cards, relations, occupancy, onBack, onEnterRo
           const home = homeIds.includes(c.id);
           const open = rel.affection >= gate;
 
+          /**
+           * WHERE A LEARNED ROUTINE IS SPENT. Part I.10, section 10.
+           *
+           * A dark door said `notHome` and nothing else, which is a fact the
+           * player could already see by standing here - so the block was spent
+           * finding out. Knowing her routine turns the same door into a plan:
+           * not tonight, Thursday.
+           *
+           * This is the one thing the map still cannot tell you. The overworld
+           * says where everybody is NOW (the I.11 reversal), and the week grid
+           * shows scheduled WORK slots and never idle evenings - so which
+           * nights are hers has to be learned, which is what keeps section 10's
+           * prize intact after the map went back to showing occupancy.
+           */
+          const nights = routines[c.id] ?? null;
+
           return (
             <Room
               key={c.id}
@@ -139,7 +171,12 @@ export default function DormMap({ cards, relations, occupancy, onBack, onEnterRo
                   ? t('map.doorLocked').replace('{n}', String(gate))
                   : home
                     ? null
-                    : t('map.notHome')
+                    : nights?.length
+                      ? t('map.homeOn').replace(
+                          '{nights}',
+                          nights.map((d) => t(`day.${DAY_NAMES[d]}`)).join(' / '),
+                        )
+                      : t('map.notHome')
               }
               disabled={!open || !home}
               right={

@@ -173,6 +173,7 @@ export async function runRound(session, { client, choice = null, note = null, on
     roundIndex: roundCount(pool),
     roundsLeft: last ? 0 : left,
     lastChoice: choice,
+    owed: session.scene.owed ?? null,
     note,
     lang: session.lang,
   });

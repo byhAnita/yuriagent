@@ -7,11 +7,25 @@
 
 // --- memory -----------------------------------------------------------------
 export const LEDGER_FULL_MAX = 6;
+/**
+ * Three categories, one per real question. CLAUDE.md Part I.10.
+ *
+ * `shared_moments` duplicated the ledger, which is the store whose whole job is
+ * what happened in order; `open_threads` existed only to feed `strain`, and
+ * `strain` is gone. What is left answers three things that are genuinely
+ * different: what the player knows about her, what she knows about the player,
+ * and what she has heard and not yet reacted to.
+ *
+ * THE NAMES ARE THE ONES TIER 3 ALREADY READ. `known_facts` and
+ * `player_told_her` were the v1 names, and `agent/tiers.js` was written against
+ * `facts` and `told_her` from its first line - so every fact a snoop awarded
+ * went into a key nothing in the prompt pipeline ever looked at. Both halves
+ * were correct and the join was one word wrong in each of two places, which is
+ * this project's signature bug and the fourth time it has been found.
+ */
 export const DOSSIER_CAPS = {
-  known_facts: 8,
-  shared_moments: 5,
-  open_threads: 3,
-  player_told_her: 5,
+  facts: 8,
+  told_her: 5,
   heard_about: 4,
 };
 
@@ -345,16 +359,19 @@ export const CHIME_THRESHOLD = 0.9;
  */
 export const SHARED_ACTIVITY_INTIMACY = 2;
 
-// --- openers (section 11) ---------------------------------------------------
 /**
- * A knowledge fact can be spent two ways: on an object, or on saying something.
+ * `GESTURE_EFFECT` was here: a knowledge fact spent by SAYING something rather
+ * than buying something, worth a flat 3 against an object's 5.
  *
- * The gesture is free, so it has to be weaker AND single-use, or credits stop
- * meaning anything and the shop turns into decoration. Once is also the honest
- * limit in fiction: asking after her ankle the first time is attention, and
- * asking every scene is a script.
+ * Part I.10 retires it along with `requires`. Both numbers were code deciding
+ * what a gesture meant, and the gesture itself moves somewhere better - the
+ * model has her `facts` in tier 3 and writes one of the four options as the
+ * gesture when the moment is apt, which is contextual, unspammable, and
+ * impossible to turn into the checklist a sheet of twenty-five made of it.
+ *
+ * A gift now costs credits and nothing else. There is no effect number left on
+ * one, anywhere.
  */
-export const GESTURE_EFFECT = 3;
 
 // --- model requests ---------------------------------------------------------
 /**

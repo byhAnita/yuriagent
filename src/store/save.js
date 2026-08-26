@@ -23,10 +23,16 @@
  * the relations it is computed from.
  */
 
-import { SAVE_KEY } from '../config/constants.js';
+import { SAVE_KEY, DOSSIER_CAPS } from '../config/constants.js';
 import { eventFor, recurs } from '../data/events/index.js';
 
-export const SCHEMA_VERSION = 3;
+/**
+ * 4: the v2 engine. `relations` lost `strain`, `jealousy`, `criticalScenes` and
+ * the stored `stage`; `intimacy` became `affection`; the dossier went from five
+ * categories to three. A v1 save loads and is nonsense, which is why the number
+ * moves - the merge rules below are what make it load at all.
+ */
+export const SCHEMA_VERSION = 4;
 
 /**
  * Everything a run is, and nothing else.
@@ -79,7 +85,7 @@ export function fromSave(raw, defaults) {
      */
     relations: mergePerMember(defaults.relations, raw.relations),
     memory: {
-      dossier: mergePerMember(defaults.memory.dossier, raw.dossier),
+      dossier: migrateDossier(mergePerMember(defaults.memory.dossier, raw.dossier)),
       ledger: Array.isArray(raw.ledger) ? raw.ledger : [],
     },
     /**
@@ -90,8 +96,16 @@ export function fromSave(raw, defaults) {
     calendar: isObject(raw.calendar) ? raw.calendar : {},
     flags: {
       firedEvents: migrateFiredEvents(raw.flags?.firedEvents),
-      usedGestures: Array.isArray(raw.flags?.usedGestures) ? raw.flags.usedGestures : [],
+      /**
+       * `usedGestures` was here. It went with the opener sheet (Part I.10) -
+       * a gesture is now one of the four written options, so "only once" is a
+       * property of the writing rather than a counter. An old record still
+       * carries the key and it is simply not read, which is the correct
+       * treatment for a retired flag: nothing to migrate, nothing to keep.
+       */
       foundRumors: Array.isArray(raw.flags?.foundRumors) ? raw.flags.foundRumors : [],
+      /** Learned routines - the access half of what a snoop buys (Part I.10). */
+      foundRoutines: Array.isArray(raw.flags?.foundRoutines) ? raw.flags.foundRoutines : [],
       repairUsed: isObject(raw.flags?.repairUsed) ? raw.flags.repairUsed : {},
     },
   };
@@ -134,6 +148,38 @@ export function migrateFiredEvents(stored) {
  */
 function isCanonEntry(e) {
   return isObject(e) && typeof e.topic === 'string' && typeof e.text === 'string';
+}
+
+/**
+ * Five dossier categories became three (Part I.10), and two of them were RENAMED.
+ *
+ * `known_facts` -> `facts` and `player_told_her` -> `told_her`, because those are
+ * the names `agent/tiers.js` reads. `shared_moments` duplicated the ledger and
+ * `open_threads` fed `strain`, so both are dropped rather than carried - a key
+ * nothing reads is a key that survives forever in every save file written after
+ * it stopped meaning anything.
+ *
+ * Renaming rather than discarding costs three lines and keeps whatever the
+ * player had already learned. It also normalises FORWARD: a save from any build
+ * comes back holding exactly the categories that exist now, so `DOSSIER_CAPS`
+ * stays the one answer to what a dossier contains.
+ */
+const DOSSIER_RENAMES = { known_facts: 'facts', player_told_her: 'told_her' };
+
+function migrateDossier(dossier) {
+  const out = {};
+  for (const [id, member] of Object.entries(dossier)) {
+    if (!isObject(member)) continue;
+    const next = {};
+    for (const key of Object.keys(DOSSIER_CAPS)) next[key] = [];
+    for (const [category, list] of Object.entries(member)) {
+      const target = DOSSIER_RENAMES[category] ?? category;
+      if (!(target in next) || !Array.isArray(list)) continue;
+      next[target] = [...next[target], ...list].slice(-DOSSIER_CAPS[target]);
+    }
+    out[id] = next;
+  }
+  return out;
 }
 
 function mergePerMember(defaults, stored) {

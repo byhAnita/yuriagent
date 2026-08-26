@@ -7,7 +7,7 @@ import { cardFacts } from '../data/facts.js';
 
 const cards = getCast();
 const emptyDossier = Object.fromEntries(
-  cards.map((c) => [c.id, { known_facts: [], heard_about: [] }]),
+  cards.map((c) => [c.id, { facts: [], heard_about: [] }]),
 );
 
 describe('snoopCost', () => {
@@ -106,7 +106,7 @@ describe('every action is offered in every room', () => {
 
   it('still charges nothing for a search that found nothing', () => {
     const known = Object.fromEntries(
-      cards.map((c) => [c.id, { known_facts: cardFacts(c).map((f) => f.en), heard_about: [] }]),
+      cards.map((c) => [c.id, { facts: cardFacts(c).map((f) => f.en), heard_about: [] }]),
     );
     const out = resolveSoloAction({
       locationId: 'wardrobe',

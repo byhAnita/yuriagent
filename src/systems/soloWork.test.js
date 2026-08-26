@@ -8,13 +8,14 @@ import {
   soloLedgerText,
   applySoloPlayerDelta,
   goodwillTargets,
+  routineKey,
+  ROUTINE_WEIGHT,
 } from './soloWork.js';
+import { roomRoutine } from './calendar.js';
 import { actionsFor, SOLO_ACTIONS } from '../data/soloActions.js';
-import { newMemory, addDossierEntry } from '../agent/memory.js';
+import { newMemory, addDossierEntry, entryText } from '../agent/memory.js';
 import { getCast } from '../data/cast.js';
 import { LOCATIONS } from '../data/locations.js';
-import { KNOWLEDGE_GIFTS } from '../data/gifts.js';
-import { isUnlocked } from './economy.js';
 import { makeRng } from './rng.js';
 import { factCanonical } from '../data/facts.js';
 
@@ -56,7 +57,7 @@ describe('learnableTargets', () => {
     let d = fresh();
     const irene = cards.find((c) => c.id === 'irene');
     for (const fact of irene.learnableFacts) {
-      d = addDossierEntry(d, 'irene', 'known_facts', snooped(fact));
+      d = addDossierEntry(d, 'irene', 'facts', snooped(fact));
     }
     expect(learnableTargets(cards, d).map((t) => t.card.id)).not.toContain('irene');
   });
@@ -97,14 +98,14 @@ describe('resolveSoloAction', () => {
     });
     expect(out.playerDelta.secrecy).toBeLessThan(0);
     expect(out.learned).not.toBeNull();
-    expect(out.dossierAdd[0].category).toBe('known_facts');
+    expect(out.dossierAdd[0].category).toBe('facts');
   });
 
   it('does not charge secrecy for a search that found nothing', () => {
     let d = fresh();
     for (const c of cards) {
       for (const fact of c.learnableFacts ?? []) {
-        d = addDossierEntry(d, c.id, 'known_facts', snooped(fact));
+        d = addDossierEntry(d, c.id, 'facts', snooped(fact));
       }
     }
     const out = resolveSoloAction({
@@ -143,12 +144,26 @@ describe('resolveSoloAction', () => {
   });
 });
 
-describe('snooping actually opens a gift', () => {
-  it('a learned fact unlocks the knowledge gift that matches it', () => {
+/**
+ * WHAT A SNOOP IS WORTH, NOW THAT NOTHING IS GATED. Part I.10.
+ *
+ * This used to assert that a learned fact unlocked the knowledge gift matching
+ * it - the payoff was an item in a shop. Gifts are ungated, so the payoff is
+ * the only one that was ever interesting: the fact reaches the model, in her
+ * dossier, in the block it reads before writing her next line.
+ *
+ * The category is asserted rather than assumed, because the category name is
+ * where this exact join broke once already: `memory.js` wrote `known_facts`
+ * while `tiers.js` read `facts`, so every fact a snoop awarded landed
+ * somewhere the prompt never looked. `agent/memory.test.js` holds the other
+ * half of that assertion.
+ */
+describe('a snoop writes where the prompt reads', () => {
+  it('awards the fact into the category tier 3 renders', () => {
     let d = fresh();
-    let unlockedAny = false;
+    let learned = null;
 
-    for (let seed = 1; seed < 40 && !unlockedAny; seed++) {
+    for (let seed = 1; seed < 40 && !learned; seed++) {
       const out = resolveSoloAction({
         locationId: 'wardrobe',
         actionId: 'read_fitting_notes',
@@ -156,12 +171,27 @@ describe('snooping actually opens a gift', () => {
         dossier: d,
         rng: makeRng(seed),
       });
-      if (!out.learned) break;
-      d = addDossierEntry(d, out.learned.memberId, 'known_facts', out.learned.fact);
-      unlockedAny = KNOWLEDGE_GIFTS.some((g) => isUnlocked(g, d[out.learned.memberId]));
+      if (out.learned) learned = out.learned;
     }
 
-    expect(unlockedAny).toBe(true);
+    expect(learned).toBeTruthy();
+    for (const add of [learned]) {
+      d = addDossierEntry(d, add.memberId, 'facts', add.fact);
+    }
+    expect(d[learned.memberId].facts.length).toBe(1);
+    expect(entryText(d[learned.memberId].facts[0])).toBeTruthy();
+  });
+
+  /** The find carries its id, so the screen can render it in the player's language. */
+  it('carries the id alongside the English', () => {
+    const out = resolveSoloAction({
+      locationId: 'wardrobe',
+      actionId: 'read_fitting_notes',
+      cards,
+      dossier: fresh(),
+      rng: makeRng(3),
+    });
+    expect(out.learned?.fact?.factId ?? out.learned?.factId).toBeTruthy();
   });
 });
 
@@ -316,65 +346,23 @@ describe('knowledge is not a fixed lookup', () => {
 });
 
 /**
- * One gift per fact, one fact per gift. CLAUDE.md sections 11 and 12.
+ * THE FACT POOL ITSELF. CLAUDE.md section 12.
  *
- * Reported as "we always get jisoo annotated script for jisoo". The snoop rng
- * was already even across members and across facts; the economy was a lookup
- * because eight shared objects sat behind two facts per member. Twenty-five
- * facts and twenty-five gifts is what gives the randomness something to do.
+ * This block used to assert a bijection between facts and gifts - one gift per
+ * fact, never none and never two, no gift answering two members. All of that
+ * was scaffolding for the `requires` gate, and it went with it (Part I.10).
+ *
+ * What survives is the half that was always about the CAST rather than the
+ * shop, and it is the half that matters more: five facts each, and no two
+ * members sharing one. Two members with the same habit is two members with the
+ * same character, and that is true whether or not anything is for sale.
  */
-describe('every fact buys its own gift', () => {
+describe('the fact pool', () => {
   const withFacts = cards.filter((c) => (c.learnableFacts ?? []).length > 0);
-  /**
-   * Both routes into the dossier, tested as one.
-   *
-   * `snooped` carries the id, so it matches `factIds` exactly. `paraphrased`
-   * is a bare string with no id, which is all the summarizer can ever produce,
-   * so it has to be caught by the substring needles. An opener that unlocks one
-   * way and not the other is half broken, and it was the id-less half that
-   * kept regressing (section 12).
-   */
-  const snoopedGifts = (id) =>
-    KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [snooped(id)] }));
-  const paraphrasedGifts = (id) =>
-    KNOWLEDGE_GIFTS.filter((g) => isUnlocked(g, { known_facts: [factCanonical(id)] }));
-  const giftsFor = snoopedGifts;
 
   it('gives every member five facts', () => {
     for (const card of withFacts) {
       expect(card.learnableFacts.length, card.id).toBe(5);
-    }
-  });
-
-  it('unlocks exactly one gift per fact - never none, never two', () => {
-    for (const card of withFacts) {
-      for (const fact of card.learnableFacts) {
-        for (const hits of [snoopedGifts(fact), paraphrasedGifts(fact)]) {
-          expect(hits.length, `"${fact}" -> [${hits.map((h) => h.id).join(', ')}]`).toBe(1);
-        }
-      }
-    }
-  });
-
-  it('leaves no knowledge gift unreachable', () => {
-    for (const gift of KNOWLEDGE_GIFTS) {
-      const owners = withFacts.filter((c) =>
-        c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [snooped(f)] })),
-      );
-      expect(owners.length, `${gift.id} is unreachable`).toBeGreaterThan(0);
-    }
-  });
-
-  /**
-   * Not strict, but strongly preferred: a gift that answers two different
-   * members is a gift that says nothing about either of them.
-   */
-  it('does not hand the same gift to two members', () => {
-    for (const gift of KNOWLEDGE_GIFTS) {
-      const owners = withFacts
-        .filter((c) => c.learnableFacts.some((f) => isUnlocked(gift, { known_facts: [snooped(f)] })))
-        .map((c) => c.id);
-      expect(owners.length, `${gift.id} <- ${owners.join(', ')}`).toBe(1);
     }
   });
 
@@ -391,11 +379,19 @@ describe('every fact buys its own gift', () => {
     }
   });
 
-  /** Which gift opens has to depend on what you turned up, not on who she is. */
-  it('leaves every member several different gifts to reach', () => {
+  /**
+   * Every fact must resolve to canonical English, because that English IS what
+   * tier 3 prints. A fact that resolves to its own id would put `cold_hands`
+   * in front of the model as though it were a sentence.
+   */
+  it('resolves every fact to English the model can read', () => {
     for (const card of withFacts) {
-      const reachable = new Set(card.learnableFacts.flatMap((f) => giftsFor(f).map((g) => g.id)));
-      expect(reachable.size, card.id).toBeGreaterThan(2);
+      for (const fact of card.learnableFacts) {
+        const text = factCanonical(fact);
+        expect(text, fact).toBeTruthy();
+        expect(text, fact).not.toBe(typeof fact === 'string' ? fact : fact.id);
+        expect(text.length, fact).toBeGreaterThan(8);
+      }
     }
   });
 });
@@ -414,10 +410,10 @@ describe('an empty room can also tell you what she has heard', () => {
     { id: 'irene', name: 'Irene', learnableFacts: ['hates cold hands'] },
     { id: 'nana', name: 'Nana', learnableFacts: ['drinks five litres of water'] },
   ];
-  const blank = { irene: { known_facts: [] }, nana: { known_facts: [] } };
+  const blank = { irene: { facts: [] }, nana: { facts: [] } };
   const withRumor = {
-    irene: { known_facts: ['hates cold hands'], heard_about: ['you heard the player was at Cafe with Nana'] },
-    nana: { known_facts: ['drinks five litres of water'] },
+    irene: { facts: ['hates cold hands'], heard_about: ['you heard the player was at Cafe with Nana'] },
+    nana: { facts: ['drinks five litres of water'] },
   };
 
   it('offers facts and rumors together', () => {
@@ -482,8 +478,8 @@ describe('an empty room can also tell you what she has heard', () => {
 
   it('still charges nothing when there is neither a fact nor a rumor left', () => {
     const empty = {
-      irene: { known_facts: ['hates cold hands'] },
-      nana: { known_facts: ['drinks five litres of water'] },
+      irene: { facts: ['hates cold hands'] },
+      nana: { facts: ['drinks five litres of water'] },
     };
     const result = resolveSoloAction({
       locationId: 'wardrobe',
@@ -495,5 +491,141 @@ describe('an empty room can also tell you what she has heard', () => {
     expect(result.learned).toBeNull();
     expect(result.heard).toBeNull();
     expect(result.playerDelta.secrecy).toBe(0);
+  });
+});
+
+/**
+ * ACCESS. CLAUDE.md section 10, Part I.10.
+ *
+ *   > a fact that tells you where she will be is more interesting than one that
+ *   > tells you what to purchase.
+ *
+ * Section 10 has said that since M1 and it was never true, because a fact could
+ * only ever buy an object. Now that gifts are ungated there is nothing left to
+ * purchase with one - so the second kind of find is which evenings she is in her
+ * own room, and it is the one thing no screen in the game will tell you.
+ *
+ * The map shows occupancy again after the I.11 reversal, and that does NOT make
+ * this redundant: the map says where she is now, a routine says where she will
+ * be on an evening nobody has reached yet, and the week grid shows scheduled
+ * work slots and never idle ones.
+ */
+describe('a routine is the other thing a room can teach you', () => {
+  const SEED = 4242;
+  const clock = { phase: 'prep', week: 0, seed: SEED };
+  const routines = (extra = {}) =>
+    availableFinds({ cards, dossier: fresh(), ...clock, ...extra }).filter(
+      (f) => f.kind === 'routine',
+    );
+
+  it('offers one per member, matching what the calendar will actually do', () => {
+    const found = routines();
+    expect(found).toHaveLength(cards.length);
+
+    for (const find of found) {
+      expect(find.nights).toEqual(
+        roomRoutine({ cardId: find.memberId, phase: 'prep', seed: SEED, week: 0 }),
+      );
+      expect(find.nights.length).toBeGreaterThan(0);
+    }
+  });
+
+  /** Rarer than a fact, dearer than a rumor: five of them against twenty-five. */
+  it('sits between the two weights', () => {
+    expect(ROUTINE_WEIGHT).toBeGreaterThan(RUMOR_WEIGHT);
+    expect(ROUTINE_WEIGHT).toBeLessThan(FACT_WEIGHT);
+  });
+
+  it('stops being offered once it is known', () => {
+    const first = routines()[0];
+    const again = routines({ foundRoutines: [first.routineKey] });
+
+    expect(again.map((f) => f.memberId)).not.toContain(first.memberId);
+    expect(again).toHaveLength(cards.length - 1);
+  });
+
+  /**
+   * Never about somebody standing in the room, the same rule facts and rumors
+   * follow - and never about a week she is not home, because `roomRoutine`
+   * returns no evenings during COMEBACK and "she is never home this week" is
+   * already on a phase table every player can read.
+   */
+  it('is silent about whoever is in the room, and about comeback week', () => {
+    expect(routines({ present: ['irene'] }).map((f) => f.memberId)).not.toContain('irene');
+    expect(routines({ phase: 'comeback' })).toHaveLength(0);
+  });
+
+  /**
+   * A caller with no clock in hand cannot ask about a specific week and must
+   * not be handed one at random. Without this the balance harness - and the
+   * snoop screen, before it was threaded through - would draw routines for
+   * week 0 forever.
+   */
+  it('is not offered at all to a caller with no clock', () => {
+    expect(availableFinds({ cards, dossier: fresh() }).some((f) => f.kind === 'routine')).toBe(
+      false,
+    );
+  });
+
+  it('keys on the member, the phase and the week', () => {
+    expect(routineKey({ memberId: 'irene', phase: 'prep', week: 2 })).toBe('irene:prep:2');
+    // A key learned last week resolves to nothing this week, which is what
+    // makes "this week's access" true without needing an expiry pass.
+    expect(routines({ foundRoutines: ['irene:prep:1'] })).toHaveLength(cards.length);
+  });
+});
+
+describe('resolving a routine find', () => {
+  /**
+   * It changes what the PLAYER knows, not what she knows - so no dossier entry,
+   * and nothing that could reach a prompt. Telling the model would be handing
+   * it a fact about the player's plans rather than about her.
+   */
+  it('writes nothing to any dossier', () => {
+    const found = [];
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const out = resolveSoloAction({
+        locationId: 'wardrobe',
+        actionId: 'read_fitting_notes',
+        cards,
+        dossier: fresh(),
+        phase: 'prep',
+        week: 0,
+        seed: 4242,
+        rng: makeRng(seed),
+      });
+      if (out.routine) found.push(out);
+    }
+
+    expect(found.length, 'no routine ever came up in 60 draws').toBeGreaterThan(0);
+    for (const out of found) {
+      expect(out.dossierAdd).toEqual([]);
+      expect(out.learned).toBeNull();
+      expect(out.heard).toBeNull();
+      expect(out.routine.routineKey).toContain(':prep:0');
+      expect(out.routine.nights.length).toBeGreaterThan(0);
+      // It still costs secrecy - it is a snoop that found something.
+      expect(out.playerDelta.secrecy).toBeLessThan(0);
+    }
+  });
+
+  it('says what it found, in the English the ledger keeps', () => {
+    let out = null;
+    for (let seed = 1; seed <= 60 && !out?.routine; seed += 1) {
+      out = resolveSoloAction({
+        locationId: 'wardrobe',
+        actionId: 'read_fitting_notes',
+        cards,
+        dossier: fresh(),
+        phase: 'prep',
+        week: 0,
+        seed: 4242,
+        rng: makeRng(seed),
+      });
+    }
+
+    const line = soloLedgerText(out, { locationLabel: 'the wardrobe' });
+    expect(line).toContain(out.routine.name);
+    expect(line).toMatch(/own room/i);
   });
 });

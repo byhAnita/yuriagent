@@ -6,7 +6,7 @@
  * action costs the block, so it competes with her for the same three slots a
  * day - which is the only reason it is interesting.
  *
- * Learned facts are written to `known_facts` in ENGLISH like everything else in
+ * Learned facts are written to `facts` in ENGLISH like everything else in
  * memory (CLAUDE.md section 19), and they are the same strings the knowledge
  * gifts match against, so snooping genuinely unlocks a gift.
  *
@@ -24,6 +24,7 @@ import {
 } from '../config/constants.js';
 import { clamp } from './rng.js';
 import { phraseDiscovered } from './rumor.js';
+import { roomRoutine, DAY_NAMES } from './calendar.js';
 import { cardFacts } from '../data/facts.js';
 import { entryText } from './dossierEntry.js';
 
@@ -42,7 +43,7 @@ import { entryText } from './dossierEntry.js';
  * paraphrases it and has no id to give. Only the English is common to both.
  */
 function knownTexts(memberDossier) {
-  return new Set((memberDossier?.known_facts ?? []).map((f) => entryText(f).toLowerCase()));
+  return new Set((memberDossier?.facts ?? []).map((f) => entryText(f).toLowerCase()));
 }
 
 export function learnableTargets(cards, dossier, excludeIds = []) {
@@ -71,6 +72,45 @@ export const FACT_WEIGHT = 3;
 export const RUMOR_WEIGHT = 1;
 
 /**
+ * ...and a ROUTINE, which is the prize section 10 has wanted since M1.
+ *
+ *   > a fact that tells you where she will be is more interesting than one that
+ *   > tells you what to purchase.
+ *
+ * It never arrived, for two reasons that both went away this milestone. Gifts
+ * were the only thing a fact could buy, so knowledge WAS purchasing (Part I.10
+ * ends that); and the map showed occupancy, so where she is was free. The map
+ * shows occupancy again after the I.11 reversal - but a routine and a map answer
+ * two different questions, and that distinction is exactly what keeps this
+ * worth finding:
+ *
+ *   **the map says where she is NOW. A routine says where she will be on an
+ *   evening nobody has reached yet.**
+ *
+ * The week grid shows scheduled WORK slots and never idle ones, so which
+ * evenings she spends in her own room is not on any screen the player can read.
+ * `roomRoutine` has fixed those evenings from the seed since M1 precisely so
+ * they could be learned rather than knocked on.
+ *
+ * Weighted between the two: rarer than a fact because there are five of them
+ * against twenty-five, and dearer than a rumor because it is a plan rather than
+ * a warning. It expires with the week it was drawn for, which is honest - what
+ * the player bought is this week's access, not a permanent key.
+ */
+export const ROUTINE_WEIGHT = 2;
+
+/**
+ * One learned routine, as a key the player's own knowledge list holds.
+ *
+ * Player-side like `foundRumors`, and for the same reason: knowing when she is
+ * home changes what the PLAYER knows, not anything she knows. It never touches
+ * her dossier and it never reaches a prompt.
+ */
+export function routineKey({ memberId, phase, week = 0 }) {
+  return `${memberId}:${phase}:${week}`;
+}
+
+/**
  * Everything an empty room could tell you right now.
  *
  * Two kinds. A **fact** is about a member and unlocks an opener. A **rumor** is
@@ -91,8 +131,25 @@ export const RUMOR_WEIGHT = 1;
  * decoration. Null is still accepted because a caller with no room in hand
  * (the balance harness) legitimately wants the whole pool.
  */
-export function availableFinds({ cards, dossier, present = [], foundRumors = [], kind = null }) {
+export function availableFinds({
+  cards,
+  dossier,
+  present = [],
+  foundRumors = [],
+  /**
+   * Routines already learned, and the week they would be about. Absent, the
+   * routine find is simply never offered - a caller with no clock in hand (the
+   * balance harness) cannot ask about a specific week and should not be handed
+   * one at random.
+   */
+  foundRoutines = [],
+  phase = null,
+  week = 0,
+  seed = null,
+  kind = null,
+}) {
   const seen = new Set(foundRumors);
+  const knownRoutines = new Set(foundRoutines);
   const finds = [];
   const wants = (k) => kind === null || kind === k;
 
@@ -110,6 +167,35 @@ export function availableFinds({ cards, dossier, present = [], foundRumors = [],
         text: fact.en,
         weight: FACT_WEIGHT,
       });
+    }
+
+    /**
+     * Which evenings she is home. Filed under `fact` because a routine is about
+     * HER, and section 10b's rule for which room teaches what is exactly that:
+     * a rumor is what people say about you, so you hear it where people talk; a
+     * fact is about her, so you find it where her work is.
+     *
+     * Nothing to learn during COMEBACK - `roomRoutine` returns no evenings that
+     * week because she is not home, and "she is never home this week" is
+     * already on the phase table every player can read.
+     */
+    if (wants('fact') && phase && seed !== null) {
+      const key = routineKey({ memberId: card.id, phase, week });
+      const nights = knownRoutines.has(key)
+        ? []
+        : roomRoutine({ cardId: card.id, phase, seed, week });
+
+      if (nights.length > 0) {
+        finds.push({
+          kind: 'routine',
+          memberId: card.id,
+          name: card.name,
+          routineKey: key,
+          nights,
+          text: `${card.name} is in her own room on ${nights.map((d) => DAY_NAMES[d]).join(' and ')} evenings this week`,
+          weight: ROUTINE_WEIGHT,
+        });
+      }
     }
 
     for (const heard of wants('rumor') ? (dossier[card.id]?.heard_about ?? []) : []) {
@@ -190,6 +276,10 @@ export function resolveSoloAction({
   dossier,
   present = [],
   foundRumors = [],
+  foundRoutines = [],
+  phase = null,
+  week = 0,
+  seed = null,
   rng = Math.random,
 }) {
   const action = getSoloAction(locationId, actionId);
@@ -207,21 +297,49 @@ export function resolveSoloAction({
 
   let learned = null;
   let heard = null;
+  let routine = null;
   const dossierAdd = [];
 
   if (action.learns) {
     // The room decides WHICH kind. `true` is the pre-slot shape and still
     // means "either", so an old save or an ad-hoc caller cannot break.
     const kind = typeof action.learns === 'string' ? action.learns : null;
-    const find = pickFind(rng, availableFinds({ cards, dossier, present, foundRumors, kind }));
+    const find = pickFind(
+      rng,
+      availableFinds({
+        cards,
+        dossier,
+        present,
+        foundRumors,
+        foundRoutines,
+        phase,
+        week,
+        seed,
+        kind,
+      }),
+    );
 
-    if (find?.kind === 'fact') {
+    if (find?.kind === 'routine') {
+      /**
+       * ACCESS, not an object. No dossier write and nothing reaches a prompt -
+       * she does not know the player found out which evenings she is home, and
+       * telling the model would be handing it a fact about the player's plans
+       * rather than about her.
+       */
+      routine = {
+        memberId: find.memberId,
+        name: find.name,
+        routineKey: find.routineKey,
+        nights: find.nights,
+        text: find.text,
+      };
+    } else if (find?.kind === 'fact') {
       learned = { memberId: find.memberId, name: find.name, factId: find.factId, fact: find.text };
       // The id goes into the dossier with the text, which is what lets the
       // opener match exactly and the snoop screen print the right language.
       dossierAdd.push({
         memberId: find.memberId,
-        category: 'known_facts',
+        category: 'facts',
         factId: find.factId,
         text: find.text,
       });
@@ -250,6 +368,7 @@ export function resolveSoloAction({
     dossierAdd,
     learned,
     heard,
+    routine,
     goodwill: Boolean(action.goodwill),
     dish: Boolean(action.dish),
     rest: Boolean(action.rest),
@@ -272,6 +391,9 @@ export function soloLedgerText(result, { locationLabel, playerName = 'The player
       result.heard.name,
       result.heard.text,
     )}.`;
+  }
+  if (result.routine) {
+    return `${playerName} was alone at ${locationLabel}, and worked out that ${result.routine.text}.`;
   }
   if (result.rest) {
     return `${playerName} slept.`;

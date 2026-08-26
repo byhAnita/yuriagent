@@ -7,7 +7,7 @@
  *
  * The important ones are not the credit earners. They are the SNOOP actions:
  * an empty room is how you learn something about a member who is not there,
- * which is the second path into `known_facts` and therefore into the
+ * which is the second path into `facts` and therefore into the
  * knowledge-gated gifts. That is what makes an empty room worth entering.
  *
  * Snooping trades `secrecy` for knowledge. Low secrecy amplifies scene exposure

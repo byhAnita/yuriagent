@@ -255,19 +255,12 @@ export default function RoundStage({
       {giftOpen && openers && focusCard ? (
         <GiftModal
           card={focusCard}
-          dossier={openers.dossierFor(focusCard.id)}
           credits={openers.credits}
           stock={openers.stock}
-          usedGestures={openers.usedGestures}
           onPick={(giftId) => {
             const note = openers.give(giftId, focusCard);
             setGiftOpen(false);
             // A refused spend costs nothing, including the round.
-            if (note) advance({ note });
-          }}
-          onGesture={(factId) => {
-            const note = openers.say?.(factId, focusCard);
-            setGiftOpen(false);
             if (note) advance({ note });
           }}
           onSkip={() => setGiftOpen(false)}

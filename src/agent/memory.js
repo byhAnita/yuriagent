@@ -6,12 +6,15 @@
  * `summary` where they sit. Never reorder, never delete - the rendered prefix
  * has to stay byte-identical between scenes or every cache hit is lost.
  *
- * The dossier is what makes memory visible instead of invisible plumbing. It is
- * slot-capped per category, and it is the ONLY channel by which one member
- * knows anything about another member's scene (via `heard_about`).
+ * The dossier is what makes memory visible instead of invisible plumbing. Three
+ * categories, one per real question (Part I.10), and it is the ONLY channel by
+ * which one member knows anything about another member's scene (`heard_about`).
  *
- * Everything written here is ENGLISH regardless of UI language (section 19), so
- * the player can switch language mid-run without corrupting history.
+ * Everything written here is ENGLISH, and that rule survives Part I.6 repealing
+ * v1's "memory is always English" - what was repealed is the LEDGER's recent
+ * entries, which are prose the model continues from and now stay in the locale.
+ * A dossier entry is a fact the model reads and never quotes, so English keeps
+ * it comparable against a needle and a card without costing the prose anything.
  */
 
 import { LEDGER_FULL_MAX, DOSSIER_CAPS } from '../config/constants.js';
@@ -26,8 +29,14 @@ export { toEntry, entryText };
 
 export const DOSSIER_CATEGORIES = Object.keys(DOSSIER_CAPS);
 
-/** FIFO drops the oldest; LRU moves a repeat to the end instead of duplicating. */
-const FIFO_CATEGORIES = new Set(['open_threads', 'heard_about']);
+/**
+ * FIFO drops the oldest; LRU moves a repeat to the end instead of duplicating.
+ *
+ * `heard_about` is the one FIFO category, and it is FIFO because repetition
+ * there is the information: hearing the same thing about the player twice is
+ * not the same event as hearing it once.
+ */
+const FIFO_CATEGORIES = new Set(['heard_about']);
 
 export function newDossier() {
   return Object.fromEntries(DOSSIER_CATEGORIES.map((k) => [k, []]));
@@ -125,64 +134,25 @@ export function addDossierEntry(dossier, memberId, category, entry) {
   };
 }
 
-/** Remove a resolved open thread. Matched loosely - the model paraphrases. */
-export function resolveThread(dossier, memberId, text) {
-  const member = dossier[memberId];
-  if (!member) return dossier;
-  const needle = String(text ?? '')
-    .trim()
-    .toLowerCase();
-  if (!needle) return dossier;
-
-  return {
-    ...dossier,
-    [memberId]: {
-      ...member,
-      open_threads: member.open_threads.filter((t) => {
-        const text = entryText(t).toLowerCase();
-        return !text.includes(needle) && !needle.includes(text);
-      }),
-    },
-  };
-}
-
 /**
- * Prompt block 3, scoped to the roster.
+ * THERE IS NO `renderDossier` HERE ANY MORE, AND THAT IS THE POINT.
  *
- * An absent member's facts are simply not here. That is the cheapest defence
- * against member bleed, and it is why this function takes a roster rather than
- * rendering the whole dossier.
+ * v1 had one: this module rendered prompt block 3 and `promptBuilder` pasted it
+ * in. v2's `agent/tiers.js` writes the tail itself, which is correct - tier 3 is
+ * one block ordered by immediacy and the dossier is three lines inside it, not a
+ * section that can be composed somewhere else and dropped in.
+ *
+ * Keeping both is what let them drift onto different category names for an
+ * entire milestone without a single test failing, because the dead one was the
+ * one every test called. Two answers to "how does the dossier reach the model"
+ * is one too many.
+ *
+ * `resolveThread` and `countOpenThreads` went with `open_threads`, which existed
+ * only to feed `strain`.
  */
-export function renderDossier(dossier, rosterIds, nameOf = (id) => id) {
-  const sections = [];
-
-  for (const id of rosterIds) {
-    const member = dossier[id];
-    if (!member) continue;
-
-    const lines = [];
-    for (const category of DOSSIER_CATEGORIES) {
-      const items = member[category] ?? [];
-      if (items.length === 0) continue;
-      // Block 3 sees the English and only the English. The display half of an
-      // entry never reaches a prompt - that is the whole point of splitting it.
-      lines.push(`  ${category}: ${items.map((i) => `"${entryText(i)}"`).join('; ')}`);
-    }
-    if (lines.length === 0) continue;
-
-    sections.push(`${nameOf(id)}:\n${lines.join('\n')}`);
-  }
-
-  return sections.length === 0 ? 'Nothing learned about her yet.' : sections.join('\n\n');
-}
-
-/** Unresolved threads cost strain at cycle end (section 7). */
-export function countOpenThreads(dossier, memberId) {
-  return dossier[memberId]?.open_threads?.length ?? 0;
-}
 
 /** Apply what the scene-exit summarizer returned. */
-export function commitSummary(memory, { entry, dossierAdd = [], dossierResolve = [] }) {
+export function commitSummary(memory, { entry, dossierAdd = [] }) {
   let dossier = memory.dossier;
 
   for (const add of dossierAdd) {
@@ -197,10 +167,6 @@ export function commitSummary(memory, { entry, dossierAdd = [], dossierResolve =
      */
     const { memberId, category, ...entry } = add;
     dossier = addDossierEntry(dossier, memberId, category, entry);
-  }
-  for (const res of dossierResolve) {
-    if (!res?.memberId) continue;
-    dossier = resolveThread(dossier, res.memberId, res.text);
   }
 
   return { ledger: entry ? appendLedger(memory.ledger, entry) : memory.ledger, dossier };

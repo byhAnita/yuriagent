@@ -60,11 +60,11 @@ const aRun = () => ({
     irene: { ...newRelation(5), affection: 62, admissibility: 24, peakAffection: 62 },
   },
   memory: {
-    dossier: { irene: { known_facts: [{ text: 'has cold hands', factId: 'cold_hands' }] } },
+    dossier: { irene: { facts: [{ text: 'has cold hands', factId: 'cold_hands' }] } },
     ledger: [{ id: 's1', day: 1, block: 'morning', type: 'full', text: 'They talked.' }],
   },
   calendar: { taskState: { taskId: 'prep_outfits', done: true, day: 2 } },
-  flags: { firedEvents: ['prep:event_a:0'], usedGestures: ['squats_together'], foundRumors: [] },
+  flags: { firedEvents: ['prep:event_a:0'], foundRumors: [], foundRoutines: ['irene:prep:0'] },
   lang: 'zh',
   model: 'deepseek',
 });
@@ -113,7 +113,7 @@ describe('a round trip', () => {
     expect(back.player.name).toBe('Yuhan');
     expect(back.player.dishes).toBe(1);
     expect(back.relations.irene.affection).toBe(62);
-    expect(back.memory.dossier.irene.known_facts[0].factId).toBe('cold_hands');
+    expect(back.memory.dossier.irene.facts[0].factId).toBe('cold_hands');
     expect(back.memory.ledger).toHaveLength(1);
     expect(back.calendar.taskState.done).toBe(true);
     expect(back.flags.firedEvents).toEqual(['prep:event_a:0']);

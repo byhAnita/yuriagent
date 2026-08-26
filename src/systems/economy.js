@@ -1,193 +1,84 @@
 /**
- * Credits and the knowledge-gated gift economy. CLAUDE.md section 11.
+ * Credits, and handing something over. CLAUDE.md Part I.10.
  *
- * The point of this module is that money is not the constraint - ATTENTION is.
- * A knowledge-gated gift cannot be bought at any price until the matching fact
- * exists in her dossier, so paying attention during dialogue is what unlocks
- * the strong move. Credits only pace it.
+ * THIS MODULE USED TO DECIDE WHETHER A GIFT LANDED, AND IT NO LONGER DOES.
+ *
+ * v1 matched a gift's `requires` needles against her dossier to work out whether
+ * the player had earned it, then paid a fixed `+5` for a knowledge gift and `+1`
+ * for a generic one. Two things were wrong with that, and they are the same
+ * thing twice:
+ *
+ * 1. **The substring match broke.** Twice, during content rewrites - an opener
+ *    that silently never unlocks is invisible, because nothing distinguishes it
+ *    from a fact the player has not found yet.
+ * 2. **The number was code deciding what the scene meant** (I.1), and it was
+ *    paid on TOP of whatever the model moved in the round it wrote in reaction.
+ *    A bought reaction and an earned one arrived at the same place by two
+ *    different routes, one of which nobody could see.
+ *
+ * So what is left is the two things that genuinely are the world's to decide:
+ * **can the player afford it, and are they carrying it.** The note goes into
+ * tier 3, the model reads her `facts` alongside it, and her reaction moves
+ * affection the way every other round does - bounded, visible, and once.
  */
 
-import { GENERIC_GIFTS, KNOWLEDGE_GIFTS, BUYABLE_GIFTS, getGift } from '../data/gifts.js';
-import { entryText } from './dossierEntry.js';
-import { GESTURE_EFFECT } from '../config/constants.js';
+import { GIFTS, getGift } from '../data/gifts.js';
 
 /**
- * WHICH remembered line unlocks this gift, or null.
+ * What the Give sheet shows.
  *
- * Returning the fact rather than a boolean is the point. The note that opens the
- * scene quotes it back (section 11), so the model does not have to infer for
- * itself that a knee brace has anything to do with the injury sitting three
- * blocks earlier in the dossier. At this model tier that inference is not
- * reliable, and what it produces when it fails is a generic thank-you - the one
- * thing the knowledge economy exists to avoid.
+ * Everything, always - there is nothing to unlock and therefore nothing to hide.
+ * `affordable` is the only state a row has, and an unaffordable row still shows,
+ * because a price you cannot meet yet is information and a locked fact was not.
  *
- * Matched per entry, not against the concatenation of all of them, so a needle
- * cannot be satisfied by the seam between two unrelated facts.
- */
-export function matchedFact(gift, dossier) {
-  // A null gift means an id that no longer exists - a save written against an
-  // older catalogue, say. That must read as "not unlocked", never as a crash
-  // that takes the gift modal down with it.
-  if (!gift?.requires && !gift?.factIds) return null;
-  const facts = [...(dossier?.known_facts ?? []), ...(dossier?.player_told_her ?? [])];
-
-  for (const fact of facts) {
-    /**
-     * The id first, because it cannot be reworded.
-     *
-     * A snooped fact arrives with the id it was awarded under, so the match is
-     * exact and survives any rewrite of either the card or the needle list -
-     * the regression section 12 records having happened twice. Only a fact the
-     * summarizer wrote in its own words has no id, and that is what the
-     * substring pass below is for.
-     */
-    const id = typeof fact === 'object' ? fact.factId : null;
-    if (id && gift.factIds?.includes(id)) return entryText(fact);
-
-    const hay = entryText(fact).toLowerCase();
-    if (gift.requires?.some((needle) => hay.includes(needle.toLowerCase()))) return entryText(fact);
-  }
-  return null;
-}
-
-/** Does anything she has told you match what this gift needs to know? */
-export function isUnlocked(gift, dossier) {
-  if (!gift) return false;
-  if (!gift.requires && !gift.factIds) return true;
-  return matchedFact(gift, dossier) !== null;
-}
-
-/**
- * What the gift modal shows for this member.
- *
- * Locked knowledge gifts are RETURNED, not hidden. Seeing that there is
- * something you could give her if you knew her better is the pull that makes
- * the dossier feel like a mechanic instead of plumbing.
- */
-/**
- * @param {object} dossier
  * @param {number} credits
- * @param {string[]} usedGestures
  * @param {object} stock - counters for openers paid in something other than
- *   credits, e.g. `{ dishes: 2 }`. A gift carrying `stock` is unaffordable
- *   while its counter is zero and is not shown at all - the same rule locked
- *   knowledge gifts follow, for the same reason: an option the player cannot
- *   act on is clutter.
+ *   credits, e.g. `{ dishes: 2 }`. A gift carrying `stock` with an empty counter
+ *   is not shown at all: it is not expensive, it does not exist right now.
  */
-export function giftsFor(dossier, credits, usedGestures = [], stock = {}) {
+export function giftsFor(credits, stock = {}) {
   const inStock = (g) => !g.stock || (stock[g.stock] ?? 0) > 0;
-  const entry = (g, unlocked) => ({
+
+  return GIFTS.filter(inStock).map((g) => ({
     ...g,
-    unlocked: unlocked && inStock(g),
-    affordable: credits >= g.cost && inStock(g),
-    purchasable: unlocked && credits >= g.cost && inStock(g),
-  });
-
-  const spent = new Set(usedGestures);
-
-  return {
-    generic: GENERIC_GIFTS.map((g) => entry(g, true)),
-    // Only the openers that are actually an object. A gesture-only fact has no
-    // price and never belongs in the shop half.
-    knowledge: BUYABLE_GIFTS.map((g) => entry(g, isUnlocked(g, dossier))),
-
-    /**
-     * The same knowledge, spent by saying something instead of buying
-     * something. Free, weaker, and available once - see GESTURE_EFFECT.
-     *
-     * Not every way of showing you were listening is a purchase. Asking how
-     * the ankle held up, or bringing up the book she has been quoting, is the
-     * more natural move most of the time, and a knowledge economy where the
-     * only verb is BUY reads as a shop rather than as attention.
-     */
-    gesture: KNOWLEDGE_GIFTS.map((g) => ({
-      ...g,
-      cost: 0,
-      effect: GESTURE_EFFECT,
-      unlocked: isUnlocked(g, dossier),
-      used: spent.has(g.id),
-      purchasable: isUnlocked(g, dossier) && !spent.has(g.id),
-    })),
-  };
+    affordable: credits >= g.cost,
+  }));
 }
 
-export function canGesture(giftId, dossier, usedGestures = []) {
+export function canPurchase(giftId, credits, stock = {}) {
   const gift = getGift(giftId);
-  if (!gift?.requires) return false;
-  return isUnlocked(gift, dossier) && !usedGestures.includes(giftId);
-}
-
-/**
- * Open the scene by saying something, rather than by handing something over.
- *
- * Named spend* rather than use*, because `use` is reserved for React hooks by
- * lint convention and this is a pure function in systems/.
- *
- * The note names the fact exactly as the gift note does, because the payoff is
- * identical: she hears that you remembered. What differs is that there is no
- * object in her hands, so the model must not invent one.
- */
-export function spendGesture(giftId, dossier, usedGestures, memberName) {
-  if (!canGesture(giftId, dossier, usedGestures)) return null;
-  const fact = matchedFact(getGift(giftId), dossier);
-
-  return {
-    giftId,
-    tier: 'gesture',
-    fact,
-    affectionDelta: GESTURE_EFFECT,
-    usedGestures: [...usedGestures, giftId],
-    sceneNote:
-      `the player has brought ${memberName} nothing at all. They opened by bringing up something she once let slip: "${fact}". ` +
-      'There is no gift and no object - only that they remembered, and chose to lead with it. ' +
-      'Do not invent a present; there is not one to react to.',
-  };
-}
-
-export function canPurchase(giftId, dossier, credits, stock = {}) {
-  const gift = getGift(giftId);
-  if (!gift || gift.object === false) return false;
-  // An opener paid in something other than credits still has to be in hand.
+  // A null gift means an id that no longer exists - a save written against an
+  // older catalogue, say. That must read as "no", never as a crash that takes
+  // the sheet down with it.
+  if (!gift) return false;
   if (gift.stock && (stock[gift.stock] ?? 0) <= 0) return false;
-  return isUnlocked(gift, dossier) && credits >= gift.cost;
+  return credits >= gift.cost;
 }
 
 /**
- * Buy and open the scene with it.
- * Returns the spend plus the note injected at the head of prompt block 5.
+ * Hand it over. Returns the spend plus the note that goes into tier 3.
+ *
+ * The note says what the object is and who is holding it, and stops there. It
+ * does NOT say whether this was a good idea - the model has her `facts` two
+ * lines above it in the same block, so whether a mugwort pack is uncanny
+ * attention or a baffling object is something it can read for itself. Scripting
+ * that here is what made every gift scene open the same way.
  */
-export function purchase(giftId, dossier, credits, memberName, stock = {}) {
-  if (!canPurchase(giftId, dossier, credits, stock)) return null;
+export function purchase(giftId, credits, memberName, stock = {}) {
+  if (!canPurchase(giftId, credits, stock)) return null;
   const gift = getGift(giftId);
   const name = giftId.replace(/_/g, ' ');
-  const knowledge = Boolean(gift.requires);
-  const fact = matchedFact(gift, dossier);
 
-  /**
-   * The note carries the TIER and the FACT. The tier stops a hand warmer and an
-   * iced coffee reading as the same sentence; the fact stops the model having to
-   * work out for itself why this particular object proves you were listening.
-   *
-   * It deliberately does NOT script the reaction. Everything here is input - the
-   * line she actually says is generated, so it can also move with how close she
-   * already is (block 4 standing, section 8).
-   */
-  const sceneNote = knowledge
-    ? `the player has just handed ${memberName} a ${name}.${
-        fact ? ` She let this slip once: "${fact}".` : ''
-      } She has never told anyone she needed one - only somebody who had been paying very close attention would have known to bring it. She was not expecting this.`
-    : gift.stock === 'dishes'
-      ? `the player has just handed ${memberName} something they cooked themselves, in the dorm kitchen, earlier. Not bought - made, and carried around since.`
-      : `the player has just handed ${memberName} a ${name}. An ordinary, thoughtful gesture - kind, but nothing she could not have guessed at.`;
+  const sceneNote =
+    gift.stock === 'dishes'
+      ? `The player has just handed ${memberName} something they cooked themselves, in the dorm kitchen, earlier. Not bought - made, and carried around since.`
+      : `The player has just handed ${memberName} a ${name}.`;
 
   return {
     giftId,
-    tier: knowledge ? 'knowledge' : 'generic',
-    fact,
     credits: credits - gift.cost,
     /** Which player counter this opener consumed, if not credits. */
     spentStock: gift.stock ?? null,
-    affectionDelta: gift.effect,
     sceneNote,
   };
 }

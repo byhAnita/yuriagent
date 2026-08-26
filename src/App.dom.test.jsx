@@ -206,14 +206,14 @@ describe('walking into a room', () => {
   /**
    * The seam: App builds the `openers` object and `RoundStage` calls into it.
    *
-   * This proves the halves are connected - that `dossierFor` and `credits` reach
-   * the catalogue rather than throwing or rendering an empty list. Exactly the
-   * join this project keeps shipping broken: two correct halves and nothing
-   * calling between them.
+   * This proves the halves are connected - that `credits` and `stock` reach the
+   * catalogue rather than throwing or rendering an empty list. Exactly the join
+   * this project keeps shipping broken: two correct halves and nothing calling
+   * between them.
    *
    * It does not complete a purchase, because the assistant starts on zero
-   * credits and an empty dossier by design, so nothing is affordable on day one.
-   * That is the game working, not the test being weak.
+   * credits by design, so nothing is affordable on day one. That is the game
+   * working, not the test being weak.
    */
   it('wires the real catalogue into the sheet', async () => {
     await startARun('Yuhan');
@@ -228,11 +228,17 @@ describe('walking into a room', () => {
     await userEvent.click(screen.getByRole('button', { name: t('vn.give') }));
 
     expect(screen.getByText(t('gift.title'))).toBeTruthy();
-    // A real shipped gift, from data/gifts.js through App's openers.
+    // Real shipped gifts, from data/gifts.js through App's openers.
     expect(screen.getByText(t('gift.rose'))).toBeTruthy();
-    // No knowledge opener yet, and the modal says why rather than showing
-    // locked rows - section 11: naming one spoils the fact it waits on.
-    expect(screen.getByText(t('gift.hint'))).toBeTruthy();
+
+    /**
+     * THE SHELF IS OPEN ON DAY ONE (Part I.10). A specific object used to be
+     * hidden behind a fact the player had not found, and the sheet showed a
+     * hint about it instead. Now it is simply there and unaffordable, which is
+     * a price rather than a lock - and knowing WHICH member a mugwort pack is
+     * for is the player's job, not a `requires` array's.
+     */
+    expect(screen.getByText(t('gift.mugwort_pack'))).toBeTruthy();
   }, 20000);
 });
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   newMemory,
   newDossier,
@@ -6,9 +7,6 @@ import {
   renderLedger,
   willCompact,
   addDossierEntry,
-  resolveThread,
-  renderDossier,
-  countOpenThreads,
   commitSummary,
   entryText,
 } from './memory.js';
@@ -85,21 +83,21 @@ describe('dossier', () => {
 
   it('caps each category and drops the oldest', () => {
     let d = base();
-    for (let i = 0; i < DOSSIER_CAPS.known_facts + 3; i++) {
-      d = addDossierEntry(d, 'irene', 'known_facts', `fact ${i}`);
+    for (let i = 0; i < DOSSIER_CAPS.facts + 3; i++) {
+      d = addDossierEntry(d, 'irene', 'facts', `fact ${i}`);
     }
-    expect(d.irene.known_facts).toHaveLength(DOSSIER_CAPS.known_facts);
-    expect(texts(d.irene.known_facts)).not.toContain('fact 0');
-    expect(entryText(d.irene.known_facts.at(-1))).toBe(`fact ${DOSSIER_CAPS.known_facts + 2}`);
+    expect(d.irene.facts).toHaveLength(DOSSIER_CAPS.facts);
+    expect(texts(d.irene.facts)).not.toContain('fact 0');
+    expect(entryText(d.irene.facts.at(-1))).toBe(`fact ${DOSSIER_CAPS.facts + 2}`);
   });
 
   it('moves a repeated fact to the end rather than storing it twice', () => {
     let d = base();
-    d = addDossierEntry(d, 'irene', 'known_facts', 'hates cold hands');
-    d = addDossierEntry(d, 'irene', 'known_facts', 'reads before sleep');
-    d = addDossierEntry(d, 'irene', 'known_facts', 'Hates Cold Hands');
+    d = addDossierEntry(d, 'irene', 'facts', 'hates cold hands');
+    d = addDossierEntry(d, 'irene', 'facts', 'reads before sleep');
+    d = addDossierEntry(d, 'irene', 'facts', 'Hates Cold Hands');
 
-    expect(texts(d.irene.known_facts)).toEqual(['reads before sleep', 'Hates Cold Hands']);
+    expect(texts(d.irene.facts)).toEqual(['reads before sleep', 'Hates Cold Hands']);
   });
 
   it('keeps rumors FIFO because repetition is meaningful there', () => {
@@ -110,69 +108,56 @@ describe('dossier', () => {
   });
 
   it('ignores empty text', () => {
-    const d = addDossierEntry(base(), 'irene', 'known_facts', '   ');
-    expect(d.irene.known_facts).toHaveLength(0);
+    const d = addDossierEntry(base(), 'irene', 'facts', '   ');
+    expect(d.irene.facts).toHaveLength(0);
   });
 
   it('rejects an unknown category rather than silently dropping it', () => {
     expect(() => addDossierEntry(base(), 'irene', 'nonsense', 'x')).toThrow();
   });
 
-  it('resolves a thread on a loose match', () => {
-    let d = base();
-    d = addDossierEntry(d, 'irene', 'open_threads', 'she asked if you are free Sunday');
-    expect(countOpenThreads(d, 'irene')).toBe(1);
+  /**
+   * THREE CATEGORIES, AND THEY ARE THE ONES TIER 3 ACTUALLY READS.
+   *
+   * Asserted against `tiers.js` source rather than against a list written out
+   * here, because a list written out here is precisely what let the two drift.
+   * `memory.js` wrote `known_facts` and `player_told_her` for a whole milestone
+   * while `tiers.js` read `facts` and `told_her` - so every fact a snoop awarded
+   * went into a key the prompt pipeline never looked at, and the knowledge
+   * economy reached the model through `heard_about` and nothing else.
+   *
+   * Every test passed throughout, because every test asked `memory.js` what it
+   * had just written. Both halves correct, the join one word wrong in each of
+   * two places: the fourth instance of this project's signature bug. This is the
+   * assertion that makes the join a thing which can fail.
+   */
+  it('names its categories the way the prompt tail reads them', () => {
+    const tiers = readFileSync(new URL('./tiers.js', import.meta.url), 'utf8');
+    const tail = tiers.slice(tiers.indexOf('const known = ['));
 
-    d = resolveThread(d, 'irene', 'free Sunday');
-    expect(countOpenThreads(d, 'irene')).toBe(0);
-  });
-
-  it('does not resolve an unrelated thread', () => {
-    let d = base();
-    d = addDossierEntry(d, 'irene', 'open_threads', 'she asked if you are free Sunday');
-    d = resolveThread(d, 'irene', 'the wardrobe order');
-    expect(countOpenThreads(d, 'irene')).toBe(1);
-  });
-});
-
-describe('renderDossier', () => {
-  it('renders only the roster', () => {
-    let d = newMemory(['irene', 'nana']).dossier;
-    d = addDossierEntry(d, 'irene', 'known_facts', 'hates cold hands');
-    d = addDossierEntry(d, 'nana', 'known_facts', 'does her own makeup');
-
-    const out = renderDossier(d, ['irene'], (id) => id.toUpperCase());
-    expect(out).toContain('IRENE');
-    expect(out).toContain('hates cold hands');
-    expect(out).not.toContain('makeup');
-  });
-
-  it('says something rather than nothing when the dossier is empty', () => {
-    expect(renderDossier(newMemory(['irene']).dossier, ['irene'])).toBe(
-      'Nothing learned about her yet.',
-    );
+    expect(Object.keys(DOSSIER_CAPS).sort()).toEqual(['facts', 'heard_about', 'told_her']);
+    for (const category of Object.keys(DOSSIER_CAPS)) {
+      expect(tail, category).toContain(`d.${category}`);
+    }
   });
 });
 
 describe('commitSummary', () => {
   it('applies the ledger entry and the dossier changes together', () => {
-    let memory = newMemory(['irene']);
-    memory.dossier = addDossierEntry(memory.dossier, 'irene', 'open_threads', 'free on Sunday?');
+    const memory = newMemory(['irene']);
 
     const next = commitSummary(memory, {
       entry: { id: 's1', week: 0, day: 0, block: 'evening', text: 'They talked.', summary: 'Talked.' },
-      dossierAdd: [{ memberId: 'irene', category: 'known_facts', text: 'hates cold hands' }],
-      dossierResolve: [{ memberId: 'irene', text: 'Sunday' }],
+      dossierAdd: [{ memberId: 'irene', category: 'facts', text: 'hates cold hands' }],
     });
 
     expect(next.ledger).toHaveLength(1);
-    expect(texts(next.dossier.irene.known_facts)).toContain('hates cold hands');
-    expect(next.dossier.irene.open_threads).toHaveLength(0);
+    expect(texts(next.dossier.irene.facts)).toContain('hates cold hands');
   });
 
   it('leaves memory intact when the summarizer returned nothing usable', () => {
     const memory = newMemory(['irene']);
-    const next = commitSummary(memory, { entry: null, dossierAdd: [], dossierResolve: [] });
+    const next = commitSummary(memory, { entry: null, dossierAdd: [] });
     expect(next.ledger).toHaveLength(0);
   });
 
@@ -181,7 +166,7 @@ describe('commitSummary', () => {
     expect(() =>
       commitSummary(memory, {
         entry: null,
-        dossierAdd: [{ memberId: null }, { category: 'known_facts' }, null],
+        dossierAdd: [{ memberId: null }, { category: 'facts' }, null],
       }),
     ).not.toThrow();
   });

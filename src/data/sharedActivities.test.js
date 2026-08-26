@@ -12,7 +12,7 @@ import { describe, it, expect } from 'vitest';
 import { SHARED_ACTIVITIES, FILMS, sharedActivityFor, sharedFrame } from './sharedActivities.js';
 import { LOCATIONS, DORM_LOCATIONS } from './locations.js';
 import { actionsFor } from './soloActions.js';
-import { GENERIC_GIFTS } from './gifts.js';
+import { GIFTS } from './gifts.js';
 import { giftsFor, canPurchase, purchase } from '../systems/economy.js';
 import { propagate } from '../systems/rumor.js';
 import { newRelation } from '../systems/relationship.js';
@@ -159,14 +159,18 @@ describe('nobody is being singled out', () => {
 });
 
 describe('the dish', () => {
-  const dossier = { known_facts: [], player_told_her: [] };
-
   it('is an opener paid in a block rather than in credits', () => {
-    const dish = GENERIC_GIFTS.find((g) => g.id === 'home_cooked');
+    const dish = GIFTS.find((g) => g.id === 'home_cooked');
     expect(dish.cost).toBe(0);
     expect(dish.stock).toBe('dishes');
-    // Better than a shop gift, because a block is dearer than two credits.
-    expect(dish.effect).toBeGreaterThan(GENERIC_GIFTS.find((g) => g.id === 'rose').effect);
+    /**
+     * It used to also carry `effect: 2` against a rose's `1` - a block is
+     * dearer than two credits, so the dish had to land harder. That number is
+     * gone with every other one on a gift (Part I.10): the model decides what
+     * a home-cooked dish handed to her is worth, and the note it reads says
+     * outright that this was made rather than bought.
+     */
+    expect(dish).not.toHaveProperty('effect');
   });
 
   it('is cooked by a solo action that produces no credits', () => {
@@ -176,21 +180,19 @@ describe('the dish', () => {
   });
 
   /**
-   * Not shown while the player is not carrying one - the same rule locked
-   * knowledge gifts follow. An option that cannot be acted on is clutter.
+   * Not shown while the player is not carrying one. It is not expensive - it
+   * does not exist right now, and an option that cannot be acted on is clutter.
    */
   it('is not offered when there is none in hand', () => {
-    const none = giftsFor(dossier, 20, [], { dishes: 0 });
-    expect(none.generic.find((g) => g.id === 'home_cooked').unlocked).toBe(false);
-    expect(canPurchase('home_cooked', dossier, 20, { dishes: 0 })).toBe(false);
+    expect(giftsFor(20, { dishes: 0 }).some((g) => g.id === 'home_cooked')).toBe(false);
+    expect(canPurchase('home_cooked', 20, { dishes: 0 })).toBe(false);
 
-    const one = giftsFor(dossier, 20, [], { dishes: 1 });
-    expect(one.generic.find((g) => g.id === 'home_cooked').purchasable).toBe(true);
-    expect(canPurchase('home_cooked', dossier, 20, { dishes: 1 })).toBe(true);
+    expect(giftsFor(20, { dishes: 1 }).some((g) => g.id === 'home_cooked')).toBe(true);
+    expect(canPurchase('home_cooked', 20, { dishes: 1 })).toBe(true);
   });
 
   it('spends the dish rather than any credits, and says so to the model', () => {
-    const bought = purchase('home_cooked', dossier, 20, 'Irene', { dishes: 1 });
+    const bought = purchase('home_cooked', 20, 'Irene', { dishes: 1 });
 
     expect(bought.credits).toBe(20);
     expect(bought.spentStock).toBe('dishes');
@@ -200,7 +202,7 @@ describe('the dish', () => {
   });
 
   it('leaves an ordinary shop gift untouched', () => {
-    const bought = purchase('rose', dossier, 20, 'Irene', { dishes: 0 });
+    const bought = purchase('rose', 20, 'Irene', { dishes: 0 });
     expect(bought.credits).toBe(19);
     expect(bought.spentStock).toBeNull();
   });

@@ -31,10 +31,50 @@ export const TASKS = {
   restock_wardrobe: { slot: 'workroom_b', affectsMembers: false, credits: 2, competence: 2 },
 };
 
+/**
+ * What each chore IS, in a sentence the model can put in a room.
+ *
+ * MODEL-FACING ENGLISH, never localized - the same rule `data/activities.js`
+ * follows for `doingLine`, and for the same reason: `agent/` does not import
+ * `i18n/`, because one is a UI string and the other is an instruction. The
+ * player's version of these lives in `i18n/task.*` and the two are allowed to
+ * drift, being written for different readers.
+ *
+ * v1 carried this table and it went with the block-4 builder. Rebuilt here,
+ * beside the ids, so a task added to `TASKS` with no sentence is a missing key
+ * rather than a silently empty line in the tail.
+ */
+export const TASK_CHORE = {
+  prep_outfits: 'the stage outfits still need prepping',
+  run_schedule: "tomorrow's call sheet still has to be squared with everyone",
+  handle_press_kit: 'the press kit still has to go out',
+  stage_check: 'the stage and the in-ears still have to be checked',
+  restock_wardrobe: 'the wardrobe rail still has to be restocked',
+};
+
+/**
+ * The line tier 3 carries while today's job is outstanding, or null.
+ *
+ * Two clauses, because there are two different pressures and only one of them
+ * is about the player. The chore is the clock: one block left and the outfits
+ * are not ready. `affectsMembers` says whose day it lands on if it does not get
+ * done, which is what lets HER bring it up - and after Part I.8 that scene is
+ * the only form the consequence takes. `failTask` returns player deltas and
+ * nothing else; there is no second axis for a missed outfit to write into.
+ */
+export function chorePhrase(task, { done = false } = {}) {
+  if (!task || done) return null;
+  const what = TASK_CHORE[task.taskId];
+  if (!what) return null;
+
+  return task.affectsMembers
+    ? `The player still owes the agency one job today: ${what}, and it is the members who wear it if it does not get done.`
+    : `The player still owes the agency one job today: ${what}.`;
+}
+
 export const FAILURE = {
   competence: -3,
   energy: -5,
-  strainIfAffected: 8,
 };
 
 export function newTaskState() {

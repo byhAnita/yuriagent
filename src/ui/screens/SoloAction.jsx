@@ -9,6 +9,7 @@
 
 import { actionsFor } from '../../data/soloActions.js';
 import { availableFinds } from '../../systems/soloWork.js';
+import { DAY_NAMES } from '../../systems/calendar.js';
 import { factDisplay } from '../../data/facts.js';
 import { sharedActivityFor } from '../../data/sharedActivities.js';
 
@@ -33,6 +34,18 @@ export default function SoloAction({
   /** What the player already knows, so the screen can say when a room is spent. */
   dossier = {},
   foundRumors = [],
+  /**
+   * ...and what the player already knows about whose evenings are whose, plus
+   * the clock that decides which week's routines are on offer.
+   *
+   * All four go into `hasFinds` below, and they have to: a room that still has
+   * a routine to give but no facts left would otherwise render as spent while
+   * the snoop underneath it would happily hand one over.
+   */
+  foundRoutines = [],
+  phase = null,
+  week = 0,
+  seed = null,
   onTalk,
   /** Talk to all of them at once. Group scenes, proposal 12. */
   onJoin = null,
@@ -75,6 +88,10 @@ export default function SoloAction({
       dossier,
       present,
       foundRumors,
+      foundRoutines,
+      phase,
+      week,
+      seed,
       kind: typeof action.learns === 'string' ? action.learns : null,
     }).length > 0;
 
@@ -337,6 +354,33 @@ export default function SoloAction({
                   .replace('{name}', result.heard.name)
                   .replace('{subject}', result.heard.subjectName ?? '')
                   .replace('{where}', result.heard.locationId ? t(`location.${result.heard.locationId}`) : '')}
+              </p>
+            </div>
+          ) : result.routine ? (
+            /*
+              ACCESS. Section 10 has wanted this since M1 - "a fact that tells
+              you where she will be is more interesting than one that tells you
+              what to purchase" - and it never arrived, because gifts were the
+              only thing a fact could buy.
+
+              It is neither of the two above, so it gets the accent rather than
+              either of their colours: not something about her, and not
+              something about you, but a door that opens on a specific evening.
+              The days are named in the player's language and the sentence is
+              rebuilt here rather than printed from `routine.text`, which is the
+              English `soloLedgerText` wrote for the ledger.
+            */
+            <div className="thought-in rounded-[var(--radius)] border border-accent/60 bg-surface px-4 py-3">
+              <span className="mb-1 block font-mono text-[0.5rem] uppercase tracking-[0.18em] text-accent">
+                {t('solo.routine')}
+              </span>
+              <p className="font-display text-[1rem] italic leading-snug text-text">
+                {t('solo.routineLine')
+                  .replace('{name}', result.routine.name)
+                  .replace(
+                    '{nights}',
+                    result.routine.nights.map((d) => t(`dayFull.${DAY_NAMES[d]}`)).join(t('solo.and')),
+                  )}
               </p>
             </div>
           ) : result.action.learns ? (

@@ -155,6 +155,11 @@ export function buildTier3({
   roundIndex = 0,
   roundsLeft = 0,
   lastChoice = null,
+  /**
+   * What the player still owes the agency today, or null. Model-facing English,
+   * composed by `systems/tasks.js` - see `chorePhrase`.
+   */
+  owed = null,
   note = null,
   lang = 'en',
 }) {
@@ -205,6 +210,22 @@ export function buildTier3({
     if (heard.length) known.push(`${id} - she has heard: ${heard.join('; ')}`);
   }
   if (known.length) lines.push('', '## WHAT IS KNOWN', ...known);
+
+  /**
+   * WHY THIS SCENE IS NOT THE LAST ONE, second half.
+   *
+   * `activity` above says what she is doing here; this says what the PLAYER is
+   * supposed to be doing instead of standing in the room talking to her. Both
+   * existed in state for six milestones and neither reached the model, so the
+   * same wardrobe on a Tuesday in week 1 and in week 7 opened identically.
+   *
+   * It matters more than it looks after Part I.8. `failTask` no longer writes a
+   * per-member number when a missed job lands on somebody, so this line is the
+   * ONLY way a member can know the outfits are not ready - and her saying so, in
+   * her own words, in the room, is a better consequence than the eight strain it
+   * replaces. Forty tokens in a block that is rebuilt every round anyway.
+   */
+  if (owed) lines.push('', owed);
 
   lines.push(
     '',

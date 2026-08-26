@@ -25,7 +25,7 @@ const GATE = LOCATIONS.dorm_room.entryAffection;
 afterEach(cleanup);
 
 /** Everyone idle somewhere harmless, then whatever the test cares about. */
-function show({ where = {}, affection = GATE + 10, onEnterRoom = vi.fn() } = {}) {
+function show({ where = {}, affection = GATE + 10, routines = {}, onEnterRoom = vi.fn() } = {}) {
   const occupancy = Object.fromEntries(
     cards.map((c) => [c.id, { locationId: where[c.id] ?? 'practice_room' }]),
   );
@@ -36,6 +36,7 @@ function show({ where = {}, affection = GATE + 10, onEnterRoom = vi.fn() } = {})
       cards={cards}
       relations={relations}
       occupancy={occupancy}
+      routines={routines}
       onBack={vi.fn()}
       onEnterRoom={onEnterRoom}
       onEnterSolo={vi.fn()}
@@ -96,5 +97,58 @@ describe('her door', () => {
 
     expect(door('Nana').disabled).toBe(true);
     expect(door('Nana').textContent).toContain(String(GATE));
+  });
+});
+
+/**
+ * WHERE A LEARNED ROUTINE IS SPENT. CLAUDE.md section 10, Part I.10.
+ *
+ * A dark door said "not home" and nothing else - which the player could already
+ * see by standing here, so the block was spent finding out. Knowing her routine
+ * turns the same door into a plan: not tonight, Thursday.
+ *
+ * Asserted at the door because that is the only place it pays off, and because
+ * the failure is silent: `routines` handed `undefined` renders the old
+ * sentence, looks completely correct, and quietly makes the whole find
+ * worthless. That is the join bug this project keeps shipping.
+ */
+describe('a routine the player has worked out', () => {
+  it('turns a dark door into an evening', () => {
+    show({ routines: { nana: [2, 4] } });
+
+    const note = door('Nana').textContent;
+    expect(note).toContain(t('day.wed'));
+    expect(note).toContain(t('day.fri'));
+    expect(note).not.toContain(t('map.notHome'));
+  });
+
+  /** Nothing learned, nothing said. The door is dark exactly as it always was. */
+  it('leaves an unknown routine saying only that she is out', () => {
+    show();
+    expect(door('Nana').textContent).toContain(t('map.notHome'));
+  });
+
+  /**
+   * Knowing when she is home does not open the door tonight, and it does not
+   * open it early either - the affection gate is untouched, and a locked door
+   * still shows the threshold rather than a schedule.
+   */
+  it('does not open a door that is shut', () => {
+    show({ routines: { nana: [2] } });
+    expect(door('Nana').disabled).toBe(true);
+
+    cleanup();
+    show({ affection: GATE - 1, routines: { nana: [2] } });
+    expect(door('Nana').textContent).toContain(String(GATE));
+    expect(door('Nana').textContent).not.toContain(t('day.wed'));
+    expect(door('Nana').disabled).toBe(true);
+  });
+
+  /** She is standing in the room. The light is the answer, not a schedule. */
+  it('says nothing extra on an evening she is actually home', () => {
+    show({ where: { nana: 'dorm_room' }, routines: { nana: [2, 4] } });
+
+    expect(door('Nana').disabled).toBe(false);
+    expect(door('Nana').textContent).not.toContain(t('day.wed'));
   });
 });

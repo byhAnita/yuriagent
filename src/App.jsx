@@ -30,11 +30,12 @@ import { buildLineup } from './systems/castBuilder.js';
 import { doingLine } from './data/activities.js';
 import { newRelation, addAffection } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
-import { generateWeek, occupancyAt } from './systems/calendar.js';
+import { generateWeek, occupancyAt, roomRoutine } from './systems/calendar.js';
 import {
   generateDayTask,
   completeTask,
   failTask,
+  chorePhrase,
   newTaskState,
   applyPlayerDeltas,
 } from './systems/tasks.js';
@@ -45,8 +46,14 @@ import {
   restOvernight,
   cycleForWeek,
 } from './systems/clock.js';
-import { purchase, spendGesture } from './systems/economy.js';
-import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
+import { purchase } from './systems/economy.js';
+import {
+  resolveSoloAction,
+  soloLedgerText,
+  applySoloPlayerDelta,
+  goodwillTargets,
+  routineKey,
+} from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
 import { propagate } from './systems/rumor.js';
 import { newPool, noteScene, fromSave as poolFromSave } from './agent/pool.js';
@@ -134,11 +141,13 @@ export default function App() {
   const [pendingScene, setPendingScene] = useState(null);
 
   /**
-   * Which knowledge gestures have been spent, for the whole run rather than the
-   * scene. Asking after her ankle is only new once; after that it is a script
-   * (CLAUDE.md section 11).
+   * `usedGestures` lived here, tracking which knowledge gestures had been spent
+   * for the whole run - asking after her ankle is only new once. Part I.10
+   * retires the gesture sheet entirely: the model reads her `facts` and writes
+   * the gesture as one of the four options when the moment is apt, which makes
+   * "only once" a property of the writing rather than a counter. `save.js` still
+   * tolerates the flag on an older record and drops it.
    */
-  const [usedGestures, setUsedGestures] = useState([]);
 
   /**
    * Rumors the player has already dug up, so a snoop never turns up the same
@@ -146,6 +155,17 @@ export default function App() {
    * changes what the PLAYER knows, not what Yeri knows.
    */
   const [foundRumors, setFoundRumors] = useState([]);
+
+  /**
+   * Whose evenings the player has worked out, as `member:phase:week` keys.
+   *
+   * The other half of what a snoop can buy, and the one section 10 has wanted
+   * since M1: **access**. Player-side like `foundRumors` and for the same
+   * reason - knowing when she is home changes what the player knows, not
+   * anything she knows, so it never touches a dossier and never reaches a
+   * prompt. Spent at the dorm door.
+   */
+  const [foundRoutines, setFoundRoutines] = useState([]);
   const [outcome, setOutcome] = useState(null);
   const [sceneNo, setSceneNo] = useState(0);
   const [solo, setSolo] = useState(null);
@@ -229,6 +249,24 @@ export default function App() {
       }),
     [weekPlan, run.day, run.block, run.week, cards],
   );
+
+  /**
+   * The routines the player has WORKED OUT, resolved back into evenings.
+   *
+   * DERIVED, never stored - the same rule `focusId` and the calendar follow.
+   * `foundRoutines` holds only the keys, so the save carries what the player
+   * knows rather than a copy of what the seed already decides, and a key from
+   * last week resolves to nothing this week without needing an expiry pass.
+   */
+  const knownRoutines = useMemo(() => {
+    const out = {};
+    for (const card of cards) {
+      const key = routineKey({ memberId: card.id, phase: run.phase, week: run.week });
+      if (!foundRoutines.includes(key)) continue;
+      out[card.id] = roomRoutine({ cardId: card.id, phase: run.phase, seed: SEED, week: run.week });
+    }
+    return out;
+  }, [cards, foundRoutines, run.phase, run.week]);
 
   const task = useMemo(
     () =>
@@ -336,7 +374,7 @@ export default function App() {
   /**
    * A block spent in an empty room. Not dead space: this is where the assistant
    * does the job, and where you learn something about a member who is not in
-   * the room - the second path into known_facts and therefore into the gifts.
+   * the room - the second path into her `facts`, and therefore into tier 3.
    */
   const onEnterSolo = (locationId, present = []) => {
     setSolo({ locationId, present: present.map((m) => m.id ?? m), result: null });
@@ -364,10 +402,21 @@ export default function App() {
       dossier: memory.dossier,
       present,
       foundRumors,
+      /**
+       * The clock, because a routine is about a specific week. `roomRoutine` is
+       * seeded on `(cardId, phase, week)` and re-drawn every week, so what a
+       * snoop buys is THIS week's access - which is the honest thing for it to
+       * be, and the reason it never needs an expiry rule.
+       */
+      foundRoutines,
+      phase: run.phase,
+      week: run.week,
+      seed: SEED,
       rng,
     });
     if (!result) return;
     if (result.heard) setFoundRumors((f) => [...f, result.heard.text]);
+    if (result.routine) setFoundRoutines((r) => [...r, result.routine.routineKey]);
 
     setPlayer((p) => {
       const next = applySoloPlayerDelta(p, result.playerDelta);
@@ -582,6 +631,14 @@ export default function App() {
          * invents the same one every time.
          */
         activity: doing && firstName ? `${firstName} is ${doing}.` : null,
+        /**
+         * ...and what the PLAYER is supposed to be doing instead of standing
+         * here. The other half of the same argument, and the one that carries a
+         * consequence now: since Part I.8 dropped the per-member penalty for a
+         * missed job, her noticing it in the room is the whole of what a failed
+         * task costs anybody but the player.
+         */
+        owed: chorePhrase(task, { done: taskState.done }),
         week: run.week,
         day: run.day,
         block: run.block,
@@ -601,6 +658,8 @@ export default function App() {
     pool,
     sceneNo,
     run,
+    task,
+    taskState.done,
     t,
   ]);
 
@@ -706,35 +765,28 @@ export default function App() {
   };
 
   /**
-   * The knowledge economy, handed to the scene rather than gating entry to it.
+   * Handing something over, handed to the scene rather than gating entry to it.
    *
-   * App still owns every number - credits, the dish counter, which gestures
-   * have been spent, the affection the opener is worth - and `VNStage` owns only
-   * when the player reaches for one. Both spend functions return the scene note
-   * on success and `null` on refusal, so the scene never has to know why an
-   * opener did not go through; it simply does not spend the turn.
+   * App owns the two numbers the world decides - credits and the dish counter -
+   * and `RoundStage` owns only when the player reaches for one. `give` returns
+   * the scene note on success and `null` on refusal, so the scene never has to
+   * know why a spend did not go through; it simply does not spend the round.
    *
-   * The affection lands here and not at scene exit on purpose. `computeDeltas`
-   * pays for what the SCENE did to her, and an opener is paid for by what the
-   * player knew and spent - two different currencies, and adding the gift to
-   * the scene's own delta would make a bought reaction indistinguishable from
-   * an earned one.
+   * NO AFFECTION IS PAID HERE ANY MORE. It used to be: a knowledge gift was
+   * worth a flat `+5` applied the moment it was handed over, on top of whatever
+   * the model then moved in the round it wrote in reaction. That is I.1 upside
+   * down - code deciding what the gesture meant - and it double-counted, by two
+   * routes only one of which was on screen. The note reaches tier 3 with her
+   * `facts` two lines above it, and her reaction moves affection once, bounded,
+   * like every other round in the game.
    */
-  const openers = useMemo(() => {
-    const pay = (memberId, delta) =>
-      setRelations((rs) => ({
-        ...rs,
-        [memberId]: addAffection(rs[memberId], delta),
-      }));
-
-    return {
+  const openers = useMemo(
+    () => ({
       credits: player.credits,
       stock: { dishes: player.dishes ?? 0 },
-      usedGestures,
-      dossierFor: (id) => memory.dossier[id],
 
       give: (giftId, card) => {
-        const bought = purchase(giftId, memory.dossier[card.id], player.credits, card.name, {
+        const bought = purchase(giftId, player.credits, card.name, {
           dishes: player.dishes ?? 0,
         });
         if (!bought) return null;
@@ -746,20 +798,11 @@ export default function App() {
             ? { [bought.spentStock]: Math.max(0, (p[bought.spentStock] ?? 0) - 1) }
             : {}),
         }));
-        pay(card.id, bought.affectionDelta);
         return bought.sceneNote;
       },
-
-      say: (giftId, card) => {
-        const said = spendGesture(giftId, memory.dossier[card.id], usedGestures, card.name);
-        if (!said) return null;
-
-        setUsedGestures(said.usedGestures);
-        pay(card.id, said.affectionDelta);
-        return said.sceneNote;
-      },
-    };
-  }, [player.credits, player.dishes, usedGestures, memory.dossier]);
+    }),
+    [player.credits, player.dishes],
+  );
 
   /**
    * The one moment the run's fixed inputs are set.
@@ -785,7 +828,7 @@ export default function App() {
     pool,
     canon,
     calendar: { taskState },
-    flags: { firedEvents, usedGestures, foundRumors },
+    flags: { firedEvents, foundRumors, foundRoutines },
     lang: settings.lang,
     model: settings.model,
   });
@@ -835,8 +878,8 @@ export default function App() {
     setTaskState(loaded.calendar.taskState ?? newTaskState());
     setCanon(loaded.canon ?? []);
     setFiredEvents(loaded.flags.firedEvents);
-    setUsedGestures(loaded.flags.usedGestures);
     setFoundRumors(loaded.flags.foundRumors);
+    setFoundRoutines(loaded.flags.foundRoutines);
     setShowSaves(false);
     setScreen('day');
   };
@@ -951,6 +994,7 @@ export default function App() {
           task={task}
           taskState={taskState}
           identity={identity}
+          routines={knownRoutines}
           event={todayEvent}
           onEnter={onEnter}
           onEnterSolo={onEnterSolo}
@@ -991,6 +1035,10 @@ export default function App() {
           cards={cards}
           dossier={memory.dossier}
           foundRumors={foundRumors}
+          foundRoutines={foundRoutines}
+          phase={run.phase}
+          week={run.week}
+          seed={SEED}
           onTalk={(memberId) => {
             const room = (solo.present ?? []).map((id) => ({ id }));
             setSolo(null);

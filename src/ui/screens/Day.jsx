@@ -36,6 +36,14 @@ export default function Day({
   taskState,
   identity,
   /**
+   * `{ [memberId]: number[] }` - the routines the player has WORKED OUT.
+   *
+   * Passed straight through to `DormMap`, which is where they are spent. Only
+   * the learned ones: a door that showed every routine would give away for free
+   * the one thing snooping is left to buy (Part I.10).
+   */
+  routines = {},
+  /**
    * The anchor event on today, or null. `{ day, slot, location, content }`.
    *
    * Two jobs, and the second is the one that was broken: it names the day, and
@@ -202,6 +210,7 @@ export default function Day({
           cards={cards}
           relations={relations}
           occupancy={occupancy}
+          routines={routines}
           onBack={() => setInDorm(false)}
           onEnterRoom={onEnter}
           onEnterSolo={onEnterSolo}

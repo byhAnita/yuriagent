@@ -4,7 +4,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 3 built. On `feat/v2-engine`.
+## Current: v2 engine, phase 4 built. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
@@ -17,7 +17,9 @@ report against an older build will still show two-line value rows for everybody
 in the room, a page that scrolls every round, strain and jealousy in the
 relationship panel, a map that names rooms and no faces, and `Read her` counting
 down from 2. All five are changed, so check the build before triaging any of
-them.
+them. **Phase 4 adds three more:** a gift sheet with locked rows and a "these
+open when she tells you something" hint, a `say something` section under the
+gifts, and a dorm door that only ever says `not home`. All three are gone.
 
 ### Read these three, in this order
 
@@ -223,46 +225,96 @@ being wrong twice:
 The abstract witness count is gone from the row - it was the room's *capacity*
 for witnesses, a worse answer to the same question now that the faces are real.
 
-### PICK UP HERE: phase 4
+### Phase 4, built: the world stops deciding what things mean
 
-**Do it in this order.** Gifts and tier 3 both read the dossier, so cutting the
-dossier second means touching it twice.
+Four items, in the order the plan set, and each one turned out to be sitting on
+top of something already broken.
 
-**1. `agent/memory.js` - the dossier goes from five categories to three.**
+**1. The dossier is three categories - and the names were the bug.**
 
-| keep | drop |
-|---|---|
-| `known_facts` -> **`facts`** (what the player knows about her) | `shared_moments` - duplicated the pool, which is now the stepped window and does it better |
-| `player_told_her` -> **`told_her`** (what she knows about the player) | `open_threads` - existed only to feed `strain`, including `countOpenThreads` and `resolveThread` |
-| `heard_about` (what she has heard and not yet reacted to) | |
+`known_facts` -> `facts`, `player_told_her` -> `told_her`, `heard_about` kept.
+`shared_moments` duplicated the pool and `open_threads` fed `strain`, so both
+went, with `countOpenThreads` and `resolveThread`.
 
-Renaming is optional and the shorter names are Part I.10's; if it costs more
-than it buys, keep the long ones and cut the two. **It is a `schemaVersion`
-bump** - Yuhan has confirmed v1 saves may break, they were all test saves.
-Consumers to walk: `App.jsx`, `systems/economy.js`, `systems/soloWork.js`,
-`data/soloActions.js`, plus `memory.test.js`, `economy.test.js`,
-`soloWork.test.js`, `snoopCost.test.js`, `save.test.js`,
-`sharedActivities.test.js`, `SoloAction.lang.test.jsx`.
+The plan called the rename optional. **It was not: it was a live bug.**
+`agent/tiers.js` was written against `facts` and `told_her` from its first line
+while `memory.js` kept writing the v1 names, so for the whole of phases 2 and 3
+every fact a snoop awarded went into a key the prompt pipeline never read. The
+knowledge economy reached the model through `heard_about` and nothing else.
 
-**2. `systems/economy.js` - gifts stop being knowledge-gated.**
+879 tests were green throughout, because every one of them asked `memory.js` what
+it had just written. **This is the fourth of these** - `markRisk`, `propagate`,
+`ENERGY_PER_READ`, and now this - and the mechanism that let it live was
+`renderDossier`: v1's builder pasted a block this module rendered, v2's tail
+writes its own, and keeping both left the dead one as the only path anything
+tested. Deleted. `memory.test.js` now reads `tiers.js` source and asserts the
+categories against it.
 
-Delete the `requires` substring matching. It broke twice, and it existed only
-because CODE had to decide whether the player had earned a gift - the model reads
-her `facts` in tier 3 and reacts accordingly. Watch for: the gift modal's "locked
-gifts are not shown" rule loses its reason to exist, and `data/gifts.js` has a
-test asserting every knowledge gift has an owner among the cast, which becomes
-meaningless. The **gesture** half (§11's "two ways to spend a fact") is the part
-worth keeping - free, once per fact, and it is still the natural move.
+`schemaVersion` 4. `migrateDossier` renames rather than discards and normalises
+forward, so a record from any build comes back holding exactly the categories
+`DOSSIER_CAPS` names today.
 
-**3. tier 3 carries the failed task**, when `affectsMembers` is set. That is
-where the beat `failTask` used to buy with strain now belongs, and phase 3a left
-the flag on the task deliberately so this has something to read.
+**2. Gifts are ungated, and lost every number except their price.**
 
-**4. `systems/soloWork.js` - snooping's best prize becomes access.**
+`requires`, `factIds` on a gift, `matchedFact`, `isUnlocked` all gone. So is the
+**gesture** half, which the plan wanted kept - Part I.10 is right and the plan
+note was stale: an `object: false` opener is a thing to SAY, offered from a sheet
+of twenty-five, and the model has her `facts` in tier 3 and can write one as an
+option when the moment is apt. `GESTURE_EFFECT`, `canGesture`, `spendGesture`,
+`usedGestures` and 25 `gesture.*` keys per locale went with it.
 
-A routine, not an object: *she practises alone on Wednesday nights*. §10.11 has
-wanted this since M1 and could never have it, because the map already told you
-where everyone was. Hidden occupancy is what makes it worth buying.
+**The affection payout went too, and that is the important half.** A knowledge
+gift was a flat `+5` applied at the moment of handing it over, on top of whatever
+the model then moved in the round it wrote in reaction - I.1 upside down, and
+double-counted by two routes only one of which was on screen. `purchase` now
+answers only *can they afford it* and *are they carrying it*.
+
+Catalogue: 13 objects, 8 of them specific to one member, none locked. Which of
+them means something to whom moves out of a `requires` array and into the
+player's head.
+
+**3. Tier 3 carries what the player owes.** `chorePhrase` in `systems/tasks.js`,
+model-facing English beside the ids. It names the chore and whether
+`affectsMembers` - the flag phase 3a left with no reader. Since `failTask` no
+longer writes a per-member number, her noticing the outfits are not ready IS the
+consequence. Asserted end to end in `roundEngine.test.js` against the rendered
+tail, not on `chorePhrase` alone.
+
+**4. Snooping's prize is access.** A third find kind, `routine` - which evenings
+she is in her own room, drawn where facts are drawn, weighted between fact and
+rumor. Player-side like `foundRumors`: no dossier write, nothing reaches a
+prompt. Keys are `member:phase:week` and the evenings are re-derived from the
+seed, so a save holds what the player knows rather than a copy of what the
+calendar already decides, and last week's key resolves to nothing this week.
+
+The plan said hidden occupancy was what made this possible. **It is not, and the
+distinction is what survives the I.11 reversal**: the map says where she is NOW,
+a routine says where she will be on an evening nobody has reached, and the week
+grid shows scheduled work slots and never idle ones.
+
+Spent at the dorm door, which said `not home` and nothing else - a fact the
+player could see by standing there. `routineJoin.test.js` reads the caller, the
+same trade `rumorJoin.test.js` makes, because `routines` handed `undefined`
+renders the old sentence and looks completely correct.
+
+**880 tests, lint clean, build clean.**
+
+### Not yet played by hand
+
+Nothing in phase 4 has been in front of a person. Four questions no test answers:
+
+1. **Is an open shelf better or worse?** Thirteen rows with no locks, eight of
+   them meaningless to whoever is in front of you. The bet is that the model
+   writes the difference; if a wrong gift reads as nothing happening, the fix is
+   the note, not the gate.
+2. **Does a routine come up often enough to notice?** `ROUTINE_WEIGHT = 2`
+   against `FACT_WEIGHT = 3` has had zero live passes. Five routines against
+   twenty-five facts means it should be scarce early and common late.
+3. **Does she pick up the chore line?** It is in the tail every round of every
+   scene on an unfinished task day, which is a lot of rounds - watch for it
+   becoming the thing every scene is about.
+4. **Are three dossier categories visibly better than five?** This is the first
+   build where a snooped fact actually reaches the model at all.
 
 ### Then phase 5
 

@@ -160,14 +160,14 @@ describe('a spent room says it is spent', () => {
     );
 
   it('offers no promise when there is nothing to overhear yet', () => {
-    room(Object.fromEntries(cards.map((c) => [c.id, { known_facts: [], heard_about: [] }])));
+    room(Object.fromEntries(cards.map((c) => [c.id, { facts: [], heard_about: [] }])));
     expect(screen.getByText(makeT('en')('solo.nothingHere'))).toBeTruthy();
     expect(screen.queryByText(makeT('en')('solo.mayLearn'))).toBeNull();
   });
 
   it('promises something once a rumor exists to find', () => {
     const dossier = Object.fromEntries(
-      cards.map((c) => [c.id, { known_facts: [], heard_about: [] }]),
+      cards.map((c) => [c.id, { facts: [], heard_about: [] }]),
     );
     dossier.yeri.heard_about = [{ text: 'you heard the player was at Cafe with Irene', kind: 'heard' }];
     room(dossier);

@@ -1,89 +1,110 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isUnlocked,
-  giftsFor,
-  canPurchase,
-  purchase,
-  earn,
-  canGesture,
-  spendGesture,
-} from './economy.js';
-import { GESTURE_EFFECT } from '../config/constants.js';
-import { KNOWLEDGE_GIFTS } from '../data/gifts.js';
-import { getGift } from '../data/gifts.js';
+import { giftsFor, canPurchase, purchase, earn } from './economy.js';
+import { GIFTS } from '../data/gifts.js';
 import { generateDayTask, completeTask, failTask, canAttempt, applyPlayerDeltas } from './tasks.js';
 
-const empty = { known_facts: [], player_told_her: [] };
-const knowsCold = { known_facts: ['hates cold hands'], player_told_her: [] };
-
-describe('knowledge gating', () => {
-  it('leaves generic gifts always available', () => {
-    expect(isUnlocked(getGift('rose'), empty)).toBe(true);
+/**
+ * THE SHELF IS OPEN. CLAUDE.md Part I.10.
+ *
+ * Everything below used to have a second question in front of it - had the
+ * player LEARNED the fact this gift is waiting on - answered by matching
+ * substrings against her dossier. That gate is gone, and with it `isUnlocked`,
+ * `matchedFact`, `canGesture` and `spendGesture`.
+ *
+ * What is asserted now is only what the world genuinely decides: can the player
+ * afford it, and are they carrying it. Whether it was the RIGHT thing to bring
+ * her is the model's to answer, in the round it writes in reaction, with her
+ * `facts` sitting two lines above the note in tier 3.
+ */
+describe('the give sheet', () => {
+  it('shows every gift, with nothing locked', () => {
+    const shown = giftsFor(100);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const g of shown) {
+      expect(g, g.id).not.toHaveProperty('unlocked');
+      expect(g, g.id).not.toHaveProperty('purchasable');
+    }
   });
 
-  it('locks a knowledge gift until the fact exists', () => {
-    expect(isUnlocked(getGift('mugwort_pack'), empty)).toBe(false);
-    expect(isUnlocked(getGift('mugwort_pack'), knowsCold)).toBe(true);
-  });
-
-  it('matches a fact the summarizer wrote in its own words', () => {
-    const loose = { known_facts: ['her hands are always cold in the studio'], player_told_her: [] };
-    expect(isUnlocked(getGift('mugwort_pack'), loose)).toBe(true);
-  });
-
-  it('also matches things the player told her', () => {
-    const told = { known_facts: [], player_told_her: ['she drinks five litres of water a day'] };
-    expect(isUnlocked(getGift('insulated_water_jug'), told)).toBe(true);
-  });
-
-  /** A gift id from an older catalogue must not take the modal down. */
-  it('treats an unknown gift id as locked rather than throwing', () => {
-    expect(() => isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).not.toThrow();
-    expect(isUnlocked(getGift('a_gift_that_no_longer_exists'), knowsCold)).toBe(false);
-    expect(canPurchase('a_gift_that_no_longer_exists', knowsCold, 999)).toBe(false);
-  });
-
-  it('money is not the constraint - attention is', () => {
-    expect(canPurchase('mugwort_pack', empty, 999)).toBe(false);
-    expect(canPurchase('mugwort_pack', knowsCold, 3)).toBe(true);
-    expect(canPurchase('mugwort_pack', knowsCold, 2)).toBe(false);
-  });
-});
-
-describe('giftsFor', () => {
-  it('shows locked gifts rather than hiding them', () => {
-    const { knowledge } = giftsFor(empty, 100);
-    expect(knowledge.length).toBeGreaterThan(0);
-    expect(knowledge.every((g) => g.unlocked === false)).toBe(true);
-    expect(knowledge.every((g) => g.purchasable === false)).toBe(true);
-  });
-
-  it('separates affordability from knowledge', () => {
-    const { knowledge } = giftsFor(knowsCold, 0);
-    const warmer = knowledge.find((g) => g.id === 'mugwort_pack');
-    expect(warmer.unlocked).toBe(true);
+  /**
+   * A price you cannot meet is information; a fact you have not found was not.
+   * So an unaffordable row still shows, where a locked one used to be hidden.
+   */
+  it('shows what it cannot afford rather than hiding it', () => {
+    const warmer = giftsFor(0).find((g) => g.id === 'mugwort_pack');
+    expect(warmer).toBeTruthy();
     expect(warmer.affordable).toBe(false);
-    expect(warmer.purchasable).toBe(false);
+    expect(giftsFor(99).find((g) => g.id === 'mugwort_pack').affordable).toBe(true);
+  });
+
+  /**
+   * An opener paid in something other than credits is NOT shown while its
+   * counter is empty - it is not expensive, it does not exist right now.
+   */
+  it('hides an opener the player is not carrying', () => {
+    expect(giftsFor(99, { dishes: 0 }).some((g) => g.id === 'home_cooked')).toBe(false);
+    expect(giftsFor(99, { dishes: 1 }).some((g) => g.id === 'home_cooked')).toBe(true);
+  });
+
+  /** Every object in the catalogue is buyable. There is no other kind now. */
+  it('offers the whole catalogue', () => {
+    const ids = giftsFor(999, { dishes: 1 }).map((g) => g.id).sort();
+    expect(ids).toEqual(GIFTS.map((g) => g.id).sort());
   });
 });
 
 describe('purchase', () => {
-  it('returns null when the gift is not purchasable', () => {
-    expect(purchase('mugwort_pack', empty, 100, 'Irene')).toBeNull();
+  it('refuses when the credits are not there', () => {
+    expect(canPurchase('mugwort_pack', 3)).toBe(true);
+    expect(canPurchase('mugwort_pack', 2)).toBe(false);
+    expect(purchase('mugwort_pack', 2, 'Irene')).toBeNull();
   });
 
-  it('spends credits and writes the scene-opening note', () => {
-    const out = purchase('mugwort_pack', knowsCold, 10, 'Irene');
+  /** A gift id from an older catalogue must not take the sheet down. */
+  it('treats an unknown gift id as a refusal rather than throwing', () => {
+    expect(() => canPurchase('a_gift_that_no_longer_exists', 999)).not.toThrow();
+    expect(canPurchase('a_gift_that_no_longer_exists', 999)).toBe(false);
+    expect(purchase('a_gift_that_no_longer_exists', 999, 'Irene')).toBeNull();
+  });
+
+  it('spends credits and writes the note that goes into tier 3', () => {
+    const out = purchase('mugwort_pack', 10, 'Irene');
     expect(out.credits).toBe(7);
-    expect(out.affectionDelta).toBe(5);
     expect(out.sceneNote).toContain('Irene');
     expect(out.sceneNote).toContain('mugwort pack');
   });
 
-  it('is worth far more than a generic gift', () => {
-    const generic = purchase('rose', empty, 10, 'Irene');
-    const known = purchase('mugwort_pack', knowsCold, 10, 'Irene');
-    expect(known.affectionDelta).toBeGreaterThan(generic.affectionDelta * 4);
+  /**
+   * NO AFFECTION IS PAID HERE, and that is the point of the whole change.
+   *
+   * A knowledge gift used to be a flat +5 applied at the moment of handing it
+   * over, on top of whatever the model then moved in the round it wrote in
+   * reaction - I.1 upside down, and double-counted by two routes only one of
+   * which was on screen.
+   */
+  it('moves no relationship number at all', () => {
+    const out = purchase('mugwort_pack', 10, 'Irene');
+    expect(out).not.toHaveProperty('affectionDelta');
+    expect(out).not.toHaveProperty('tier');
+    expect(out).not.toHaveProperty('fact');
+  });
+
+  /**
+   * The note says what it is and who has it, and stops. It must not tell the
+   * model this was uncanny attention - the model reads her facts and decides
+   * that for itself, which is what makes the same object read two ways.
+   */
+  it('does not script her reaction', () => {
+    const out = purchase('mugwort_pack', 10, 'Irene');
+    expect(out.sceneNote).not.toMatch(/never told anyone|paying very close attention|not expecting/i);
+  });
+
+  /** A dish is the one opener that says something the object name cannot. */
+  it('says a cooked dish was made rather than bought', () => {
+    const out = purchase('home_cooked', 0, 'Irene', { dishes: 1 });
+    expect(out.spentStock).toBe('dishes');
+    expect(out.sceneNote).toMatch(/cooked themselves/i);
+    expect(purchase('home_cooked', 99, 'Irene', { dishes: 0 })).toBeNull();
   });
 
   it('never lets credits go negative', () => {
@@ -139,96 +160,5 @@ describe('tasks', () => {
     expect(out.competence).toBe(0);
     expect(out.energy).toBe(0);
     expect(out.credits).toBe(0);
-  });
-});
-
-/**
- * Spending knowledge by saying something. CLAUDE.md section 11.
- *
- * Not every way of showing you were listening is a purchase. Asking how the
- * ankle held up is the more natural move most of the time, and an economy whose
- * only verb is BUY reads as a shop rather than as attention.
- */
-describe('a gesture is the other way to spend a fact', () => {
-  const knowsLaundry = {
-    known_facts: ['has extremely cold hands and warms them with mugwort packs'],
-    player_told_her: [],
-  };
-
-  it('costs nothing and needs no credits', () => {
-    expect(canGesture('mugwort_pack', knowsLaundry, [])).toBe(true);
-    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    expect(said.affectionDelta).toBe(GESTURE_EFFECT);
-  });
-
-  /** Free has to mean weaker, or the shop is decoration. */
-  it('lands smaller than buying the object', () => {
-    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    const bought = purchase('mugwort_pack', knowsLaundry, 99, 'Irene');
-    expect(said.affectionDelta).toBeLessThan(bought.affectionDelta);
-  });
-
-  /** ...and once, or it stops being attention and becomes a script. */
-  it('can only be spent once per fact', () => {
-    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    expect(said.usedGestures).toContain('mugwort_pack');
-    expect(canGesture('mugwort_pack', knowsLaundry, said.usedGestures)).toBe(false);
-    expect(spendGesture('mugwort_pack', knowsLaundry, said.usedGestures, 'Irene')).toBeNull();
-  });
-
-  it('is locked by the same fact the object is locked by', () => {
-    expect(canGesture('mugwort_pack', { known_facts: [] }, [])).toBe(false);
-    expect(canGesture('iced_coffee', knowsLaundry, [])).toBe(false);
-  });
-
-  it('quotes the fact and names her, exactly as the gift note does', () => {
-    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    expect(said.fact).toBe(knowsLaundry.known_facts[0]);
-    expect(said.sceneNote).toContain(said.fact);
-    expect(said.sceneNote).toContain('Irene');
-  });
-
-  /**
-   * The one thing the model must not do with a gesture is invent the present
-   * that is not there - the opening beat is written from this note alone.
-   */
-  it('tells the model there is no object to react to', () => {
-    const said = spendGesture('mugwort_pack', knowsLaundry, [], 'Irene');
-    expect(said.tier).toBe('gesture');
-    expect(said.sceneNote).toMatch(/no gift and no object/i);
-    expect(said.sceneNote).toMatch(/do not invent a present/i);
-    expect(said.sceneNote).not.toMatch(/handed/i);
-  });
-
-  it('shows a spent gesture as spent, and an unlearned one as locked', () => {
-    const shown = giftsFor(knowsLaundry, 99, ['mugwort_pack']);
-    const spent = shown.gesture.find((g) => g.id === 'mugwort_pack');
-    const never = shown.gesture.find((g) => g.id === 'pink_plushie');
-
-    expect(spent.unlocked).toBe(true);
-    expect(spent.used).toBe(true);
-    expect(spent.purchasable).toBe(false);
-
-    expect(never.unlocked).toBe(false);
-    expect(never.purchasable).toBe(false);
-  });
-
-  /**
-   * Every fact can be spent as a line. Only some can be spent as an object -
-   * you cannot buy somebody a fear of heights.
-   */
-  it('offers a gesture for every fact, and a purchase for only some', () => {
-    const shown = giftsFor(knowsLaundry, 0);
-    expect(shown.gesture).toHaveLength(KNOWLEDGE_GIFTS.length);
-    expect(shown.knowledge.length).toBeLessThan(shown.gesture.length);
-    expect(shown.gesture.every((g) => g.cost === 0)).toBe(true);
-    expect(shown.knowledge.every((g) => g.cost > 0)).toBe(true);
-  });
-
-  it('refuses to sell an opener that is not an object', () => {
-    const knowsGym = { known_facts: ['squeezes ten-minute gym sets into the breaks'], player_told_her: [] };
-    expect(canGesture('squats_together', knowsGym, [])).toBe(true);
-    expect(canPurchase('squats_together', knowsGym, 999)).toBe(false);
-    expect(purchase('squats_together', knowsGym, 999, 'Irene')).toBeNull();
   });
 });

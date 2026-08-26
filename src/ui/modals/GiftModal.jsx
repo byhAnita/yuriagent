@@ -1,5 +1,5 @@
 /**
- * Handing something over, or bringing something up. CLAUDE.md section 11.
+ * Handing something over. CLAUDE.md Part I.10.
  *
  * This used to be a screen that stood between the map and the scene, and it was
  * wrong in three ways at once:
@@ -9,53 +9,46 @@
  *    to want to give anybody anything.
  * 2. In a group scene it asked WHO before showing who was in the room.
  * 3. Whatever it produced became the first thing that happened, so the scene
- *    could never be about anything before it was about the gift. Every knowledge
- *    opener landed on a cold open.
+ *    could never be about anything before it was about the gift.
  *
- * It is a turn now. The player talks to her, and at some point in that
- * conversation brings up the thing she once let slip - which is when a person
- * would actually do it, and which makes the topic TURN rather than start there.
+ * It is a round action now. The player talks to her, and at some point in that
+ * conversation hands her the thing - which is when a person would actually do
+ * it, and which makes the topic TURN rather than start there.
+ *
+ * ONE LIST, NOTHING LOCKED. The knowledge half is gone: no `locked` row, no
+ * `+effect` badge, no gesture section, no hint about what opens when. Part I.10
+ * moves the gestures into the four written options, where the model offers one
+ * when the moment is apt, and leaves this sheet doing the one job four options
+ * cannot - choosing among things you are carrying, and paying for one.
+ *
+ * So a row carries what a shelf carries: what it is, and what it costs.
  */
 
 import Sheet from './Sheet.jsx';
 import { giftsFor } from '../../systems/economy.js';
 
-function Row({ gift, onPick, free = false, t }) {
-  const locked = !gift.unlocked;
-
+function Row({ gift, onPick, t }) {
   return (
     <button
       type="button"
-      disabled={!gift.purchasable}
+      disabled={!gift.affordable}
       onClick={() => onPick(gift.id)}
       className={`flex w-full items-baseline gap-2 rounded-[var(--radius-sm)] border px-3 py-2 text-left transition-colors ${
-        gift.purchasable
-          ? 'border-hairline hover:border-accent'
-          : 'border-transparent bg-surface/40'
+        gift.affordable ? 'border-hairline hover:border-accent' : 'border-transparent bg-surface/40'
       }`}
     >
       <span
-        className={`flex-1 font-body text-[0.9375rem] ${locked ? 'text-faint line-through' : 'text-text'}`}
+        className={`flex-1 font-body text-[0.9375rem] ${gift.affordable ? 'text-text' : 'text-faint'}`}
       >
-        {t(free ? `gesture.${gift.id}` : `gift.${gift.id}`)}
+        {t(`gift.${gift.id}`)}
       </span>
-
-      {locked ? (
-        <span className="font-mono text-[0.5rem] uppercase tracking-[0.12em] text-faint">
-          {t('gift.locked')}
-        </span>
-      ) : (
-        <span className="font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-accent">
-          +{gift.effect}
-        </span>
-      )}
 
       <span
         className={`w-8 text-right font-mono text-[0.625rem] tabular-nums ${
-          free ? 'text-faint' : gift.affordable ? 'text-dim' : 'text-danger'
+          gift.cost === 0 ? 'text-faint' : gift.affordable ? 'text-dim' : 'text-danger'
         }`}
       >
-        {free ? t('gift.free') : `${gift.cost}c`}
+        {gift.cost === 0 ? t('gift.free') : `${gift.cost}c`}
       </span>
     </button>
   );
@@ -63,48 +56,31 @@ function Row({ gift, onPick, free = false, t }) {
 
 export default function GiftModal({
   card,
-  dossier,
   /**
    * Openers paid in something other than credits, e.g. `{ dishes: 1 }`.
-   * A gift whose counter is empty is not offered at all, the same rule locked
-   * knowledge gifts follow: an option the player cannot act on is clutter.
+   * A gift whose counter is empty is not offered at all - it is not expensive,
+   * it does not exist right now.
    */
   stock = {},
   credits,
-  usedGestures = [],
   /**
    * Everyone in the room who may be handed something, and how to change who.
    *
-   * Empty in a 1v1, which is the common case and renders exactly what it always
-   * did. In a group scene the strip is the answer to "choose character first" -
-   * and it defaults to the current addressee, so the sticky choice the player
-   * already made carries over and most of the time there is nothing to pick.
+   * Empty in a 1v1, which is the common case. In a group scene the strip is the
+   * answer to "choose character first" - and it defaults to the current
+   * addressee, so the sticky choice the player already made carries over and
+   * most of the time there is nothing to pick.
    *
-   * Handing something to somebody else also MOVES the addressee (VNStage does
-   * it), because a gift is a way of addressing someone - proposal 12's one verb,
-   * two surfaces. Choosing here and then talking to somebody else would be two
-   * different notions of who the player is with.
+   * Handing something to somebody else also MOVES the addressee, because a gift
+   * is a way of addressing someone: one verb, two surfaces.
    */
   roster = [],
   onChoose = () => {},
   onPick,
-  onGesture,
   onSkip,
   t,
 }) {
-  const { generic, knowledge, gesture } = giftsFor(dossier, credits, usedGestures, stock);
-
-  // Locked gifts are not shown. Naming a gift the player cannot buy spoils the
-  // fact it is waiting on, and clutters the list with things they cannot act on.
-  const unlocked = knowledge.filter((g) => g.unlocked);
-
-  /**
-   * The same knowledge, spent by saying something. Free, weaker, once each -
-   * and for most facts the more natural move than buying an object. Spent ones
-   * drop out rather than greying: bringing it up a second time is not
-   * attention, it is a script.
-   */
-  const sayable = gesture.filter((g) => g.unlocked && !g.used);
+  const gifts = giftsFor(credits, stock);
 
   return (
     <Sheet
@@ -112,12 +88,6 @@ export default function GiftModal({
       action={<span className="shrink-0 font-mono text-[0.625rem] tabular-nums text-dim">{credits}c</span>}
     >
       <>
-
-        {/*
-          Not "gifts". An opening can be an object or a line, and naming the
-          modal after only half of what it does is what made the knowledge
-          economy read as a shop (CLAUDE.md section 11).
-        */}
         <p className="mb-3 font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
           {t('gift.title')}
         </p>
@@ -162,49 +132,11 @@ export default function GiftModal({
           </>
         ) : null}
 
-        <h3 className="mb-1.5 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
-          {t('gift.generic')}
-        </h3>
         <div className="flex flex-col gap-1">
-          {/* A generic gift the player is not carrying is not shown at all. */}
-          {generic
-            .filter((g) => !g.stock || g.unlocked)
-            .map((g) => (
-              <Row key={g.id} gift={g} onPick={onPick} t={t} />
-            ))}
+          {gifts.map((g) => (
+            <Row key={g.id} gift={g} onPick={onPick} t={t} />
+          ))}
         </div>
-
-        {unlocked.length > 0 ? (
-          <>
-            <h3 className="mb-1.5 mt-4 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
-              {t('gift.knowledge')}
-            </h3>
-            <div className="flex flex-col gap-1">
-              {unlocked.map((g) => (
-                <Row key={g.id} gift={g} onPick={onPick} t={t} />
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {sayable.length > 0 ? (
-          <>
-            <h3 className="mb-1.5 mt-4 font-mono text-[0.5rem] uppercase tracking-[0.18em] text-faint">
-              {t('gift.gesture')}
-            </h3>
-            <div className="flex flex-col gap-1">
-              {sayable.map((g) => (
-                <Row key={g.id} gift={g} onPick={onGesture} free t={t} />
-              ))}
-            </div>
-          </>
-        ) : null}
-
-        {unlocked.length === 0 && sayable.length === 0 ? (
-          <p className="mt-3 font-mono text-[0.5rem] uppercase leading-relaxed tracking-[0.1em] text-faint">
-            {t('gift.hint')}
-          </p>
-        ) : null}
 
         <button
           type="button"
