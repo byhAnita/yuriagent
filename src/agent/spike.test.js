@@ -50,7 +50,7 @@ const SCENE = {
   locationLabel: 'X Practice Room',
   activity: 'Irene is running the new choreography alone, long after everyone else has gone.',
   week: 0,
-  dayName: 'Tuesday',
+  day: 1,
   block: 'evening',
   phase: 'prep',
 };

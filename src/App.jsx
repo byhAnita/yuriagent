@@ -27,7 +27,7 @@ import { BLOCKS } from './config/constants.js';
 import { getCast } from './data/cast.js';
 import { getIdentity, DEFAULT_IDENTITY } from './data/identities.js';
 import { buildLineup } from './systems/castBuilder.js';
-import { dialogueShape } from './systems/dialogue.js';
+import { doingLine } from './data/activities.js';
 import { newRelation, applySceneOutcome, resolveStage } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
 import { generateWeek, occupancyAt } from './systems/calendar.js';
@@ -48,10 +48,11 @@ import {
 import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
-import { addDecisions, canonForCycle, canonForEvent } from './systems/canon.js';
+import { newPool, noteScene, fromSave as poolFromSave } from './agent/pool.js';
+import { addDecisions } from './systems/canon.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
-import VNStage from './ui/vn/VNStage.jsx';
+import RoundStage from './ui/vn/RoundStage.jsx';
 import Start from './ui/screens/Start.jsx';
 import Day from './ui/screens/Day.jsx';
 import Endings from './ui/screens/Endings.jsx';
@@ -63,8 +64,7 @@ import RelationsModal from './ui/modals/RelationsModal.jsx';
 import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
-import { dateFrame, REGISTERS } from './data/sceneFrames.js';
-import { eventFor, eventFrame, eventKey } from './data/events/index.js';
+import { eventFor, eventKey } from './data/events/index.js';
 import { sharedFrame } from './data/sharedActivities.js';
 
 const SEED = 20260821;
@@ -116,7 +116,17 @@ export default function App() {
   const [relations, setRelations] = useState(() =>
     Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])),
   );
+  /**
+   * `memory` is now the DOSSIER and nothing else that matters.
+   *
+   * Its ledger half is superseded by the pool below (Part I.5) - a stepped
+   * window of recent scenes in the player's language, collapsing in place to
+   * English summaries. The dossier survives untouched, because what she knows
+   * about you is a different question from what happened, and only one of them
+   * has to fit inside a prompt.
+   */
   const [memory, setMemory] = useState(() => newMemory(castIds));
+  const [pool, setPool] = useState(newPool);
   const [taskState, setTaskState] = useState(newTaskState);
 
   const [screen, setScreen] = useState('start');
@@ -372,27 +382,37 @@ export default function App() {
       return result.dish ? { ...next, dishes: (next.dishes ?? 0) + 1 } : next;
     });
 
+    const noteText = soloLedgerText(result, {
+      locationLabel: t(`location.${solo.locationId}`),
+    });
+
     setMemory((m) => {
       let dossier = m.dossier;
       for (const add of result.dossierAdd) {
         const { memberId, category, ...entry } = add;
         dossier = addDossierEntry(dossier, memberId, category, entry);
       }
-      const text = soloLedgerText(result, {
-        locationLabel: t(`location.${solo.locationId}`),
-      });
       return {
         ledger: appendLedger(m.ledger, {
           id: `w${run.week}d${run.day}${run.block}`,
           week: run.week,
           day: run.day,
           block: run.block,
-          text,
-          summary: text,
+          text: noteText,
+          summary: noteText,
         }),
         dossier,
       };
     });
+
+    /**
+     * ...and into the pool as one already-collapsed line. A block spent tidying
+     * the wardrobe is history the model should know about and is not a scene, so
+     * it must never occupy one of the three full slots.
+     */
+    setPool((p) =>
+      noteScene(p, { id: `w${run.week}d${run.day}${run.block}`, summary: noteText }),
+    );
 
     if (result.goodwill) {
       const ids = goodwillTargets(cards, occupancy, solo.locationId);
@@ -529,129 +549,73 @@ export default function App() {
     setScreen('scene');
   };
 
-  const scene = useMemo(() => {
+
+  /**
+   * What the v2 engine is handed at the door. CLAUDE.md Part I.
+   *
+   * Deliberately smaller than v1's, because most of what v1 passed was material
+   * for the code to make decisions with - the frame, the register, the turn
+   * limit, the standing sentence, the stance locks. The model makes those
+   * decisions now, so what is left is what the WORLD knows: where, when, who is
+   * actually in the room, and what she is doing there.
+   */
+  const setup = useMemo(() => {
     if (!pendingScene) return null;
-    const dormWitnessIds = Object.entries(occupancy)
-      .filter(([id, w]) => w.locationId === 'dorm_living' && !pendingScene.rosterIds.includes(id))
-      .map(([id]) => id);
+
+    const present = pendingScene.presentIds ?? [];
+    const first = present[0];
+    const doing = first ? doingLine(occupancy[first]?.activity) : null;
+    const firstName = cards.find((c) => c.id === first)?.name;
 
     return {
-      id: `s${sceneNo}`,
-      seed: SEED + sceneNo,
-      rosterIds: pendingScene.rosterIds,
-      presentIds: pendingScene.presentIds ?? pendingScene.rosterIds,
-      focusId: pendingScene.rosterIds[0],
-      week: run.week,
-      day: run.day,
-      block: run.block,
-      phase: run.phase,
-      locationId: pendingScene.locationId,
-      locationLabel: t(`location.${pendingScene.locationId}`),
-      // The summarizer needs it too: memory stays English, display does not.
+      cards,
+      lineup,
+      identity,
+      player,
+      relations,
+      dossier: memory.dossier,
       lang: settings.lang,
-      dormWitnessIds,
-
-      /**
-       * A date is a whole day, so it gets the longer register and a spine.
-       *
-       * The spine is what stops sixteen turns becoming drift: two to four
-       * situations the day MAY pass through, offered and never ordered. Keeping
-       * the ordinary scene terse is the other half of it - the contrast is what
-       * makes a date feel like one (proposal 13).
-       */
-      date: pendingScene.date ?? null,
-
-      /**
-       * An anchor event borrows the whole mechanism a date already uses: a
-       * frame, a register and sixteen turns. It differs in who is there - a
-       * date is the two of you, an event is the two of you in front of the
-       * other three - and that difference needs no code, because
-       * `presentIds` already drives witnessed jealousy and `riskExposure`.
-       */
-      event: pendingScene.event ?? null,
-
-      /**
-       * A shared dorm evening. Nobody is singled out, so `rumor.js` skips the
-       * witnessed branch entirely and `endScene` pays everyone present instead.
-       */
-      shared: pendingScene.shared ?? null,
-
-      /**
-       * An event's frame is built for THIS cycle rather than read off the
-       * table - `eventFrame` adds the per-cycle stakes clause and, for the
-       * concept meeting, this run's style pressure (PROPOSALS 24). Handing the
-       * static object over is what let cycle 2 reproduce cycle 1.
-       */
-      sceneFrame:
-        pendingScene.sceneFrame ??
-        (pendingScene.date
-          ? dateFrame(pendingScene.date, pendingScene.locationId)
-          : eventFrame(pendingScene.event, {
-              cycle: cycleForWeek(run.week),
-              seed: SEED,
-            })),
-      register:
-        pendingScene.date || pendingScene.shared
-          ? REGISTERS.date
-          : pendingScene.event
-            ? REGISTERS.event
-            : REGISTERS.ordinary,
-
-      /**
-       * What she is here for, and what the player still owes today.
-       *
-       * Both already existed and neither reached the model: block 4 said only
-       * where the scene was, so every visit to the practice room opened the
-       * same way and she could never mention the choreography she is actually
-       * struggling with. `openScene` spreads the scene object into the header,
-       * so adding them here is all the wiring there is.
-       */
-      occupancy,
-      task: task ? { ...task, done: taskState.done } : null,
-
-      /**
-       * What the cycle has settled so far, for block 4.
-       *
-       * FILTERED HERE, not in the prompt builder: storage is complete and
-       * permanent (it is what the handbook shows) and injection is a handful of
-       * lines. Ordinary scenes get it too, which is where most of the value is -
-       * Irene mentioning the title track in a wardrobe on a Tuesday is memory
-       * that shows in the scene rather than in plumbing.
-       */
-      /**
-       * An anchor event additionally gets the topics it was authored to build
-       * on, looked up across every cycle - that is what makes the four
-       * recurring events a chain instead of four separate days.
-       */
-      canon: pendingScene.event
-        ? canonForEvent(canon, {
-            cycle: cycleForWeek(run.week),
-            reads: pendingScene.event.reads ?? [],
-          })
-        : canonForCycle(canon, cycleForWeek(run.week)),
+      pool,
+      seed: SEED,
+      scene: {
+        id: `s${sceneNo}`,
+        locationId: pendingScene.locationId,
+        locationLabel: t(`location.${pendingScene.locationId}`),
+        present,
+        /**
+         * What she is here for. Costs about forty tokens in a tail that is
+         * rebuilt every round anyway, and it is what let one practice room open
+         * three different ways under three different activities - without it the
+         * model has to invent a reason for her to be standing in a room, and
+         * invents the same one every time.
+         */
+        activity: doing && firstName ? `${firstName} is ${doing}.` : null,
+        week: run.week,
+        day: run.day,
+        block: run.block,
+        phase: run.phase,
+      },
     };
-  }, [pendingScene, occupancy, run, sceneNo, t, task, taskState.done, settings.lang, canon]);
-
-  const setup = useMemo(
-    () =>
-      scene
-        ? {
-            cards,
-            lineup,
-            identity,
-            player,
-            lang: settings.lang,
-            memory,
-            relations,
-            scene,
-          }
-        : null,
-    [scene, cards, lineup, identity, player, settings.lang, memory, relations],
-  );
+  }, [
+    pendingScene,
+    occupancy,
+    cards,
+    lineup,
+    identity,
+    player,
+    relations,
+    memory.dossier,
+    settings.lang,
+    pool,
+    sceneNo,
+    run,
+    t,
+  ]);
 
   const onSceneEnd = (result) => {
-    setMemory(result.memory);
+    setPool(result.pool);
     setRelations(result.relations);
+    setPlayer((p) => ({ ...p, ...result.player }));
     /**
      * An event fires once, and it is marked on the way OUT rather than on the
      * way in. Marking it on entry would delete the day out from under a player
@@ -669,16 +633,16 @@ export default function App() {
      * able to show a campaign that changed its mind. Superseding happens at
      * injection time (`canonForCycle`).
      */
-    if (result.decisions?.length && pendingScene?.event) {
+    if (result.canon?.length && pendingScene?.event) {
       setCanon((c) =>
-        addDecisions(c, result.decisions, {
+        addDecisions(c, result.canon, {
           cycle: cycleForWeek(run.week),
           phase: run.phase,
           slot: pendingScene.event.slot,
         }),
       );
     }
-    setOutcome({ ...result, date: scene?.date ?? null, event: scene?.event ?? null });
+    setOutcome({ ...result, date: pendingScene?.date ?? null, event: pendingScene?.event ?? null });
     setSceneNo((n) => n + 1);
     setPendingScene(null);
     setScreen('after');
@@ -761,6 +725,7 @@ export default function App() {
     cast: castIds,
     relations,
     memory,
+    pool,
     canon,
     calendar: { taskState },
     flags: { firedEvents, usedGestures, foundRumors },
@@ -809,6 +774,7 @@ export default function App() {
     setPlayer(loaded.player);
     setRelations(loaded.relations);
     setMemory(loaded.memory);
+    setPool(poolFromSave(loaded.pool));
     setTaskState(loaded.calendar.taskState ?? newTaskState());
     setCanon(loaded.canon ?? []);
     setFiredEvents(loaded.flags.firedEvents);
@@ -854,6 +820,7 @@ export default function App() {
     setRun(newRun({ seed: SEED }));
     setRelations(Object.fromEntries(cards.map((c) => [c.id, newRelation(c.startIntimacy ?? 5)])));
     setMemory(newMemory(castIds));
+    setPool(newPool());
     setTaskState(newTaskState());
     setFiredEvents([]);
     setCanon([]);
@@ -991,25 +958,12 @@ export default function App() {
       ) : null}
 
       {screen === 'scene' && setup ? (
-        <VNStage
+        <RoundStage
           key={sceneNo}
           setup={setup}
           client={client}
           openers={openers}
           onSceneEnd={onSceneEnd}
-          writtenChips={settings.writtenChips}
-          /**
-           * One place decides the shape of every conversation in the game -
-           * ordinary block, date, shared dorm evening, anchor event. Both of
-           * its answers come from the same number, so they belong together
-           * rather than being decided here and in `sceneEngine` separately.
-           */
-          turnLimit={
-            dialogueShape({
-              rosterIds: scene?.rosterIds ?? [],
-              kind: scene?.date ? 'date' : scene?.event ? 'event' : 'ordinary',
-            }).turnLimit
-          }
           offline={offline}
           t={t}
         />

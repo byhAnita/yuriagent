@@ -370,6 +370,8 @@ export default {
     doTask: '处理工作',
     taskFailed: '你没顾上。',
     energy: '精力',
+    mood: '心情',
+    selfId: '自我认同',
     credits: '积分',
     competence: '评价',
     nextBlock: '继续',
@@ -577,6 +579,12 @@ export default {
     risk: '会被看见',
     continue: '继续',
     roomSpeaking: '旁边有人接话',
+    fallback: {
+      a: '接她的话',
+      b: '问问她',
+      c: '不说话，等着',
+      d: '换个话题',
+    },
   },
 
   dev: { scaffold: 'M0 脚手架', castLoaded: '角色', tokenCheck: '样式变量检查' },

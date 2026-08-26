@@ -26,7 +26,7 @@ import { createMockClient } from '../tools/mockClient.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { getIdentity } from '../data/identities.js';
-import { generateWeek, occupancyAt, DAY_NAMES } from '../systems/calendar.js';
+import { generateWeek, occupancyAt } from '../systems/calendar.js';
 import { doingLine } from '../data/activities.js';
 import { LOCATIONS } from '../data/locations.js';
 import { DELTA_MAX } from '../config/rules.js';
@@ -94,7 +94,7 @@ async function playWeek({ lang = 'en', days = 3 } = {}) {
           present,
           activity: doing && name ? `${name} is ${doing}.` : null,
           week: 0,
-          dayName: DAY_NAMES[day],
+          day,
           block,
           phase: 'prep',
         },

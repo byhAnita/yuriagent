@@ -110,72 +110,89 @@ describe('starting a run', () => {
 });
 
 /**
- * Reported after the first day of play: the gift panel opened at the door of
- * every scene, group scenes included.
+ * From the map to her, now that the map does not say where she is.
  *
- * Walking into a room now goes straight to the scene, and the opener is a move
- * the player makes during it - which is also when a person would actually make
- * it. `ui/vn/Opener.dom.test.jsx` covers the inside of the scene; this asserts
- * only that nothing stands between the map and her.
+ * The two rules being asserted are different from v1's and are both Part I.11.
+ * The MAP names rooms and nothing else - no faces, no counts - so the player
+ * bets on a door. The ROOM is where they find out, and walking in is free until
+ * they pick something to do with the block.
+ *
+ * The opener still lives inside the scene, which is v1's own lesson and
+ * unchanged: it used to open at the door of every scene, before the player had
+ * any reason to want to give her anything.
  */
 describe('walking into a room', () => {
-  it('goes straight to her, with nothing in between', async () => {
+  /**
+   * Every row on the map is a room, and the rooms are the only rows.
+   *
+   * The name can be on screen twice - the task banner says where today's job
+   * is - so this takes the one that is a row.
+   */
+  const roomRow = (locId) =>
+    screen.queryAllByText(t(`location.${locId}`)).find((el) => el.closest('li'));
+
+  /** Walk through doors until one has somebody behind it. */
+  async function findSomebody() {
+    for (const locId of ['practice_room', 'wardrobe', 'drink_room', 'bistro', 'corridor']) {
+      const row = roomRow(locId);
+      if (!row) continue;
+      await userEvent.click(row);
+      const talk = screen
+        .getAllByRole('button')
+        .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+      if (talk) return talk;
+      // Nobody home. Backing out costs nothing - the block is not spent yet.
+      await userEvent.click(screen.getByText(new RegExp(t('map.back'))));
+    }
+    return null;
+  }
+
+  it('names rooms and never who is in them', async () => {
     await startARun('Yuhan');
 
-    const member = screen
+    // The map is on screen. No member is.
+    expect(screen.getByText(t('map.calendar'))).toBeTruthy();
+    const named = screen
       .getAllByRole('button')
-      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
-    expect(member).toBeTruthy();
-    await userEvent.click(member);
+      .filter((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
+    // The relationship row is the one place names appear, and it is a readout.
+    for (const b of named) {
+      expect(b.textContent).toMatch(new RegExp(t('relations.open'), 'i'));
+    }
+  }, 15000);
 
-    // The scene, not a shop. `vn.turnsLeft` is on the chip bar and nowhere else.
+  it('goes from the room to her, with nothing in between', async () => {
+    await startARun('Yuhan');
+
+    const talk = await findSomebody();
+    expect(talk).toBeTruthy();
+    await userEvent.click(talk);
+
+    // The scene, not a shop. `vn.turnsLeft` is on the option bar and nowhere else.
     await waitFor(() => expect(screen.getByText(t('vn.turnsLeft'), { exact: false })).toBeTruthy(), {
       timeout: 10000,
     });
     expect(screen.queryByText(t('gift.title'))).toBeNull();
-  }, 15000);
-
-  it('offers the opener inside the scene instead', async () => {
-    await startARun('Yuhan');
-
-    const member = screen
-      .getAllByRole('button')
-      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
-    await userEvent.click(member);
-
-    await waitFor(() => expect(screen.getByRole('button', { name: t('vn.give') })).toBeTruthy(), {
-      timeout: 10000,
-    });
-  }, 15000);
+  }, 20000);
 
   /**
-   * The seam: App builds the `openers` object and `VNStage` calls into it.
+   * The seam: App builds the `openers` object and `RoundStage` calls into it.
    *
-   * `Opener.dom.test.jsx` drives the sheet against a stub, so it proves the
-   * scene half. This proves the other half is actually connected - that
-   * `dossierFor` and `credits` reach the catalogue rather than throwing or
-   * rendering an empty list. Exactly the join this project keeps shipping
-   * broken: two correct halves and nothing calling between them.
+   * This proves the halves are connected - that `dossierFor` and `credits` reach
+   * the catalogue rather than throwing or rendering an empty list. Exactly the
+   * join this project keeps shipping broken: two correct halves and nothing
+   * calling between them.
    *
    * It does not complete a purchase, because the assistant starts on zero
-   * credits and an empty dossier by design, so nothing is affordable on day
-   * one. That is the game working, not the test being weak.
+   * credits and an empty dossier by design, so nothing is affordable on day one.
+   * That is the game working, not the test being weak.
    */
   it('wires the real catalogue into the sheet', async () => {
     await startARun('Yuhan');
 
-    const member = screen
-      .getAllByRole('button')
-      .find((b) => /Irene|Nana|Jisoo|Hyewon|Yeri/.test(b.textContent ?? ''));
-    await userEvent.click(member);
+    const talk = await findSomebody();
+    await userEvent.click(talk);
 
-    // Read through her opening beats - the bar is held while any are unread,
-    // so a click before that lands on a disabled control and does nothing.
-    for (let i = 0; i < 6; i += 1) {
-      const more = screen.queryByRole('button', { name: new RegExp(t('vn.continue')) });
-      if (!more) break;
-      await userEvent.click(more);
-    }
     await waitFor(
       () => expect(screen.getByRole('button', { name: t('vn.give') }).disabled).toBe(false),
       { timeout: 10000 },
@@ -188,7 +205,7 @@ describe('walking into a room', () => {
     // No knowledge opener yet, and the modal says why rather than showing
     // locked rows - section 11: naming one spoils the fact it waits on.
     expect(screen.getByText(t('gift.hint'))).toBeTruthy();
-  }, 15000);
+  }, 20000);
 });
 
 describe('picking a run back up', () => {

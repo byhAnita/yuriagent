@@ -210,7 +210,6 @@ export default function Day({
         />
       ) : (
         <LocationGrid
-          occupancy={occupancy}
           cards={cards}
           run={run}
           player={player}
@@ -219,26 +218,29 @@ export default function Day({
           eventSlot={event?.slot ?? null}
           eventOnly={isEventDay}
           /**
-           * Every row opens the ROOM, not a scene.
+           * Every row opens the ROOM, not a scene, and the room is where the
+           * player finds out who is in it (Part I.11).
            *
-           * A room offers what it offers - talk to whoever is here, do the job,
-           * be nosy - and the player chooses. Walking in used to commit you to a
-           * conversation the moment anybody was standing there, which meant two
-           * thirds of the map was only ever reachable when it was empty.
+           * That is now the only shape, because the map no longer knows enough
+           * to have another. v1 had a second path - the per-member button in a
+           * crowded row - and it let the player choose a member before opening
+           * the door, which is exactly the bet that is supposed to be made
+           * blind. Walking in is free either way (section 10b), so guessing
+           * wrong costs the walk and nothing else.
            *
-           * Two exceptions. The per-member button in a crowded row is the
-           * player already saying who they are walking up to, so it skips the
-           * middle step. And the event site on an event day IS the event
-           * (section 10) - the room screen underneath it would offer a 1v1 and
-           * a snoop on a day that is neither.
+           * One exception survives: the event site on an event day IS the event
+           * (section 10). The room screen underneath it would offer a 1v1 and a
+           * snoop on a day that is neither, and nothing about an anchor event is
+           * hidden - the day screen says what today is.
            */
-          onPick={(locationId, present, addresseeId = null) => {
+          onPick={(locationId) => {
+            const present = Object.entries(occupancy)
+              .filter(([, w]) => w.locationId === locationId)
+              .map(([id]) => id);
             if (isEventDay && locationId === event.location) {
-              return onEnter(locationId, present, null, { group: true });
+              return onEnter(locationId, present.map((id) => ({ id })), null, { group: true });
             }
-            return addresseeId
-              ? onEnter(locationId, present, addresseeId)
-              : onEnterSolo(locationId, present);
+            return onEnterSolo(locationId, present);
           }}
           onOpenDorm={() => setInDorm(true)}
           t={t}

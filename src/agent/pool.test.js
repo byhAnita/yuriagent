@@ -4,6 +4,7 @@ import {
   openScene,
   appendRound,
   closeScene,
+  noteScene,
   poolEntries,
   roundCount,
   fromSave,
@@ -103,6 +104,27 @@ describe('the pool', () => {
 
     expect(pool.closed).toHaveLength(1);
     expect(pool.current.id).toBe('s2');
+  });
+
+  /**
+   * An afternoon of tidying the wardrobe must not push a scene with her out of
+   * the window. A note is born collapsed and never occupies a full slot.
+   */
+  it('records solo work as one line that never costs a full slot', () => {
+    let pool = newPool();
+    for (let i = 0; i < 4; i += 1) {
+      pool = noteScene(pool, { id: `n${i}`, summary: `you tidied the wardrobe (${i})` });
+    }
+    expect(pool.closed).toHaveLength(4);
+    expect(pool.closed.every((s) => s.type === 'summary')).toBe(true);
+
+    pool = playScene(pool, 's1', 2, 'they talked');
+    expect(pool.closed.filter((s) => s.type === 'full')).toHaveLength(1);
+    expect(poolEntries(pool).filter((e) => e.type === 'full')).toHaveLength(2);
+  });
+
+  it('ignores a note with nothing in it', () => {
+    expect(noteScene(newPool(), { summary: '  ' }).closed).toHaveLength(0);
   });
 
   it('round-trips through a save, and survives a broken one', () => {

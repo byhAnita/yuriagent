@@ -116,6 +116,22 @@ export function buildTier2(entries = []) {
 }
 
 /**
+ * Weekday names for the PROMPT, and therefore English in every locale (section
+ * 19). `i18n/` has the player's version and the two never meet: `agent/` does
+ * not import `i18n/`, because one is a UI string and the other is an
+ * instruction. Day 0 is Monday, matching `systems/calendar.js`.
+ */
+const PROMPT_DAYS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+/**
  * Tier 3. Always a cache miss, so it stays short.
  *
  * Everything here changes: where, when, who, and what every number currently
@@ -133,7 +149,7 @@ export function buildTier3({
   locationLabel = '',
   activity = null,
   week = 0,
-  dayName = '',
+  day = 0,
   block = '',
   phase = '',
   roundIndex = 0,
@@ -150,7 +166,7 @@ export function buildTier3({
 
   const lines = [
     '## NOW',
-    `Week ${week + 1}, ${dayName}, ${block}. Company phase: ${phase}.`,
+    `Week ${week + 1}, ${PROMPT_DAYS[day] ?? PROMPT_DAYS[0]}, ${block}. Company phase: ${phase}.`,
     `Location: ${locationLabel}.`,
   ];
 

@@ -138,6 +138,32 @@ export function closeScene(pool, { summary = null } = {}) {
 }
 
 /**
+ * A block that was not a conversation - solo work, a snoop, a chore.
+ *
+ * It lands as an already-collapsed entry: one English sentence, permanently.
+ * That is right twice over. There is no full text to keep, because nobody said
+ * anything; and it must not consume one of the three full slots, or an afternoon
+ * of tidying the wardrobe would push a scene with her out of the window.
+ *
+ * Composed in code, never by the model. Section 10b: spending a model call on
+ * "you restocked the wardrobe" is waste, and these have to be instant because
+ * they are the filler between scenes.
+ */
+export function noteScene(pool, { id, summary } = {}) {
+  const clean = String(summary ?? '').trim();
+  if (!clean) return pool;
+
+  const base = pool.current ? closeScene(pool, {}) : pool;
+  return {
+    ...base,
+    closed: [
+      ...base.closed,
+      { id: id ?? `n${base.closed.length + 1}`, label: '', type: 'summary', rounds: [], summary: clean },
+    ],
+  };
+}
+
+/**
  * The pool as tier 2 wants it: a flat list, oldest first.
  *
  * `tiers.buildTier2` owns how an entry is rendered and this owns which entries

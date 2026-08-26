@@ -149,7 +149,7 @@ export async function runRound(session, { client, choice = null, note = null, on
     locationLabel: session.scene.locationLabel,
     activity: session.scene.activity,
     week: session.scene.week,
-    dayName: session.scene.dayName,
+    day: session.scene.day,
     block: session.scene.block,
     phase: session.scene.phase,
     roundIndex: roundCount(pool),
@@ -217,6 +217,51 @@ export async function runRound(session, { client, choice = null, note = null, on
 }
 
 /**
+ * Read her. CLAUDE.md Part I.2.
+ *
+ * The one thing that survives from v1's first pillar, with a different job. The
+ * values are on screen now, so there is nothing left to conceal EXCEPT what she
+ * is not saying - and that is where the tension moved. It returns her unspoken
+ * thought rather than a number.
+ *
+ * It costs no round and appends nothing to the pool. The request is ephemeral:
+ * it branches off the prefix that just streamed, so it is a near-total cache hit
+ * (~30 output tokens), and committing it would put a system note between two
+ * rounds and cost the prefix on every round after.
+ *
+ * Rationing is the caller's, because energy is the caller's.
+ */
+export async function readHer(session, { client } = {}) {
+  const who = (session.scene.present ?? [])[0];
+  if (!who) return null;
+
+  const card = session.cards.find((c) => c.id === who);
+  const name = (session.lang !== 'en' && card?.nameLocal?.[session.lang]) || card?.name || who;
+
+  /**
+   * The same two messages the round call opens with, then a different third.
+   * That is what makes this cheap - tier 1 and tier 2 are byte-identical to the
+   * request that just streamed, so only the ask is a miss.
+   */
+  const raw = await client({
+    messages: buildMessages({
+      tier1: session.tier1,
+      tier2: buildTier2(poolEntries(session.pool)),
+      tier3: [
+        '## READ HER',
+        `In one sentence, what is ${name} thinking right now and not saying?`,
+        'Her thought only. No prose, no options, no machine lines, no sentinel.',
+        'Write it in the same language as the prose above.',
+      ].join('\n'),
+    }),
+    preset: 'thought',
+  });
+
+  // Whatever came back is a sentence for the player. Strip anything that leaked.
+  return parseRound(raw).prose || null;
+}
+
+/**
  * Close the scene and hand back what the world keeps.
  *
  * The summary is whichever `sum|` the model offered - normally the last round's,
@@ -227,7 +272,7 @@ export async function runRound(session, { client, choice = null, note = null, on
  */
 export function endScene(session) {
   const { scene } = session;
-  const fallback = `Week ${scene.week + 1}, ${scene.dayName} ${scene.block}: time at ${scene.locationLabel}.`;
+  const fallback = `Week ${scene.week + 1}, day ${scene.day + 1}, ${scene.block}: time at ${scene.locationLabel}.`;
 
   return {
     pool: closePool(session.pool, { summary: session.summary ?? fallback }),

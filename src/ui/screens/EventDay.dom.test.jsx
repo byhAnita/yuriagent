@@ -111,21 +111,25 @@ describe('the day an anchor event lands on', () => {
   });
 
   /**
-   * The whole cast is there, which is what makes an event categorically the
-   * loudest place in the game to choose one of them (section 5b's witnessed
-   * rule needs no roll).
+   * The whole cast is there, and the DAY says so rather than the row.
    *
-   * Their faces, not five buttons: a per-member chip at the door is the bet
-   * placed before the room is visible, which is the thing PROPOSALS 11 raised
-   * about the old gift modal arriving in a different shape.
+   * The map draws no faces anywhere from v2 on (Part I.11), and an anchor event
+   * loses nothing by that: it is the one day whose occupancy was never a guess.
+   * The banner announces it, the site is the only row on the map, and walking in
+   * is joining them.
+   *
+   * The row still offers no one of them, which is the older half of this rule
+   * and the one worth keeping tested: choosing a member at the door is the bet
+   * placed before the room is visible.
    */
-  it('shows the whole cast standing in it, and offers no one of them', () => {
+  it('names the day and offers no one member at the door', () => {
     const { t } = show();
     const row = mapRow(t(`location.${todayEvent.location}`));
 
+    expect(screen.getByText(t('event.today'))).toBeTruthy();
     for (const card of cards) {
-      expect(row.textContent).toContain(card.emoji);
       expect(row.textContent).not.toContain(card.name);
+      expect(row.textContent).not.toContain(card.emoji);
     }
   });
 

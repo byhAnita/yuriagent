@@ -49,7 +49,7 @@ function open(overrides = {}) {
       locationLabel: 'X Practice Room',
       present: ['irene'],
       week: 0,
-      dayName: 'Tuesday',
+      day: 1,
       block: 'evening',
       phase: 'prep',
     },

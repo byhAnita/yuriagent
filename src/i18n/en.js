@@ -348,6 +348,9 @@ export default {
     doTask: 'Do the work',
     taskFailed: 'You never got to it.',
     energy: 'Energy',
+    /** On the scene screen from v2 on: the numbers are visible (Part I.2). */
+    mood: 'Mood',
+    selfId: 'Sense of self',
     credits: 'Credits',
     competence: 'Standing',
     nextBlock: 'Move on',
@@ -565,6 +568,17 @@ export default {
     risk: 'seen',
     continue: 'Continue',
     roomSpeaking: 'Somebody else is saying something',
+    /**
+     * When fewer than four options parsed. Deliberately contentless - these are
+     * not a stance system in hiding, they are four ways to keep a conversation
+     * moving, and the free-text box is right underneath either way.
+     */
+    fallback: {
+      a: 'Say something back',
+      b: 'Ask her about it',
+      c: 'Let the silence run',
+      d: 'Change the subject',
+    },
   },
 
   dev: { scaffold: 'M0 scaffold', castLoaded: 'Cast', tokenCheck: 'Token check' },

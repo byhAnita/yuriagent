@@ -1,21 +1,32 @@
 /**
- * The map. CLAUDE.md section 10.
+ * The map. CLAUDE.md section 10, Part I.11.
  *
- * A search, not a menu. Occupancy is derived from the deterministic calendar,
- * so she is at the radio station on Wednesday afternoon whether you go looking
- * or not - and the only way to reliably find someone alone is to have learned
- * her routine.
+ * A search, not a menu - and from v2 on, genuinely one. Occupancy is derived
+ * from the deterministic calendar, so she is at the radio station on Wednesday
+ * afternoon whether you go looking or not, and THE MAP NO LONGER SAYS SO.
  *
- * Each row shows the two numbers the player is actually trading between:
- * outside exposure, and how many other people can see.
+ * That is the change. In v1 the player could see who was where and CHOOSE an
+ * empty room to work in, which made solo work a strategy and made the "search"
+ * a menu with the answers printed on it. Now they guess. Walking into a room is
+ * free (section 10b), the room screen is where you find out who is standing in
+ * it, and solo work becomes the consolation for having guessed wrong rather than
+ * the optimal play.
+ *
+ * It also finally pays off something section 10 has wanted since M1 and never
+ * delivered: a fact that tells you where she will be is more interesting than
+ * one that tells you what to purchase. It never delivered because the map
+ * already told you. Snooping's best prize stops being an object and becomes
+ * ACCESS.
+ *
+ * What each row still shows is what the player could work out from where they
+ * are standing and what time it is: outside exposure, and how many people a room
+ * like this one can hold. Both are properties of the ROOM, not of who is in it.
  */
 
-import { DORM_OCCUPANCY } from '../../data/locations.js';
 import { overworldFor } from '../../data/phaseMaps.js';
 import { sceneExposure, presenceCount } from '../../systems/exposure.js';
 
 export default function LocationGrid({
-  occupancy,
   cards,
   run,
   player,
@@ -42,16 +53,10 @@ export default function LocationGrid({
    * with very different meanings plus five closed doors.
    */
   const rows = overworldFor(run.phase, { eventSlot, eventOnly });
-  const homeCards = cards.filter((c) => DORM_OCCUPANCY.includes(occupancy[c.id]?.locationId));
-  const byLocation = {};
-  for (const [id, where] of Object.entries(occupancy)) {
-    (byLocation[where.locationId] ??= []).push({ id, ...where });
-  }
 
   return (
     <ul className="flex flex-col gap-1.5">
       {rows.map((locId) => {
-        const here = byLocation[locId] ?? [];
         const exposure = sceneExposure({
           locationId: locId,
           block: run.block,
@@ -63,87 +68,23 @@ export default function LocationGrid({
         const isTask = taskLocation === locId;
 
         /**
-         * With more than one person in the room the row grows a second layer:
-         * the header walks you into the ROOM, and the chips under it walk you
-         * straight up to one person.
+         * ONE SHAPE FOR EVERY ROOM, because the map cannot know which rooms are
+         * different from each other any more.
          *
-         * The header has to be a button. Section 10b says every action is
-         * offered in every room, occupied or not - and while the row was only
-         * chips, the room screen was unreachable whenever two members were
-         * standing in it, so the task, the snoop and the work were all locked
-         * out by company. That is the dead-space problem 10b exists to solve,
-         * inverted. It bit hardest on an event day, where all five are present
-         * and the row offered nothing but five faces.
+         * v1 had two: a plain row, and a two-layer row for a room with several
+         * people in it, whose second layer walked the player straight up to one
+         * of them. Both layers required knowing who was there, and the second
+         * one let the player pick a member before opening the door - which is
+         * precisely the bet Part I.11 wants them to make blind.
          *
-         * `eventOnly` suppresses the second layer entirely. An anchor event is
-         * the whole cast in one room by definition, so offering "talk to
-         * Jisoo, the others are nearby" at the door of one turns the loudest
-         * day in the game back into an ordinary crowded block. Choosing one of
-         * them in front of the other four is what the addressee is for, and it
-         * belongs INSIDE the scene where it costs what it should (section 10).
+         * Choosing one member in front of the others still exists. It happens
+         * INSIDE the room, where it costs what it should.
          */
-        if (here.length > 1 && !eventOnly) {
-          return (
-            <li
-              key={locId}
-              className="rounded-[var(--radius-sm)] border border-hairline px-3 py-2.5"
-            >
-              <button
-                type="button"
-                onClick={() => onPick(locId, here)}
-                className="flex w-full items-baseline gap-2 text-left"
-              >
-                <span className="flex-1 truncate font-body text-[0.9375rem] text-text">
-                  {t(`location.${locId}`)}
-                </span>
-                {isTask ? (
-                  <span className="font-mono text-[0.5rem] uppercase tracking-[0.14em] text-warn">
-                    {t('map.task')}
-                  </span>
-                ) : null}
-                <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
-                  {t('map.seen')}
-                </span>
-                <span
-                  className="h-1 w-7 rounded-full"
-                  style={{
-                    background: 'var(--meter-exposure)',
-                    opacity: 0.2 + (exposure / 100) * 0.8,
-                  }}
-                />
-              </button>
-              <span className="mt-1.5 flex flex-wrap gap-1.5">
-                {here.map((m) => {
-                  const card = cards.find((c) => c.id === m.id);
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => onPick(locId, here, m.id)}
-                      className="flex items-center gap-1.5 rounded-full border border-hairline px-2 py-1 transition-colors hover:border-accent"
-                    >
-                      <span
-                        className="grid h-4 w-4 place-items-center rounded-full text-[0.5rem]"
-                        style={{ background: card.palette.base, color: card.palette.accent }}
-                      >
-                        {card.emoji}
-                      </span>
-                      <span className="font-mono text-[0.5625rem] uppercase tracking-[0.1em] text-dim">
-                        {card.name}
-                      </span>
-                    </button>
-                  );
-                })}
-              </span>
-            </li>
-          );
-        }
-
         return (
           <li key={locId}>
             <button
               type="button"
-              onClick={() => onPick(locId, here)}
+              onClick={() => onPick(locId)}
               className={`flex w-full items-center gap-2.5 rounded-[var(--radius-sm)] border px-3 py-2.5 text-left transition-colors disabled:opacity-40 ${
                 isTask ? 'border-warn bg-surface-alt' : 'border-hairline hover:border-accent'
               }`}
@@ -159,31 +100,11 @@ export default function LocationGrid({
                     </span>
                   ) : null}
                 </span>
-
-                <span className="mt-0.5 flex items-center gap-1">
-                  {here.length > 0 ? (
-                    here.map((m) => {
-                      const card = cards.find((c) => c.id === m.id);
-                      return (
-                        <span
-                          key={m.id}
-                          title={card.name}
-                          className="grid h-5 w-5 place-items-center rounded-full text-[0.625rem]"
-                          style={{ background: card.palette.base, color: card.palette.accent }}
-                        >
-                          {card.emoji}
-                        </span>
-                      );
-                    })
-                  ) : (
-                    <span className="font-mono text-[0.5625rem] uppercase tracking-[0.14em] text-dim">
-                      {t('solo.alone')}
-                    </span>
-                  )}
-                </span>
               </span>
 
-              {/* the two independent risks, side by side */}
+              {/* the two independent risks, side by side - both properties of
+                  the room and the hour, neither of them a fact about who is
+                  standing in it */}
               <span className="flex shrink-0 flex-col items-end gap-1">
                 <span className="flex items-center gap-1">
                   <span className="font-mono text-[0.5rem] uppercase tracking-[0.1em] text-faint">
@@ -212,7 +133,9 @@ export default function LocationGrid({
       })}
 
       {/* the dorm is a place, not a room - it opens into its own map, and on
-          an event day it is not on the map at all */}
+          an event day it is not on the map at all. It shows no faces either:
+          who is home tonight is exactly the kind of thing the player is meant
+          to have to walk in and find out. */}
       {eventOnly ? null : (
       <li>
         <button
@@ -225,18 +148,6 @@ export default function LocationGrid({
             <span className="mt-0.5 block font-mono text-[0.5rem] uppercase tracking-[0.12em] text-faint">
               {t('map.dormNote')}
             </span>
-          </span>
-          <span className="flex shrink-0 items-center gap-1">
-            {homeCards.map((c) => (
-              <span
-                key={c.id}
-                title={c.name}
-                className="grid h-5 w-5 place-items-center rounded-full text-[0.625rem]"
-                style={{ background: c.palette.base, color: c.palette.accent }}
-              >
-                {c.emoji}
-              </span>
-            ))}
           </span>
           <span className="font-mono text-[0.75rem] text-accent">&#9656;</span>
         </button>
