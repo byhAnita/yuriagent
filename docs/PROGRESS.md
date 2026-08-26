@@ -4,7 +4,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 4 built. On `feat/v2-engine`.
+## Current: v2 engine, phase 4 built + hand test 1 fixed. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
@@ -12,14 +12,23 @@ to end - and live against DeepSeek in `zh`, four rounds, four options each.
 Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
 hand-test build, not a release (section 17). `?debug=1` for the in-page console.
 
-**`deploy.sh` prints the commit it published; that is the triage anchor.** A
-report against an older build will still show two-line value rows for everybody
-in the room, a page that scrolls every round, strain and jealousy in the
-relationship panel, a map that names rooms and no faces, and `Read her` counting
-down from 2. All five are changed, so check the build before triaging any of
-them. **Phase 4 adds three more:** a gift sheet with locked rows and a "these
-open when she tells you something" hint, a `say something` section under the
-gifts, and a dorm door that only ever says `not home`. All three are gone.
+**`deploy.sh` prints the commit it published; that is the triage anchor.**
+Everything in this list is a symptom of an OLD build, so check the commit before
+triaging any of it.
+
+| if the report shows | the build predates |
+|---|---|
+| two-line value rows for everybody in the room; a page that scrolls every round | `bc77d00` one-screen scene |
+| strain or jealousy in the relationship panel | `e85067a` phase 3a |
+| a map that names rooms and shows no faces | `951a0f8` I.11 reversal |
+| `Read her` counting down from 2 rather than costing `-1` | `6bdd71b` |
+| a gift sheet with locked rows, a "these open when she tells you" hint, or a `say something` section | `d56a5b1` phase 4 |
+| a dorm door that only ever says `not home` | `d56a5b1` phase 4 |
+| every member in the room getting a line every round | `1f322be` the floor |
+| a 1v1 that opens with two people in it | `1f322be` |
+| an English sentence under the numbers on the aftermath screen | `1f322be` |
+| four options all aimed at the same woman | `1f322be` |
+| other members' portraits sitting on top of the speaker's | `1f322be` |
 
 ### Read these three, in this order
 
@@ -316,6 +325,19 @@ Nothing in phase 4 has been in front of a person. Four questions no test answers
 4. **Are three dossier categories visibly better than five?** This is the first
    build where a snooped fact actually reaches the model at all.
 
+**Hand test 2 carries these four plus three from the floor**, and the second set
+is what the live run cannot judge:
+
+5. **Does the sticky addressee read as control or as being stuck?** The live run
+   never tapped, so the primary was Irene for four rounds straight - correct by
+   design, and nobody has yet felt what it is like to want somebody else.
+6. **Does one cut-in per round feel like a room or like a rule?** The rotation is
+   exact, which is the risk: four rounds gave the other four exactly one line
+   each, in order. Perfect is close to mechanical.
+7. **Are the options short enough now?** `OPTION_WORDS = 15` and the no-gloss
+   rule are both new, and the measure is whether four of them still fit under a
+   thumb at `fontScale` 1.25 in `zh`.
+
 ## Hand test 1 of v2 (2026-08-26, `zh`, phone, live DeepSeek V4 Flash)
 
 `docs/playtests/v2-test-report-1.txt`. Played against the phase-3 build, so none
@@ -381,7 +403,38 @@ Third layout for the same component. Column collapsed the portrait to zero;
 bottom overlay buried it under four cards; **beside** it costs neither, because
 horizontal space is the one thing this screen has spare.
 
-**914 tests, lint clean, build clean.** Live smoke next.
+### The live smoke run, and the harness that could not have caught any of this
+
+**Every case in `liveRound.test.js` was a one-to-one in an empty practice room**,
+and every defect above lived in the other case. A harness that plays the easy
+case is a harness that agrees with you - the lesson `balanceSim` already taught
+by modelling a scene as a number. So it now drives a five-member room too.
+
+Measured, `zh`, DeepSeek V4 Flash, five members, four rounds:
+
+```
+voices per round: 2, 2, 2, 2
+primary:  Irene -> Irene -> Irene -> Irene    (sticky, nobody tapped)
+second:   Yeri  -> Jisoo -> Nana  -> Hyewon   (all four, one each)
+prose:    192, 217, 236, 256 chars
+1v1 same run: 200, 179, 214, 305 chars
+```
+
+**A five-member room now costs what a two-hander costs**, and the rotation is
+exact with nothing as rigid as a rota deciding it. The tunnel is closed with it:
+round 3 offers options aimed at Irene *and* Nana, round 4 at Irene *and* Hyewon.
+
+The 1v1 scene held in the same run: affection 12 -> 15 over four rounds,
+admissibility 0 -> 0 unaided in a low-exposure room, 4/4 rounds with four
+options, first word 990-1410ms against 3.1-4.0s rounds.
+
+**One assertion was wrong on the first pass and the output was right.** It looked
+for `Irene` in a paragraph that correctly says 裴珠泫 - `nameLocal` (section 12)
+working exactly as designed. Worth recording because it is the failure mode of
+every live assertion in this codebase: the harness speaks English and the game
+does not.
+
+**914 tests, lint clean, build clean.**
 
 ### Then phase 5
 

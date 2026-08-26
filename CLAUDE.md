@@ -3663,30 +3663,33 @@ serialised into a save file that gets exported or shared (section 22).
 src/
   main.jsx
   App.jsx                    # routing, save/load, top-level state
-  agent/
-    sceneEngine.js           # turn loop, beat reveal, streaming orchestration
-    promptBuilder.js         # 5-block assembly, cache invariants
-    responseParser.js        # tolerant streaming state machine
+  agent/                     # v2. Everything that touches a model.
+    roundEngine.js           # the round loop: begin / run / read her / end
+    tiers.js                 # 3-tier assembly, cache invariants
+    roundParser.js           # streaming, %%% sentinel, liberal machine lines
+    pool.js                  # the stepped window: 3 full, then collapse in place
     memory.js                # ledger append + compaction, dossier CRUD
-    summarizer.js            # scene-exit call
-    chipWriter.js            # written chip labels; ephemeral frame, never committed
-    playthrough.test.js      # a whole campaign through the real engine, offline
-    liveQuality.test.js      # what a real model writes; LIVE_QUALITY=1, opt-in
+    floorTail.test.js        # who speaks and who is absent, in the rendered tail
+    smoke.test.js            # ~40 rounds offline: the loop does not drift
+    liveRound.test.js        # the shipped path, live; LIVE_ROUND=1, opt-in
   systems/                   # PURE. no React, no network.
     rng.js                   # seeded mulberry32, injected everywhere
-    relationship.js          # intimacy/admissibility/strain, stage, endings
-    jealousy.js              # bands, gain/decay, exclusivity curve
-    rumor.js                 # exposure -> awareness; presence -> witnessed events
+    relationship.js          # affection/admissibility, stage, peaks, endings
+    values.js                # the delta bound, the scene clamp, the one veto
+    floor.js                 # who has the floor: addressee + silence rotation
+    rumor.js                 # exposure -> awareness; presence -> what she heard
     castBuilder.js           # any 5 cards -> a coherent X lineup
     calendar.js              # deterministic seeded group + member schedules
     clock.js                 # block/day/week/phase advance, energy
-    tasks.js
-    soloWork.js              # empty rooms: work, snooping, learned facts
-    economy.js               # credits, knowledge-gated gifts
+    tasks.js                 # the daily objective, and what it says in the tail
+    soloWork.js              # empty rooms: work, snooping, facts and routines
+    economy.js               # credits, and handing something over
     exposure.js              # location x block x secrecy -> risk
-    chips.js                 # stance legality + the fallback chip set
-    balanceSim.js            # headless playthrough harness (dev only)
+    canon.js                 # what the campaign has settled
+    dating.js                # the weekend ask, gated on the two axes
+    dossierEntry.js          # { text, factId } - English for the model, id for the UI
     *.test.js                # colocated; vitest
+    *Join.test.js            # source assertions: rumor, routine, floor
   tools/
     llmTool.js               # multi-model router, streaming, retries
     mockClient.js            # offline writer; the game runs with no API key
@@ -3702,19 +3705,21 @@ src/
     locations.js             # exposureBase + presence + zone per location
     comebackStyle.js         # seeded sound/occasion/place pools, drawn per cycle
     soloActions.js           # what the assistant does in an empty room
-    gifts.js
+    gifts.js                 # one flat list of objects, nothing gated (I.10)
+    facts.js                 # fact ids -> canonical English; i18n/ has display
     cast.js                  # card loader; PROMPT_EXCLUDED_FIELDS
     events/                  # anchor nodes
   ui/
-    vn/                      # VNStage, Portrait, DialogueBox, ChipBar, MeterBar,
-                             # ThoughtBubble, SceneHeader, beatQueue
+    vn/                      # RoundStage, Portrait, PortraitRow, DialogueBox,
+                             # OptionBar, ValueBar, ThoughtBubble, SceneHeader
     map/                     # LocationGrid, DormMap, WeekCalendar
     modals/                  # Sheet + GiftModal, SettingsModal, SaveModal,
                              # HandbookModal, DateModal, RelationsModal
-    screens/                 # Day, SoloAction, Cover/Ending (M5)
+    screens/                 # Day, SoloAction, Start, Endings
   i18n/                      # zh/en (ko/pt stubs)
   config/
     constants.js
+    rules.js                 # the English directive block; ROUND_WORDS, OPTION_WORDS
     modelConfigs.js
   store/
     save.js                  # M5
