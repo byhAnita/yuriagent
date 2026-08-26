@@ -2195,3 +2195,321 @@ Three things worth trying, cheapest first:
 **Recommended:** 1 and 2 now; 3 only if a played `zh` scene still reads
 translated afterwards. And measure it the only way it can be measured - by
 asking a native reader, which is what produced this finding in the first place.
+
+---
+
+## 27. The v2 engine: the model authors, the world constrains
+
+**Status: DESIGN IN PROGRESS, 2026-08-26.** Nothing built. This entry is the
+running record of a `grill-with-docs` session with Yuhan and is the single
+source of what has been decided; `CLAUDE.md` still describes the v1 engine and
+is rewritten only once this settles.
+
+### Why
+
+Two played sessions and a `zh` hand test produced one verdict from the person
+this game is for:
+
+> the Chinese expression are very awkward and strange, not native... the options
+> are quite rigid and awkward - not limited to Chinese. The stance like a direct
+> filtering is very strange.
+
+and, on the genre:
+
+> As a Lesbian myself, I got to remind you Yuri relationship contains lots of
+> 试探、心动、克制 texture, not direct flirting in a work place at a very early
+> stage... Emotions develops in hidden care/细节 during the work. You didn't get
+> the 张力 of Yuri story.
+
+Both come from one architectural decision: **v1 made the code the author and the
+model a renderer.** Code picked a stance, priced the outcome, and asked the
+model to write a label for it. That produces a stat machine with prose on top -
+the exact thing section 1's non-goals forbid - and a chip labelled `[Flirt]` is
+a button labelled *raise intimacy*, offered at intimacy 5, in an office.
+
+The reference is Yuhan's own `rv-simulator`, which has been played for months
+and reads native in both locales. Its shape: rules in English, world in locale,
+model decides options and every delta, no stance vocabulary anywhere.
+
+### Decided
+
+Seven decisions, taken 2026-08-26.
+
+| # | decision |
+|---|---|
+| 1 | **A new engine in place**, on `feat/v2-engine` off `dev`. `agent/` and `chips.js` are replaced; `systems/` mostly survives and is the majority of the tested code. Not a fresh repo, not a flag. |
+| 2 | **New vocabulary** (below). `stance`, `chip`, `beat` and `turn` are retired. |
+| 3 | **A scene is 4-6 rounds**, then the block ends. A Leave control forfeits the rest. The block stays the unit of opportunity cost; rounds inside it are free. |
+| 4 | **The numbers are on screen.** Pillar 1 is rewritten: hidden state plus a labelled lever was the worst of both. `Read her` survives with a new job - her unspoken thought, not a number - and stays rationed. |
+| 5 | **`admissibility` may not RISE when the scene's exposure was low.** The model still picks the number; code vetoes a rise the world did not permit. The only code-side value rule that survives. |
+| 6 | **`guard` and `fluster` are dropped**, and the per-beat metadata contract with them. |
+| 7 | **The balance harness is retired.** A thin offline smoke harness replaces it - ~40 rounds against the mock to prove the loop, calendar and memory pool do not drift. Balance becomes permanently a play question. |
+
+### Decided, round two
+
+| # | decision |
+|---|---|
+| 8 | **One summary per scene**, not per round. The client knows which round is last (v1's `closingDirective` did exactly this), so only that round emits `sum|`. |
+| 9 | **Player stats become `selfId`, `energy`, `secrecy`, `credits`.** `competence` is dropped; `selfId` is lifted from `rv-simulator` and is the one stat that is actually about being a queer woman in this industry. |
+| 10 | **Two members may be present; one speaks per round.** The roster rule survives - the others are in the room for exposure and jealousy. |
+| 11 | **An `emo|` line carries the portrait's expression**, same six emotions and the same CSS treatments. The portrait is half the VN and the metadata line that used to carry this is gone. |
+| 12 | **`Read her` survives with a new job**: one extra call, rationed, returning her unspoken thought rather than a number. With the values now on screen this is the only hidden state left, which is where the tension moves. |
+
+### Decided, round three: what is left of the knowledge economy
+
+| # | decision |
+|---|---|
+| 15 | **`strain` is dropped. `mood` replaces it, on the player's side.** |
+| 16 | **The dossier survives, cut from five categories to three.** |
+| 17 | **Credits and gifts survive; knowledge-gating does not.** |
+| 18 | **Solo work is reframed as the consolation for guessing wrong.** |
+
+**`strain` had four jobs and three of them are gone.** It locked stances
+(retired), shortened scenes (retired), gated repair events (never built), and
+decided bad ends. With the model deciding affection, a bad scene simply moves
+affection down - *that is the damage*, and a second damage axis only code can
+read is exactly the hidden machinery this redesign exists to remove. Bad ends
+key off collapse plus the high-water marks, which survive; `reckless` still
+falls out of admissibility outrunning affection.
+
+**`mood` comes back in its place**, lifted from `rv-simulator` - a player-side
+volatile the model moves and the header shows. It does the emotional job
+`guard` and `fluster` were doing, on the correct side of the screen.
+
+**The dossier keeps three categories**, one per real question:
+
+| | the question it answers |
+|---|---|
+| `facts` | what the player knows about her |
+| `told_her` | what she knows about the player |
+| `heard_about` | what she has heard and not yet reacted to |
+
+`shared_moments` duplicated the ledger. `open_threads` existed only to feed
+`strain`. Three lines in tier 3, roster-scoped as before.
+
+**Gifts stop being knowledge-gated, and that deletes the most fragile
+subsystem in the game.** `requires` matched substrings against dossier text and
+broke twice during content rewrites; it existed only because *code* had to
+decide whether the player had earned a gift. The model now reads her `facts`
+directly, so a hand warmer given to someone whose dossier says she hates cold
+hands lands hard automatically. No needles, no paraphrase lists, no hidden
+gifts. A small shop of ordinary objects, credits from solo work, and a reaction
+written in the light of what she has told you.
+
+**And an empty room changes character completely.** In v1 the player saw
+occupancy and *chose* an empty room to work in. With occupancy hidden it is
+what happens when you guess wrong, so solo work becomes the consolation rather
+than a strategy.
+
+That finally pays off something section 10 has wanted since M1 and never
+delivered: *"a fact that tells you where she will be is more interesting than
+one that tells you what to purchase."* It never delivered because the map
+already told you. **Snooping's best prize stops being an object and becomes
+access.**
+
+### Decided, round four: the last of it
+
+| # | decision |
+|---|---|
+| 19 | **Knowledge reaches the player as an option; objects keep a Give control.** |
+| 20 | **Free text survives**, as a fifth control under the four options. |
+| 21 | **The two extra event calls collapse into ordinary rounds. `canon` stays.** |
+
+**The opener sheet is retired.** The model has her `facts` in tier 3, so when it
+is apt one of the four options simply *is* the gesture - contextual,
+unspammable, and impossible to turn into a checklist. Objects keep a control,
+because choosing among six things you are carrying and paying for one genuinely
+needs a list; giving becomes a round action that replaces the four options, and
+the next round is her reaction.
+
+The dossier stays **visible** in a panel beside the relationship panel. That is
+how pillar 4 survives with no spend UI: the player can see what they know, and
+notices options they could not otherwise have been offered.
+
+**Free text stays** because the played evidence demands it. At the concept
+meeting the player had to type every agenda topic in by hand; when the model's
+four options do not contain the thing you actually want to say, there has to be
+a way to say it. One text field.
+
+**A round with no `emo|` line is narration.** So the establishing beat is simply
+the first round of an event, and the mid-day interlude is a round the model
+writes without a speaker. Two call types disappear into one.
+
+**But `canon` stays**, as one more machine line (`canon|title_track|...`).
+Section 7's argument is unchanged: the ledger spends its one sentence on what
+the scene was emotionally about, and a fifteen-turn meeting that chose a
+comeback concept gave its line to a plate of food. Without canon, cycle 2 has
+nothing to read.
+
+**And the round is told where and when it is.** `Location: X Practice Room` and
+`Week 2, Tuesday morning` go in tier 3 with the rest of the volatile state. v1
+carried this and it is what let the same room open three different ways under
+three different activities; it costs nothing and it is the cheapest variety in
+the game.
+
+### The wire format
+
+**Streaming text, prose first, sentinel, then pipe-delimited lines. Not JSON.**
+
+```
+<~80 words, locale, the room and her line>
+%%%
+A|<option>
+B|<option>
+C|<option>
+D|<option>
+emo|blush
+irene+2
+sum|<one English sentence, last round of the scene only>
+```
+
+Three reasons, and the first is already in `CLAUDE.md` section 6 from measured
+experience: *"Not JSON - more tokens, and small models break it more often."*
+
+1. **JSON scaffolding is proportionally far worse here than in `rv-simulator`.**
+   Their story is 350-450 words, so braces and key names disappear into it. At
+   80 words it is a fifth of the output.
+2. **Prose streams from the first token.** ~400ms to first word instead of
+   2.5-3.5s for a complete JSON object. Streaming JSON is possible but needs
+   `story` as the first key and a partial-object parser.
+3. **The failure mode is a line, not the round.** A missing `sum|` costs a
+   summary; a malformed option costs one option and backfills. A broken JSON
+   object costs everything and needs a four-level repair pass.
+
+Machine tokens stay ASCII English in every locale. That rule survives from v1
+and is free.
+
+### One call per round
+
+The options come out of the same call as the prose, which is the whole saving:
+
+| per scene | v1 (8 turns) | v2 (5 rounds) |
+|---|---|---|
+| beat / round calls | 8 | **5** |
+| chip calls | 8 | **0** |
+| interjection calls | up to 6 | 0 |
+| summarizer | 1 | 0 (folded in) |
+| **total** | **~18-25** | **~5** |
+
+Roughly the same output tokens in **a quarter of the round-trips**. The chip
+call alone was ~500 extra calls per campaign at 1.3-1.7s each.
+
+**Never split the machine fields into a second call.** That architecture is
+exactly what v1's `writeChips` was, and section 6 warns against routing it to a
+different model: *"That abandons the shared prefix and turns a 20-token miss
+into 2200."* There is a quality argument too - the model that just wrote her
+reaction is the one that should say how far she moved, rather than a second
+pass reading the prose cold.
+
+### The delta bound does not port
+
+`rv-simulator` allows `+/-1-10 each round` over a playthrough of roughly **60
+rounds**. This game is 63 days x 3 blocks, two thirds of them scenes, x 5
+rounds - about **650 rounds**, an order of magnitude more.
+
+Per member it is starker. A favoured member appears in maybe 40 scenes, so ~200
+rounds; moving her 5 -> 85 across those needs an average of **+0.4 a round**. A
++/-5 bound would be ten times too hot - one good scene could move her 25 points.
+
+**Decided:** deltas **every round, +/-2**, with *0 is the normal answer* in the
+English rules block, and code clamping the scene total to +/-6. The first round
+of a scene is always 0, because nothing has happened yet.
+
+Clamping a total is the same kind of rule as clamping to 0-100: it bounds, it
+does not choose. The alternative - one delta set per scene at +/-5, which would
+make our scene exactly equal to their round - is a one-line retreat if
+per-round movement reads as noisy.
+
+### Absent members do not react
+
+The model returns deltas for **present members only**. A rumor lands in an
+absent member's dossier and does nothing until she is in front of the player -
+then the model reads it and decides.
+
+Jealousy stops being a number ticking in the background and becomes a scene.
+The cost is that the day screen's jealousy reading is stale for anyone not
+recently seen, and that is correct rather than a bug: **you do not know how she
+took it until you see her.**
+
+### The vocabulary
+
+Five words were about to collide, and `block` already meant two things.
+
+| term | means | replaces |
+|---|---|---|
+| **Day** | one in-game day | - |
+| **Block** | morning / afternoon / evening | - |
+| **Scene** | one location visit, 4-6 rounds long | - |
+| **Round** | one model call: ~80 words plus four options | `turn`, `beat` |
+| **Tier** | a prompt layer - 1 static, 2 ledger, 3 tail | `block 1-5` |
+
+`Tier` is lifted from `rv-simulator`'s own docs, which frees `block` for the
+clock. Retired outright: `stance`, `chip`, `beat`, `turn`.
+
+### The division of labour
+
+The whole redesign is one line: **the model decides what the scene means; the
+code decides what the world is.**
+
+| | who decides |
+|---|---|
+| where each member is, each block | code |
+| which day an event falls on, what the phase is | code |
+| `exposure` of a location x time | code |
+| who is in the room when the player walks in | code, and **hidden from the player** |
+| the ~80-word round: scene and her lines | model |
+| the four options | model, written from the current text |
+| affection and player-stat deltas | model, bounded per round |
+| `admissibility` delta | model proposes, code vetoes a rise at low exposure |
+| who hears about it afterwards | code |
+| jealousy | model |
+
+### The language architecture
+
+Copied from `rv-simulator`, which is the thing that reads native:
+
+| | language |
+|---|---|
+| rules, schema, pacing directives | **English** - brief, structured, directive |
+| member profiles, player identity | **locale** |
+| the round's prose and its options | **locale** |
+| the one-sentence summary per entry | **English** |
+| recent full text in the ledger | **locale** |
+
+The model is instructed in English and immersed in Chinese. Section 19 rule 2 -
+memory always English - **is repealed**, because the only thing it bought was
+mid-run language switching, and that is now explicitly unsupported: a `zh`
+player plays the whole campaign in `zh`.
+
+### The round contract
+
+The one place this must differ from `rv-simulator`. That project writes the
+player's dialogue because it is a story generator; this one must not.
+
+```
+[round: scene + her line, ~80 words, locale]
+        |
+[four options - these ARE the player's line, shown verbatim as theirs]
+        |
+[next round: her reaction]
+```
+
+The chosen option text becomes the player's line in the dialogue box. Nothing is
+put in the player's mouth that they did not pick, which is section 1's third
+pillar, kept for free.
+
+### The pacing brief, which is the actual fix for the genre
+
+`rv-simulator` holds the slow burn with phases rather than vocabulary:
+
+> Phase 1 (Rounds 1-6): First encounters. Awkward distance, professional
+> politeness, subtle curiosity. **No romantic moves.**
+>
+> [Pace: Slow Burn] Flipped & Ambiguous. Affection grows slowly. Focus on
+> details and subtle tension.
+
+v1 has no phase brief at all, which is why `flirt` was reachable in week one.
+And note what the two axes already are: **`admissibility` is 克制 expressed as a
+number** - close, and not nameable, is the game's own signature zone. The model
+was right; the bar in front of it was wrong.
+
