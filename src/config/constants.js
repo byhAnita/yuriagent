@@ -67,7 +67,17 @@ export const WEEKS_PER_CYCLE = 3;
 export const CYCLES_PER_CAMPAIGN = 3;
 
 // --- scene ------------------------------------------------------------------
-export const READ_HER_USES_PER_SCENE = 2;
+/**
+ * `READ_HER_USES_PER_SCENE` is gone. Read her is rationed by ENERGY alone now
+ * (`ENERGY_PER_READ`, below), which is what section 10 has claimed since M1:
+ * "Read her is the energy sink, not the block."
+ *
+ * Two counters for one action was one too many, and the per-scene one was the
+ * wrong half. A cap of two is invisible across a day - it resets at every door,
+ * so it never accumulates into a decision - while energy is the only resource
+ * that carries a choice from this scene into the next one. Reading her four
+ * times this afternoon should be a thing the player pays for this evening.
+ */
 export const MAX_BEATS_PER_RESPONSE = 3;
 export const MAX_INTERACTIVE_MEMBERS = 2;
 
@@ -197,6 +207,24 @@ export const CHIP_COOLDOWN_TURNS = 3;
 
 /** Every block spent costs this; Read her costs one on top. */
 export const ENERGY_PER_BLOCK = 6;
+
+/**
+ * ...and this one is finally spent, which it was not for six milestones.
+ *
+ * The constant, the sentence above it and the whole of section 10's pacing
+ * argument have been here since M1, and `readHer` never touched energy - it
+ * counted down a per-scene allowance instead, and that allowance reset at every
+ * door. So the action section 10 calls "the energy sink" cost nothing that
+ * survived the block, and the day was flatly energy-positive however the player
+ * played it. Another constant with no reader: the `markRisk` shape, mild only
+ * because a number being ignored looks exactly like a number being small.
+ *
+ * The arithmetic it restores: three blocks cost 18 and three doors cost 3
+ * against 24 overnight, so a busy day that never looks inside her head runs +3.
+ * Every read is a point off that, and a player who reads her most rounds goes
+ * sharply negative and eventually has to spend a block sleeping - a block they
+ * wanted to spend on her. That is the trade, and it only exists if it is spent.
+ */
 export const ENERGY_PER_READ = 1;
 /**
  * Overnight no longer covers a full day of blocks. Tuned so three scenes with

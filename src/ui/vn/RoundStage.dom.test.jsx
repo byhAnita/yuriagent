@@ -292,4 +292,81 @@ describe('the round stage', () => {
     // Still four options, and still the same round.
     expect(optionButtons().length).toBe(4);
   });
+
+  /**
+   * ...but it does spend ENERGY, and until now it spent nothing at all.
+   *
+   * `ENERGY_PER_READ` has been in `config/constants.js` since M1 with the
+   * comment "Read her costs one on top", section 10 has called Read her "the
+   * energy sink, not the block" for just as long, and nothing ever read the
+   * constant: the screen counted down a per-scene allowance of two instead.
+   * That allowance reset at every door, so nothing about the choice survived the
+   * block and the day was flatly energy-positive however it was played.
+   */
+  describe('read her is priced in energy', () => {
+    const thoughtClient = (thought = 'She is deciding not to say it.') => {
+      return async ({ preset, onChunk }) => {
+        if (preset === 'thought') return thought;
+        const text = `Round.\n${SENTINEL}\nA|a\nB|b\nC|c\nD|d\nemo|neutral`;
+        onChunk?.(text);
+        return text;
+      };
+    };
+
+    /** The scene hands the spend back to App, so it must land on the way out. */
+    const closeAndRead = async (props) => {
+      const ended = [];
+      mount({ ...props, onSceneEnd: (r) => ended.push(r) });
+      await waitFor(() => expect(optionButtons().length).toBe(4));
+      return ended;
+    };
+
+    it('shows the price rather than a remaining count', async () => {
+      mount({ client: thoughtClient() });
+      await waitFor(() => expect(optionButtons().length).toBe(4));
+      expect(screen.getByText('-1')).toBeTruthy();
+    });
+
+    it('charges it, and carries the charge out of the scene', async () => {
+      const user = userEvent.setup();
+      const ended = await closeAndRead({ client: thoughtClient() });
+
+      await user.click(screen.getByText('vn.readHer'));
+      await waitFor(() => expect(screen.getByText('She is deciding not to say it.')).toBeTruthy());
+      await user.click(screen.getAllByText('vn.leave')[0]);
+
+      // The mount fixture starts her at 80.
+      expect(ended).toHaveLength(1);
+      expect(ended[0].player.energy).toBe(79);
+    });
+
+    /**
+     * Charged on the ANSWER, not on the ask. A provider that is down is not a
+     * look inside her head, and must not also drain the day - the same rule the
+     * date bill follows: she turned you down, you did not buy her dinner.
+     */
+    it('charges nothing when the call comes back empty', async () => {
+      const user = userEvent.setup();
+      const ended = await closeAndRead({ client: thoughtClient('') });
+
+      await user.click(screen.getByText('vn.readHer'));
+      await user.click(screen.getAllByText('vn.leave')[0]);
+
+      expect(ended[0].player.energy).toBe(80);
+    });
+
+    /** It refuses rather than going negative, so it can never strand the day. */
+    it('goes dead once she cannot be afforded', async () => {
+      mount({
+        client: thoughtClient(),
+        setup: {
+          ...setup(),
+          player: { name: 'You', energy: 0, mood: 55, selfId: 40, secrecy: 70, credits: 10 },
+        },
+      });
+      await waitFor(() => expect(optionButtons().length).toBe(4));
+
+      expect(screen.getByText('vn.readHer').closest('button').disabled).toBe(true);
+    });
+  });
 });

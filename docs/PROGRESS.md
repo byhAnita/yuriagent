@@ -4,7 +4,7 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 3a and 3b built. On `feat/v2-engine`.
+## Current: v2 engine, phase 3 built. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
@@ -165,28 +165,85 @@ its own box with the name plate pinned.
 Also fixed there: `RoundStage` rendered `Portrait` **and** `PortraitRow`, so a
 group scene drew the same woman twice with one of them collapsed to nothing.
 
-### PICK UP HERE: phase 3c, then 4
+### Phase 3c, built: Read her is priced in energy
 
-**Still waiting on the hand test** - each is a judgement the answers change:
+**Answered by Yuhan during the hand test: energy, not uses.** Which turned out
+to be another unwired constant rather than a preference.
 
-- whether `Read her` is rationed by energy, by uses, or at all
-- the dossier panel: where the player sees what she knows and what she has heard
-- whether the collapsed value strip is now too little rather than too much
+`ENERGY_PER_READ` has been in `config/constants.js` since M1 under the comment
+*"Read her costs one on top"*, section 10 has called Read her "the energy sink,
+not the block" for just as long, and **nothing ever read it** - the scene screen
+counted down a per-scene allowance of two and charged no energy at all. Every
+number in section 10's pacing arithmetic was correct and none of it was
+happening. The `markRisk` shape in its quietest form: a number being ignored
+looks exactly like a number being small, and no test could see it because every
+test supplied its own count.
 
-**Phase 4, and none of it waits:**
+`READ_HER_USES_PER_SCENE` is deleted. Two counters for one action was one too
+many and the per-scene one was the wrong half: **an allowance that resets at
+every door can never be a decision**, because nothing about it survives the
+block to trade against anything.
 
-| | |
+| rule | why |
 |---|---|
-| `agent/memory.js` | dossier cut to three categories: `facts`, `told_her`, `heard_about`. `shared_moments` duplicated the pool; `open_threads` existed only to feed `strain` |
-| `systems/economy.js` | gifts stop being knowledge-gated - delete the `requires` substring matching, which broke twice. The model reads her `facts` and reacts |
-| tier 3 | the day's task, when it was failed and `affectsMembers` is set. That is where the beat `failTask` used to buy with strain now belongs |
-| `systems/soloWork.js` | snooping's best prize becomes **access** - a routine - rather than an object (§10.11) |
+| the ENGINE charges it, not the screen | `session.player` is the scene's only copy of energy and `endScene` hands it back. A screen spending it would be writing state it does not own - the `affection` lesson |
+| charged on the ANSWER, never on the ask | a failed call is not a look inside her head. Same rule as the date bill: she turned you down, you did not buy her dinner |
+| refuses rather than going negative | the one rationed action in the game must never strand the player at zero |
 
-Then phase 5: events, canon injection into tier 3, endings. **What a collapse IS
-in v2 is an open question** - `criticalScenes` used to trigger `resolveBadEnd` off
-two consecutive critical-strain scenes, and there is no strain. `resolveBadEnd`
-is kept, correct, and called by nothing; it says so in its own header, because an
-unwired function that looks wired is this project's most expensive recurring bug.
+The control shows the **price** now (`-1`), not a count: the same number every
+time, dead when it cannot be afforded.
+
+### PICK UP HERE: phase 4
+
+**Do it in this order.** Gifts and tier 3 both read the dossier, so cutting the
+dossier second means touching it twice.
+
+**1. `agent/memory.js` - the dossier goes from five categories to three.**
+
+| keep | drop |
+|---|---|
+| `known_facts` -> **`facts`** (what the player knows about her) | `shared_moments` - duplicated the pool, which is now the stepped window and does it better |
+| `player_told_her` -> **`told_her`** (what she knows about the player) | `open_threads` - existed only to feed `strain`, including `countOpenThreads` and `resolveThread` |
+| `heard_about` (what she has heard and not yet reacted to) | |
+
+Renaming is optional and the shorter names are Part I.10's; if it costs more
+than it buys, keep the long ones and cut the two. **It is a `schemaVersion`
+bump** - Yuhan has confirmed v1 saves may break, they were all test saves.
+Consumers to walk: `App.jsx`, `systems/economy.js`, `systems/soloWork.js`,
+`data/soloActions.js`, plus `memory.test.js`, `economy.test.js`,
+`soloWork.test.js`, `snoopCost.test.js`, `save.test.js`,
+`sharedActivities.test.js`, `SoloAction.lang.test.jsx`.
+
+**2. `systems/economy.js` - gifts stop being knowledge-gated.**
+
+Delete the `requires` substring matching. It broke twice, and it existed only
+because CODE had to decide whether the player had earned a gift - the model reads
+her `facts` in tier 3 and reacts accordingly. Watch for: the gift modal's "locked
+gifts are not shown" rule loses its reason to exist, and `data/gifts.js` has a
+test asserting every knowledge gift has an owner among the cast, which becomes
+meaningless. The **gesture** half (§11's "two ways to spend a fact") is the part
+worth keeping - free, once per fact, and it is still the natural move.
+
+**3. tier 3 carries the failed task**, when `affectsMembers` is set. That is
+where the beat `failTask` used to buy with strain now belongs, and phase 3a left
+the flag on the task deliberately so this has something to read.
+
+**4. `systems/soloWork.js` - snooping's best prize becomes access.**
+
+A routine, not an object: *she practises alone on Wednesday nights*. §10.11 has
+wanted this since M1 and could never have it, because the map already told you
+where everyone was. Hidden occupancy is what makes it worth buying.
+
+### Then phase 5
+
+Events, canon injection into tier 3, endings.
+
+**What a collapse IS in v2 is an open question.** `criticalScenes` used to
+trigger `resolveBadEnd` off two consecutive critical-strain scenes, and there is
+no strain. `resolveBadEnd` is kept, correct, and called by nothing; it says so in
+its own header, because an unwired function that looks wired is this project's
+most expensive recurring bug - and this file now records three of them
+(`markRisk`, `propagate`, `ENERGY_PER_READ`).
 
 **Currently unwired, pending phase 5, and each is a live import that was
 removed from `App.jsx`:** canon injection into tier 3 (the parser and engine

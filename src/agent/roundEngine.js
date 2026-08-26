@@ -33,7 +33,7 @@ import {
 } from './pool.js';
 import { applyDeltas, newBudget } from '../systems/values.js';
 import { sceneExposure } from '../systems/exposure.js';
-import { SCENE_ROUNDS_MIN, SCENE_ROUNDS_MAX } from '../config/constants.js';
+import { SCENE_ROUNDS_MIN, SCENE_ROUNDS_MAX, ENERGY_PER_READ } from '../config/constants.js';
 import { makeRng, deriveSeed } from '../systems/rng.js';
 
 /**
@@ -248,11 +248,28 @@ export async function runRound(session, { client, choice = null, note = null, on
  * (~30 output tokens), and committing it would put a system note between two
  * rounds and cost the prefix on every round after.
  *
- * Rationing is the caller's, because energy is the caller's.
+ * IT COSTS ENERGY, AND THE RATION IS NOT THE CALLER'S ANY MORE.
+ *
+ * It used to be: `RoundStage` held a per-scene allowance of two and the engine
+ * charged nothing. Two problems with that, and the second is why this moved.
+ * An allowance that resets at every door never accumulates into a decision - and
+ * `session.player` is the only copy of energy the scene has, so a caller
+ * spending it would be writing state the engine owns and hands back at
+ * `endScene`. One number, one owner, the same rule the `affection` rename bought.
+ *
+ * Refuses rather than going negative, so the action can never strand the player
+ * at zero. Returns the session either way; a refusal simply carries no thought.
  */
+export function canReadHer(session) {
+  return (
+    (session.scene.present ?? []).length > 0 &&
+    (session.player?.energy ?? 0) >= ENERGY_PER_READ
+  );
+}
+
 export async function readHer(session, { client } = {}) {
   const who = (session.scene.present ?? [])[0];
-  if (!who) return null;
+  if (!who || !canReadHer(session)) return { session, thought: null, refused: true };
 
   const card = session.cards.find((c) => c.id === who);
   const name = (session.lang !== 'en' && card?.nameLocal?.[session.lang]) || card?.name || who;
@@ -276,8 +293,26 @@ export async function readHer(session, { client } = {}) {
     preset: 'thought',
   });
 
-  // Whatever came back is a sentence for the player. Strip anything that leaked.
-  return parseRound(raw).prose || null;
+  /**
+   * Charged on the ANSWER, not on the ask.
+   *
+   * A failed call is not a look inside her head, and a provider that is down
+   * must not also drain the day. Same rule the date bill follows: she turned you
+   * down, you did not buy her dinner.
+   */
+  const thought = parseRound(raw).prose || null;
+  if (!thought) return { session, thought: null, refused: false };
+
+  return {
+    session: {
+      ...session,
+      player: {
+        ...session.player,
+        energy: Math.max(0, (session.player?.energy ?? 0) - ENERGY_PER_READ),
+      },
+    },
+    thought,
+  };
 }
 
 /**

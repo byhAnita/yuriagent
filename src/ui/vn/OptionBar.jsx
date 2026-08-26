@@ -49,7 +49,10 @@ export default function OptionBar({
   onChoose,
   onGive = null,
   onReadHer = null,
-  readHerLeft = 0,
+  /** What one look costs, in energy. Shown, because a price has to be visible. */
+  readHerCost = 0,
+  /** Whether she can be read at all right now - the engine decides, not the bar. */
+  canReadHer = false,
   roundsLeft = 0,
   disabled = false,
   over = false,
@@ -165,16 +168,26 @@ export default function OptionBar({
 
         <span className="h-px flex-1 bg-hairline opacity-50" />
 
+        {/*
+          The price, not a counter. Read her is rationed by ENERGY now - section
+          10's "Read her is the energy sink, not the block" - and a per-scene
+          allowance that reset at every door could never be a decision, because
+          nothing about it survived the block.
+
+          So the number beside it is what one look costs, and it is the same
+          number every time. What changes is whether the player can still afford
+          it, which is exactly the state a price is supposed to make visible.
+        */}
         {onReadHer ? (
           <button
             type="button"
-            disabled={disabled || readHerLeft <= 0}
+            disabled={disabled || !canReadHer}
             onClick={onReadHer}
             className="flex items-center gap-1.5 font-mono text-[0.625rem] uppercase tracking-[0.14em] text-dim transition-colors hover:text-accent disabled:opacity-25"
           >
             <span aria-hidden="true">&#128065;</span>
             {t('vn.readHer')}
-            <span className="tabular-nums text-accent">{readHerLeft}</span>
+            <span className="tabular-nums text-accent">-{readHerCost}</span>
           </button>
         ) : null}
       </div>

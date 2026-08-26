@@ -1537,7 +1537,14 @@ turn loses its prefix.
 ### "Read her"
 
 Inner thought is **not** streamed on every line - that hands the player the answer key and kills the tension.
-`Read her` is a limited action: 2 uses per scene, or 1 Energy. It appends a system note at the tail of the scene buffer and requests a thought-only response (~30 output tokens, full prefix cache hit).
+`Read her` is a limited action. It requests a thought-only response (~30 output tokens, full prefix cache hit).
+
+> **Superseded on the ration and on the mechanism.** "2 uses per scene, or 1
+> Energy" is now **energy alone** - see section 10, which has the argument and
+> the six milestones in which nothing spent it. And it no longer appends a system
+> note to the scene buffer: Part I.2 makes it an ephemeral branch off the prefix,
+> because committing it would put a note between two rounds and cost the prefix
+> on every round after.
 ---
 
 ## 7. Memory Architecture
@@ -2508,6 +2515,42 @@ That is a defensible mechanic - it makes the rationed action the thing you
 budget for - but it is not what this section used to claim, and the claim was
 wrong: blocks are not the pressure. If playtesting shows players simply ignore
 Read her, the fix is `ENERGY_RESTORED_OVERNIGHT` 24 -> 18. Not both.
+
+#### ...and for six milestones it was not the sink, because nothing spent it
+
+**`ENERGY_PER_READ` existed, was documented, and had no reader.** The paragraph
+above has been in this file since M1 and the constant has sat in
+`config/constants.js` under the comment *"Read her costs one on top"* - while the
+scene screen rationed the action with a **per-scene allowance of two** and
+charged no energy at all. Every number in the arithmetic above was right and
+none of it was happening.
+
+The `markRisk` shape again, in its quietest form: **a number being ignored looks
+exactly like a number being small.** No test could see it, because every test
+supplied its own count.
+
+Two counters for one action was also one too many, and the per-scene one was the
+wrong half. **An allowance that resets at every door can never be a decision** -
+nothing about it survives the block, so it cannot trade against anything. Energy
+is the only resource in the scene that carries a choice into the next one, which
+is the whole of why section 10 named it. `READ_HER_USES_PER_SCENE` is deleted.
+
+Three rules, all asserted:
+
+1. **The engine charges it, not the screen.** `session.player` is the scene's
+   only copy of energy and `endScene` hands it back, so a screen that spent it
+   would be writing state it does not own. One number, one owner - the rule the
+   `affection` rename cost a day to learn.
+2. **Charged on the answer, never on the ask.** A failed call is not a look
+   inside her head, and a provider having a bad minute must not also drain the
+   day. Same rule the date bill follows: she turned you down, you did not buy
+   her dinner.
+3. **It refuses rather than going negative**, so the one rationed action in the
+   game can never strand the player at zero.
+
+The control shows the **price** now, not a remaining count - the same number
+every time, going dead when it can no longer be afforded, which is exactly the
+state a price is there to make visible.
 
 ### Player stats
 

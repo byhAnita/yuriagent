@@ -51,8 +51,16 @@ import ThoughtBubble from './ThoughtBubble.jsx';
 import ValueBar from './ValueBar.jsx';
 import OptionBar from './OptionBar.jsx';
 import GiftModal from '../modals/GiftModal.jsx';
-import { beginScene, runRound, readHer, endScene, roundsLeft, isOver } from '../../agent/roundEngine.js';
-import { READ_HER_USES_PER_SCENE } from '../../config/constants.js';
+import {
+  beginScene,
+  runRound,
+  readHer,
+  canReadHer,
+  endScene,
+  roundsLeft,
+  isOver,
+} from '../../agent/roundEngine.js';
+import { ENERGY_PER_READ } from '../../config/constants.js';
 
 export default function RoundStage({
   setup,
@@ -74,7 +82,6 @@ export default function RoundStage({
   const [emotion, setEmotion] = useState('neutral');
   const [pending, setPending] = useState(false);
   const [thought, setThought] = useState(null);
-  const [readsLeft, setReadsLeft] = useState(READ_HER_USES_PER_SCENE);
   const [giftOpen, setGiftOpen] = useState(false);
   const busy = useRef(false);
 
@@ -127,14 +134,21 @@ export default function RoundStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Read her. Costs energy, not a round, and the engine owns both.
+   *
+   * The session it hands back carries the charge, so the spend reaches `App`
+   * through `endScene` like every other player value - the screen never edits
+   * energy itself. A refusal or a failed call leaves the session untouched.
+   */
   const onReadHer = async () => {
-    if (busy.current || readsLeft <= 0) return;
+    if (busy.current || !canReadHer(session)) return;
     busy.current = true;
     setPending(true);
     try {
-      const line = await readHer(session, { client });
-      setThought(line);
-      setReadsLeft((n) => n - 1);
+      const out = await readHer(session, { client });
+      setSession(out.session);
+      setThought(out.thought);
     } finally {
       busy.current = false;
       setPending(false);
@@ -229,7 +243,8 @@ export default function RoundStage({
         disabled={pending}
         over={over}
         roundsLeft={left}
-        readHerLeft={readsLeft}
+        readHerCost={ENERGY_PER_READ}
+        canReadHer={canReadHer(session)}
         onReadHer={focusCard ? onReadHer : null}
         onGive={openers && focusCard ? () => setGiftOpen(true) : null}
         onChoose={(choice) => advance({ choice })}
