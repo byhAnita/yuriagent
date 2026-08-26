@@ -4,12 +4,13 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
+## Current: v2 engine, phase 2 complete. On `feat/v2-engine`.
 
-## Current: v2 engine, phase 0 complete. On `feat/v2-spike`.
+**A day plays.** Map to room to scene to aftermath to map, offline, asserted end
+to end - and live against DeepSeek in `zh`, four rounds, four options each.
 
-**The v1 game is finished, deployed and playable** at
-https://byhAnita.github.io/yuriagent/ - `dev@8c7a051`, 1297 tests green. It is
-also being replaced, and this section is about the replacement.
+The v1 game is still at https://byhAnita.github.io/yuriagent/ (`dev@8c7a051`).
+Nothing has been deployed from v2 yet, deliberately.
 
 ### Read these three, in this order
 
@@ -18,7 +19,7 @@ also being replaced, and this section is about the replacement.
 2. **`docs/PROPOSALS.md` §27** - the decision record: 21 decisions from a
    `grill-with-docs` interview, why each was taken, what was measured.
 3. **`~/.claude/plans/sequential-splashing-falcon.md`** - the build order,
-   phases 0 to 5, with what is deleted and what survives.
+   phases 0 to 5.
 
 ### Why v2 exists
 
@@ -30,65 +31,93 @@ the stance chips were rigid and wrong about the genre.
 > stage.
 
 Both came from one decision: **v1 made the code the author and the model a
-renderer.** The reference is Yuhan's own `rv-simulator`, read in full for the
-design session - `mainAgent.js`, `memoryPool.js`, `probabilityEngine.js`,
-`specialEvents.js` and its `CLAUDE.md`.
+renderer.** The reference is Yuhan's own `rv-simulator`.
 
-### PHASE 0 IS DONE AND IT PASSED
+### What is built
 
-`src/agent/spike.test.js` - five rounds in a practice room, live, both languages.
-Run it: `LIVE_PROVIDER=1 SPIKE=1 npx vitest run spike`
+| phase | | |
+|---|---|---|
+| 0 | the spike | `config/rules.js`, `agent/tiers.js`, `agent/roundParser.js`, Irene in Chinese |
+| 1 | the docs | `CLAUDE.md` Part 0 and Part I |
+| 2 | **the loop** | everything below |
 
-| question | answer |
-|---|---|
-| does the Chinese read native? | **yes, on the first try** |
-| does the model hold the two axes apart unaided? | **yes** - affection 8 -> 12, admissibility 0 -> 0 in an empty room, no veto in play |
-| do the deltas behave? | **yes** - 0 on round one, 0 the common answer, never outside the bound |
-| is ~80 words right? | it writes ~2x that in `zh` and **Yuhan read it and kept it** |
+**Engine.** `agent/roundEngine.js` (4-6 rounds, Leave forfeits the rest),
+`agent/pool.js` (the stepped window, plus `noteScene` for solo work),
+`systems/values.js` (the ±2 bound, the ±6 scene net, the admissibility veto,
+only-present-members-move).
 
-Unedited, from the run: 「她话没说完，把后半句留在空气里。」and 「她耳廓泛着一点不太
-明显的红——也许是练久了，也许不是。」
+**Screen.** `ui/vn/RoundStage.jsx`, `ValueBar.jsx` (both axes visible - Part
+I.2), `OptionBar.jsx` (four options, backfilled, one geometry).
+`LocationGrid.jsx` **no longer renders occupancy**: the map names rooms, the room
+is where you find out who is in it.
 
-Then Yuhan asked for `rv-simulator`'s register lines, and they landed
-immediately - smell and sound arrived in the next run, and round two produced
-「要路过，得先经过七扇门。」which is the 试探 texture exactly.
+**Offline.** `tools/mockRound.js` speaks the real wire format including the
+failures a small model makes. `tools/mockClient.js` is a tenth of its old size,
+because v1 asked a model five questions a scene and v2 asks one.
 
-**Built in phase 0:** `config/rules.js` (the English directive half of tier 1),
-`agent/tiers.js`, `agent/roundParser.js` + tests, `irene.json` `profileLocal.zh`
-lifted from `rv-simulator`'s own X group file, `identities.js` `prompt.{en,zh}`,
-and a `round` call preset.
+**Cast.** All five members have `profileLocal.zh`. Jisoo, Hyewon and Yeri are
+adapted from `rv-simulator`'s own group files - adapted, not lifted, because the
+source names real groups (§1b), its mascots differ from ours, and the English
+cards carry detail it does not. Nana is authored. `data/profileLocal.test.js`
+asserts all of it.
 
-### PICK UP HERE: phase 1, then phase 2
+**Deleted: 15,900 lines.** `sceneEngine`, `promptBuilder`, `responseParser`,
+`summarizer`, `chipWriter`, `chips`, `dialogue`, `speaker`, `balanceSim`,
+`VNStage`, `ChipBar`, `MeterBar`, `beatQueue`, `SceneSetup`, and ~500 tests for
+an engine the game no longer has.
 
-**Phase 1 is finished** - `CLAUDE.md` Part 0 and Part I are written. Nothing to
-do there unless a decision changes.
+### Three defects found by running it, not by designing it
 
-**Phase 2 is the loop**, and it is the next work. Branch `feat/v2-engine` off
-`dev`, and end the phase with **one playable day**:
+**A missing percent sign was costing the whole round.** About one live `zh`
+round in six came back with `%%` instead of `%%%`. With no sentinel found,
+`splitRound` calls the whole response prose - and `cleanProse` then *deletes*
+exactly the lines it should have parsed. Good paragraph, no options, no emotion,
+no movement, and nothing said why. Ruled out as a client bug first by teeing the
+raw SSE bytes past a wrapped `fetchImpl`: `stream()` reassembles them
+byte-perfect. The parser now accepts a degraded sentinel and falls back to the
+option block as a boundary; the machine lines are ordered by importance, because
+a response that stops early stops from the bottom.
+
+**The aftermath was still reporting v1's computed numbers** and would have
+crashed on the first scene to end. 1366 tests were green, because nothing walked
+past the last option. `App.dom.test.jsx` now plays a whole block.
+
+**`buildTier2`'s `(nothing yet)` placeholder** made the first append a full cache
+miss instead of the cheapest one in the run.
+
+### PICK UP HERE: phase 3
+
+Deploy is deliberately **not** done - Yuhan chose to hand-test first.
 
 | | |
 |---|---|
-| `agent/roundEngine.js` | replaces `sceneEngine.js`. A scene is 4-6 rounds; Leave forfeits the rest |
-| `agent/pool.js` | replaces `memory.js` + `summarizer.js`. Stepped window: 3 full in locale, collapsed in place to English summaries |
-| options / free text / Give | replaces `ChipBar.jsx` |
-| `ui/map/LocationGrid.jsx` | **stop rendering occupancy** - `occupancy` at lines 18/45/47 |
-| `tools/mockClient.js` | rewrite for the new wire format; offline stays supported |
-| the other four cards | Yeri lifts from `rv-simulator/public/groups/red_velvet/zh.json`; Nana, Jisoo, Hyewon need research. **Jisoo and Hyewon are already in `x/zh.json`** - only Nana and Yeri are missing |
-| smoke harness | ~40 rounds offline, replacing `playthrough.test.js` |
+| `systems/relationship.js` | delete `applySceneOutcome` and `strain`; keep `resolveStage`, `resolveBadEnd`, `resolveEnding`, `GOOD_ENDINGS`, the peaks |
+| `systems/rumor.js` | `propagate` writes `heard_about` only - no jealousy. Absent members do not react until seen |
+| dossier panel | beside the existing `RelationsModal` |
+| `Read her` | built in `roundEngine.readHer` and on screen; the dossier half is phase 4 |
 
-Then deploy to Pages and hand-test a day on the phone.
+Then phase 4 (dossier cut to three categories, gifts stop being knowledge-gated)
+and phase 5 (events, canon injection, endings).
 
-### Two things a fresh session must not lose
+**Currently unwired, pending phase 5, and each is a live import that was
+removed from `App.jsx`:** canon injection into tier 3 (the parser and engine
+already carry `canon|` through), `eventFrame`, `dateFrame`/`REGISTERS`,
+`sharedFrame`.
 
-**The `zh` profiles already exist and are already this fiction.**
-`rv-simulator/public/groups/x/zh.json` holds irene, jisoo and hyewon written for
-a cross-group "X" - the same invention §1b made independently. `curl` it; do not
-re-author what is already written.
+### Things a fresh session must not lose
 
-**One `zh` round in ten returns unparseable options, and it is punctuation.** The
-parser handles it now (`| ｜ . ． 、 :`), but if it recurs in a new call site,
-that is the cause - not the model failing to follow structure.
+**The live suites.** `LIVE_PROVIDER=1 LIVE_ROUND=1 npx vitest run liveRound`
+drives the shipped engine; `SPIKE=1` drives `tiers.js` by hand. The first is the
+one that found the sentinel bug, because it is the only one on the real path.
 
+**Measured live, after the fix:** 4/4 rounds with four options, first word
+~700-1300ms against ~3-4s rounds, affection 12 → 16, and admissibility held at 0
+unaided in a low-exposure room with `irene_adm+1` asked for and vetoed.
+
+**The model writes `irene+0`** rather than omitting a zero line as the rules ask.
+It costs three tokens and `applyDeltas` drops it. Not worth another instruction.
+
+**`.env.local` still holds a live DeepSeek key that wants revoking.**
 
 ---
 
