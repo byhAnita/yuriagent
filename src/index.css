@@ -35,6 +35,29 @@
 
   --stage-pool: 62%;
   --grain-opacity: 0.035;
+
+  /* -------------------------------------------------------------------------
+     GAPS THAT DO NOT GROW WITH THE TYPE.
+
+     Every size in this app is `rem`, which is what lets --font-scale move the
+     whole interface at once (above) - and on the one screen with a fixed
+     height that is the wrong behaviour. At scale 1.25 the option bar's text
+     grows 25%, which is the point, and so does every pad and gap around it,
+     which is not: the player asked for a larger font, not for larger holes
+     between things. Four options plus two rows of chrome then push the prose
+     into a scroll on exactly the setting chosen to make reading easier.
+
+       > shorter options prompt as well as a dynamic bar height according to
+       > player's font size - fit the font size and tight for that size
+
+     Dividing by --font-scale cancels the root rem exactly, so these resolve to
+     the same physical pixels at every setting. The type breathes; the chrome
+     holds still. Used only on the scene's fixed rows - anywhere the page can
+     simply get taller, plain rem is right and these are wrong.
+  ------------------------------------------------------------------------- */
+  --tap-gap: calc(0.25rem / var(--font-scale));
+  --tap-pad-y: calc(0.5rem / var(--font-scale));
+  --tap-pad-x: calc(0.75rem / var(--font-scale));
 }
 
 /* night - default */

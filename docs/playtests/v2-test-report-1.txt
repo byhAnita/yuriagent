@@ -1,0 +1,423 @@
+Hand test report 1 for v2
+1.have we decide the speaker of each round? Or we give all freedom to LLM? Currently in a group chat, the first line generated is a scene with all presented members, the options given are usually each for each character but quality is good. A small issue is that if player choose interact to Irene’s option  in 1st round, then options of following round tend to be all different interactions to Irene. It’s reasonable to have serveral her options since the main plot development are with her now. But all options are to interact with her for rounds, the player has to type mannualy if they want to change a character to react to. While the lines and scene disc contains all characters. Shall we use the previous  choose character then generate options to her? Plus, I’m considering shall use a gardcoded prob engine like in rv-simulator that give LLM the characters this around? ~2 characters don’t need to write them all in 1 round. In this way, everyone get only one line, and the whole text are little bit long. We’d prefer kind of rotate and combine continuity (same character) and a switch ( another character) each round? 
+
+
+--- #1 round <- live (deepseek-v4-flash)
+    2026-08-26T20:54:39.038Z  4820ms  lang=-  3 msgs / 8269 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 5, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[242 more chars]
+  < 灯光把整个棚照得发白，音响刚停，空气里还悬着细碎的金粉。裴珠泫从绿幕前走下来，裙摆拖过地板，妆造组的姐姐立刻迎上去补粉。她微微偏过头，目光掠过你站的位置——只停了一秒，又落回镜子里。
+    
+    角落的折叠椅上堆着五件羽绒服，金智秀正用脚尖把其中一件勾到自己脚边，头也不抬地喊了一声："谁买的咖啡？怎么是冰的。"
+    
+    姜惠元蹲在道具箱旁，用指尖轻轻擦掉镜头框上蹭到的一小块灰。金艺琳从她身后探出头，举着手机拍你："新来的姐姐，站那么直干嘛，又不是拍证件照。"
+    
+    林珍娜靠在化妆台边，手里的刷子没停，抬眼看了你一下："别理她。你带的那箱能量饮料，放哪儿了？"
+    
+    %%%
+    A|把饮料从保温箱里拎出来，挨个递到她们手上
+    B|站到镜头边，安静看她们下一场要怎么走位
+    C|白智秀一眼："因为冰的才给你买的。"
+    D|问金艺琳拍到了什么，能不能给自己看看
+
+--- #2 round <- live (deepseek-v4-flash)
+    2026-08-26T21:08:45.943Z  4227ms  lang=-  3 msgs / 8595 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 5, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[258 more chars]
+  < 保温箱的锁扣“咔嗒”一声弹开，冷气漫上来，凝成一小片白雾。你依次递出去——珍娜接得干脆，单手拧开就灌了一口；智秀接过时抬眼瞥了你一下，指尖在罐壁上敲了两下，没说谢，但也没放下；惠元双手接过，小声说了句“谢谢姐姐”，低头时刘海遮住半张脸；艺琳举着手机凑过来，非要你对着镜头比个心才肯拿。
+    
+    裴珠泫是最后一个。她没接，只是看着你手里的饮料，像是隔了两秒才从那个动作里回过神来。她伸手，指尖擦过你手背，凉的。
+    
+    “谢谢。”她说得很轻，像在替谁练习这句话。
+    
+    %%%
+    A|也替她拧开盖子再递一次，说“冰的，先暖一暖手”
+    B|问她刚才拍摄状态怎么样，话递得自然一点，像只是闲聊
+    C|转向艺琳：“你刚刚不是说拍证件照？那现在补一张？”
+    D|什么也没说，把饮料放回她手边，转身去收拾保温箱
+    sum|A small ritual of handing drinks becomes the first quiet thread between all of them, and Irene lets her fingers linger half a second longer than she means to.
+    irene+1
+    mood+1
+
+--- #3 round <- live (deepseek-v4-flash)
+    2026-08-26T21:10:00.502Z  5481ms  lang=-  3 msgs / 8862 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 6, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[260 more chars]
+  < 化妆台边的雾气还没散尽，你把盖子拧开又递了一次。裴珠泫没有立刻接，视线落在你指尖那道被易拉罐边缘压出的红痕上，停了两秒。
+    
+    “手凉的人不适合拿冰的。”她伸手接了，这次握得稳，指腹压在罐身上没动。珍娜在旁边嗤笑一声：“姐，你这句要是被粉丝听见，今晚论坛能刷三百楼。”裴珠泫没接话，低头喝了一口，喉结的位置动了动——那是你第一次注意到她喝水时习惯先抿一下，像在试温度。
+    
+    艺琳凑过来，手肘撞了撞你：“姐姐，我们队长可从来不给别人拧盖子。”她声音不小，裴珠泫抬眼看了艺琳一眼，不重，但艺琳立刻笑着缩回去了。智秀这时从椅子上站起来，把那件羽绒服披到肩上，路过你身边时低声说了句：“你挺会照顾人的。”语气平淡，像在陈述一个事实。
+    
+    裴珠泫站在原处，手指轻轻摩挲着易拉罐边缘，那圈铝皮被她反复压着。灯光师喊她回去对位，她迈出两步又停住，没有回头，声音落在空气里：“……晚上冷，外套别放车上。”
+    %%%
+    A|点头应下，说“好，我记住了”——不追问，让她走吧
+    B|笑一下，回一句“队长管得真宽”——用玩笑把话接住，不让她的话落空
+    C|追上半步，问“那你呢，晚上回宿舍还是去公司？”——把关心递回去，停在同事的边界上
+    D|什么也不说，站在原地看她和灯光师的背影——让那句话自己走一会儿
+    sum|She tests whether you will hold the gesture she just made, without naming it.
+    irene+1
+    mood+1
+    emo|neutral
+
+--- #4 round <- live (deepseek-v4-flash)
+    2026-08-26T21:11:20.490Z  4316ms  lang=-  3 msgs / 9376 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 7, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[334 more chars]
+  < 裴珠泫的背影顿了一下。你看见她耳尖慢慢泛红——灯光太亮，也可能是错觉。珍娜在旁边“啧”了一声，压低声音对你说：“你可以啊，敢接队长的茬。”智秀把羽绒服拉链拉到头，嘴角微微弯了一下，没说话。惠元抬头看你一眼，又飞快低下头，睫毛在灯光下投出一小片阴影。
+    
+    裴珠泫重新走回绿幕前，站定，再抬眼时已经切换成镜头里的表情——冷静、疏离、完美。但她的声音隔着半个棚轻轻飘过来，像是说给地板听的：“管得宽，是因为怕你冷。”
+    
+    艺琳用手机挡着嘴，眼睛弯成两道月牙，冲你无声地比了个大拇指。
+    %%%
+    A|追一句“那队长自己呢，你穿得也不多”——把关心原路送回去
+    B|不再接话，只是把保温箱里那件叠好的外套拎出来，搁在她椅背上，然后转身走开
+    C|笑着摇头，对艺琳说“你们队长这张嘴，比镜头还能骗人”
+    D|沉默着把这句话收好，低头假装整理饮料箱，让那五个字在心里多停一会儿
+    sum|A quiet joke lands softer than she expected, and she lets it.
+    irene+1
+    mood+1
+
+
+2.summary language bug when 1.’s scene end. 这一幕结束了
+		Irene 亲近程度 +3 8
+A quiet joke lands softer than she expected, and she lets it.
+谁知道了
+	•			Nana 当时也在场
+	•			Jisoo 当时也在场
+	•			Hyewon 当时也在场
+	•			Yeri 当时也在场
+这些暂时还没让你付出任何代价。等你下次站到她面前，它会被提起来。
+and maybe witness bug here too? I never send gift to Irene—I’m joining their group chat. I’m guessing Irene’s cold hand facts injected automatically and count on player’s special interaction?
+
+3.bug: 1v1 chat button leads to group chat. The next scene after 2. I come to bistro occupied by NANA and Yeri. I clicked 1v1 chat to Yeri, while NANA and Yeri all occurs. What’s worse, Irene also occurred! I guess LLM reads memory that contains Irene from previous scene and she’s the one I talk mostly to in previous scene cause this error. Combing with 1., I’d suggest for dialogue with more than one character, we inject LLM the characters in the chat at the group chat start-that’s should be done of course.
+(Not sure for this—concern: may lead to LLM mixed characters) then injected picked ~2 characters per round? 1v1 don’t require this mechanism, just inject that character  at scene start.
+
+--- #1 round <- live (deepseek-v4-flash)
+    2026-08-26T20:54:39.038Z  4820ms  lang=-  3 msgs / 8269 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 5, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[242 more chars]
+  < 灯光把整个棚照得发白，音响刚停，空气里还悬着细碎的金粉。裴珠泫从绿幕前走下来，裙摆拖过地板，妆造组的姐姐立刻迎上去补粉。她微微偏过头，目光掠过你站的位置——只停了一秒，又落回镜子里。
+    
+    角落的折叠椅上堆着五件羽绒服，金智秀正用脚尖把其中一件勾到自己脚边，头也不抬地喊了一声："谁买的咖啡？怎么是冰的。"
+    
+    姜惠元蹲在道具箱旁，用指尖轻轻擦掉镜头框上蹭到的一小块灰。金艺琳从她身后探出头，举着手机拍你："新来的姐姐，站那么直干嘛，又不是拍证件照。"
+    
+    林珍娜靠在化妆台边，手里的刷子没停，抬眼看了你一下："别理她。你带的那箱能量饮料，放哪儿了？"
+    
+    %%%
+    A|把饮料从保温箱里拎出来，挨个递到她们手上
+    B|站到镜头边，安静看她们下一场要怎么走位
+    C|白智秀一眼："因为冰的才给你买的。"
+    D|问金艺琳拍到了什么，能不能给自己看看
+
+--- #2 round <- live (deepseek-v4-flash)
+    2026-08-26T21:08:45.943Z  4227ms  lang=-  3 msgs / 8595 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 5, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[258 more chars]
+  < 保温箱的锁扣“咔嗒”一声弹开，冷气漫上来，凝成一小片白雾。你依次递出去——珍娜接得干脆，单手拧开就灌了一口；智秀接过时抬眼瞥了你一下，指尖在罐壁上敲了两下，没说谢，但也没放下；惠元双手接过，小声说了句“谢谢姐姐”，低头时刘海遮住半张脸；艺琳举着手机凑过来，非要你对着镜头比个心才肯拿。
+    
+    裴珠泫是最后一个。她没接，只是看着你手里的饮料，像是隔了两秒才从那个动作里回过神来。她伸手，指尖擦过你手背，凉的。
+    
+    “谢谢。”她说得很轻，像在替谁练习这句话。
+    
+    %%%
+    A|也替她拧开盖子再递一次，说“冰的，先暖一暖手”
+    B|问她刚才拍摄状态怎么样，话递得自然一点，像只是闲聊
+    C|转向艺琳：“你刚刚不是说拍证件照？那现在补一张？”
+    D|什么也没说，把饮料放回她手边，转身去收拾保温箱
+    sum|A small ritual of handing drinks becomes the first quiet thread between all of them, and Irene lets her fingers linger half a second longer than she means to.
+    irene+1
+    mood+1
+
+--- #3 round <- live (deepseek-v4-flash)
+    2026-08-26T21:10:00.502Z  5481ms  lang=-  3 msgs / 8862 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 6, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[260 more chars]
+  < 化妆台边的雾气还没散尽，你把盖子拧开又递了一次。裴珠泫没有立刻接，视线落在你指尖那道被易拉罐边缘压出的红痕上，停了两秒。
+    
+    “手凉的人不适合拿冰的。”她伸手接了，这次握得稳，指腹压在罐身上没动。珍娜在旁边嗤笑一声：“姐，你这句要是被粉丝听见，今晚论坛能刷三百楼。”裴珠泫没接话，低头喝了一口，喉结的位置动了动——那是你第一次注意到她喝水时习惯先抿一下，像在试温度。
+    
+    艺琳凑过来，手肘撞了撞你：“姐姐，我们队长可从来不给别人拧盖子。”她声音不小，裴珠泫抬眼看了艺琳一眼，不重，但艺琳立刻笑着缩回去了。智秀这时从椅子上站起来，把那件羽绒服披到肩上，路过你身边时低声说了句：“你挺会照顾人的。”语气平淡，像在陈述一个事实。
+    
+    裴珠泫站在原处，手指轻轻摩挲着易拉罐边缘，那圈铝皮被她反复压着。灯光师喊她回去对位，她迈出两步又停住，没有回头，声音落在空气里：“……晚上冷，外套别放车上。”
+    %%%
+    A|点头应下，说“好，我记住了”——不追问，让她走吧
+    B|笑一下，回一句“队长管得真宽”——用玩笑把话接住，不让她的话落空
+    C|追上半步，问“那你呢，晚上回宿舍还是去公司？”——把关心递回去，停在同事的边界上
+    D|什么也不说，站在原地看她和灯光师的背影——让那句话自己走一会儿
+    sum|She tests whether you will hold the gesture she just made, without naming it.
+    irene+1
+    mood+1
+    emo|neutral
+
+--- #4 round <- live (deepseek-v4-flash)
+    2026-08-26T21:11:20.490Z  4316ms  lang=-  3 msgs / 9376 chars
+  > ## NOW
+    Week 1, Monday, afternoon. Company phase: prep.
+    Location: 拍摄现场.
+    Irene is on set for the music video, between takes.
+    Present: 裴珠泫 (irene), 林珍娜 (nana), 金智秀 (jisoo), 姜惠元 (hyewon), 金艺琳 (yeri).
+    
+    ## VALUES
+    irene: affection 7, admissibility 0
+    nana: affection 5, admissibility 0
+    jisoo: affection 5, admissibility 0
+    hyewon: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId
+    ...[334 more chars]
+  < 裴珠泫的背影顿了一下。你看见她耳尖慢慢泛红——灯光太亮，也可能是错觉。珍娜在旁边“啧”了一声，压低声音对你说：“你可以啊，敢接队长的茬。”智秀把羽绒服拉链拉到头，嘴角微微弯了一下，没说话。惠元抬头看你一眼，又飞快低下头，睫毛在灯光下投出一小片阴影。
+    
+    裴珠泫重新走回绿幕前，站定，再抬眼时已经切换成镜头里的表情——冷静、疏离、完美。但她的声音隔着半个棚轻轻飘过来，像是说给地板听的：“管得宽，是因为怕你冷。”
+    
+    艺琳用手机挡着嘴，眼睛弯成两道月牙，冲你无声地比了个大拇指。
+    %%%
+    A|追一句“那队长自己呢，你穿得也不多”——把关心原路送回去
+    B|不再接话，只是把保温箱里那件叠好的外套拎出来，搁在她椅背上，然后转身走开
+    C|笑着摇头，对艺琳说“你们队长这张嘴，比镜头还能骗人”
+    D|沉默着把这句话收好，低头假装整理饮料箱，让那五个字在心里多停一会儿
+    sum|A quiet joke lands softer than she expected, and she lets it.
+    irene+1
+    mood+1
+
+--- #5 round <- live (deepseek-v4-flash)
+    2026-08-26T21:29:38.444Z  4215ms  lang=-  3 msgs / 9355 chars
+  > ## NOW
+    Week 1, Monday, evening. Company phase: prep.
+    Location: 小餐馆.
+    Nana is out for coffee.
+    Present: 林珍娜 (nana), 金艺琳 (yeri).
+    
+    ## VALUES
+    nana: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId 0, mood 3, secrecy 70
+    
+    ## THIS ROUND
+    This is the first round of the scene. Move no numbers.
+    
+    Write the next round now: the prose, then a line of exactly %%%, then the machine line
+    ...[61 more chars]
+  < 裴珠泫的那句话像一根针掉在棉絮上，落得轻，却没有声音。艺琳咬着筷子尖，眼珠在你和队长之间来回转了转，最后只是笑着把菜单推到你面前：“姐姐，先点菜吧，队长那杯咖啡起码还要十分钟才到。”
+    
+    小餐馆的灯是暖黄色的，墙上贴着褪色的菜单，老板娘在柜台后头擦杯子，电视里播着打歌节目的重播。艺琳把筷子拆开又合上，百无聊赖，忽然凑近一点，压低声音：“姐姐，我跟你打个赌——队长回来的时候，手里肯定给你也带了一杯。”她说完自己先笑了，像这句话本身就是个恶作剧。
+    
+    窗外的天已经全黑了，街灯映在玻璃上，切成碎金。
+    %%%
+    A|“她不会记得我喝什么。”——你随口接住，像在说一件不需要在意的事
+    B|也压低声音，学她的语气：“那你赌什么？”
+    C|“少编排你们队长。”——你笑着把这话拨开，却忍不住往门口看了一眼
+    D|拿起桌上的菜单，翻到背面又合上，沉默两秒：“她记性一直这么好？”
+    sum|In a small, warm restaurant, Yeri is a teasing witness to the careful distance between you and her leader.
+    yeri+0
+
+--- #6 round <- live (deepseek-v4-flash)
+    2026-08-26T21:32:01.541Z  4426ms  lang=-  3 msgs / 9680 chars
+  > ## NOW
+    Week 1, Monday, evening. Company phase: prep.
+    Location: 小餐馆.
+    Nana is out for coffee.
+    Present: 林珍娜 (nana), 金艺琳 (yeri).
+    
+    ## VALUES
+    nana: affection 5, admissibility 0
+    yeri: affection 5, admissibility 0
+    player: selfId 0, mood 3, secrecy 70
+    
+    ## THIS ROUND
+    Round 2 of this scene, 2 left.
+    
+    The player chose: 拿起桌上的菜单，翻到背面又合上，沉默两秒：“她记性一直这么好？”
+    
+    Write the next round now: the prose, then a line of exactl
+    ...[89 more chars]
+  < 菜单背面印着隔壁烤肉店的广告，你翻了一下，又合上。艺琳没急着接话，拿筷子尖戳了戳碟子里的小菜，眼珠转了一圈，像在认真掂量这个问题值不值得一个正经答案。
+    
+    “记性嘛……看对谁。”她说，尾音拖得有点长，然后放下筷子，靠在椅背上，用一种不太像她平时那种没心没肺的表情看了你一眼，“反正我进公司三年，没见过她给谁拧过盖子，也没见谁说她管得宽。”
+    
+    她说完又恢复了那个嬉皮笑脸的样子，低头扒了一口饭。这时餐馆的门被推开，一阵风裹着街上的凉气涌进来，裴珠泫站在门口，手里提着两杯咖啡。她看见你的时候，脚步停了一下——那一下很短，短到像是灯光晃的。艺琳头也不抬，嘴里含糊地嘟囔：“看吧。”
+    
+    %%%
+    A|低头喝一口水，把话题转开，问艺琳下周打歌舞台的行程安排
+    B|抬头看向门口，声音不大不小地接一句：“回来啦？”
+    C|对艺琳笑一下：“你们队长对谁都这样，还是……只对新人这样？”
+    D|没接话，也起身往门口走，说“我来拿吧”，去接她手里的杯子
+    sum|The maknae notices the leader's small favoritism, and the door swings open with the cold evening air.
+    yeri+1
+    emo|neutral
+
+--- #7 round <- live (deepseek-v4-flash)
+    2026-08-26T21:37:43.514Z  4405ms  lang=-  3 msgs / 10001 chars
+  > ## NOW
+    Week 1, Monday, evening. Company phase: prep.
+    Location: 小餐馆.
+    Nana is out for coffee.
+    Present: 林珍娜 (nana), 金艺琳 (yeri).
+    
+    ## VALUES
+    nana: affection 5, admissibility 0
+    yeri: affection 6, admissibility 0
+    player: selfId 0, mood 3, secrecy 70
+    
+    ## THIS ROUND
+    Round 3 of this scene, 1 left.
+    
+    The player chose: 抬头看向门口，声音不大不小地接一句：“回来啦？”
+    
+    Write the next round now: the prose, then a line of exactly %%%, t
+    ...[81 more chars]
+  < 裴珠泫在门口站了一瞬，手指收紧在咖啡杯的纸套上。她走过来，把其中一杯放在你面前——杯壁还烫着，杯套上画着一只歪歪扭扭的小熊，像是临时用笔添上去的。她把自己的那杯放在桌上，坐下来，才说：“嗯。”
+    
+    艺琳咬着筷子，目光在你们之间来回一趟，忽然站起来：“我去拿调料。”走的时候故意把椅子拖出很大声响。餐馆里一下子安静下来，只剩电视里重播的打歌音乐。
+    
+    裴珠泫没有看你，只是把那杯咖啡往你手边又推了半寸。杯底和桌面之间发出很轻的一声响。“趁热喝。”她说，语气平得像在念台本，但手指在杯套边缘反复折了一下，那圈纸被她捏出一个细细的褶。
+    %%%
+    A|把咖啡杯捧在手心暖了暖，盯着那只小熊问她：“这是你画的？”
+    B|低头喝了一口，认真地说：“味道很好，谢谢队长。”
+    C|顺着杯子边沿看她的指尖：“你特意绕路买的吧。”
+    D|没接咖啡，先问她：“你刚刚在门口站了一下，是看到什么了吗？”
+    sum|Jisoo is out with a coffee run, Irene is just back with two cups, and the youngest is deliberately leaving them alone at a small table.
+    irene+1
+    yeri+1
+    mood+1
+
+--- #8 round <- live (deepseek-v4-flash)
+    2026-08-26T21:38:42.388Z  4376ms  lang=-  3 msgs / 10380 chars
+  > ## NOW
+    Week 1, Monday, evening. Company phase: prep.
+    Location: 小餐馆.
+    Nana is out for coffee.
+    Present: 林珍娜 (nana), 金艺琳 (yeri).
+    
+    ## VALUES
+    nana: affection 5, admissibility 0
+    yeri: affection 7, admissibility 0
+    player: selfId 0, mood 4, secrecy 70
+    
+    ## THIS ROUND
+    Round 4 of this scene, 0 left.
+    This is the LAST round. Land the scene, and write the sum| line.
+    
+    The player chose: 把咖啡杯捧在手心暖了暖，盯着那只小熊问她：“这是你画的
+    ...[151 more chars]
+  < 裴珠泫的手指在杯套边缘停了一下。她没抬头，声音像从杯口的热气里浮上来的：“嗯。随手画的。”
+    
+    小熊画得很潦草，耳朵一边高一边低，眼睛是两个不太对称的小点。但笔触很稳，看得出不是第一次画。艺琳端着调料碟从柜台那边回来，远远看见那只杯子，脚步顿了一下，又若无其事地坐下，把那碟辣椒面推到你面前，什么也没说。
+    
+    裴珠泫低头喝了一口自己的咖啡，杯沿遮住半张脸。隔了几秒，她像是忽然想起什么，补了一句：“你那个保温箱，明天我帮你搬到休息室去。放车里过夜会冻裂。”她说得漫不经心，像在安排一件极平常的行程。
+    
+    窗外传来打歌节目片尾曲的旋律，老板娘在柜台后跟着哼了两句。桌上的咖啡冒着白气，小熊在灯光下微微翘着嘴角。
+    %%%
+    A|“小熊很好看。明天保温箱我自己搬就行。”
+    B|“队长还会画画？以前怎么没见你画过。”
+    C|把杯套转过来朝向自己，小声说：“那我留着这个杯子。”
+    D|“行，那就谢谢队长了。”——接得规规矩矩，把距离放回原位
+    sum|The clumsy little bear on the cup sleeve is a door left ajar, and whether you step through it or close it gently is the last choice of the evening.
+    nana+1
+    yeri+1
+    yeri_adm+1
+    emo|blush
+
+And its ending summary language error and witness error occurs again. 
+
+这一幕结束了
+		Nana 亲近程度 +1 6 Yeri 亲近程度 +3 8
+The clumsy little bear on the cup sleeve is a door left ajar, and whether you step through it or close it gently is the last choice of the evening.
+谁知道了
+	•			Yeri 当时也在场
+这些暂时还没让你付出任何代价。等你下次站到她面前，它会被提起来。
+I chose Yeri to have a 1v1 chat, while witness is herself?
+
+
+4.Portait display bug in dialogue. In a group chat, now other members’s card presented on top, the speaker’s portrait is hidden. I’d suggest you rrrange and maybe place other character cards besides the speaker’s portrait or other plan you can design.
+
+5.in dialogue UI, now the options UI doesn’t looks pretty. You leaves too much space and height for each, when our screen height resouce is limited. 
+
+4.
+
+5.

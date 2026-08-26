@@ -24,6 +24,17 @@
  * here is tight for the same reason - four options plus two rows of chrome is
  * about 215px of a 763px phone viewport, and every pixel it does not take is a
  * line of her prose that does not need scrolling to.
+ *
+ * SO THE PADDING DOES NOT SCALE WITH THE TYPE. Every gap on this bar is a
+ * `--tap-*` token, which is a rem divided by `--font-scale` and therefore the
+ * same physical size at every setting (see `index.css`). At scale 1.25 the words
+ * get bigger, which is what was asked for, and the holes between them do not,
+ * which was not. Ordinary rem padding grew both and pushed the prose into a
+ * scroll on the exact setting chosen to make reading easier.
+ *
+ * The other half of that report is upstream in `config/rules.js`: the model was
+ * appending a gloss to every option, which doubled them and forced a wrap. No
+ * amount of padding fixes a two-line button.
  */
 
 import { useState } from 'react';
@@ -36,7 +47,7 @@ function SecondaryAction({ glyph, label, ...props }) {
     <button
       type="button"
       {...props}
-      className="flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-hairline bg-surface px-2 py-2 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-dim transition-colors hover:border-accent hover:text-accent disabled:opacity-35 disabled:hover:border-hairline disabled:hover:text-dim"
+      className="flex items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-hairline bg-surface px-[var(--tap-gap)] py-[var(--tap-pad-y)] font-mono text-[0.625rem] uppercase tracking-[0.12em] text-dim transition-colors hover:border-accent hover:text-accent disabled:opacity-35 disabled:hover:border-hairline disabled:hover:text-dim"
     >
       <span aria-hidden="true">{glyph}</span>
       <span className="truncate">{label}</span>
@@ -108,8 +119,8 @@ export default function OptionBar({
   for (let i = shown.length; i < 4; i += 1) shown.push(fallback[i]);
 
   return (
-    <div className="shrink-0 px-5 pb-2 pt-1">
-      <div className="flex flex-col gap-1">
+    <div className="shrink-0 px-5 py-[var(--tap-gap)]">
+      <div className="flex flex-col gap-[var(--tap-gap)]">
         {shown.map((label, i) => (
           <button
             key={`${i}:${label}`}
@@ -125,7 +136,7 @@ export default function OptionBar({
              * nothing about what actually changed.
              */
             data-round-option="true"
-            className="w-full rounded-[var(--radius-sm)] border border-hairline bg-surface px-3 py-2 text-left transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 disabled:hover:border-hairline disabled:hover:bg-surface"
+            className="w-full rounded-[var(--radius-sm)] border border-hairline bg-surface px-[var(--tap-pad-x)] py-[var(--tap-pad-y)] text-left transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 disabled:hover:border-hairline disabled:hover:bg-surface"
           >
             <span className="font-body text-[0.9375rem] leading-snug text-text">{label}</span>
           </button>
@@ -138,7 +149,7 @@ export default function OptionBar({
         bordered controls at a real touch target rather than text links - section
         6 reported that mistake twice on the first day of play.
       */}
-      <div className="mt-1 grid auto-cols-fr grid-flow-col gap-1">
+      <div className="mt-[var(--tap-gap)] grid auto-cols-fr grid-flow-col gap-[var(--tap-gap)]">
         <SecondaryAction
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
@@ -157,7 +168,7 @@ export default function OptionBar({
       </div>
 
       {/* Neither of these spends the round, so neither is shaped like a move. */}
-      <div className="mt-1.5 flex items-center gap-2">
+      <div className="mt-[var(--tap-gap)] flex items-center gap-2">
         <span
           className={`font-mono text-[0.625rem] uppercase tracking-[0.14em] ${
             roundsLeft <= 1 ? 'text-warn' : 'text-dim'

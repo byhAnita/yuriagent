@@ -316,6 +316,73 @@ Nothing in phase 4 has been in front of a person. Four questions no test answers
 4. **Are three dossier categories visibly better than five?** This is the first
    build where a snooped fact actually reaches the model at all.
 
+## Hand test 1 of v2 (2026-08-26, `zh`, phone, live DeepSeek V4 Flash)
+
+`docs/playtests/v2-test-report-1.txt`. Played against the phase-3 build, so none
+of phase 4 was in it. Five reports; **three of them were one discarded value.**
+
+### `rosterIds` was computed correctly and read by nothing
+
+`onEnter` has worked out who may speak since v2's first day - `[speaker]` for a
+one-to-one, the room for a group scene - and `setup` built the scene from
+`presentIds` one line later. Sixth instance of the shape, and it produced three
+apparently unrelated reports:
+
+| reported | actually |
+|---|---|
+| *"1v1 chat button leads to group chat"* | tier 3 got `Present: nana, yeri` for a scene opened with Yeri |
+| `Nana is out for coffee` while Nana stands in the bistro | the activity line reads `present[0]`, not the addressee |
+| *"I chose Yeri to have a 1v1 chat, while witness is herself?"* | `propagate`'s subject was `presentIds[0]` = Nana, so Yeri witnessed her own scene and the affection landed on the wrong row |
+
+`systems/floorJoin.test.js` reads `App.jsx` for it, because a unit test supplies
+the call it is meant to be checking for.
+
+### Nothing said who had the floor, so the model gave everybody a line
+
+> if player choose interact to Irene's option in 1st round, then options of
+> following round tend to be all different interactions to Irene
+
+One missing sentence, both halves. With every member written, the model followed
+the thread the player had just pulled - and the only escape was free text.
+
+`systems/floor.js`: a three-step chain (tap -> last speaker -> roster head) plus
+one cut-in from whoever has been silent longest. §10c's chime rule with the
+jealousy term removed. Ties break on the seeded RNG, because round one is a
+whole-room tie at silence 0 and a deterministic index standing in for a choice is
+a mistake this codebase has now shipped four times.
+
+The **sticky addressee** is the answer to the second half: tap a portrait, and
+she keeps the floor until you tap somebody else. The UI for it was already drawn
+- and its buttons called an `onTurnTo` that was never passed, so every dimmed
+portrait in every group scene threw on tap.
+
+### Irene walked into a scene two locations away
+
+Tier 3 named who was present and never who was **absent**, while tier 2 carried
+the previous scene's Chinese prose - all of it about Irene. A missing premise, not
+a model failure; v1's block 4 carried this line and it is the cheapest of §9's
+three separation layers.
+
+### The English summary was on a Chinese screen
+
+`sum|` is English by contract and the aftermath screen printed it. Deleted rather
+than translated - the player has just read the scene.
+
+### Options were twice as long as they needed to be
+
+Every option arrived as the line, a dash, and the model explaining the line. Two
+rows on a 390px screen, four times over. `OPTION_WORDS` caps it; the rule names
+the gloss. The layout half is `--tap-*`: a rem divided by `--font-scale`, so the
+chrome stays the same physical size while the type grows.
+
+### The portrait strip moved sideways
+
+Third layout for the same component. Column collapsed the portrait to zero;
+bottom overlay buried it under four cards; **beside** it costs neither, because
+horizontal space is the one thing this screen has spare.
+
+**914 tests, lint clean, build clean.** Live smoke next.
+
 ### Then phase 5
 
 Events, canon injection into tier 3, endings.

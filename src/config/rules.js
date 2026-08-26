@@ -22,6 +22,27 @@
 /** Roughly how long a round's prose should be. One number, easy to move. */
 export const ROUND_WORDS = 80;
 
+/**
+ * And how long ONE option may be. The other number worth having.
+ *
+ * Reported from the phone: *"the options UI doesn't look pretty. You leave too
+ * much space and height for each, when our screen height resource is limited."*
+ * Half a layout problem and half a prompt one, and the prompt half is larger and
+ * free. The options that came back were of this shape:
+ *
+ *   追一句"那队长自己呢，你穿得也不多"——把关心原路送回去
+ *
+ * The line is the first half. Everything after the dash is the model explaining
+ * its own option back to the player, which roughly doubles the length and turns
+ * a one-line button into two at 390px. Nothing forbade it, so it did it every
+ * time - the same shape as every other missing premise in this codebase.
+ *
+ * Fifteen because four options have to sit under a thumb without pushing the
+ * prose into a scroll, and because an option is an INTENTION: what happens is
+ * the model's answer next round, and it does not need a subtitle.
+ */
+export const OPTION_WORDS = 15;
+
 /** How far the model may move a value in one round. See DELTA RULES below. */
 export const DELTA_MAX = 2;
 
@@ -122,7 +143,13 @@ the player as their own words.
 - Give them genuinely different shapes: a question, a retreat, a joke, a risk.
   Four ways of agreeing is not a choice.
 - Never offer something the player could not know. If she has not told them,
-  they cannot ask about it by name.`;
+  they cannot ask about it by name.
+- SHORT. One line, under ${OPTION_WORDS} words. It is a button on a phone.
+- The option is the line the player says or the thing they do, and NOTHING else.
+  Never explain it, never append a gloss after a dash or a bracket saying what
+  it means or why. "Ask if she is warm enough" - not "Ask if she is warm enough
+  - hand the concern back without naming it".
+- When more than one person may speak, do not aim all four at the same one.`;
 
 /**
  * The genre brief, and the reason it exists.

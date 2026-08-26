@@ -59,6 +59,8 @@ import {
   endScene,
   roundsLeft,
   isOver,
+  turnToMember,
+  rosterOf,
 } from '../../agent/roundEngine.js';
 import { ENERGY_PER_READ } from '../../config/constants.js';
 
@@ -86,7 +88,29 @@ export default function RoundStage({
   const busy = useRef(false);
 
   const present = setup.scene.present ?? [];
-  const focusCard = setup.cards.find((c) => c.id === present[0]) ?? null;
+  const roster = rosterOf(session);
+
+  /**
+   * TWO DIFFERENT PEOPLE, AND THE SCREEN SHOWS BOTH (section 10c).
+   *
+   * `speakingId` is whoever just had the floor - the big portrait, the name over
+   * the dialogue, and the values. `addresseeId` is where the player's attention
+   * is pointed, which is what a choice, a gift and free text all silently
+   * target, so it stays marked in the row even while somebody else is talking.
+   *
+   * Before the floor existed both were `present[0]`, permanently: the row was
+   * decoration, its buttons called an `onTurnTo` that was never passed, and the
+   * only way to reach anybody else was to type.
+   */
+  const { primary, second } = session.turn;
+  const speakingId = primary ?? roster[0] ?? null;
+  const addresseeId = session.floor.addresseeId ?? session.floor.lastSpeakerId ?? roster[0] ?? null;
+
+  const focusCard = setup.cards.find((c) => c.id === speakingId) ?? null;
+
+  /** Turning to somebody costs no round and makes no call, so it is never gated
+      on `pending` beyond the disable the row already carries. */
+  const onTurnTo = (memberId) => setSession((s) => turnToMember(s, memberId));
 
   /**
    * One round.
@@ -194,13 +218,16 @@ export default function RoundStage({
       */}
       <div className="relative min-h-[5.5rem] flex-1 overflow-hidden px-5">
         {focusCard ? (
-          present.length > 1 ? (
+          roster.length > 1 ? (
             <PortraitRow
               cards={setup.cards}
-              rosterIds={present}
-              speakingId={present[0]}
-              addresseeId={present[0]}
+              rosterIds={roster}
+              speakingId={speakingId}
+              addresseeId={addresseeId}
+              secondId={second}
               emotion={emotion}
+              disabled={pending}
+              onTurnTo={onTurnTo}
               t={t}
             />
           ) : (

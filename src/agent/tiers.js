@@ -143,6 +143,14 @@ const PROMPT_DAYS = [
 export function buildTier3({
   cards = [],
   present = [],
+  /**
+   * Who may SPEAK, which is not who is in the room. In a 1v1 the roster is one
+   * and everybody else present is a witness (section 5b). Defaults to `present`
+   * so an ad-hoc caller gets the old behaviour rather than a silent room.
+   */
+  roster = present,
+  /** `{ primary, second }` from `systems/floor.js`. Null outside a scene. */
+  speaking = null,
   relations = {},
   player = {},
   dossier = {},
@@ -181,6 +189,72 @@ export function buildTier3({
     lines.push('Nobody else is here.');
   } else {
     lines.push(`Present: ${present.map((id) => `${nameOf(id)} (${id})`).join(', ')}.`);
+
+    /**
+     * ...AND WHO IS NOT, WHICH IS THE HALF THAT WAS MISSING.
+     *
+     * Reported from play: a bistro scene with Nana and Yeri in it opened on
+     * Irene's line and by the third round Irene had walked in with coffee. She
+     * was two locations away.
+     *
+     * Not a model failure - a missing premise, the third instance in this file's
+     * history. Tier 2 carries the previous scene's prose in the player's
+     * language, that scene was entirely about Irene, and nothing anywhere said
+     * she is not here. The model continued the only thread it could see.
+     *
+     * v1's block 4 named absent members as absent and this is that line coming
+     * back. It is the cheapest of section 9's three separation layers and the
+     * only one v2 kept none of - the parser's roster rule cannot help, because
+     * there are no per-beat speaker ids to check against any more.
+     */
+    const away = cards.map((c) => c.id).filter((id) => !present.includes(id));
+    if (away.length > 0) {
+      lines.push(`Not here, and cannot appear: ${away.map(nameOf).join(', ')}.`);
+    }
+
+    /**
+     * WHO HAS THE FLOOR. `systems/floor.js` decides; this states it.
+     *
+     * Without it the model wrote every member in the room every round, so a
+     * five-member scene ran five paragraphs - and having written everybody, it
+     * aimed all four options at whoever the player had answered last. Both
+     * halves of that report are the same missing sentence.
+     *
+     * The second voice is named as an interruption rather than as a turn,
+     * because that is what makes it read as a room rather than a queue - and it
+     * costs nothing, where v1 spent a whole extra call per round on it.
+     */
+    if (speaking?.primary) {
+      lines.push(
+        '',
+        '## WHO SPEAKS',
+        `${nameOf(speaking.primary)} (${speaking.primary}) has the player's attention. She answers.`,
+      );
+      if (speaking.second) {
+        lines.push(
+          `${nameOf(speaking.second)} (${speaking.second}) cuts in once - a line or two, from the side.`,
+        );
+      }
+      const silent = roster.filter((id) => id !== speaking.primary && id !== speaking.second);
+      if (silent.length > 0) {
+        lines.push(`Nobody else speaks this round: ${silent.map(nameOf).join(', ')}.`);
+      }
+      /**
+       * A witness is in the room and has no lines (section 5b). Said outright
+       * because "present" and "may speak" are different lists and the model has
+       * no way to tell them apart - which is what put Nana into a scene the
+       * player opened one-to-one with Yeri.
+       */
+      const watching = present.filter((id) => !roster.includes(id));
+      if (watching.length > 0) {
+        const who = watching.map(nameOf).join(', ');
+        lines.push(
+          watching.length === 1
+            ? `${who} is in the room and does not speak - the player is not here for her.`
+            : `${who} are in the room and do not speak - the player is not here for them.`,
+        );
+      }
+    }
   }
 
   lines.push('', '## VALUES');

@@ -35,6 +35,7 @@ import { applyDeltas, newBudget } from '../systems/values.js';
 import { sceneExposure } from '../systems/exposure.js';
 import { SCENE_ROUNDS_MIN, SCENE_ROUNDS_MAX, ENERGY_PER_READ } from '../config/constants.js';
 import { makeRng, deriveSeed } from '../systems/rng.js';
+import { newFloor, turnTo, speakersFor, noteSpoke, addresseeOf } from '../systems/floor.js';
 
 /**
  * Open a scene.
@@ -112,7 +113,53 @@ export function beginScene({
      * the flag is a field rather than a test.
      */
     gestured: false,
+
+    /**
+     * WHO HAS THE FLOOR. `systems/floor.js`, and see its header for the chain.
+     *
+     * On the ROSTER, not on the room. A 1v1 in an occupied practice room has one
+     * voice and three witnesses: standing there requires no lines (section 5b),
+     * and passing the room in here is exactly what put Nana into a scene the
+     * player opened with Yeri.
+     */
+    floor: newFloor(scene.roster ?? scene.present ?? []),
+
+    /**
+     * Seeded on the scene, so a reloaded save circulates the room the same way
+     * it was going to. The floor's only random decision is which of several
+     * equally-silent members cuts in - and on round one that is the whole room,
+     * so it is drawn rather than taken off the front of an array.
+     */
+    floorRng: makeRng(deriveSeed(seed, `floor:${scene.id}`)),
+
+    /**
+     * Who spoke in the round now on screen. DECIDED ONCE, IN `runRound`, and
+     * stored - never recomputed on demand.
+     *
+     * `floorRng` is a stateful generator, so a `speakers(session)` helper the UI
+     * could call would consume a draw on every render and quietly desync the
+     * room from the prompt. Deciding it once per round and keeping the answer is
+     * the only version of this that cannot drift.
+     */
+    turn: { primary: null, second: null },
   };
+}
+
+/**
+ * The player turns to somebody. Costs no round and makes no call.
+ *
+ * Sticky, so the common case - keeping the same conversation going - costs
+ * nothing at all, and changing costs one tap. Before this the only way to reach
+ * a member the model had stopped writing options for was to type free text,
+ * which is what the report called out.
+ */
+export function turnToMember(session, memberId) {
+  return { ...session, floor: turnTo(session.floor, memberId) };
+}
+
+/** Everyone who may speak here, which in a 1v1 is one of the people present. */
+export function rosterOf(session) {
+  return session.scene.roster ?? session.scene.present ?? [];
 }
 
 /** How many rounds are still to come, the scene's own count included. */
@@ -158,9 +205,26 @@ export async function runRound(session, { client, choice = null, note = null, on
   const left = Math.max(0, session.total - roundCount(pool) - 1);
   const last = session.leaving || left === 0;
 
+  /**
+   * WHO SPEAKS. Decided here and nowhere else, once per round.
+   *
+   * The draw happens before the call, so the answer is fixed for this round and
+   * the same object goes into the prompt, onto the screen and into the silence
+   * counters. Recomputing it anywhere else would consume a second draw off a
+   * stateful generator and let the three disagree.
+   */
+  const roster = rosterOf(session);
+  const turn = speakersFor(session.floor, { roster, rng: session.floorRng });
+
   const tier3 = buildTier3({
     cards: session.cards,
     present: session.scene.present ?? [],
+    /**
+     * Who may speak, which is not who is in the room. A 1v1 in an occupied
+     * practice room has one voice and three witnesses.
+     */
+    roster,
+    speaking: turn,
     relations: session.relations,
     player: session.player,
     dossier: session.dossier,
@@ -230,6 +294,13 @@ export async function runRound(session, { client, choice = null, note = null, on
       summary: round.summary ?? session.summary,
       canon: round.canon.length ? [...session.canon, ...round.canon] : session.canon,
       gestured: session.gestured || Boolean(note),
+      /**
+       * The room ages AFTER the round, not before it. Whoever had the floor is
+       * back to zero and everybody else is one round quieter, which is what
+       * hands the next second voice to somebody new without a rota.
+       */
+      floor: noteSpoke(session.floor, turn),
+      turn,
       ended: last,
     },
     round: { ...round, refused, last },
@@ -337,6 +408,19 @@ export function endScene(session) {
     exposure: session.exposure,
     /** For `systems/rumor.js`: did anybody watching have something to describe? */
     gestured: session.gestured,
+    /**
+     * WHO THE SCENE WAS ABOUT, which is not `presentIds[0]`.
+     *
+     * `propagate` prices a scene against a SUBJECT - the member the player spent
+     * it on - and everybody else against her. Reading the first id in the room
+     * instead is what produced *"I chose Yeri to have a 1v1 chat, while witness
+     * is herself"*: Nana was subject by array position, so Yeri was filed as a
+     * witness of her own scene and the affection landed on the wrong row.
+     *
+     * The floor already knows. It is the same answer the prompt was built from,
+     * which is the point of it being one function.
+     */
+    addresseeId: addresseeOf(session.floor, { roster: rosterOf(session) }),
     summary: session.summary ?? fallback,
   };
 }

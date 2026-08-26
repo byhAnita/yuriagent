@@ -604,7 +604,22 @@ export default function App() {
     if (!pendingScene) return null;
 
     const present = pendingScene.presentIds ?? [];
-    const first = present[0];
+    /**
+     * WHO MAY SPEAK, and it is not who is in the room.
+     *
+     * `onEnter` has computed this correctly since v2's first day - `[speaker]`
+     * for a 1v1, the whole room for a group scene - and **nothing read it.** The
+     * scene was built from `presentIds`, so clicking `talk to Yeri` in a bistro
+     * with Nana in it sent the model `Present: nana, yeri` and got a two-hander;
+     * the activity line described Nana, who was not the one being talked to; and
+     * `propagate` took Nana as the subject, which filed Yeri as a witness of her
+     * own scene.
+     *
+     * One correct value, computed, discarded one line later. The sixth of these,
+     * and the reason `floorJoin.test.js` reads this file rather than trusting it.
+     */
+    const roster = pendingScene.rosterIds ?? present;
+    const first = roster[0] ?? present[0];
     const doing = first ? doingLine(occupancy[first]?.activity) : null;
     const firstName = cards.find((c) => c.id === first)?.name;
 
@@ -623,6 +638,7 @@ export default function App() {
         locationId: pendingScene.locationId,
         locationLabel: t(`location.${pendingScene.locationId}`),
         present,
+        roster,
         /**
          * What she is here for. Costs about forty tokens in a tail that is
          * rebuilt every round anyway, and it is what let one practice room open
@@ -711,7 +727,14 @@ export default function App() {
      * `singledOut` is passed rather than inferred - `result.gestured` is set by
      * the round loop when the player actually handed something over.
      */
-    const subjectId = (pendingScene?.presentIds ?? [])[0];
+    /**
+     * THE SUBJECT IS WHO THE PLAYER SPENT THE SCENE ON, and the round loop is
+     * the only thing that knows - it is whoever the floor ended on, tapped or
+     * inherited. This read `presentIds[0]` and got the wrong woman whenever the
+     * player talked to anybody but the first name in the room.
+     */
+    const subjectId =
+      result.addresseeId ?? (pendingScene?.rosterIds ?? pendingScene?.presentIds ?? [])[0];
     const subject = subjectId ? cards.find((c) => c.id === subjectId) : null;
     let heard = { rumors: [], noticed: [] };
     if (subject) {
@@ -1244,9 +1267,21 @@ function Aftermath({ outcome, cards, onContinue, t }) {
         </p>
       )}
 
-      {outcome.summary ? (
-        <p className="font-body text-[0.875rem] italic text-dim">{outcome.summary}</p>
-      ) : null}
+      {/*
+        THE SUMMARY IS NOT SHOWN, AND THAT IS THE FIX RATHER THAN A GAP.
+
+        `sum|` is ENGLISH by contract (Part I.6): it is the line the pool
+        collapses a scene down to, so that a `zh` run's ledger stays comparable
+        and byte-stable. Printing it put an English sentence under the Chinese
+        numbers on a Chinese screen - reported as "summary language bug", and it
+        is the `learnableFacts` mistake exactly: one string doing a memory job
+        and a display job at once.
+
+        Asking the model for a second, localized summary was the other option and
+        it is the wrong trade. It costs a field on every scene forever, to tell
+        the player something they finished reading four seconds ago - in a game
+        whose whole output is prose. The scene IS the summary.
+      */}
 
       {/*
         WHO FOUND OUT. CLAUDE.md section 5b, Part I.8.

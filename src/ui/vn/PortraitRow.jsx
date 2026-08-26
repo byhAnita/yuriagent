@@ -27,6 +27,8 @@ export default function PortraitRow({
   speakingId,
   /** Where the player's attention is pointed. Marked, so it stays visible. */
   addresseeId,
+  /** Who cut in this round, if anybody. Marked more lightly than the addressee. */
+  secondId = null,
   emotion = 'neutral',
   pulseKey = 0,
   onTurnTo,
@@ -48,28 +50,35 @@ export default function PortraitRow({
   const canTurnToSpeaker = Boolean(front && addresseeId && front !== addresseeId);
 
   /**
-   * The row FLOATS over the portrait rather than sitting under it.
+   * THE OTHERS SIT BESIDE THE SPEAKER, NOT ON TOP OF HER.
    *
-   * It used to be a flex column: the portrait `min-h-0 flex-1`, the row
-   * `shrink-0`. The scene is a fixed viewport height (`.stage-fill`), so on a
-   * 390x844 phone - with a header, three meters, a Chinese dialogue box and a
-   * four-row chip bar all taking their fixed share - `flex-1` had almost
-   * nothing left to divide, and it is the side that gives. The row kept its
-   * height and **the speaker's portrait collapsed to nothing**, which is
-   * exactly what a player sees as "the big portrait is missing while the
-   * meters show her name".
+   * Three layouts have been tried here and the first two both hid the face the
+   * scene is about. It began as a flex COLUMN - portrait `min-h-0 flex-1`, row
+   * `shrink-0` - and on a 390x844 phone `flex-1` had almost nothing left to
+   * divide once the header, the values, a Chinese dialogue box and the option
+   * bar had taken their fixed share. The portrait collapsed to nothing.
    *
-   * Invisible on a desktop, where there is height to spare. Reported twice in
-   * one session on a phone, in both a two-member and a three-member room.
+   * Overlaying the row along the bottom fixed the collapse and produced the
+   * report this rewrite answers:
    *
-   * Overlaying costs no vertical space at all, so there is nothing left for
-   * the squeeze to take. The portraits are mascot SVGs drawn with
-   * `object-contain`, so the strip sits over the empty lower edge rather than
-   * over a face.
+   *   > In a group chat, now other members' cards presented on top, the
+   *   > speaker's portrait is hidden.
+   *
+   * Correct, and arithmetic rather than opinion: the portrait area floors at
+   * 5.5rem and the overlaid cards were a 2.5rem face plus a name plus padding,
+   * so four of them covered most of the frame. A strip that costs no HEIGHT
+   * still costs the whole picture if it lands on the picture.
+   *
+   * So it is a COLUMN DOWN THE SIDE. Horizontal space is the one thing this
+   * screen has spare - a mascot SVG is drawn `object-contain` and does not fill
+   * a 390px width - and the speaker keeps her full height at every font scale.
+   * Faces only: the name is already over the dialogue box for whoever is
+   * speaking, and repeating four more is what forced the cards tall enough to
+   * be a problem.
    */
   return (
-    <div className="relative h-full">
-      <div className="h-full">
+    <div className="flex h-full gap-1.5">
+      <div className="min-w-0 flex-1">
         {canTurnToSpeaker ? (
           <button
             type="button"
@@ -86,7 +95,13 @@ export default function PortraitRow({
       </div>
 
       {others.length > 0 ? (
-        <ul className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-1.5 pb-0.5">
+        /**
+         * Its own scroll, because the column is as tall as the portrait area and
+         * that area is the one thing on this screen that yields. A six-member
+         * cast on a short round must not push a face off the frame - section 20:
+         * nothing on this screen may become unreachable.
+         */
+        <ul className="flex shrink-0 flex-col items-center justify-center gap-1 overflow-y-auto py-0.5">
           {others.map((id) => {
             const card = cards.find((c) => c.id === id);
             if (!card) return null;
@@ -95,10 +110,13 @@ export default function PortraitRow({
              *
              * She has to stay marked or the player loses track of where their
              * own attention is pointed - which is the state the whole group
-             * scene is played on, and the state a chip, a gift and free text
+             * scene is played on, and the state an option, a gift and free text
              * all silently target.
              */
             const pointedAt = id === addresseeId;
+            /** She cut in this round. Lighter than the addressee, on purpose:
+                borrowing the floor is not the same as holding it. */
+            const spoke = id === secondId;
             return (
               <li key={id}>
                 <button
@@ -107,22 +125,17 @@ export default function PortraitRow({
                   onClick={() => onTurnTo(id)}
                   aria-label={t('vn.turnTo').replace('{name}', card.name)}
                   aria-current={pointedAt ? 'true' : undefined}
-                  /* Its own backdrop, because it now sits ON the portrait
-                     rather than in a strip below it and would otherwise be a
-                     face floating on a face. */
-                  className={`flex w-[3.25rem] flex-col items-center gap-0.5 rounded-[var(--radius-sm)] border bg-bg/70 px-1 pb-1 pt-0.5 backdrop-blur-sm transition-colors enabled:hover:border-accent disabled:opacity-60 ${
-                    pointedAt ? 'border-accent bg-surface-alt/90' : 'border-hairline/60'
+                  title={card.name}
+                  className={`grid h-9 w-9 place-items-center rounded-full border bg-bg/70 transition-colors enabled:hover:border-accent disabled:opacity-60 ${
+                    pointedAt
+                      ? 'border-accent bg-surface-alt'
+                      : spoke
+                        ? 'border-dim'
+                        : 'border-hairline/60'
                   }`}
                 >
-                  <span className="h-10 w-full">
+                  <span className="h-7 w-7">
                     <Portrait card={card} emotion="neutral" speaking={false} />
-                  </span>
-                  <span
-                    className={`w-full truncate text-center font-mono text-[0.5rem] uppercase tracking-[0.1em] ${
-                      pointedAt ? 'text-accent' : 'text-faint'
-                    }`}
-                  >
-                    {card.name}
                   </span>
                 </button>
               </li>

@@ -143,6 +143,118 @@ The root keeps `overflow-y-auto` as a belt: §20's sheet that grew off the top o
 the screen took its close button with it and the run stopped there. Nothing on
 this screen may become unreachable.
 
+#### The chrome does not scale with the type, and the faces moved sideways
+
+Two more from the same screen, both reported on the second pass.
+
+> the options UI doesn't look pretty. You leave too much space and height for
+> each, when our screen height resource is limited.
+
+Half of that is **upstream in the prompt**, and it is the larger half: nothing
+forbade the model explaining its own option, so every one of them arrived as
+*"追一句「那队长自己呢」——把关心原路送回去"* - the line, then a dash, then a gloss
+saying what the line means. Twice the length, two rows on a 390px screen, four
+times over. `OPTION_WORDS` caps it and the rule names the gloss explicitly. **No
+amount of padding fixes a two-line button.**
+
+The other half is that **every gap in this app is `rem`**, which is what lets
+`--font-scale` move the whole interface at once - and on the one screen with a
+fixed height that is the wrong behaviour. At scale 1.25 the words grow 25%, which
+is the point, and so does every pad and gap, which is not: the player asked for a
+larger font, not for larger holes.
+
+> `--tap-gap`, `--tap-pad-y`, `--tap-pad-x` are a rem **divided by
+> `--font-scale`**, so they resolve to the same physical pixels at every setting.
+> The type breathes; the chrome holds still.
+
+Used only on the scene's fixed rows. Anywhere the page can simply get taller,
+plain `rem` is right and these are wrong.
+
+> In a group chat, now other members' cards presented on top, the speaker's
+> portrait is hidden.
+
+Third layout for the same strip, and the arithmetic is why. It began as a flex
+**column**, and `flex-1` had nothing left to divide once the fixed rows had taken
+their share - the portrait collapsed to zero. Overlaying it along the bottom
+fixed the collapse and caused this: the portrait area floors at 5.5rem, and a
+2.5rem face plus a name plus padding, four across, covered most of it. **A strip
+that costs no height still costs the whole picture if it lands on the picture.**
+
+So it is a column **down the side**. Horizontal space is the one thing this
+screen has spare - a mascot SVG is `object-contain` and does not fill 390px - and
+the speaker keeps her full height at every font scale. Faces only: the name is
+already over the dialogue box for whoever is speaking, and repeating four more is
+what forced the cards tall enough to be a problem.
+
+### Who has the floor is the code's call, and nothing was making it
+
+**Found in the first v2 phone session, as two reports that are one bug.**
+
+> if player choose interact to Irene's option in 1st round, then options of
+> following round tend to be all different interactions to Irene ... the player
+> has to type manually if they want to change a character
+
+> 1v1 chat button leads to group chat ... What's worse, Irene also occurred!
+
+Nothing in tier 3 said who was speaking, so the model wrote **everybody** - five
+paragraphs in a five-member room - and having written everybody it aimed all four
+options at whoever the player had just answered. The only escape was free text.
+
+That is I.1 applied one step further than v2 originally took it. **Who is
+standing in the room, and which of them the player is turned to, is world state**
+- the same kind of fact as placement and exposure. What they say and what it
+moves stays entirely the model's.
+
+`systems/floor.js` is the whole of it, and it is a chain rather than a rota:
+
+| | |
+|---|---|
+| 1 | the player **tapped** somebody -> she is primary |
+| 2 | nobody tapped -> **whoever spoke last** keeps the floor |
+| 3 | nothing has happened yet -> the first of the roster |
+
+plus one more voice: **whoever has been silent longest.** That is §10c's chime
+rule with the jealousy term removed, and it is what makes a room circulate with
+nothing as rigid as a turn order deciding it - a speaker's counter resets, so the
+next cut-in is somebody else, and no rule had to be written for room size.
+
+**A rota was the first design and it did not survive one question** (§10c): A
+speaks, the player responds, and then it is B's turn - *who was the player
+talking to?* A turn order has no answer. The addressee does, and it is sticky, so
+the common case costs no taps at all.
+
+Ties are broken by the seeded RNG, never by array position. Round one of every
+scene is a whole-room tie at silence 0, and this codebase has shipped a
+deterministic index standing in for a choice **four** times now
+(`sort(() => rng() - 0.5)`, `available.slice(0, 6)`, `presentIds[0]`, and the
+`FACE_LIMIT` off-by-one).
+
+#### The roster is not the room, and for six weeks nothing knew the difference
+
+`onEnter` has computed `rosterIds` correctly since v2's first day - `[speaker]`
+for a one-to-one, the whole room for a group scene - and **`setup` built the
+scene from `presentIds` one line later.** One discarded value, three reports:
+
+- a 1v1 with Yeri in a bistro with Nana in it became a two-hander;
+- the activity line described Nana ("out for coffee") while Nana stood in the
+  room, because it read `present[0]`;
+- `propagate` took its subject from `presentIds[0]`, so **Yeri was filed as a
+  witness of her own scene** and the affection landed on the wrong row.
+
+Sixth instance of the shape. `systems/floorJoin.test.js` reads `App.jsx`,
+because a unit test cannot see a missing call - it supplies the call itself.
+
+#### ...and who is NOT here, which is one line and was worth three
+
+Tier 3 named who was present and never who was absent. With the previous scene's
+prose sitting in tier 2 in the player's language - all of it about Irene - the
+model walked Irene into a bistro two locations away and had her buy coffee.
+
+Not a model failure: a **missing premise**, and v1's block 4 carried exactly this
+line. It is the cheapest of §9's three separation layers and the only one v2 kept
+none of, because there are no per-beat speaker ids left for the parser's roster
+rule to check against.
+
 ### One call per round
 
 The options come out of the same call as the prose. That is the whole saving:
@@ -247,8 +359,21 @@ first try.
 | rules, wire format, pacing, the axes | **English** - `config/rules.js`, never localized |
 | member profiles, player identity | **locale** - `profileLocal[lang]`, `identity.prompt[lang]` |
 | the round's prose and its options | **locale** |
-| the one-sentence summary | **English** |
+| the one-sentence summary | **English**, and never shown to the player |
 | recent full text in the ledger | **locale** |
+
+**That last row is a rule about a READER, and the aftermath screen broke it.**
+Reported as a language bug: the `sum|` line was printed under the Chinese numbers
+at scene exit, so a `zh` player got *"A quiet joke lands softer than she expected"*
+on an otherwise Chinese screen. The string was correct - it is what the pool
+collapses a scene down to, and it has to be English to stay comparable - and it
+was simply on the wrong surface. Exactly the `learnableFacts` mistake: **one
+string doing a memory job and a display job at once.**
+
+The fix is to delete the line, not to translate it. A second localized summary
+would cost a field on every scene forever to tell the player something they
+finished reading four seconds ago, in a game whose entire output is prose. **The
+scene is the summary.**
 
 **§19 rule 2 - "memory is always English" - is repealed.** The only thing it
 bought was mid-run language switching, and that is now explicitly unsupported: a
