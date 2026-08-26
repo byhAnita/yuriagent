@@ -90,10 +90,24 @@ export const MAX_BEATS_PER_RESPONSE = 3;
 export const MAX_INTERACTIVE_MEMBERS = 2;
 
 /**
- * A scene occupies one time block, so it cannot run forever. Past this many
- * turns the block ends on its own and the day moves. Without it a player could
- * grind a single block indefinitely and the opportunity cost that makes the
- * three-blocks-a-day structure work would evaporate.
+ * How long a v2 scene runs. CLAUDE.md Part I.3.
+ *
+ * A scene occupies one time block, so it cannot run forever - without a cap a
+ * player could grind a single block indefinitely and the opportunity cost that
+ * makes three blocks a day work would evaporate. The BLOCK is the unit of
+ * opportunity cost, which is exactly what makes the rounds inside it free: the
+ * player is not spending anything by staying, so nothing has to ration them.
+ *
+ * Four to six rather than a fixed five, drawn from the run seed at the door, so
+ * the player cannot count down to the end of a conversation. It is the one thing
+ * about a scene they are not told.
+ */
+export const SCENE_ROUNDS_MIN = 4;
+export const SCENE_ROUNDS_MAX = 6;
+
+/**
+ * v1's turn cap. Superseded by the two above and kept only while the v1 engine
+ * is still in the tree.
  */
 export const SCENE_TURN_LIMIT = 8;
 

@@ -184,8 +184,10 @@ const DELTAS = `## DELTA RULES
 - The first round of a scene is always 0 - nothing has happened yet.
 - Only members who are present may move. Somebody who is not in the room has
   not heard anything yet.
-- Line format is the member id, a sign, and a number: irene+1
-- For the player's own values use: selfId, mood, secrecy.`;
+- One line per number: an id, a sign, and a digit.
+    irene+1        her affection
+    irene_adm+1    her admissibility
+    mood-1         the player's own. Also: selfId, secrecy.`;
 
 /**
  * Two `zh` rules a generic language directive cannot reach, both found live.

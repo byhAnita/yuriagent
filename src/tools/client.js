@@ -48,7 +48,7 @@ export function createClient({ apiKey, modelId, seed = 1, onFallback = null }) {
   return async function client({ messages, preset, onChunk }) {
     const started = Date.now();
     try {
-      if (preset === 'turn' && onChunk) {
+      if ((preset === 'turn' || preset === 'round') && onChunk) {
         const { text } = await withRetry(() =>
           stream({ messages, apiKey, modelId, preset, onChunk }),
         );

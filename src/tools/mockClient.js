@@ -18,6 +18,7 @@ import {
   OPENING_ZH,
   SUMMARY_ZH,
 } from './mockLines.zh.js';
+import { mockRound } from './mockRound.js';
 
 const LINES = {
   flirt: [
@@ -249,6 +250,21 @@ export function createMockClient({
     const openings = zh ? OPENING_ZH : OPENING;
 
     const last = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+
+    /**
+     * v2. One call writes the whole round - prose, options, emotion, deltas -
+     * so there is nothing else for the offline writer to answer.
+     */
+    if (preset === 'round') {
+      const text = mockRound(last, { rng, zh, failureRate });
+      if (onChunk) {
+        for (let i = 0; i < text.length; i += 5) {
+          onChunk(text.slice(i, i + 5));
+          if (chunkDelay > 0) await new Promise((r) => setTimeout(r, chunkDelay));
+        }
+      }
+      return text;
+    }
 
     if (preset === 'summarize') {
       /**

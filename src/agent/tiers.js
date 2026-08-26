@@ -95,8 +95,15 @@ export function buildTier1({ cards = [], lineup = {}, identity, playerName = '',
  * byte-identical from one round to the next.
  */
 export function buildTier2(entries = []) {
-  if (entries.length === 0) return '## HISTORY\n(nothing yet)';
-
+  /**
+   * The empty pool is the HEADER ALONE, not a placeholder sentence.
+   *
+   * A `(nothing yet)` line reads well and is the one thing in this file that
+   * cannot be here: it makes the first round's tier 2 something the second
+   * round's is NOT a continuation of, so the very first append is a full miss
+   * instead of the cheapest one in the run. The tail already says it is the
+   * first round of the scene, so nothing is lost by saying nothing.
+   */
   const lines = ['## HISTORY'];
   for (const e of entries) {
     if (e.type === 'summary') {
@@ -132,6 +139,7 @@ export function buildTier3({
   roundIndex = 0,
   roundsLeft = 0,
   lastChoice = null,
+  note = null,
   lang = 'en',
 }) {
   const nameOf = (id) => {
@@ -193,6 +201,14 @@ export function buildTier3({
     lines.push('This is the LAST round. Land the scene, and write the sum| line.');
   }
   if (lastChoice) lines.push('', `The player chose: ${lastChoice}`);
+
+  /**
+   * A note is something the player DID that no option covers: handing her a
+   * coffee, bringing up a thing she once let slip. It goes last, because it is
+   * the most immediate thing in the room and because tier 3 is ordered by
+   * immediacy - the same rule v1's block 4 followed for the gift note.
+   */
+  if (note) lines.push('', note);
 
   lines.push('', 'Write the next round now. Prose first.');
 
