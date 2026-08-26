@@ -17,6 +17,13 @@
  * the model or from the fallback. v1 learned this the expensive way: when the
  * bar changed shape as labels arrived, the target under the player's finger
  * moved, and the fix was to make a swap change only the words.
+ *
+ * AND IT NEVER YIELDS ITS HEIGHT. `shrink-0`, because this is the half of the
+ * screen the player acts with: when the scene column runs short the portrait
+ * gives way and the prose scrolls inside its own box, never this. The spacing
+ * here is tight for the same reason - four options plus two rows of chrome is
+ * about 215px of a 763px phone viewport, and every pixel it does not take is a
+ * line of her prose that does not need scrolling to.
  */
 
 import { useState } from 'react';
@@ -69,7 +76,7 @@ export default function OptionBar({
    */
   if (over) {
     return (
-      <div className="px-5 pb-3 pt-1">
+      <div className="shrink-0 px-5 pb-3 pt-1">
         <p className="mb-2 text-center font-mono text-[0.625rem] uppercase tracking-[0.16em] text-dim">
           {t('vn.outOfTurns')}
         </p>
@@ -98,15 +105,24 @@ export default function OptionBar({
   for (let i = shown.length; i < 4; i += 1) shown.push(fallback[i]);
 
   return (
-    <div className="px-5 pb-3 pt-1">
-      <div className="flex flex-col gap-1.5">
+    <div className="shrink-0 px-5 pb-2 pt-1">
+      <div className="flex flex-col gap-1">
         {shown.map((label, i) => (
           <button
             key={`${i}:${label}`}
             type="button"
             disabled={disabled}
             onClick={() => onChoose(label)}
-            className="w-full rounded-[var(--radius-sm)] border border-hairline bg-surface px-3 py-2.5 text-left transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 disabled:hover:border-hairline disabled:hover:bg-surface"
+            /**
+             * A stable hook for the DOM tests, because the thing they need to
+             * find is "one of the four options" and the only handle they had was
+             * a Tailwind padding class. Retuning the spacing on this bar - which
+             * is a layout decision - silently emptied that selector and failed
+             * eleven tests in two files with a message about a count, which says
+             * nothing about what actually changed.
+             */
+            data-round-option="true"
+            className="w-full rounded-[var(--radius-sm)] border border-hairline bg-surface px-3 py-2 text-left transition-colors hover:border-accent hover:bg-surface-alt disabled:opacity-35 disabled:hover:border-hairline disabled:hover:bg-surface"
           >
             <span className="font-body text-[0.9375rem] leading-snug text-text">{label}</span>
           </button>
@@ -119,7 +135,7 @@ export default function OptionBar({
         bordered controls at a real touch target rather than text links - section
         6 reported that mistake twice on the first day of play.
       */}
-      <div className="mt-1.5 grid auto-cols-fr grid-flow-col gap-1.5">
+      <div className="mt-1 grid auto-cols-fr grid-flow-col gap-1">
         <SecondaryAction
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
@@ -138,7 +154,7 @@ export default function OptionBar({
       </div>
 
       {/* Neither of these spends the round, so neither is shaped like a move. */}
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-1.5 flex items-center gap-2">
         <span
           className={`font-mono text-[0.625rem] uppercase tracking-[0.14em] ${
             roundsLeft <= 1 ? 'text-warn' : 'text-dim'
@@ -164,7 +180,7 @@ export default function OptionBar({
       </div>
 
       {open ? (
-        <form onSubmit={submit} className="mt-2 flex gap-2">
+        <form onSubmit={submit} className="mt-1.5 flex gap-2">
           <input
             autoFocus
             value={text}

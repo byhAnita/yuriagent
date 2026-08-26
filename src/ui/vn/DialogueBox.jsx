@@ -1,12 +1,25 @@
 /**
- * The dialogue surface. CLAUDE.md sections 1 and 9.
+ * The dialogue surface. CLAUDE.md Part I.3.
  *
- * Beats are revealed ONE TAP AT A TIME. That is not a flourish - it is the
- * latency strategy from section 8. The model returns up to three beats in one
- * call, and the player's own pacing hides the round trip for the next one.
+ * THE ONLY THING ON THE SCENE SCREEN THAT SCROLLS. Everything else - the header,
+ * the portrait, the value strip, the four options - has a fixed or a flexible
+ * share of one viewport, and the round's prose is the single element whose length
+ * the code does not control: ~80 words of instruction comes back as 240-330
+ * characters in `zh`. So the box takes what height is left and scrolls inside
+ * itself, which is what keeps the options inside the player's thumb on every
+ * round instead of a screen-and-a-half down the page.
  *
- * Prose is parsed for *action* and "speech" so the two read differently, which
- * is what makes a 40-word beat feel like a scene instead of a chat message.
+ * The name plate does not scroll with it, for the reason section 20 gives about
+ * modal headers: the one piece of chrome that says whose line this is must not be
+ * something the player has to scroll back up to find.
+ *
+ * THE BEAT REVEAL IS GONE. v1 revealed up to three beats a tap and that was the
+ * latency strategy - the player's own pacing hid the next round trip. v2 streams
+ * from the first token, so there is nothing left to hide behind and the box is no
+ * longer a button (Part I.3).
+ *
+ * Prose is parsed for *action* and "speech" so the two read differently, which is
+ * what makes a round feel like a scene instead of a chat message.
  */
 
 const SEGMENT = /(\*[^*]+\*|"[^"]*"|“[^”]*”)/g;
@@ -45,37 +58,20 @@ function renderProse(text) {
     });
 }
 
-export default function DialogueBox({
-  beat,
-  speakerName,
-  hasMore,
-  onAdvance,
-  pending,
-  placeholder,
-}) {
-  const interactive = Boolean(beat) && !pending;
-
+export default function DialogueBox({ beat, speakerName, pending, placeholder }) {
   return (
-    <button
-      type="button"
-      onClick={interactive && hasMore ? onAdvance : undefined}
-      disabled={!interactive || !hasMore}
-      aria-live="polite"
-      className="group relative block w-full cursor-default rounded-[var(--radius)] border border-border bg-surface-warm px-5 pb-5 pt-4 text-left shadow-[var(--shadow)] disabled:cursor-default"
-    >
+    <div className="mx-5 flex min-h-0 flex-col rounded-[var(--radius)] border border-border bg-surface-warm px-4 pb-3 pt-3 shadow-[var(--shadow)]">
       {/*
         The name plate, set in the display serif against monospace chrome.
 
-        `speakerName` is null for the establishing beat of an anchor event -
-        nobody says it, so nothing is named and the rule runs the full width.
-
+        `speakerName` is null when nobody says it - narration, or an empty room.
         The span stays and holds a zero-width space rather than being dropped,
         because the rule is baseline-aligned to it: remove the only item with a
         baseline and the hairline jumps to the top of the row, so the box would
-        visibly shift between the narration and the beat that follows it.
+        visibly shift between the narration and the round that follows it.
       */}
-      <div className="mb-2 flex items-baseline gap-2">
-        <span className="font-display text-[1.0625rem] leading-none tracking-wide text-accent">
+      <div className="mb-1.5 flex shrink-0 items-baseline gap-2">
+        <span className="font-display text-[1rem] leading-none tracking-wide text-accent">
           {speakerName || NO_NAME}
         </span>
         <span className="h-px flex-1 bg-hairline opacity-60" />
@@ -88,17 +84,12 @@ export default function DialogueBox({
       ) : (
         <p
           key={beat?.text}
-          className="beat-in font-body text-[1.0625rem] leading-[1.6]"
+          aria-live="polite"
+          className="beat-in min-h-0 flex-1 overflow-y-auto overscroll-contain font-body text-[1rem] leading-[1.55]"
         >
           {beat ? renderProse(beat.text) : null}
         </p>
       )}
-
-      {hasMore && interactive ? (
-        <span className="caret-pulse absolute bottom-3 right-4 font-mono text-[0.75rem] text-accent">
-          &#9656;
-        </span>
-      ) : null}
-    </button>
+    </div>
   );
 }

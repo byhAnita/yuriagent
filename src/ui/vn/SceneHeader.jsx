@@ -10,7 +10,7 @@ import { DAY_NAMES } from '../../systems/calendar.js';
 
 export default function SceneHeader({ week, day, block, phase, locationLabel, turnsLeft, onExit, t }) {
   return (
-    <header className="flex items-center gap-3 px-5 pb-2 pt-3">
+    <header className="flex shrink-0 items-center gap-3 px-5 pb-2 pt-3">
       <span className="font-mono text-[0.5625rem] uppercase tracking-[0.2em] text-dim">
         W{week + 1} {t(`dayFull.${DAY_NAMES[day]}`)}
       </span>

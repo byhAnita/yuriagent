@@ -222,6 +222,13 @@ export default {
     close: 'How close',
     dismiss: 'close',
     nameable: 'How nameable',
+    /**
+     * The same two axes on the scene strip, where the whole line is one row and
+     * both labels sit inline with their rails. The panel can afford a sentence;
+     * a 390px strip carrying two axes cannot.
+     */
+    closeShort: 'close',
+    nameableShort: 'nameable',
     jealousy: 'jealousy',
     strain: 'strain',
     lede: 'Two numbers, not one. Closeness grows anywhere; being nameable only grows where you can be seen.',

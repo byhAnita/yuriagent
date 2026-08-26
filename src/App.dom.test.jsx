@@ -354,10 +354,7 @@ describe('save slots', () => {
  * that can see one.
  */
 describe('playing a block through', () => {
-  const optionButtons = () =>
-    screen
-      .getAllByRole('button')
-      .filter((b) => b.className.includes('py-2.5') && b.className.includes('text-left'));
+  const optionButtons = () => [...document.querySelectorAll('[data-round-option]')];
 
   it('goes map -> room -> scene -> aftermath -> map', async () => {
     await startARun('Yuhan');

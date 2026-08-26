@@ -244,6 +244,8 @@ export default {
     close: '亲近程度',
     dismiss: '关闭',
     nameable: '可被言说',
+    closeShort: '亲近',
+    nameableShort: '可言说',
     jealousy: '介意',
     strain: '损耗',
     lede: '是两个数，不是一个。亲近在哪里都能长；能不能被说出口，只在被人看见的地方才会长。',

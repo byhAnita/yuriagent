@@ -51,10 +51,7 @@ const setup = (scene = {}) => ({
 });
 
 /** Anything the player can tap that is one of the four written options. */
-const optionButtons = () =>
-  screen
-    .getAllByRole('button')
-    .filter((b) => b.className.includes('py-2.5') && b.className.includes('text-left'));
+const optionButtons = () => [...document.querySelectorAll('[data-round-option]')];
 
 const mount = (props = {}) =>
   render(
@@ -78,14 +75,92 @@ describe('the round stage', () => {
     expect(screen.getAllByText('Irene').length).toBe(2);
   });
 
+  /**
+   * The scene is one screen, and this is the rule that makes it one.
+   *
+   * `.stage-fill` is a FIXED height, and a flex item defaults to `min-height:
+   * auto` - so a child sized by its own content cannot give, and the column
+   * overflows the page instead. That is exactly what shipped: a scene about 1.5
+   * viewports tall, needing a scroll on every round before it could be answered.
+   *
+   * So every direct child declares which it is. `shrink-0` means "fixed, and
+   * deliberately so" - the header, the value strip, the options the player acts
+   * with. A `min-h-` class means "yields, down to this floor" - the portrait and
+   * the prose. There is no third option, and a child with neither is the defect
+   * coming back.
+   *
+   * jsdom does no layout, so this cannot measure a height. It can hold the rule
+   * the height came from, which is the half that got broken.
+   */
+  it('gives every row in the column a stated way to yield', async () => {
+    mount();
+    await waitFor(() => expect(optionButtons().length).toBe(4));
+
+    const column = document.querySelector('.stage-fill');
+    const rows = [...column.children];
+    expect(rows.length).toBeGreaterThan(3);
+
+    for (const row of rows) {
+      const cls = row.className;
+      expect(
+        cls.includes('shrink-0') || /(^|\s)min-h-/.test(cls),
+        `a direct child of .stage-fill must be shrink-0 or carry a min-h floor: "${cls}"`,
+      ).toBe(true);
+    }
+  });
+
   /** Part I.2: the numbers are on screen. This is the pillar, rendered. */
   it('shows both axes for the woman in the room', async () => {
     mount();
     await waitFor(() => expect(optionButtons().length).toBe(4));
-    expect(screen.getByText('relations.close')).toBeTruthy();
-    expect(screen.getByText('relations.nameable')).toBeTruthy();
+    expect(screen.getByText('relations.closeShort')).toBeTruthy();
+    expect(screen.getByText('relations.nameableShort')).toBeTruthy();
     expect(screen.getByText('45')).toBeTruthy();
     expect(screen.getByText('12')).toBeTruthy();
+  });
+
+  /**
+   * ...for HER, and not for the other four.
+   *
+   * Reported from play: the scene ran about 1.5 viewports tall, so every round
+   * had to be scrolled past before it could be answered. A five-member room drew
+   * ten bars over eleven rows of chrome above a paragraph of Chinese prose, and
+   * none of it was what the player was reading while she was talking.
+   *
+   * Collapsed is not deleted, which is the half worth asserting: Part I.2 is a
+   * rule about the numbers being AVAILABLE, so the strip has to open.
+   */
+  describe('the value strip', () => {
+    const crowded = () => setup({ present: ['irene', 'nana', 'jisoo'] });
+
+    it('carries only the woman whose portrait is up', async () => {
+      mount({ setup: crowded() });
+      await waitFor(() => expect(optionButtons().length).toBe(4));
+
+      expect(screen.getAllByText('relations.closeShort').length).toBe(1);
+      // She is in the room and on the portrait strip; she has no value row.
+      expect(screen.queryByText('game.mood')).toBeNull();
+    });
+
+    it('opens to the rest of the room and the player, on one tap', async () => {
+      const user = userEvent.setup();
+      mount({ setup: crowded() });
+      await waitFor(() => expect(optionButtons().length).toBe(4));
+
+      await user.click(screen.getByLabelText('relations.open'));
+
+      expect(screen.getAllByText('relations.closeShort').length).toBe(3);
+      expect(screen.getByText('game.mood')).toBeTruthy();
+      expect(screen.getByText('game.selfId')).toBeTruthy();
+    });
+
+    /** An empty room still has the player in it, and her own values still move. */
+    it('falls back to the player when nobody is there', async () => {
+      mount({ setup: setup({ present: [] }) });
+      await waitFor(() => expect(screen.getByText('game.alone')).toBeTruthy());
+      expect(screen.getByText('game.mood')).toBeTruthy();
+      expect(screen.queryByText('relations.closeShort')).toBeNull();
+    });
   });
 
   it('never shows a machine line or the sentinel', async () => {
