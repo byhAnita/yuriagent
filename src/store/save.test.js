@@ -275,7 +275,7 @@ describe('everything that can be wrong with a record', () => {
     // ...and the rest are still whole, not missing.
     for (const id of MVP_CAST) {
       expect(back.relations[id], id).toBeTruthy();
-      expect(typeof back.relations[id].strain).toBe('number');
+      expect(typeof back.relations[id].affection).toBe('number');
     }
   });
 

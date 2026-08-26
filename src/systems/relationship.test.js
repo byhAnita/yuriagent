@@ -2,9 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   newRelation,
   resolveStage,
-  strainBand,
-  applySceneOutcome,
-  applyRepair,
+  stageOf,
+  addAffection,
   resolveBadEnd,
   resolveEnding,
   isBalanceEnding,
@@ -39,124 +38,81 @@ describe('resolveStage', () => {
   });
 });
 
-describe('strainBand', () => {
-  it('maps the four bands at their boundaries', () => {
-    expect(strainBand(0)).toBe('stable');
-    expect(strainBand(39)).toBe('stable');
-    expect(strainBand(40)).toBe('tense');
-    expect(strainBand(59)).toBe('tense');
-    expect(strainBand(60)).toBe('rift');
-    expect(strainBand(89)).toBe('rift');
-    expect(strainBand(90)).toBe('critical');
-  });
-});
-
-describe('applySceneOutcome', () => {
-  it('tracks high-water marks monotonically', () => {
-    let rel = newRelation(5);
-    rel = applySceneOutcome(rel, { affection: 60, admissibility: 40 });
-    expect(rel.peakAffection).toBe(65);
-    rel = applySceneOutcome(rel, { affection: -50, admissibility: -30 });
-    expect(rel.affection).toBe(15);
-    expect(rel.peakAffection).toBe(65);
-    expect(rel.peakAdmissibility).toBe(40);
+/**
+ * The stage is DERIVED, and this is the assertion that keeps it that way.
+ *
+ * It used to be a stored field, written by `applySceneOutcome`. `applyDeltas`
+ * replaced that function and never wrote it, so from the moment v2 landed every
+ * relation carried the stage it was created at - forever - while the day screen
+ * happened to look right because it called `resolveStage` itself. Two correct
+ * halves and a stale join, which is the shape this project keeps shipping.
+ *
+ * So nothing stores it, and a stale one cannot exist to be read.
+ */
+describe('the stage is derived, never stored', () => {
+  it('is absent from a fresh relation', () => {
+    expect(newRelation(5).stage).toBeUndefined();
   });
 
-  it('decays strain on a good scene but not on a damaging one', () => {
-    let rel = { ...newRelation(50), strain: 20 };
-    rel = applySceneOutcome(rel, { good: true });
-    expect(rel.strain).toBe(17);
-    rel = applySceneOutcome(rel, { good: true, strain: 10 });
-    expect(rel.strain).toBe(27);
+  it('follows the two numbers wherever they go', () => {
+    expect(stageOf({ affection: 5, admissibility: 0 })).toBe('stranger');
+    expect(stageOf({ affection: 80, admissibility: 50 })).toBe('unspoken');
   });
 
-  it('clamps both axes to 0-100', () => {
-    let rel = newRelation(5);
-    rel = applySceneOutcome(rel, { affection: 999, admissibility: 999 });
-    expect(rel.affection).toBe(100);
-    expect(rel.admissibility).toBe(100);
-    rel = applySceneOutcome(rel, { affection: -999, admissibility: -999 });
-    expect(rel.affection).toBe(0);
-    expect(rel.admissibility).toBe(0);
+  /**
+   * And a stale field on an old save cannot override it. `fromSave` merges what
+   * it finds, so a v1 save still carries `stage: 'stranger'` next to affection
+   * 80 - and every reader has to reach the second answer, not the first.
+   */
+  it('ignores a stale stage left behind by an older save', () => {
+    expect(stageOf({ affection: 80, admissibility: 50, stage: 'stranger' })).toBe('unspoken');
+    expect(resolveEnding({ affection: 80, admissibility: 50, peakAffection: 80, stage: 'stranger' }))
+      .toBe('unspoken_end');
   });
 
-  it('locks a bad end only after two consecutive critical scenes', () => {
-    let rel = { ...newRelation(75), peakAffection: 75, strain: 85 };
-    rel = applySceneOutcome(rel, { strain: 10 }); // 95, first critical
-    expect(rel.endingLocked).toBeNull();
-    rel = applySceneOutcome(rel, { strain: 0 }); // still critical, second
-    expect(rel.endingLocked).toBe('nameless_end');
-  });
-
-  it('resets the critical counter when strain drops out of the band', () => {
-    let rel = { ...newRelation(75), peakAffection: 75, strain: 95 };
-    rel = applySceneOutcome(rel, {});
-    expect(rel.criticalScenes).toBe(1);
-    rel = applySceneOutcome(rel, { strain: -40 });
-    expect(rel.criticalScenes).toBe(0);
-    expect(rel.endingLocked).toBeNull();
+  it('defaults an empty relation to the bottom of the ladder', () => {
+    expect(stageOf({})).toBe('stranger');
+    expect(stageOf()).toBe('stranger');
   });
 });
 
 /**
- * The plateau. Section 5 calls `confidante` "affection outran admissibility and
- * stalled", and for a long time nothing stalled - a campaign ended with every
- * member at affection 100, admissibility near zero and `confidante_end` for all
- * five, with no good ending reachable by any policy. The stage was computed
- * correctly and the outcome was applied correctly; only the join was missing.
+ * The one fixed affection gain left, and what it is for.
+ *
+ * Everything a SCENE is worth comes through `systems/values.js`, because the
+ * model decided it. This is for the two things the world decides on its own - a
+ * shared dorm evening, and an opener bought with credits - neither of which is a
+ * judgement about how the conversation went.
  */
-describe('the plateau stalls', () => {
-  const onPlateau = () => {
-    const rel = applySceneOutcome({ ...newRelation(60), admissibility: 2 }, {});
-    expect(rel.stage).toBe('confidante');
-    return rel;
-  };
-
-  it('refuses further closeness while she is on it', () => {
-    const rel = onPlateau();
-    const after = applySceneOutcome(rel, { affection: 5, good: true });
-    expect(after.affection).toBe(rel.affection);
+describe('addAffection', () => {
+  it('moves the number and keeps the peak', () => {
+    const rel = addAffection(newRelation(50), 6);
+    expect(rel.affection).toBe(56);
+    expect(rel.peakAffection).toBe(56);
   });
 
-  it('but never takes any away - a stall is not a punishment', () => {
-    const rel = onPlateau();
-    expect(applySceneOutcome(rel, { affection: -8 }).affection).toBe(rel.affection - 8);
+  it('clamps to 0-100', () => {
+    expect(addAffection(newRelation(98), 9).affection).toBe(100);
+    expect(addAffection(newRelation(3), -9).affection).toBe(0);
   });
 
-  it('still lets the way out move', () => {
-    const rel = onPlateau();
-    const after = applySceneOutcome(rel, { admissibility: 9 });
-    expect(after.admissibility).toBe(rel.admissibility + 9);
+  it('never lowers the high-water mark on the way down', () => {
+    const rel = addAffection({ ...newRelation(70), peakAffection: 70 }, -20);
+    expect(rel.affection).toBe(50);
+    expect(rel.peakAffection).toBe(70);
   });
 
-  it('and releases as soon as admissibility catches up', () => {
-    let rel = onPlateau();
-    rel = applySceneOutcome(rel, { admissibility: 20 });
-    expect(rel.stage).not.toBe('confidante');
-    expect(applySceneOutcome(rel, { affection: 4 }).affection).toBe(rel.affection + 4);
-  });
-
-  it('lets the scene that walks her onto it count', () => {
-    // Below the plateau, a gain that lands her on it is still paid. A wall you
-    // can watch yourself hit is a rule; one that catches you mid-step is a bug.
-    const below = applySceneOutcome({ ...newRelation(48), admissibility: 2 }, {});
-    expect(below.stage).toBe('good_friends');
-    const after = applySceneOutcome(below, { affection: 6 });
-    expect(after.affection).toBe(54);
-    expect(after.stage).toBe('confidante');
-  });
-
-  it('strain still decays on the plateau, so a stall is not a death spiral', () => {
-    const rel = { ...onPlateau(), strain: 30 };
-    expect(applySceneOutcome(rel, { affection: 3, good: true }).strain).toBe(27);
-  });
-});
-
-describe('applyRepair', () => {
-  it('only works inside the rift band', () => {
-    expect(applyRepair({ ...newRelation(50), strain: 70 }).strain).toBe(40);
-    expect(applyRepair({ ...newRelation(50), strain: 50 }).strain).toBe(50);
-    expect(applyRepair({ ...newRelation(50), strain: 95 }).strain).toBe(95);
+  /**
+   * The plateau does not stop it, and that is the change rather than an
+   * oversight. `applySceneOutcome` used to refuse affection GAINS at
+   * `confidante`, which is code overruling a number somebody else already chose -
+   * the v1 arrangement Part I undoes. `confidante` is still a true reading of
+   * where the relationship sits, and the modal still says what to do about it.
+   */
+  it('does not brake on the plateau any more', () => {
+    const stalled = { ...newRelation(60), admissibility: 2 };
+    expect(stageOf(stalled)).toBe('confidante');
+    expect(addAffection(stalled, 4).affection).toBe(64);
   });
 });
 
@@ -166,22 +122,35 @@ describe('resolveBadEnd', () => {
   });
 
   it('prefers severance when the collapse happened in the reckless zone', () => {
-    const rel = { ...newRelation(50), peakAffection: 80, peakAdmissibility: 90, stage: 'reckless' };
+    const rel = {
+      ...newRelation(50),
+      affection: 40,
+      admissibility: 90,
+      peakAffection: 80,
+      peakAdmissibility: 90,
+    };
+    expect(stageOf(rel)).toBe('reckless');
     expect(resolveBadEnd(rel)).toBe('severance_end');
   });
 
   it('picks exposure when admissibility had gone public', () => {
-    const rel = { ...newRelation(50), peakAffection: 80, peakAdmissibility: 60, stage: 'unspoken' };
+    const rel = {
+      ...newRelation(50),
+      affection: 80,
+      admissibility: 50,
+      peakAffection: 80,
+      peakAdmissibility: 60,
+    };
     expect(resolveBadEnd(rel)).toBe('exposure_end');
   });
 
   it('picks nameless when it was deep and never nameable', () => {
     const rel = {
       ...newRelation(50),
+      affection: 75,
+      admissibility: 20,
       peakAffection: 75,
       peakAdmissibility: 20,
-      admissibility: 20,
-      stage: 'confidante',
     };
     expect(resolveBadEnd(rel)).toBe('nameless_end');
   });
@@ -193,8 +162,18 @@ describe('resolveEnding', () => {
   });
 
   it('honours a locked ending over the current position', () => {
-    const rel = { ...newRelation(95), stage: 'out', endingLocked: 'exposure_end' };
+    const rel = { ...newRelation(95), admissibility: 90, endingLocked: 'exposure_end' };
+    expect(stageOf(rel)).toBe('out');
     expect(resolveEnding(rel)).toBe('exposure_end');
+  });
+
+  /**
+   * The signature zone reached and HELD is a good ending, and it is deliberately
+   * one letter away from the collapse that leaves her filed as a friend.
+   */
+  it('gives the nameless zone its own good ending', () => {
+    const rel = { ...newRelation(65), affection: 65, admissibility: 30, peakAffection: 65 };
+    expect(resolveEnding(rel)).toBe('unnamed_end');
   });
 });
 
@@ -206,22 +185,30 @@ describe('isAftermath', () => {
 });
 
 describe('isBalanceEnding', () => {
-  const good = (jealousy) => ({
+  const good = () => ({
     ...newRelation(80),
     affection: 80,
     admissibility: 50,
-    stage: 'unspoken',
     peakAffection: 80,
-    jealousy,
   });
 
-  it('requires every member good AND under the jealousy ceiling', () => {
-    expect(isBalanceEnding({ a: good(10), b: good(20), c: good(40) })).toBe(true);
-    expect(isBalanceEnding({ a: good(10), b: good(50) })).toBe(false);
+  /**
+   * The jealousy ceiling used to be half this test, and it went with the number.
+   * What made the balance ending hard was never that clause - it is that five
+   * routes have to sit inside a narrow band at once and every block spent on one
+   * is a block not spent on the other four.
+   */
+  it('requires every member to have got somewhere real', () => {
+    expect(isBalanceEnding({ a: good(), b: good(), c: good() })).toBe(true);
+    expect(isBalanceEnding({ a: good(), b: newRelation(5) })).toBe(false);
   });
 
   it('fails if any single route collapsed', () => {
-    const relations = { a: good(10), b: { ...good(10), endingLocked: 'severance_end' } };
+    const relations = { a: good(), b: { ...good(), endingLocked: 'severance_end' } };
     expect(isBalanceEnding(relations)).toBe(false);
+  });
+
+  it('is not reachable with a cast of one', () => {
+    expect(isBalanceEnding({ a: good() })).toBe(false);
   });
 });

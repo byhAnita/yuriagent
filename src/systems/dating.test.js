@@ -67,30 +67,30 @@ describe('the band between floor and sure is a real bet', () => {
   });
 });
 
-describe('strain and jealousy', () => {
-  it('refuses outright once she is in rift', () => {
-    const hurt = rel({ affection: 90, strain: 65 });
-    expect(acceptChance(hurt, 'private')).toBe(0);
-    expect(blockedReason(hurt, 'private', rich)).toBe(REFUSAL.STRAIN);
+/**
+ * TWO AXES DECIDE A DATE, AND ONLY TWO (Part I.8).
+ *
+ * `strain` and `jealousy` used to be able to refuse on their own - a member in
+ * `rift` said no whatever her affection, and `corrosive` was a hard block - and
+ * both are gone with the numbers behind them. That is not a softening. A member
+ * who has just heard something she does not like still refuses; she refuses IN
+ * THE SCENE, in her own words, because the rumor is in her tail and the model
+ * reads it. A band lookup could only ever produce the same sentence twice.
+ *
+ * What is asserted here is the half that must not drift: nothing outside the two
+ * axes and the bill may block an ask.
+ */
+describe('nothing hidden refuses for her', () => {
+  it('ignores fields a v1 save may still be carrying', () => {
+    const stale = rel({ affection: 90, strain: 95, jealousy: 90 });
+    expect(acceptChance(stale, 'private')).toBeGreaterThan(0);
+    expect(blockedReason(stale, 'private', rich)).toBeNull();
   });
 
-  it('refuses outright at corrosive jealousy', () => {
-    const done = rel({ affection: 90, jealousy: 80 });
-    expect(blockedReason(done, 'private', rich)).toBe(REFUSAL.JEALOUSY);
-  });
-
-  /**
-   * Section 5b calls `piqued` an opportunity rather than a tax: she is unsettled
-   * about where the player's attention has been, so being asked for a whole day
-   * is exactly the reassurance she wanted.
-   */
-  it('makes her MORE likely to say yes at piqued, and less at sharp', () => {
-    const base = acceptChance(rel({ affection: 60, jealousy: 0 }), 'private');
-    const piqued = acceptChance(rel({ affection: 60, jealousy: 30 }), 'private');
-    const sharp = acceptChance(rel({ affection: 60, jealousy: 60 }), 'private');
-
-    expect(piqued).toBeGreaterThan(base);
-    expect(sharp).toBeLessThan(base);
+  it('offers exactly three reasons to say no: too close-shy, too visible, too poor', () => {
+    expect(new Set(Object.values(REFUSAL))).toEqual(
+      new Set(['not_close', 'not_nameable', 'credits', 'declined']),
+    );
   });
 });
 

@@ -31,8 +31,7 @@
  */
 
 import Sheet from './Sheet.jsx';
-import { resolveStage, strainBand } from '../../systems/relationship.js';
-import { jealousyBand } from '../../systems/jealousy.js';
+import { resolveStage } from '../../systems/relationship.js';
 
 /**
  * A bar, in the same shape the scene meters use.
@@ -84,8 +83,6 @@ export default function RelationsModal({ cards = [], relations = {}, onClose, t 
           if (!rel) return null;
 
           const stage = resolveStage(rel.affection, rel.admissibility);
-          const jband = jealousyBand(rel.jealousy ?? 0);
-          const sband = strainBand(rel.strain ?? 0);
 
           return (
             <section key={c.id} className="flex flex-col gap-1.5">
@@ -120,9 +117,17 @@ export default function RelationsModal({ cards = [], relations = {}, onClose, t 
               </p>
 
               {/*
-                The plateau is the one state that demands a specific answer and
-                the one the player cannot infer, because all it does is stop a
-                number they were not watching.
+                The plateau, and what it is has changed under this line.
+                `applySceneOutcome` used to REFUSE affection gains here, so the
+                copy could honestly say she will not get any closer. Part I.8
+                retires that function and with it the brake: the model decides
+                what a scene was worth, and code silently vetoing a number it
+                already chose is the v1 arrangement this whole redesign undoes.
+
+                So it is a reading rather than a wall, and the sentence says so.
+                It still earns its place - `confidante` is the one position the
+                player cannot infer from the two bars above it, and it is still
+                the one that names what to go and do about it.
               */}
               {stage === 'confidante' ? (
                 <p className="font-body text-[0.8125rem] leading-relaxed text-meter-exposure">
@@ -130,20 +135,6 @@ export default function RelationsModal({ cards = [], relations = {}, onClose, t 
                 </p>
               ) : null}
 
-              {(jband !== 'calm' || sband !== 'stable') && (
-                <div className="flex gap-3 font-mono text-[0.5625rem] uppercase tracking-[0.14em]">
-                  {jband !== 'calm' ? (
-                    <span className={jband === 'corrosive' ? 'text-danger' : 'text-warn'}>
-                      {t('relations.jealousy')} {t(`jealousy.${jband}`)}
-                    </span>
-                  ) : null}
-                  {sband !== 'stable' ? (
-                    <span className={sband === 'critical' ? 'text-danger' : 'text-warn'}>
-                      {t('relations.strain')} {t(`strain.${sband}`)}
-                    </span>
-                  ) : null}
-                </div>
-              )}
             </section>
           );
         })}

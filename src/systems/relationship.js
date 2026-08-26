@@ -1,28 +1,44 @@
 /**
- * The relationship model. CLAUDE.md section 5.
+ * The relationship model. CLAUDE.md Part I.8.
  *
- * Two axes plus a wound counter:
- *   affection      - how emotionally close
- *   admissibility - how nameable / showable it is
- *   strain        - accumulated damage; the only thing that produces a Bad End
+ * Two axes and nothing else:
+ *   affection      - how emotionally close she is
+ *   admissibility  - how far either of them could let this BE SEEN
  *
- * Bad Ends are exits from the map, not regions on it. Low/low is where every
- * run starts, so which ending fires is decided by the high-water marks at the
- * moment of collapse, not by the current coordinates.
+ * `admissibility` is restraint as a number, and it is the whole reason this is
+ * not a generic romance. It rises only when something happened where others
+ * could see it and it survived. Deeply close and completely unable to name it is
+ * a stable, interesting place to be - not a failure.
+ *
+ * WHAT USED TO BE HERE AND IS NOT ANY MORE.
+ *
+ * `strain` is gone (Part I.8). It locked stances (retired), shortened scenes
+ * (retired), gated repair events (never built), and decided bad ends. With the
+ * model deciding affection, a bad scene simply moves affection down - THAT IS THE
+ * DAMAGE - and a second damage axis only code can read is exactly the hidden
+ * machinery this redesign removes. `mood` replaces it on the player's side, where
+ * it belongs.
+ *
+ * `jealousy` is gone with it, on the same argument and it is the same argument.
+ * A rumor lands in an absent member's dossier and does nothing until she is in
+ * front of the player, at which point the model reads it and writes her reaction.
+ * Jealousy stops being a number ticking in the background and becomes a scene.
+ *
+ * `applySceneOutcome` is gone because nothing computes what a scene was worth any
+ * more: `systems/values.js` applies the deltas the model asked for, round by
+ * round, bounded. The plateau brake it carried went with it - see `resolveStage`
+ * below, which still NAMES the plateau because that is a true reading of where a
+ * relationship sits. What it no longer does is silently refuse a gain the model
+ * already decided on, which would be the code authoring the scene again.
+ *
+ * Bad Ends are exits from the map, not regions on it. Low/low is where every run
+ * starts, so which ending fires is decided by the high-water marks at the moment
+ * of collapse, not by the current coordinates.
  *
  * Pure. No React, no network, no Math.random.
  */
 
-import {
-  STAGE_A_MIN,
-  RECKLESS_GAP,
-  PLATEAU_SLACK,
-  STRAIN_BANDS,
-  STRAIN_DECAY_PER_GOOD_SCENE,
-  CRITICAL_SCENES_TO_BAD_END,
-  REPAIR_STRAIN_DROP,
-} from '../config/constants.js';
-import { clamp } from './rng.js';
+import { STAGE_A_MIN, RECKLESS_GAP, PLATEAU_SLACK } from '../config/constants.js';
 
 export const STAGE_LADDER = [
   'stranger',
@@ -34,16 +50,25 @@ export const STAGE_LADDER = [
   'out',
 ];
 
+/**
+ * A fresh relationship. Two axes, two high-water marks, nothing else.
+ *
+ * `stage` is NOT stored, and that is a correction rather than a simplification.
+ * It used to be a field kept up to date by `applySceneOutcome`; `applyDeltas`
+ * replaced that function and never wrote it, so the moment v2 landed every
+ * relation carried the stage it started at, forever, while the day screen showed
+ * the right one because it happened to call `resolveStage` itself. Same shape as
+ * `affection` vs `intimacy`: two correct halves and a stale join between them.
+ *
+ * So it goes the way `focusId` already goes - derived at read time, never stored,
+ * impossible to be wrong about.
+ */
 export function newRelation(startAffection = 5) {
   return {
     affection: startAffection,
     admissibility: 0,
-    strain: 0,
-    jealousy: 0,
     peakAffection: startAffection,
     peakAdmissibility: 0,
-    criticalScenes: 0,
-    stage: resolveStage(startAffection, 0),
     endingLocked: null,
   };
 }
@@ -71,11 +96,33 @@ export function resolveStage(affection, admissibility) {
   return tier;
 }
 
-export function strainBand(strain) {
-  if (strain >= STRAIN_BANDS.critical) return 'critical';
-  if (strain >= STRAIN_BANDS.rift) return 'rift';
-  if (strain >= STRAIN_BANDS.tense) return 'tense';
-  return 'stable';
+/** The stage a relation is at, from the two numbers that decide it. */
+export function stageOf(rel = {}) {
+  return resolveStage(rel.affection ?? 0, rel.admissibility ?? 0);
+}
+
+/**
+ * Move affection by a fixed amount the WORLD decided, and keep the peak honest.
+ *
+ * This is not a back door into the model's job. Every number a SCENE is worth
+ * comes through `systems/values.js`, bounded and budgeted, because the model
+ * decided it. This is for the two things the world decides on its own: a shared
+ * dorm evening pays everybody in the room a little (section 10b), and an opener
+ * is paid for by what the player knew and spent (section 11). Neither is a
+ * judgement about how the conversation went - one is cooking together and the
+ * other is a purchase - which is exactly why they are allowed to be a constant.
+ *
+ * It replaces `applySceneOutcome`, which took a delta bag and also carried the
+ * plateau brake, the strain decay and the bad-end trigger. Those are gone; this
+ * is the one line of it that had a job left.
+ */
+export function addAffection(rel, delta = 0) {
+  const affection = Math.max(0, Math.min(100, (rel.affection ?? 0) + delta));
+  return {
+    ...rel,
+    affection,
+    peakAffection: Math.max(rel.peakAffection ?? 0, affection),
+  };
 }
 
 /** True once this relationship has been somewhere worth losing. */
@@ -85,82 +132,27 @@ export function hasHistory(rel) {
 
 /**
  * Bottom-left means Stranger on a fresh run and Aftermath on a collapsed one.
- * Same coordinates, different framing and a different chip set.
+ * Same coordinates, different framing.
  */
 export function isAftermath(rel) {
   return hasHistory(rel) && rel.affection < 30;
 }
 
 /**
- * Apply the accumulated result of one scene.
- *
- * `delta` is computed by the systems that watched the scene, never reported by
- * the model: { affection, admissibility, strain, good }.
- * `good` marks a scene that went well, which is what lets strain decay.
- */
-export function applySceneOutcome(rel, delta = {}) {
-  const next = { ...rel };
-
-  /**
-   * The plateau has to actually plateau.
-   *
-   * `confidante` is described as "affection outran admissibility and stalled"
-   * in section 5 and as a plateau everywhere else, but nothing stalled: a
-   * relationship on the plateau went on gaining affection scene after scene, so
-   * a full campaign ended with all five members at affection 100, admissibility
-   * near zero, and `confidante_end` for everybody. Not one good ending was
-   * reachable by any policy, including one that took a public risk in every
-   * scene it could - the headless campaign harness found this immediately and
-   * no unit test could, because `resolveStage` was right and this function was
-   * right and only the join between them was wrong.
-   *
-   * So: while she is on the plateau, getting closer is not on offer. Nothing
-   * is taken away - admissibility still moves, strain still decays, the
-   * openers still land as scenes - but the number that measures how close you
-   * are stops until the thing that is holding it back is dealt with. That is
-   * the game's own thesis in one line: privacy is safe, and stagnant.
-   *
-   * Walking ONTO the plateau is still allowed - the gain that takes her there
-   * lands, and the stall starts on the next scene. A wall you can see yourself
-   * hit reads as a rule; one that catches you mid-step reads as a bug.
-   */
-  const stalled = rel.stage === 'confidante';
-  const affectionGain = delta.affection ?? 0;
-
-  next.affection = clamp(next.affection + (stalled && affectionGain > 0 ? 0 : affectionGain));
-  next.admissibility = clamp(next.admissibility + (delta.admissibility ?? 0));
-  next.strain = clamp(next.strain + (delta.strain ?? 0));
-
-  if (delta.good && (delta.strain ?? 0) <= 0) {
-    next.strain = clamp(next.strain - STRAIN_DECAY_PER_GOOD_SCENE);
-  }
-
-  next.peakAffection = Math.max(next.peakAffection, next.affection);
-  next.peakAdmissibility = Math.max(next.peakAdmissibility, next.admissibility);
-  next.stage = resolveStage(next.affection, next.admissibility);
-
-  next.criticalScenes = strainBand(next.strain) === 'critical' ? next.criticalScenes + 1 : 0;
-
-  if (next.endingLocked == null && next.criticalScenes >= CRITICAL_SCENES_TO_BAD_END) {
-    next.endingLocked = resolveBadEnd(next);
-  }
-
-  return next;
-}
-
-/** Repair event: available once per cycle per character while in `rift`. */
-export function applyRepair(rel) {
-  if (strainBand(rel.strain) !== 'rift') return rel;
-  return { ...rel, strain: clamp(rel.strain - REPAIR_STRAIN_DROP), criticalScenes: 0 };
-}
-
-/**
  * Which collapse this is. Decided by where it fell FROM.
  * Returns null when there was never enough there to break.
+ *
+ * NOTHING CALLS THIS YET, and that is deliberate rather than an oversight.
+ * `criticalScenes` used to trigger it off two consecutive scenes in the critical
+ * strain band, and strain is gone - so what a collapse IS in v2 is an open
+ * question, and it belongs with the endings work rather than here. Written down
+ * because an unwired function that looks wired is this project's most expensive
+ * recurring bug: `markRisk` was tested, correct, and never called for six
+ * milestones.
  */
 export function resolveBadEnd(rel) {
   if (rel.peakAffection < 40) return null;
-  if (rel.stage === 'reckless') return 'severance_end';
+  if (stageOf(rel) === 'reckless') return 'severance_end';
   if (rel.peakAdmissibility >= 60) return 'exposure_end';
   if (rel.peakAffection >= 70 && rel.admissibility < 30) return 'nameless_end';
   return 'severance_end';
@@ -174,7 +166,7 @@ export function resolveEnding(rel) {
   if (rel.endingLocked) return rel.endingLocked;
   if (rel.peakAffection < 40) return 'drift_end';
 
-  switch (rel.stage) {
+  switch (stageOf(rel)) {
     case 'out':
       return 'out_end';
     case 'ours':
@@ -204,18 +196,21 @@ export function resolveEnding(rel) {
  *
  * `unnamed_end` belongs here. Five relationships that are deeply close and
  * cannot be named is the truest version of this game's balance ending -
- * considerably more interesting than five public girlfriends, and it is the
- * bar the simulator is tuned against.
+ * considerably more interesting than five public girlfriends.
  */
 export const GOOD_ENDINGS = new Set(['out_end', 'ours_end', 'unspoken_end', 'unnamed_end']);
 
 /**
- * The balance ending: every member at `nameless` or above with jealousy held
- * under 50 and nothing collapsed. Reachable, and by design the hardest result
- * in the game.
+ * The balance ending: every member at `nameless` or above, nothing collapsed.
+ *
+ * The jealousy clause is gone with the number behind it. What made the balance
+ * ending hard was never the clause - it is that five routes have to be held
+ * inside a narrow band at once, and every scene spent on one is a scene not
+ * spent on the other four. That pressure is still there; it is now paid in
+ * blocks rather than in a hidden counter.
  */
 export function isBalanceEnding(relations) {
   const all = Object.values(relations);
   if (all.length < 2) return false;
-  return all.every((r) => GOOD_ENDINGS.has(resolveEnding(r)) && r.jealousy < 50 && !r.endingLocked);
+  return all.every((r) => GOOD_ENDINGS.has(resolveEnding(r)) && !r.endingLocked);
 }

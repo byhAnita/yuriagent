@@ -191,7 +191,6 @@ export default {
     reckless: 'Reckless',
   },
 
-  jealousy: { calm: 'Calm', piqued: 'Piqued', sharp: 'Sharp', corrosive: 'Corrosive' },
 
   /**
    * Where you stand, in words. PROPOSALS 25.
@@ -214,8 +213,6 @@ export default {
     reckless: 'You are further out in the open with {name} than the two of you are ready for.',
   },
 
-  strain: { stable: 'steady', tense: 'tense', rift: 'a rift', critical: 'breaking' },
-
   relations: {
     open: 'where you stand',
     title: 'Where you stand',
@@ -229,10 +226,8 @@ export default {
      */
     closeShort: 'close',
     nameableShort: 'nameable',
-    jealousy: 'jealousy',
-    strain: 'strain',
     lede: 'Two numbers, not one. Closeness grows anywhere; being nameable only grows where you can be seen.',
-    stalled: 'Stalled. She will not get any closer until the two of you have been seen together, doing something neither of you could deny.',
+    stalled: 'Closeness has run a long way ahead of anything either of you could let be seen. This is as far as it goes while it stays invisible - the way on is to be somewhere people are looking, doing something neither of you could deny.',
   },
 
 
@@ -520,8 +515,6 @@ export default {
     no: {
       not_close: 'you are not that close yet',
       not_nameable: 'not something she could be seen doing',
-      strain: 'not while things are like this',
-      jealousy: 'she is barely speaking to you',
       credits: 'you cannot cover it',
       declined: 'not today',
     },
@@ -529,8 +522,6 @@ export default {
       declined: '{name} thought about it, and said not this time.',
       not_close: '{name} was kind about it. Whatever the two of you are, it is not that yet.',
       not_nameable: '{name} would spend the day with you. Somewhere people could watch her do it is another question, and the answer today is no.',
-      strain: '{name} said no before you had finished asking.',
-      jealousy: '{name} did not even look up.',
       credits: 'You checked what you had, and put the idea away.',
     },
   },
@@ -557,6 +548,21 @@ export default {
      */
     nothingMoved: 'An ordinary hour',
     again: 'Another scene',
+    /**
+     * Who the scene reached. Section 5b, and it is the player-facing half of
+     * `propagate` - without it the whole awareness system is invisible.
+     */
+    foundOut: 'Who found out',
+    saw: '{name} watched you do it',
+    heard: '{name} has heard where you were',
+    approach: '{name} saw you go in and close the door',
+    present: '{name} was in the room',
+    /**
+     * Part I.8, said out loud, because every one of those lines used to be a
+     * jealousy hit landing the moment it was printed and now none of them move
+     * anything at all.
+     */
+    foundOutNote: 'None of that has cost you anything yet. It comes up the next time you are standing in front of her.',
     turnsLeft: 'left',
     outOfTurns: 'The block is over.',
     /**

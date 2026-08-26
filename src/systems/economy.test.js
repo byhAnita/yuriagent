@@ -111,16 +111,26 @@ describe('tasks', () => {
     expect(d.credits).toBeGreaterThan(0);
   });
 
-  it('charges strain to the members a failure actually touched', () => {
-    const out = failTask(task, ['irene', 'yeri']);
+  /**
+   * A FAILURE COSTS THE PLAYER, AND NOBODY ELSE A NUMBER (Part I.8).
+   *
+   * `failTask` used to return a per-member `strain` map when `affectsMembers`
+   * was set - a missed outfit is her problem, not just yours - and that was one
+   * of the places code decided what a thing was worth to her. The axis is gone.
+   *
+   * The beat is not: `affectsMembers` is still on the task, and letting somebody
+   * down belongs in a scene where she can say so. Wiring that note into the tail
+   * is phase 4's job, and this test is the marker for it.
+   */
+  it('charges a failure to the player and to no relationship', () => {
+    const out = failTask(task);
     expect(out.competence).toBeLessThan(0);
-    expect(out.strain.irene).toBe(8);
-    expect(out.strain.yeri).toBe(8);
+    expect(out.energy).toBeLessThan(0);
+    expect(out).not.toHaveProperty('strain');
   });
 
-  it('charges no member strain when the failure touched nobody', () => {
-    const kit = { ...task, affectsMembers: false };
-    expect(failTask(kit, ['irene']).strain).toEqual({});
+  it('says the same thing about a task that touched nobody', () => {
+    expect(failTask({ ...task, affectsMembers: false })).toEqual(failTask(task));
   });
 
   it('clamps player stats', () => {

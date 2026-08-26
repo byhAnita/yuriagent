@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rumorProbability, proximity, propagate, WEIGHT_WITNESSED } from './rumor.js';
+import { rumorProbability, proximity, propagate } from './rumor.js';
 import { newRelation } from './relationship.js';
 import { makeRng } from './rng.js';
 
@@ -10,7 +10,7 @@ const CAST = [
 ];
 
 const relations = (patch = {}) =>
-  Object.fromEntries(CAST.map((c) => [c.id, { ...newRelation(50), stage: 'nameless', ...patch }]));
+  Object.fromEntries(CAST.map((c) => [c.id, { ...newRelation(50), ...patch }]));
 
 /** Deterministic dice so the assertions are about the model, not luck. */
 const always = () => 0;
@@ -74,7 +74,7 @@ describe('propagate', () => {
   });
 
   it('a public scene reaches the others when the dice allow', () => {
-    const { rumors, jealousyDeltas } = propagate({
+    const { rumors } = propagate({
       scene,
       subject,
       cast: CAST,
@@ -82,7 +82,7 @@ describe('propagate', () => {
       rng: always,
     });
     expect(rumors.map((r) => r.memberId).sort()).toEqual(['jisoo', 'nana']);
-    expect(jealousyDeltas.nana).toBeGreaterThan(0);
+    expect(rumors.every((r) => r.kind === 'heard')).toBe(true);
   });
 
   it('phrases rumors from her point of view, never as a transcript', () => {
@@ -120,11 +120,11 @@ describe('propagate', () => {
     expect(rumors[0].text).not.toContain('咖啡厅');
   });
 
-  it('a present member witnesses directly, with no roll and a bigger hit', () => {
+  it('a present member witnesses directly, with no roll', () => {
     // `singledOut` because co-presence alone no longer buys a witnessed event -
     // see `witnessed.test.js`, which owns that rule.
     const group = { ...scene, presentIds: ['irene', 'nana'], singledOut: true };
-    const { rumors, jealousyDeltas } = propagate({
+    const { rumors } = propagate({
       scene: group,
       subject,
       cast: CAST,
@@ -134,7 +134,8 @@ describe('propagate', () => {
     const nana = rumors.find((r) => r.memberId === 'nana');
     expect(nana.witnessed).toBe(true);
     expect(nana.exposure).toBeGreaterThanOrEqual(80);
-    expect(jealousyDeltas.nana).toBeGreaterThan(jealousyDeltas.jisoo ?? 0);
+    // Jisoo was not in the room and the dice refused, so she hears nothing.
+    expect(rumors.find((r) => r.memberId === 'jisoo')).toBeUndefined();
   });
 
   it('private scene, public approach: the bedroom leaks nothing but is still seen', () => {
@@ -146,7 +147,7 @@ describe('propagate', () => {
       presentIds: ['irene'],
       dormWitnessIds: ['nana'],
     };
-    const { rumors, jealousyDeltas } = propagate({
+    const { rumors } = propagate({
       scene: bedroom,
       subject,
       cast: CAST,
@@ -156,24 +157,38 @@ describe('propagate', () => {
     expect(rumors).toHaveLength(1);
     expect(rumors[0].memberId).toBe('nana');
     expect(rumors[0].text).toContain('close the door');
-    expect(jealousyDeltas.nana).toBeGreaterThan(0);
-    expect(jealousyDeltas.jisoo).toBeUndefined();
   });
 
-  it('costs a deeply invested member far more than a distant one', () => {
+  /**
+   * IT COSTS NOTHING, AND THAT IS THE CHANGE (Part I.8).
+   *
+   * This used to assert that a deeply invested member took ten times the
+   * jealousy of a distant one - the exclusivity curve, scaled. Both the number
+   * and the curve are gone: a rumor lands in her dossier and does nothing at all
+   * until she is in front of the player, at which point the model reads it and
+   * writes what it cost her.
+   *
+   * So the two women get the same entry, and the difference between what Nana
+   * feels about it and what Jisoo feels about it is the model's answer, in a
+   * scene, rather than a multiplier here.
+   */
+  it('writes the same entry whatever she already feels', () => {
     const mixed = {
       irene: newRelation(50),
-      nana: { ...newRelation(80), affection: 80, stage: 'unspoken' },
-      jisoo: { ...newRelation(10), affection: 10, stage: 'stranger' },
+      nana: { ...newRelation(80), affection: 80 },
+      jisoo: { ...newRelation(10), affection: 10 },
     };
-    const { jealousyDeltas } = propagate({
-      scene,
-      subject,
-      cast: CAST,
-      relations: mixed,
-      rng: always,
-    });
-    expect(jealousyDeltas.nana).toBeGreaterThan(jealousyDeltas.jisoo * 10);
+    const out = propagate({ scene, subject, cast: CAST, relations: mixed, rng: always });
+
+    expect(out.rumors.map((r) => r.memberId).sort()).toEqual(['jisoo', 'nana']);
+    expect(new Set(out.rumors.map((r) => r.text)).size).toBe(1);
+    expect(out).not.toHaveProperty('jealousyDeltas');
+  });
+
+  /** Nothing here may touch a relationship. It reports; the scene decides. */
+  it('never returns a number', () => {
+    const out = propagate({ scene, subject, cast: CAST, relations: relations(), rng: always });
+    expect(Object.keys(out).sort()).toEqual(['noticed', 'rumors']);
   });
 
   it('is reproducible from a seed', () => {
@@ -188,8 +203,24 @@ describe('propagate', () => {
     expect(run()).toEqual(run());
   });
 
-  it('weights witnessing well above hearsay', () => {
-    expect(WEIGHT_WITNESSED).toBeGreaterThan(2);
+  /**
+   * The three tiers survive as three DIFFERENT THINGS SHE FOUND OUT, which is
+   * all they were ever really for. What is gone is the weight each carried into
+   * a jealousy formula.
+   */
+  it('keeps watching and hearing distinguishable in what it writes', () => {
+    const watched = propagate({
+      scene: { ...scene, presentIds: ['irene', 'nana'], singledOut: true },
+      subject,
+      cast: CAST,
+      relations: relations(),
+      rng: never,
+    });
+    const heard = propagate({ scene, subject, cast: CAST, relations: relations(), rng: always });
+
+    expect(watched.rumors[0].kind).toBe('witnessed');
+    expect(heard.rumors[0].kind).toBe('heard');
+    expect(watched.rumors[0].text).not.toBe(heard.rumors[0].text);
   });
 });
 
@@ -201,11 +232,11 @@ describe('propagate', () => {
  * > interaction. Player just join the special event group chat, there
  * > shouldn't be a witness.
  *
- * `WEIGHT_PRESENT` prices choosing one woman in a room that held three. At an
+ * The presence tier prices choosing one woman in a room that held three. At an
  * anchor event the company put all five there, attendance IS the day, and the
  * engine picks an addressee whether the player singles anybody out or not - so
- * every event ended with four jealousy hits and four lines on the aftermath
- * screen for turning up to work.
+ * every event ended with four lines on the aftermath screen for turning up to
+ * work.
  */
 describe('a room nobody chose to be in', () => {
   const cast = [
@@ -233,10 +264,9 @@ describe('a room nobody chose to be in', () => {
     propagate({ scene, subject, cast, relations, rng: makeRng(3) });
 
   it('charges nobody for attending the concept meeting', () => {
-    const { noticed, jealousyDeltas, rumors } = run(event());
+    const { noticed, rumors } = run(event());
 
     expect(noticed, 'four bystanders were charged for turning up to work').toEqual([]);
-    expect(jealousyDeltas).toEqual({});
     expect(rumors).toEqual([]);
   });
 
@@ -246,26 +276,30 @@ describe('a room nobody chose to be in', () => {
    * is where it is loudest. Only the presence tier is exempted.
    */
   it('still witnesses a gesture at full weight', () => {
-    const { rumors, jealousyDeltas } = run(event({ singledOut: true }));
+    const { rumors } = run(event({ singledOut: true }));
 
     expect(rumors).toHaveLength(4);
     expect(rumors.every((r) => r.kind === 'witnessed')).toBe(true);
     for (const c of cast.slice(1)) {
-      expect(jealousyDeltas[c.id], `${c.id} took nothing for watching`).toBeGreaterThan(0);
+      expect(
+        rumors.some((r) => r.memberId === c.id),
+        `${c.id} saw nothing`,
+      ).toBe(true);
     }
   });
 
   /**
    * ...and an ORDINARY crowded room is untouched, which is the whole reason
-   * this is a flag rather than a change to `WEIGHT_PRESENT`. The player chose
+   * this is a flag rather than a change to the presence tier. The player chose
    * to spend that block on one of the three women standing in it.
    */
   it('leaves an ordinary occupied room charging presence', () => {
-    const { noticed, jealousyDeltas } = run(
-      event({ collective: false, locationId: 'practice_room' }),
-    );
+    const { noticed, rumors } = run(event({ collective: false, locationId: 'practice_room' }));
 
+    // Told to the PLAYER, and written into nobody's dossier. Section 5b: a note
+    // every group scene saying she was in the room would flush the four-entry
+    // FIFO of anything that mattered.
     expect(noticed).toHaveLength(4);
-    expect(Object.keys(jealousyDeltas)).toHaveLength(4);
+    expect(rumors).toEqual([]);
   });
 });

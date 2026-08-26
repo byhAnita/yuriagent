@@ -94,6 +94,24 @@ export function beginScene({
     /** The last `sum|` the model offered, whichever round it arrived on. */
     summary: null,
     canon: [],
+    /**
+     * Did the player make an overt move toward her, in front of anybody else?
+     *
+     * Set by `runRound` when a `note` goes in - handing something over, or
+     * bringing up something she once let slip - which are the only two acts in
+     * v2 that a witness could DESCRIBE. It decides whether the other women in
+     * the room end the scene with something in `heard_about` or merely having
+     * been there (`systems/rumor.js`).
+     *
+     * PASSED, NEVER INFERRED. Section 5b records what happens otherwise: the v1 loop
+     * read the same flag off `Boolean(note)` at a time when the only thing that
+     * appended a note was an opener, then a closing directive arrived eight
+     * weeks later as one more note and quietly made every group scene in the
+     * game end witnessed. The number was right; the question was wrong. Here the
+     * only note that exists IS a gesture - but that is a fact about today, so
+     * the flag is a field rather than a test.
+     */
+    gestured: false,
   };
 }
 
@@ -210,6 +228,7 @@ export async function runRound(session, { client, choice = null, note = null, on
       player,
       summary: round.summary ?? session.summary,
       canon: round.canon.length ? [...session.canon, ...round.canon] : session.canon,
+      gestured: session.gestured || Boolean(note),
       ended: last,
     },
     round: { ...round, refused, last },
@@ -280,6 +299,8 @@ export function endScene(session) {
     player: session.player,
     canon: session.canon,
     exposure: session.exposure,
+    /** For `systems/rumor.js`: did anybody watching have something to describe? */
+    gestured: session.gestured,
     summary: session.summary ?? fallback,
   };
 }

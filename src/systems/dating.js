@@ -18,10 +18,8 @@
  * early costs the block and nothing else.
  */
 
-import { DATE_KINDS, DATE_REFUSING_STRAIN, DATE_JEALOUSY_FACTOR } from '../config/constants.js';
+import { DATE_KINDS } from '../config/constants.js';
 import { locationsForRole, resolveSlot } from '../data/phaseMaps.js';
-import { strainBand } from './relationship.js';
-import { jealousyBand } from './jealousy.js';
 import { makeRng, deriveSeed } from './rng.js';
 
 export const DATE_KIND_IDS = Object.keys(DATE_KINDS);
@@ -54,11 +52,22 @@ export const REFUSAL = {
   NOT_CLOSE: 'not_close',
   /** Not nameable enough - a public date, short on `admissibility`. */
   NOT_NAMEABLE: 'not_nameable',
-  STRAIN: 'strain',
-  JEALOUSY: 'jealousy',
   CREDITS: 'credits',
   DECLINED: 'declined',
 };
+
+/**
+ * `STRAIN` and `JEALOUSY` used to be reasons here, and both are gone with the
+ * numbers behind them (Part I.8). Two axes decide a date now, which is what this
+ * file's own first paragraph always claimed - a private date asks how close are
+ * we, a public one asks how nameable is this - and the two hidden counters were
+ * the only thing that could ever answer with a third question.
+ *
+ * A member who has just heard something she does not like still refuses; she
+ * refuses IN THE SCENE, in her own words, because the rumor is in her tail and
+ * the model reads it. That is a better refusal than a band lookup, and it is the
+ * whole of what "jealousy becomes a scene" means.
+ */
 
 /**
  * Which "not yet" this kind of date gets. Derived from the gate rather than
@@ -90,29 +99,22 @@ export function acceptChance(rel, kind) {
   const def = DATE_KINDS[kind];
   if (!def) return 0;
 
-  if (strainBand(rel.strain) === DATE_REFUSING_STRAIN || rel.strain >= 90) return 0;
-
   const value = rel[def.axis] ?? 0;
   if (value < def.floor) return 0;
 
-  const base = clamp01((value - def.floor) / (def.sure - def.floor));
-  const factor = DATE_JEALOUSY_FACTOR[jealousyBand(rel.jealousy ?? 0)] ?? 1;
-  return clamp01(base * factor);
+  return clamp01((value - def.floor) / (def.sure - def.floor));
 }
 
 /**
  * Why she cannot be asked right now, or null if she can.
  *
- * Ordered by what the player most needs to know. Strain and jealousy outrank
- * the axis because they are states the player can repair; "too soon" is the
- * one that just means keep going.
+ * Ordered by what the player most needs to know: which axis is short first,
+ * because that is the one that says what to go and do, and the price second.
  */
 export function blockedReason(rel, kind, player = {}) {
   const def = DATE_KINDS[kind];
   if (!def) return axisRefusal(kind);
 
-  if (strainBand(rel.strain) === DATE_REFUSING_STRAIN || rel.strain >= 90) return REFUSAL.STRAIN;
-  if (jealousyBand(rel.jealousy ?? 0) === 'corrosive') return REFUSAL.JEALOUSY;
   if ((rel[def.axis] ?? 0) < def.floor) return axisRefusal(kind);
   if (def.credits > 0 && (player.credits ?? 0) < def.credits) return REFUSAL.CREDITS;
   return null;

@@ -13,7 +13,6 @@ import DormMap from '../map/DormMap.jsx';
 import WeekCalendar from '../map/WeekCalendar.jsx';
 import { DAY_NAMES } from '../../systems/calendar.js';
 import { resolveStage } from '../../systems/relationship.js';
-import { jealousyBand } from '../../systems/jealousy.js';
 
 function Stat({ label, value, tone = 'dim' }) {
   return (
@@ -275,13 +274,19 @@ export default function Day({
         <ul className="flex flex-col gap-0.5">
           {cards.map((c) => {
             const rel = relations[c.id];
-            const band = jealousyBand(rel.jealousy);
             const stage = resolveStage(rel.affection, rel.admissibility);
             /**
              * The plateau is the one state that demands a specific answer -
              * take her somewhere visible and make an overt move - and it is
-             * the one the player cannot infer, because all it does is stop a
-             * number they were not watching. It says so, in the same row.
+             * the one the player cannot infer from a stage name and a number.
+             * It says so, in the same row.
+             *
+             * The jealousy band used to sit here beside it, and it is gone with
+             * the number behind it (Part I.8). What a member has heard about the
+             * player lands in her dossier and does nothing at all until she is in
+             * front of them - so this row is CORRECTLY stale for anybody not
+             * recently seen. That is the design rather than a gap: you do not
+             * know how she took it until you see her.
              */
             const stalled = stage === 'confidante';
             return (
@@ -295,15 +300,6 @@ export default function Day({
                   {t(`stage.${stage}`)}
                   {stalled ? ` - ${t('stage.confidanteHint')}` : ''}
                 </span>
-                {band !== 'calm' ? (
-                  <span
-                    className={`uppercase tracking-[0.1em] ${
-                      band === 'corrosive' ? 'text-danger' : 'text-warn'
-                    }`}
-                  >
-                    {t(`jealousy.${band}`)}
-                  </span>
-                ) : null}
                 <span className="w-6 text-right tabular-nums text-dim">
                   {Math.round(rel.affection)}
                 </span>

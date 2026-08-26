@@ -218,7 +218,6 @@ export default {
     reckless: '冒进',
   },
 
-  jealousy: { calm: '平静', piqued: '介意', sharp: '尖锐', corrosive: '侵蚀' },
 
   /**
    * 玩家看到的关系描述，第二人称。与 `agent/promptBuilder.js` 里的 STANDING
@@ -236,8 +235,6 @@ export default {
     reckless: '你和 {name} 暴露在外的程度，已经超过你们能承受的了。',
   },
 
-  strain: { stable: '平稳', tense: '紧绷', rift: '裂痕', critical: '濒临断裂' },
-
   relations: {
     open: '关系',
     title: '你们走到哪一步',
@@ -246,10 +243,8 @@ export default {
     nameable: '可被言说',
     closeShort: '亲近',
     nameableShort: '可言说',
-    jealousy: '介意',
-    strain: '损耗',
     lede: '是两个数，不是一个。亲近在哪里都能长；能不能被说出口，只在被人看见的地方才会长。',
-    stalled: '停滞了。除非你们一起被人看见、做一件谁都否认不了的事，否则她不会再靠近。',
+    stalled: '亲近已经远远走在了「能被人看见」的前面。只要这段关系还见不得光，它就只能走到这里——往前的路，是在有人看着的地方，做一件谁都否认不了的事。',
   },
 
 
@@ -526,8 +521,6 @@ export default {
     no: {
       not_close: '你们还没到那一步',
       not_nameable: '这不是她能被人看见的事',
-      strain: '现在这样不行',
-      jealousy: '她几乎不跟你说话了',
       credits: '你付不起',
       declined: '今天不行',
     },
@@ -535,8 +528,6 @@ export default {
       declined: '{name} 想了想，说这次就算了。',
       not_close: '{name} 拒绝得很客气。你们现在是什么关系，还不是那个关系。',
       not_nameable: '{name} 愿意跟你处一天。至于在别人看得见的地方，今天的答案是不行。',
-      strain: '你还没说完，{name} 就拒绝了。',
-      jealousy: '{name} 连头都没抬。',
       credits: '你算了算手里的钱，把这个念头收了回去。',
     },
   },
@@ -559,6 +550,12 @@ export default {
     sceneOver: '这一幕结束了',
     nothingMoved: '普通的一小时',
     again: '再来一幕',
+    foundOut: '谁知道了',
+    saw: '{name} 全看在眼里',
+    heard: '{name} 听说了你去过哪里',
+    approach: '{name} 看见你进去，把门关上了',
+    present: '{name} 当时也在场',
+    foundOutNote: '这些暂时还没让你付出任何代价。等你下次站到她面前，它会被提起来。',
     turnsLeft: '剩余',
     outOfTurns: '这个时段结束了。',
     fallback: {

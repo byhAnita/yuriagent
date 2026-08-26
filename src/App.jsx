@@ -28,7 +28,7 @@ import { getCast } from './data/cast.js';
 import { getIdentity, DEFAULT_IDENTITY } from './data/identities.js';
 import { buildLineup } from './systems/castBuilder.js';
 import { doingLine } from './data/activities.js';
-import { newRelation, applySceneOutcome } from './systems/relationship.js';
+import { newRelation, addAffection } from './systems/relationship.js';
 import { newMemory } from './agent/memory.js';
 import { generateWeek, occupancyAt } from './systems/calendar.js';
 import {
@@ -48,6 +48,7 @@ import {
 import { purchase, spendGesture } from './systems/economy.js';
 import { resolveSoloAction, soloLedgerText, applySoloPlayerDelta, goodwillTargets } from './systems/soloWork.js';
 import { appendLedger, addDossierEntry } from './agent/memory.js';
+import { propagate } from './systems/rumor.js';
 import { newPool, noteScene, fromSave as poolFromSave } from './agent/pool.js';
 import { addDecisions } from './systems/canon.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
@@ -308,19 +309,10 @@ export default function App() {
       nextPlayer = spendBlockEnergy(nextPlayer, extraEnergy);
 
       if (rolledDay) {
-        if (task && !finished) {
-          const fail = failTask(task, castIds);
-          nextPlayer = applyPlayerDeltas(nextPlayer, fail);
-          if (Object.keys(fail.strain).length > 0) {
-            setRelations((rs) => {
-              const out = { ...rs };
-              for (const [id, strain] of Object.entries(fail.strain)) {
-                out[id] = applySceneOutcome(out[id], { strain });
-              }
-              return out;
-            });
-          }
-        }
+        // Player deltas only. A failure that landed on somebody used to write
+        // strain into her relation; Part I.8 retires the axis, and the beat it
+        // was standing in for belongs in a scene rather than in a counter.
+        if (task && !finished) nextPlayer = applyPlayerDeltas(nextPlayer, failTask(task));
         nextPlayer = restOvernight(nextPlayer, { secrecyBaseline: identity.startStats.secrecy });
         setTaskState(newTaskState());
       }
@@ -338,7 +330,7 @@ export default function App() {
        */
       setScreen(over ? 'endings' : 'day');
     },
-    [run, player, task, taskState, castIds, identity],
+    [run, player, task, taskState, identity],
   );
 
   /**
@@ -419,7 +411,7 @@ export default function App() {
       if (ids.length > 0) {
         setRelations((rs) => {
           const out = { ...rs };
-          for (const id of ids) out[id] = applySceneOutcome(out[id], { affection: 1, good: true });
+          for (const id of ids) out[id] = addAffection(out[id], 1);
           return out;
         });
       }
@@ -643,6 +635,58 @@ export default function App() {
       );
     }
     /**
+     * WHO FOUND OUT. CLAUDE.md section 5b, Part I.8.
+     *
+     * This is the join that went missing when `onSceneEnd` was rewritten for v2:
+     * `propagate` was correct, tested, and called by nothing, so for the whole of
+     * phase 2 a player could take somebody to the cafe at noon in comeback week
+     * and the other four would never hear a word about it. Exactly the `markRisk`
+     * shape - two right halves and no line between them - and exactly why it is
+     * asserted in `App.dom.test.jsx` rather than only written here.
+     *
+     * What it produces is only ever a `heard_about` entry, phrased from her side.
+     * It moves no number: she reacts the next time she is in front of the player,
+     * because the model reads her dossier in the tail. That staleness is the
+     * design (Part I.8), not a gap in it.
+     *
+     * `singledOut` is passed rather than inferred - `result.gestured` is set by
+     * the round loop when the player actually handed something over.
+     */
+    const subjectId = (pendingScene?.presentIds ?? [])[0];
+    const subject = subjectId ? cards.find((c) => c.id === subjectId) : null;
+    let heard = { rumors: [], noticed: [] };
+    if (subject) {
+      heard = propagate({
+        scene: {
+          exposure: result.exposure,
+          phase: run.phase,
+          locationId: pendingScene.locationId,
+          presentIds: pendingScene.presentIds ?? [],
+          singledOut: Boolean(result.gestured),
+          shared: Boolean(pendingScene.shared),
+          collective: Boolean(pendingScene.event),
+          dormWitnessIds: pendingScene.dormWitnessIds ?? [],
+        },
+        subject,
+        cast: cards,
+        relations,
+        rng: makeRng(deriveSeed(SEED, `rumor:${run.week}:${run.day}:${run.block}:${sceneNo}`)),
+      });
+      if (heard.rumors.length > 0) {
+        setMemory((m) => {
+          let dossier = m.dossier;
+          for (const r of heard.rumors) {
+            dossier = addDossierEntry(dossier, r.memberId, 'heard_about', {
+              text: r.text,
+              kind: r.kind,
+            });
+          }
+          return { ...m, dossier };
+        });
+      }
+    }
+
+    /**
      * `relations` here is still the PRE-scene value - `setRelations` above is
      * queued, not applied - which is what lets the aftermath show a diff rather
      * than a payout. Nothing in v2 computes what a scene was worth, so the only
@@ -651,6 +695,8 @@ export default function App() {
     setOutcome({
       ...result,
       before: relations,
+      rumors: heard.rumors,
+      noticed: heard.noticed,
       date: pendingScene?.date ?? null,
       event: pendingScene?.event ?? null,
     });
@@ -678,7 +724,7 @@ export default function App() {
     const pay = (memberId, delta) =>
       setRelations((rs) => ({
         ...rs,
-        [memberId]: applySceneOutcome(rs[memberId], { affection: delta, good: true }),
+        [memberId]: addAffection(rs[memberId], delta),
       }));
 
     return {
@@ -1085,6 +1131,28 @@ function Aftermath({ outcome, cards, onContinue, t }) {
 
   const sign = (n) => `${n > 0 ? '+' : ''}${n}`;
 
+  /**
+   * Everybody the scene reached, in one list, worst first.
+   *
+   * `rumors` are the three things she FOUND OUT and they go in her dossier;
+   * `noticed` is who merely stood there, which writes nothing down but still has
+   * to be said. One list on screen because from the player's side they are one
+   * question, and the wording is what carries the difference.
+   */
+  const nameOf = (id) => cards.find((c) => c.id === id)?.name ?? id;
+  const found = [
+    ...(outcome.rumors ?? []).map((r) => ({
+      id: r.memberId,
+      name: nameOf(r.memberId),
+      kind: r.kind === 'heard' ? 'heard' : r.kind === 'approach' ? 'approach' : 'saw',
+    })),
+    ...(outcome.noticed ?? []).map((n) => ({
+      id: n.memberId,
+      name: nameOf(n.memberId),
+      kind: 'present',
+    })),
+  ];
+
   return (
     <div className="stage mx-auto flex min-h-dvh w-full max-w-[26rem] flex-col gap-5 px-5 py-8">
       <h2 className="font-display text-[1.5rem] tracking-wide">{t('vn.sceneOver')}</h2>
@@ -1130,6 +1198,37 @@ function Aftermath({ outcome, cards, onContinue, t }) {
 
       {outcome.summary ? (
         <p className="font-body text-[0.875rem] italic text-dim">{outcome.summary}</p>
+      ) : null}
+
+      {/*
+        WHO FOUND OUT. CLAUDE.md section 5b, Part I.8.
+
+        This is the player-facing half of `propagate`, and without it the whole
+        system is invisible - which is the failure pillar 4 exists to forbid:
+        memory must show in mechanics, not only in prose. v1 shipped exactly that
+        hole and it was reported as "missing witness info displayed in ending of
+        the scene".
+
+        The note underneath is not decoration either. Every line here USED to be
+        a jealousy hit landing the moment it was printed, and now none of them
+        move anything at all: the entry sits in her dossier until she is in front
+        of the player and the model reads it. A player who is not told that will
+        read four names and assume four penalties.
+      */}
+      {found.length > 0 ? (
+        <section className="flex flex-col gap-1">
+          <span className="font-mono text-[0.5625rem] uppercase tracking-[0.16em] text-dim">
+            {t('vn.foundOut')}
+          </span>
+          <ul className="flex flex-col gap-0.5">
+            {found.map(({ id, name, kind }) => (
+              <li key={id} className="font-body text-[0.8125rem] text-dim">
+                {t(`vn.${kind}`).replace('{name}', name)}
+              </li>
+            ))}
+          </ul>
+          <p className="font-body text-[0.75rem] leading-snug text-faint">{t('vn.foundOutNote')}</p>
+        </section>
       ) : null}
 
       <button

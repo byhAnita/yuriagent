@@ -86,19 +86,22 @@ export function completeTask(task) {
 
 /**
  * Called at day rollover for a task that was never discharged.
- * Returns player deltas plus a per-member strain delta when the failure landed
- * on someone - a missed outfit is her problem, not just yours.
  *
- * @param {string[]} castIds - who the failure touched
+ * Player deltas only. It used to also return a per-member `strain` delta when
+ * `affectsMembers` was set - a missed outfit is her problem, not just yours - and
+ * that was one of the four places code decided what a thing was worth to her.
+ * Part I.8 retires the axis it wrote into.
+ *
+ * The consequence is not lost, it moves: `affectsMembers` is still on the task
+ * and the tail still says what the player owes today, so a member who was let
+ * down can be let down IN A SCENE, in her own words, which is both a better beat
+ * and the only kind of damage v2 has. Wiring that note is phase 4's job, and it
+ * is written here rather than left implied because a flag with no reader is how
+ * this codebase loses things.
  */
-export function failTask(task, castIds = []) {
-  if (!task) return { competence: 0, energy: 0, strain: {} };
-
-  const strain = {};
-  if (task.affectsMembers) {
-    for (const id of castIds) strain[id] = FAILURE.strainIfAffected;
-  }
-  return { competence: FAILURE.competence, energy: FAILURE.energy, strain };
+export function failTask(task) {
+  if (!task) return { competence: 0, energy: 0 };
+  return { competence: FAILURE.competence, energy: FAILURE.energy };
 }
 
 export function applyPlayerDeltas(player, deltas) {

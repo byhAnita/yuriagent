@@ -86,19 +86,23 @@ describe('it explains the states the player cannot infer', () => {
     expect(screen.getAllByText(en.relations.stalled).length).toBe(cards.length);
   });
 
-  it('says nothing about strain or jealousy while there is nothing to say', () => {
-    show();
-    expect(screen.queryByText(new RegExp(en.relations.jealousy, 'i'))).toBeNull();
-    expect(screen.queryByText(new RegExp(en.relations.strain, 'i'))).toBeNull();
-  });
-
-  it('surfaces both once there is', () => {
+  /**
+   * TWO AXES, AND NOTHING ELSE ON THE PANEL (Part I.8).
+   *
+   * This used to carry a strain band and a jealousy band whenever either was
+   * above calm, and both numbers are gone. A stale one on an old save must not
+   * bring the row back either - `fromSave` merges what it finds, so a v1
+   * relation still has the fields.
+   */
+  it('never shows a strain or jealousy band, even off an old save', () => {
     const relations = Object.fromEntries(cards.map((c) => [c.id, rel({ affection: 40 })]));
     relations[cards[0].id] = rel({ affection: 40, jealousy: 60, strain: 70 });
     show({ relations });
 
-    expect(screen.getAllByText(new RegExp(en.relations.jealousy, 'i')).length).toBe(1);
-    expect(screen.getAllByText(new RegExp(en.relations.strain, 'i')).length).toBe(1);
+    // By content rather than by key, because the keys are gone too - `i18n/`
+    // carried `relations.jealousy`, `relations.strain` and both band tables,
+    // and a label with nothing behind it reads as a feature that is merely off.
+    expect(document.body.textContent).not.toMatch(/jealous|strain|rift|corrosive/i);
   });
 });
 

@@ -219,4 +219,52 @@ describe('the round engine', () => {
     expect(tail).toContain('affection 12');
     expect(tail).not.toMatch(/NaN|undefined/);
   });
+
+  /**
+   * Did the player do anything the room could NAME? Section 5b, Part I.8.
+   *
+   * `systems/rumor.js` needs one bit at scene exit, and section 5b is emphatic
+   * about where it may come from: PASSED, never inferred. The v1 loop read the
+   * same flag off `Boolean(note)` when the only thing that appended a note was
+   * an opener; a closing directive arrived eight weeks later as one more note
+   * and quietly made every group scene in the game end witnessed, so four
+   * absent members took the heaviest event in the game for a conversation.
+   *
+   * Today the only note that exists IS a gesture - but that is a fact about
+   * today, which is exactly why the session carries a field instead of the exit
+   * path re-deriving it.
+   */
+  describe('what the room could describe', () => {
+    it('is false through a scene of nothing but talking', async () => {
+      const client = scripted(round(), round());
+      let s = open();
+      ({ session: s } = await runRound(s, { client }));
+      ({ session: s } = await runRound(s, { client, choice: 'Ask about the choreography' }));
+
+      expect(s.gestured).toBe(false);
+      expect(endScene(s).gestured).toBe(false);
+    });
+
+    it('turns true the moment the player hands something over', async () => {
+      const client = scripted(round(), round());
+      let s = open();
+      ({ session: s } = await runRound(s, { client }));
+      ({ session: s } = await runRound(s, {
+        client,
+        note: 'System note: the player has just handed Irene a hand warmer.',
+      }));
+
+      expect(endScene(s).gestured).toBe(true);
+    });
+
+    it('stays true for the rest of the scene', async () => {
+      const client = scripted(round(), round(), round());
+      let s = open();
+      ({ session: s } = await runRound(s, { client }));
+      ({ session: s } = await runRound(s, { client, note: 'System note: she was handed a dish.' }));
+      ({ session: s } = await runRound(s, { client, choice: 'Say nothing' }));
+
+      expect(endScene(s).gestured).toBe(true);
+    });
+  });
 });

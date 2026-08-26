@@ -4,13 +4,16 @@ Rolling state of the build. Updated **before** a milestone closes, never after.
 `CLAUDE.md` is the design; this file is where the design currently stands in code.
 
 ---
-## Current: v2 engine, phase 2 complete. On `feat/v2-engine`.
+## Current: v2 engine, phase 3a complete. On `feat/v2-engine`.
 
 **A day plays.** Map to room to scene to aftermath to map, offline, asserted end
 to end - and live against DeepSeek in `zh`, four rounds, four options each.
 
-The v1 game is still at https://byhAnita.github.io/yuriagent/ (`dev@8c7a051`).
-Nothing has been deployed from v2 yet, deliberately.
+Deployed from `feat/v2-engine` to https://byhAnita.github.io/yuriagent/ - the
+hand-test build, not a release (section 17). `?debug=1` for the in-page console.
+
+**Phase 3a is built and NOT yet on that URL.** The deployed build is
+`f4263c0`; strain, jealousy and the scene-screen rework all landed after it.
 
 ### Read these three, in this order
 
@@ -95,8 +98,8 @@ authored event days and events are unwired until phase 5: five people in a room
 with no agenda and no establishing beat. It does not crash; it is simply flat.
 Same for a weekend date and a shared dorm evening.
 
-**Inert until phase 3, so not bugs:** jealousy (nobody hears about anything
-yet) and `strain` in the relationship panel.
+**Jealousy and strain are not inert any more - they are GONE** (phase 3a, above).
+If a played build still shows either, it is the older deploy.
 
 Five questions, none of which has a test and none of which anybody but Yuhan can
 answer:
@@ -107,42 +110,80 @@ answer:
    happening.
 3. Is the genre there - 试探/心动/克制 - or is it a well-observed workplace drama?
 4. Hidden occupancy: a search, or a lottery? Walking in is free but costs a tap.
-5. The value bar: too many numbers, now that they are not hidden?
+5. ~~The value bar: too many numbers?~~ **Answered: yes.** Phase 3b, above.
 
-### PICK UP HERE: phase 3
+### Phase 3a, built: the second and third numbers are gone
 
-**Split deliberately in two**, because half of it depends on the hand test and
-half does not. Do the independent half first.
+`strain` and `jealousy` are both deleted, on one argument stated twice in
+Part I.8: **a damage axis only code can read is the hidden machinery v2 exists to
+remove.** With that, `applySceneOutcome` had one line left worth keeping.
 
-**Independent of the hand test - safe to build while it runs:**
+| gone | what took over |
+|---|---|
+| `strain`, `strainBand`, `applyRepair`, `criticalScenes` | a bad scene moves affection down. That IS the damage |
+| `systems/jealousy.js` entirely - bands, decay, exclusivity, `JEALOUSY_GAIN_SCALE` | the rumor sits in `heard_about` and does nothing until she is in front of the player, then the model reads it |
+| `applySceneOutcome` | `systems/values.js` for anything a scene decided; `addAffection` for the two things the WORLD decides - a shared dorm evening, and an opener paid for in credits |
+| the plateau BRAKE | `confidante` survives as a reading. Code silently refusing a gain the model chose is the v1 arrangement |
+| `failTask`'s per-member strain map | player deltas only. `affectsMembers` stays on the task; letting somebody down belongs in a scene, which is phase 4 |
+| the strain/jealousy date refusals | two axes decide a date, which is what §10 always claimed |
+
+**`stage` is no longer stored either, and that was a live bug.**
+`applySceneOutcome` used to keep the field current; `applyDeltas` replaced it and
+never wrote it, so from the moment v2 landed every relation carried the stage it
+was created at while the day screen happened to look right because it calls
+`resolveStage` itself. Derived now, like `focusId`, and `stageOf()` ignores a
+stale field left by an old save.
+
+**`propagate` is called again.** It had not been since `onSceneEnd` was rewritten
+for v2 - correct, tested, and joined to nothing, which is the `markRisk` shape
+for the second time in this project. `systems/rumorJoin.test.js` reads the caller
+rather than the callee, because no unit test can see a missing call: a unit test
+supplies the call itself.
+
+**The aftermath says who found out**, and says that it has not cost anything
+*yet*. Every one of those lines used to be a jealousy hit landing as it printed;
+a player shown four names and no note reads four penalties.
+
+### Phase 3b, from the hand test: the scene is one screen
+
+Reported after the first phone session, and the two halves had one cause.
+
+**Too many values** - every member in the room on two lines each plus four player
+stats. Collapsed to the woman whose portrait is up, one line, the rest behind a
+tap that carries the count of who else is there.
+
+**1.5 viewports tall at font scale 1**, so every round had to be scrolled past
+before it could be answered. `.stage-fill` is a fixed height and a flex item
+defaults to `min-height: auto`, so nothing could give and the column overflowed.
+Now every row states how it yields - `shrink-0` or a `min-h-` floor, asserted in
+`RoundStage.dom.test.jsx` - the options never move, and the prose scrolls inside
+its own box with the name plate pinned.
+
+Also fixed there: `RoundStage` rendered `Portrait` **and** `PortraitRow`, so a
+group scene drew the same woman twice with one of them collapsed to nothing.
+
+### PICK UP HERE: phase 3c, then 4
+
+**Still waiting on the hand test** - each is a judgement the answers change:
+
+- whether `Read her` is rationed by energy, by uses, or at all
+- the dossier panel: where the player sees what she knows and what she has heard
+- whether the collapsed value strip is now too little rather than too much
+
+**Phase 4, and none of it waits:**
 
 | | |
 |---|---|
-| `systems/relationship.js` | delete `strain` and `applySceneOutcome`. Keep `resolveStage`, `resolveBadEnd`, `resolveEnding`, `GOOD_ENDINGS`, `newRelation`, the peaks. The `intimacy` -> `affection` rename is already done (below) |
-| `systems/rumor.js` | `propagate` writes `heard_about` entries only. **No jealousy** - Part I.8 makes jealousy a scene rather than a number ticking in the background, so an absent member does not react until she is in front of the player |
-| `App.jsx` | call `propagate` at scene exit. It has not been called since `onSceneEnd` was rewritten, which is why jealousy is inert |
-| `systems/jealousy.js` | probably deleted. Check whether anything still reads a band once rumors stop carrying deltas |
-| `RelationsModal` | drop the strain and jealousy rows |
+| `agent/memory.js` | dossier cut to three categories: `facts`, `told_her`, `heard_about`. `shared_moments` duplicated the pool; `open_threads` existed only to feed `strain` |
+| `systems/economy.js` | gifts stop being knowledge-gated - delete the `requires` substring matching, which broke twice. The model reads her `facts` and reacts |
+| tier 3 | the day's task, when it was failed and `affectsMembers` is set. That is where the beat `failTask` used to buy with strain now belongs |
+| `systems/soloWork.js` | snooping's best prize becomes **access** - a routine - rather than an object (§10.11) |
 
-**Waits on the hand test**, because each is a judgement the answers change:
-
-- the value bar's contents and density (question 5)
-- whether `Read her` is rationed by energy, by uses, or at all
-- the dossier panel
-
-Then phase 4 (dossier cut to three categories, gifts stop being knowledge-gated)
-and phase 5 (events, canon injection, endings).
-
-**The rename is DONE, and it was a live bug rather than tidying.** `intimacy`
-is `affection` everywhere, including `startAffection` on the cards,
-`affectionDelta` in `economy.js`, `entryAffection` on the dorm door and
-`focusAffection` in a save. For a while both names existed: `newRelation` wrote
-one and `systems/values.js` wrote the other, so a fresh run had `affection:
-undefined` - the value bar showed 0 while the day screen showed 5, and tier 3
-told the model **`affection NaN`**, which is the number the pacing bands and the
-whole genre correction are read off. 879 tests were green, because every test
-built its relations by hand with the name it expected and only `App` called
-`newRelation`. `roundEngine.test.js` now asserts that join.
+Then phase 5: events, canon injection into tier 3, endings. **What a collapse IS
+in v2 is an open question** - `criticalScenes` used to trigger `resolveBadEnd` off
+two consecutive critical-strain scenes, and there is no strain. `resolveBadEnd`
+is kept, correct, and called by nothing; it says so in its own header, because an
+unwired function that looks wired is this project's most expensive recurring bug.
 
 **Currently unwired, pending phase 5, and each is a live import that was
 removed from `App.jsx`:** canon injection into tier 3 (the parser and engine

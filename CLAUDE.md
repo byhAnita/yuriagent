@@ -107,6 +107,42 @@ rest. The block stays the unit of opportunity cost, so rounds inside it are free
 ~30 seconds of reading against a ~4 second wait, which is the right ratio.
 `ROUND_WORDS` in `config/rules.js` is the one number to move.
 
+### ...and that length is a layout constraint, not just a reading one
+
+**Found on the phone, first hand test of the v2 loop.** The scene ran about 1.5
+viewports tall at font scale 1, so every single round had to be scrolled past
+before it could be answered - four options, sitting off the bottom of the screen,
+every time.
+
+Two causes, and the second is the general rule.
+
+**Too many numbers.** The value strip drew *every* member in the room on two
+lines each, plus four player stats - up to eleven rows of chrome above a
+paragraph of Chinese. So it collapses to the woman whose portrait is up, one
+line, with the rest behind a tap that carries the count of who else is in the
+room. That is not a retreat from I.2: the rule there is that the numbers are
+**available**, and four absent members' values are not what anybody is reading
+while she is talking.
+
+**Nothing said which row was allowed to give.** `.stage-fill` is a fixed height,
+and a flex item defaults to `min-height: auto` - so every child was sized by its
+own content, nothing could shrink, and the column simply overflowed the page.
+
+> **Every row in the scene column states how it yields.** `shrink-0` means fixed
+> and deliberately so; a `min-h-` floor means it gives way down to there. There
+> is no third option, and it is asserted rather than described.
+
+Header, value strip and options are fixed - **the options are what the player
+acts with, so they never move.** The portrait takes the slack off a zero basis
+and falls to a floor. The prose is the one element whose length the code does not
+control, so it shrinks last and **scrolls inside its own box**, name plate
+pinned. A long round costs a scroll in the text box; it never costs the options
+their place under the thumb.
+
+The root keeps `overflow-y-auto` as a belt: §20's sheet that grew off the top of
+the screen took its close button with it and the run stopped there. Nothing on
+this screen may become unreachable.
+
 ### One call per round
 
 The options come out of the same call as the prose. That is the whole saving:
@@ -283,6 +319,38 @@ affection, a bad scene simply moves affection down - *that is the damage* - and 
 second damage axis only code can read is exactly the hidden machinery this
 redesign removes. `mood` replaces it on the player's side, where it belongs.
 
+**And `jealousy` goes with it, for the same reason and it is the same reason.**
+This was not obvious when Part I was written - I.1's table still says jealousy is
+the model's - so it is worth stating as a deletion rather than a reassignment.
+§5b's engine was a number that ticked upward in the background of a woman the
+player had not seen for two weeks, with a band table, a decay rate, an
+exclusivity curve and a scale factor found by a harness that no longer exists.
+Every one of those is code deciding what something was worth to her.
+
+What replaces it is better and cost nothing to build, because half of it was
+already there. `propagate` still runs at scene exit and still writes a
+`heard_about` entry in her own words - and then **nothing happens.** The entry
+sits in her dossier until she is in front of the player, at which point tier 3
+carries it, the model reads it, and her reaction moves affection like everything
+else does. **Jealousy stops being a number and becomes a scene.**
+
+Three consequences, all deliberate:
+
+- **The day screen is correctly stale** for anybody not recently seen. You do not
+  know how she took it until you see her. That is the mechanic, not a gap in it.
+- **A date refusal loses two of its reasons.** `rift` and `corrosive` used to
+  refuse on their own; now two axes decide a date, which is what §10 always
+  claimed. A member who has heard something she dislikes still refuses - in the
+  scene, in her own words, which is a better refusal than a band lookup could
+  ever write.
+- **The aftermath screen has to say who found out**, and say that it has not cost
+  anything *yet*. Every one of those lines used to be a hit landing as it
+  printed. A player shown four names and no note will read four penalties.
+
+The three propagation tiers survive intact. They were never really about the
+number: they decide **what she found out** - watched it, heard about it, or was
+merely standing there - and that is still three different things.
+
 Player stats: `selfId`, `energy`, `secrecy`, `credits`, `mood`. `competence` is
 dropped; `selfId` is lifted from `rv-simulator` and is the one stat that is
 actually about being a queer woman in this industry.
@@ -364,10 +432,13 @@ writer, proving the loop, the calendar and the memory pool do not crash or drift
 > theming, git workflow and the content guardrails are unchanged and still
 > authoritative.
 >
-> **Superseded by Part I:** §5 (relationship model - `strain` and the delta
-> engine), §6 (interaction loop - stances and chips **in their entirety**), §7
-> (memory - five blocks become three tiers), §8 (prompt assembly), §9 (the beat
-> contract), §11 (gift gating), §19 rule 2 (memory in English).
+> **Superseded by Part I:** §5 (relationship model - `strain`, the delta engine,
+> and the plateau BRAKE, though the plateau survives as a reading), §5b (the
+> jealousy engine **in its entirety** - bands, decay, exclusivity, scale; the
+> three propagation tiers and the exposure-drives-awareness argument survive),
+> §6 (interaction loop - stances and chips **in their entirety**), §7 (memory -
+> five blocks become three tiers), §8 (prompt assembly), §9 (the beat contract),
+> §11 (gift gating), §19 rule 2 (memory in English).
 >
 > They are kept rather than deleted because the *arguments* in them are the
 > record of how this design was arrived at, and several are still load-bearing

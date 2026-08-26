@@ -28,39 +28,21 @@ export const STAGE_A_MIN = {
 export const RECKLESS_GAP = 20; // admissibility > affection + this => 'reckless'
 export const PLATEAU_SLACK = 10; // admissibility < aMin - this => 'confidante'
 
-export const STRAIN_BANDS = { stable: 0, tense: 40, rift: 60, critical: 90 };
-export const STRAIN_DECAY_PER_GOOD_SCENE = 3;
-export const CRITICAL_SCENES_TO_BAD_END = 2;
-export const REPAIR_STRAIN_DROP = 30;
-
-// --- jealousy ---------------------------------------------------------------
-export const JEALOUSY_BANDS = { calm: 0, piqued: 25, sharp: 50, corrosive: 75 };
-export const JEALOUSY_DECAY_PER_ATTENTIVE_SCENE = 5;
-export const JEALOUSY_CONVERT = { jealousy: -20, affection: 2 };
-
 /**
- * Scale factor on jealousy gain.
+ * THE STRAIN AND JEALOUSY BLOCKS ARE GONE, AND SO ARE THEIR NUMBERS.
  *
- * Found by balanceSim: the raw formula (weight * affection/100 * exclusivity)
- * tops out near 2.5, while the bands sit at 25/50/75 and decay is 5 per
- * attentive scene. Unscaled, jealousy could never reach even `piqued` and the
- * whole pressure system was inert - a competent spread player hit the balance
- * ending 31.8% of the time. The shape of the formula was right; the scale was
- * not.
+ * `STRAIN_BANDS`, `STRAIN_DECAY_PER_GOOD_SCENE`, `CRITICAL_SCENES_TO_BAD_END`,
+ * `REPAIR_STRAIN_DROP`, `JEALOUSY_BANDS`, `JEALOUSY_DECAY_PER_ATTENTIVE_SCENE`,
+ * `JEALOUSY_CONVERT`, `JEALOUSY_GAIN_SCALE`, `EXCLUSIVITY` and
+ * `DATE_JEALOUSY_FACTOR` were all tuned against a harness that no longer exists,
+ * for two axes Part I.8 retires. A constant nobody reads is worse than no
+ * constant: it reads as a knob, and somebody eventually turns it.
+ *
+ * What they measured has not gone away - it moved. A bad scene moves affection
+ * down, which is the damage; a member who has heard something reacts the next
+ * time she is in the room, which is the pressure. Both are the model's answer
+ * now, bounded by `config/rules.js` rather than by a band table here.
  */
-export const JEALOUSY_GAIN_SCALE = 6;
-
-export const EXCLUSIVITY = {
-  stranger: 0.2,
-  colleague: 0.4,
-  good_friends: 0.7,
-  nameless: 1.2,
-  unspoken: 1.6,
-  ours: 2.2,
-  out: 2.5,
-  confidante: 0.9,
-  reckless: 1.8,
-};
 
 // --- exposure & rumor -------------------------------------------------------
 export const RUMOR_FLOOR = 30; // below this exposure, nothing propagates
@@ -161,19 +143,6 @@ export const DATE_KINDS = {
   public: { axis: 'admissibility', floor: 30, sure: 55, credits: 12 },
   private: { axis: 'affection', floor: 50, sure: 75, credits: 0 },
 };
-
-/** She will not be asked out while this hurt. Section 5b's bands. */
-export const DATE_REFUSING_STRAIN = 'rift';
-
-/**
- * Jealousy multipliers on the acceptance roll.
- *
- * `piqued` is above 1 on purpose. Section 5b calls that band an OPPORTUNITY
- * rather than a tax - she is unsettled about where your attention has been, so
- * being asked for a whole day is the reassurance she wanted. `sharp` is a real
- * penalty and `corrosive` is a refusal.
- */
-export const DATE_JEALOUSY_FACTOR = { calm: 1, piqued: 1.15, sharp: 0.6, corrosive: 0 };
 
 /**
  * What a scene has to achieve before it pays any affection (section 6).

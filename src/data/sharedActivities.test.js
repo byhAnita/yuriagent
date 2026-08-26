@@ -112,11 +112,11 @@ describe('nobody is being singled out', () => {
 
   /**
    * The rule the whole proposal turns on. Without it the release valve is its
-   * own tax: five people watching a film generates four witnessed jealousy
-   * events, at a group scene's exposure floor, for an evening in which nothing
+   * own tax: five people watching a film would put a witnessed entry in four
+   * dossiers, at a group scene's exposure floor, for an evening in which nothing
    * happened to anyone in particular.
    */
-  it('produces no witnessed jealousy at all', () => {
+  it('writes into nobody dossier at all', () => {
     const out = propagate({
       scene: { ...scene, shared: true },
       subject: { id: 'irene', name: 'Irene' },
@@ -126,7 +126,7 @@ describe('nobody is being singled out', () => {
     });
 
     expect(out.rumors).toEqual([]);
-    expect(out.jealousyDeltas).toEqual({});
+    expect(out.noticed).toEqual([]);
   });
 
   /**

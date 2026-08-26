@@ -68,14 +68,18 @@ describe('the two axes give two different answers', () => {
 });
 
 /**
- * Strain and jealousy still outrank both, and that ordering is deliberate:
- * they are states the player can repair, where "not yet" only means keep going.
+ * THE AXIS FIRST, AND IT IS NOW THE ONLY THING AHEAD OF THE PRICE.
+ *
+ * Strain and jealousy used to outrank both, on the grounds that they were
+ * states the player could repair where "not yet" only means keep going. Part
+ * I.8 retires both numbers, and the argument survives them: what the player most
+ * needs to hear is which of two completely different questions they were short
+ * on, because that is the one that says what to go and do.
  */
-describe('the ordering is unchanged', () => {
-  it('says the damage first', () => {
-    expect(blockedReason(rel({ affection: 0, strain: 70 }), 'private', rich)).toBe(REFUSAL.STRAIN);
-    expect(blockedReason(rel({ affection: 0, jealousy: 90 }), 'private', rich)).toBe(
-      REFUSAL.JEALOUSY,
+describe('the ordering', () => {
+  it('names the axis before the price', () => {
+    expect(blockedReason(rel({ affection: 0, admissibility: 0 }), 'public', { credits: 0 })).toBe(
+      REFUSAL.NOT_NAMEABLE,
     );
   });
 

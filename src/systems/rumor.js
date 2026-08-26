@@ -1,20 +1,37 @@
 /**
- * Awareness propagation. CLAUDE.md section 5b.
+ * Awareness propagation. CLAUDE.md section 5b, Part I.8.
  *
- * A member cannot be jealous about something she does not know about. Rather
- * than making everyone omniscient, awareness falls out of the exposure value the
- * scene already computed - which is what gives exposure its third job and makes
- * privacy safe-but-stagnant while visibility is real-but-contested.
+ * A member cannot react to something she does not know about. Rather than making
+ * everyone omniscient, awareness falls out of the exposure value the scene
+ * already computed - which is what gives exposure its third job and makes privacy
+ * safe-but-stagnant while visibility is real-but-contested.
  *
  * The rumor is always phrased from HER point of view, never as a transcript.
  * That is the one channel by which one member learns anything about another
- * member's scene, and it is what keeps prompt block 3 roster-scoped.
+ * member's scene, and it is what keeps the tail roster-scoped.
+ *
+ * THIS FILE WRITES WHAT SHE KNOWS. IT NO LONGER WRITES WHAT SHE FEELS.
+ *
+ * It used to return a jealousy delta per member, and jealousy was a number that
+ * ticked upward in the background of a woman the player had not seen for two
+ * weeks. Part I.8 retires it on the same grounds as `strain`: a second damage
+ * axis only code can read is exactly the hidden machinery v2 removes.
+ *
+ * What replaces it is better and costs nothing. The rumor lands in her
+ * `heard_about` and sits there doing nothing at all until she is in front of the
+ * player - at which point the model reads it in the tail and writes her reaction,
+ * which moves affection the same way everything else does. **Jealousy stops being
+ * a number and becomes a scene**, and the day screen's reading for anybody not
+ * recently seen is CORRECTLY stale. You do not know how she took it until you see
+ * her.
+ *
+ * The three tiers survive that change, because they were never really about the
+ * number - they decide what she FINDS OUT, which is still three different things.
  */
 
 import { RUMOR_FLOOR, WITNESS_EXPOSURE_FLOOR } from '../config/constants.js';
 import { approachIsWitnessed } from './exposure.js';
 import { LOCATIONS } from '../data/locations.js';
-import { jealousyGain } from './jealousy.js';
 import { clamp } from './rng.js';
 
 /**
@@ -35,13 +52,18 @@ import { clamp } from './rng.js';
  *               and it was a conversation.
  *   RUMOR     - she found out afterwards. More charged than watching, because
  *               finding out is itself a small betrayal of not being told.
- *   WITNESSED - she watched the player make an overt move: a risk stance, a
- *               gift, a gesture. What a witness could DESCRIBE, which is the
- *               same test section 6 uses for what may move admissibility.
+ *   WITNESSED - she watched the player make an overt move: handing something
+ *               over, or bringing up something she once let slip. What a witness
+ *               could DESCRIBE, which is the same test Part I.9 uses for what may
+ *               move admissibility.
+ *
+ * The three used to carry weights - 0.5, 1 and 2.5 - which were multipliers into
+ * a jealousy formula that no longer exists. They are gone with it. What the tiers
+ * still decide is the only thing they ever needed to: PRESENT tells the player
+ * somebody was watching and writes nothing down, and the other two write a
+ * `heard_about` entry in her own words. How much it costs her is the model's
+ * answer, next time she is in the room.
  */
-export const WEIGHT_PRESENT = 0.5;
-export const WEIGHT_RUMOR = 1;
-export const WEIGHT_WITNESSED = 2.5;
 
 /**
  * How likely an absent member is to be in a position to hear about it.
@@ -106,8 +128,7 @@ export function phraseApproach(subjectName) {
 /**
  * Resolve what every absent member learns at scene exit.
  *
- * Deterministic given `rng`, so a seeded run replays identically and balanceSim
- * can hold the dice fixed while coefficients move.
+ * Deterministic given `rng`, so a seeded run replays identically.
  *
  * @param {object} args
  *   scene    - { exposure, phase, locationLabel, presentIds, locationId,
@@ -122,15 +143,16 @@ export function phraseApproach(subjectName) {
  *   cast     - [{ id, name }]
  *   relations- { [id]: relation }
  *   rng      - () => [0,1)
- * @returns {{ rumors: Array, noticed: Array, jealousyDeltas: Object }}
- *   `noticed` is who was in the room while the player spent it on somebody
- *   else. It carries no dossier entry (section 5b) but the player is told, or
- *   the scene ends silent while three people's jealousy moves.
+ * @returns {{ rumors: Array, noticed: Array }}
+ *   `rumors` is what gets written into `heard_about`, in her own words.
+ *   `noticed` is who was in the room while the player spent it on somebody else.
+ *   It carries no dossier entry (section 5b) but the player is told, or a 1v1 in
+ *   an occupied room ends completely silent - which is how it was reported:
+ *   "missing witness info displayed in ending of the scene".
  */
 export function propagate({ scene, subject, cast, relations, rng }) {
   const rumors = [];
   const noticed = [];
-  const jealousyDeltas = {};
   const present = new Set(scene.presentIds ?? [subject.id]);
 
   for (const member of cast) {
@@ -142,7 +164,7 @@ export function propagate({ scene, subject, cast, relations, rng }) {
      * A shared activity singles nobody out, so nobody is watching anybody.
      *
      * Without this the dorm's release valve is its own tax: five people cooking
-     * together would generate four witnessed jealousy events, at the exposure
+     * together would generate four witnessed entries each, at the exposure
      * floor of a group scene, for an evening in which nothing happened to
      * anyone in particular. PROPOSALS 15.
      */
@@ -151,13 +173,13 @@ export function propagate({ scene, subject, cast, relations, rng }) {
     /**
      * Nobody chose to be at the concept meeting, including the player.
      *
-     * `WEIGHT_PRESENT` prices "she was in the room while the player spent the
+     * The presence tier means "she was in the room while the player spent the
      * block on somebody else", and that is exactly right for a practice room
      * with three of them in it: the player picked one. An ANCHOR EVENT is not
      * that. The company put all five in the room, attendance is the day, and
      * the client picks an addressee by construction - so every event ended
-     * with four "she watched you give your time to Irene" lines and four
-     * jealousy hits, fourteen times a campaign, for turning up to work.
+     * with four "she watched you give your time to Irene" lines, fourteen
+     * times a campaign, for turning up to work.
      *
      * Reported five separate times in the day-three playtest, once per event
      * played: *"I didn't give Irene anything or do special interaction. Player
@@ -176,17 +198,19 @@ export function propagate({ scene, subject, cast, relations, rng }) {
     /**
      * She was in the room, and nothing happened that she could name.
      *
-     * A small amount of pressure and NO dossier entry. `heard_about` is for
+     * The player is told, and NO dossier entry is written. `heard_about` is for
      * things she found out; she does not need a note reminding her she was
      * standing there. Writing one every group scene would also flush the
      * four-entry FIFO of anything that actually mattered.
      *
-     * `singledOut` is set by the turn loop when the player makes an overt move
-     * toward one member in front of the others: a risk stance, a gift, or a
-     * gesture. Below that bar this is what a group scene costs.
+     * `singledOut` is PASSED by the round loop, never inferred, when the player
+     * makes an overt move toward one member in front of the others: handing
+     * something over, or bringing up something she once let slip. Section 5b has
+     * the argument, and it is a scar - reading the flag off "did a system note go
+     * out" made every group scene in v1 end witnessed, because a second kind of
+     * note arrived eight weeks later and quietly answered a different question.
      */
     if (present.has(member.id) && !scene.singledOut) {
-      jealousyDeltas[member.id] = jealousyGain(WEIGHT_PRESENT, rel);
       /**
        * Reported separately from `rumors`, and still writes no dossier entry.
        *
@@ -194,9 +218,9 @@ export function propagate({ scene, subject, cast, relations, rng }) {
        * `heard_about` is what SHE knows and a note every group scene saying she
        * was in the room would flush its four-entry FIFO of anything that
        * mattered. This is what the PLAYER is told at scene exit, and without it
-       * a 1v1 in an occupied room ends completely silent while three people's
-       * jealousy moves - which is how it was reported: "missing witness info
-       * displayed in ending of the scene".
+       * a 1v1 in an occupied room ends completely silent about the three people
+       * who watched it happen - which is how it was reported: "missing witness
+       * info displayed in ending of the scene".
        */
       noticed.push({ memberId: member.id, subjectId: subject.id, subjectName: subject.name });
       continue;
@@ -207,8 +231,8 @@ export function propagate({ scene, subject, cast, relations, rng }) {
      *
      * Section 5b's claim that a group scene is the highest-risk,
      * highest-reward place in the game is untouched - this is still the
-     * loudest single act available, at five times the weight of simply being
-     * in the room together. It now requires an act.
+     * loudest single act available, and unlike simply being in the room it
+     * leaves something in four other women's memories. It requires an act.
      */
     if (present.has(member.id)) {
       const exposure = Math.max(scene.exposure, WITNESS_EXPOSURE_FLOOR);
@@ -222,7 +246,6 @@ export function propagate({ scene, subject, cast, relations, rng }) {
         witnessed: true,
         exposure,
       });
-      jealousyDeltas[member.id] = jealousyGain(WEIGHT_WITNESSED, rel);
       continue;
     }
 
@@ -238,7 +261,6 @@ export function propagate({ scene, subject, cast, relations, rng }) {
         witnessed: true,
         exposure: WITNESS_EXPOSURE_FLOOR,
       });
-      jealousyDeltas[member.id] = jealousyGain(WEIGHT_WITNESSED, rel);
       continue;
     }
 
@@ -255,9 +277,8 @@ export function propagate({ scene, subject, cast, relations, rng }) {
         witnessed: false,
         exposure: scene.exposure,
       });
-      jealousyDeltas[member.id] = jealousyGain(WEIGHT_RUMOR, rel);
     }
   }
 
-  return { rumors, noticed, jealousyDeltas };
+  return { rumors, noticed };
 }
