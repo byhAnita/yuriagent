@@ -1,9 +1,11 @@
 # YuriAgent - Project Blueprint
 
-> **Status: v2 engine, phases 0-4 built and hand-tested twice.** A campaign
-> plays: map to room to scene to aftermath to map, on a real clock, live in
-> `zh`. Phase 5 - events, canon, endings - is next, and `docs/PROGRESS.md`
-> opens with what to pick up and what is already written but unread.
+> **Status: v2 engine, phases 0-4 built and hand-tested twice; phase 5 in
+> progress.** A campaign plays: map to room to scene to aftermath to map, on a
+> real clock, live in `zh`. Events, dates, shared evenings and canon now reach
+> the model (I.5). **What remains is one design decision - what a collapse IS
+> without `strain`** - and `docs/PROGRESS.md` states the three options and what
+> each costs. Everything else about the endings screen is already wired.
 >
 > Read Part 0 and Part I first - they are the current design. Part II is the v1
 > engine, most of which still stands, with the superseded sections marked.
@@ -411,6 +413,58 @@ token prefix stays byte-identical between rounds.
 
 **One summary per scene, not per round.** The client knows which round is last,
 so only that round emits `sum|`.
+
+### What today is, and it took five unread values to find the slot
+
+Tier 3 carries three more things, all model-facing English, all of them values
+that some piece of code had been computing correctly and handing over for the
+whole of the v2 rebuild while **nothing downstream read any of them**:
+
+| | says | ordinary block |
+|---|---|---|
+| `## THE DAY` | the frame - setting, movements, and the agenda a day may not leave without settling | absent |
+| `## WHAT THE CAMPAIGN HAS SETTLED` | `run.canon`, two or three lines | **present** |
+| the work line | on one round of a physical event, the day happening rather than being discussed | absent |
+
+**One slot, not three, because an event, a date and a shared dorm evening render
+to the same thing.** `renderFrame` takes any of them; `setup` decides which
+applies and the engine never learns what kind of day it is holding. The event
+outranks a date where they could collide - an event day *is* the event, the map
+is the site, and there is nowhere else to walk (§10).
+
+**Canon is the one that is NOT frame-conditional, and that is the half §7 cares
+most about.** An event reading its own chain is what stops cycle 2 repeating
+cycle 1. A member bringing up the title track in a wardrobe on a Tuesday is what
+makes the decision feel like it happened to the world rather than to a menu -
+and for six milestones canon was written, capped, shown in the handbook, and
+never once put in a prompt. That is exactly the failure pillar 4 forbids.
+
+**The work line is the eleventh instance and the one with a played complaint
+behind it**, stated three times in a single session: no MV shoot, no comeback
+stage, no fan meeting, just a green room. Every mechanism an event has produces
+dialogue *between cast members*, so none of them can represent a thing happening
+**to** the room. v1 answered with a second call; v2 needs none, because a round
+is already the room plus one voice. So it is one line, on the round the engine
+picks - the engine, because it is the only thing that can see the budget - and
+whoever has the floor says her line inside the work rather than in a pause. It
+names no event: the specifics are already authored as that event's `movements`,
+sitting three sections above it in the same tail.
+
+> **The frame is paid on every round, and that is the honest price of tier 3.**
+> v1 froze it in block 4 and paid once a scene. It cannot move up: tier 2 is
+> append-only for the whole **run**, so a per-scene string at its head would
+> invalidate the entire ledger prefix at every door - a far worse trade than the
+> frame. Framed scenes are the minority, and this is the tier that is allowed to
+> change.
+
+`REGISTERS` went in the same pass, along with the four v1 turn constants. v2
+writes one way and it is in `config/rules.js`, byte-stable in tier 1, so
+`REGISTERS.date` had become the house style said twice; what was genuinely
+event-only survives where it can still be true, as the tail's derived `Present:`
+line and as the agenda. **The turn constants leave one open question rather than
+none** - v1 gave a date or an event sixteen turns against a block's eight, and
+v2 draws 8-12 for everything - and it is a play question, so `docs/PROGRESS.md`
+carries it rather than a new band being invented on top of an unmeasured one.
 
 ## I.6 Language: instructed in English, immersed in the locale
 
@@ -3765,6 +3819,7 @@ src/
     pool.js                  # the stepped window: 3 full, then collapse in place
     memory.js                # ledger append + compaction, dossier CRUD
     floorTail.test.js        # who speaks and who is absent, in the rendered tail
+    frameTail.test.js        # the day, the canon and the work line, ditto
     smoke.test.js            # ~40 rounds offline: the loop does not drift
     liveRound.test.js        # the shipped path, live; LIVE_ROUND=1, opt-in
   systems/                   # PURE. no React, no network.
@@ -3780,11 +3835,11 @@ src/
     soloWork.js              # empty rooms: work, snooping, facts and routines
     economy.js               # credits, and handing something over
     exposure.js              # location x block x secrecy -> risk
-    canon.js                 # what the campaign has settled
+    canon.js                 # what the campaign has settled, and what tier 3 reads
     dating.js                # the weekend ask, gated on the two axes
     dossierEntry.js          # { text, factId } - English for the model, id for the UI
     *.test.js                # colocated; vitest
-    *Join.test.js            # source assertions: rumor, routine, floor
+    *Join.test.js            # source assertions: rumor, routine, floor, frame
   tools/
     llmTool.js               # multi-model router, streaming, retries
     mockClient.js            # offline writer; the game runs with no API key
@@ -3803,7 +3858,9 @@ src/
     gifts.js                 # one flat list of objects, nothing gated (I.10)
     facts.js                 # fact ids -> canonical English; i18n/ has display
     cast.js                  # card loader; PROMPT_EXCLUDED_FIELDS
-    events/                  # anchor nodes
+    sceneFrames.js           # date frames; renderFrame - what a whole day is
+    sharedActivities.js      # the dorm's cooking / film evenings, and their frames
+    events/                  # anchor nodes; eventFrame, WORK_INTERLUDE
   ui/
     vn/                      # RoundStage, Portrait, PortraitRow, DialogueBox,
                              # OptionBar, ValueBar, ThoughtBubble, SceneHeader

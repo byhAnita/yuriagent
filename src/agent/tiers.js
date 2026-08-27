@@ -170,6 +170,23 @@ export function buildTier3({
    * composed by `systems/tasks.js` - see `chorePhrase`.
    */
   owed = null,
+  /**
+   * WHAT TODAY IS, for the three kinds of scene that are a whole day rather
+   * than a block: an anchor event, a date, or a shared dorm evening.
+   * Model-facing English, already rendered by `data/sceneFrames.js`, or null
+   * for the ordinary case - which is most of them.
+   */
+  frame = null,
+  /**
+   * The work happening, on the one round of a physical event that gets it.
+   * `roundEngine` decides which round; `data/events/index.js` writes the line.
+   */
+  work = null,
+  /**
+   * What the campaign has settled, rendered by `systems/canon.js`. An ordinary
+   * scene carries the current cycle; an event carries the topics it reads.
+   */
+  canon = null,
   note = null,
   lang = 'en',
 }) {
@@ -285,6 +302,43 @@ export function buildTier3({
     }
   }
 
+  /**
+   * THE DAY, WHEN THERE IS ONE. Part I; sections 10 and 11.
+   *
+   * Three separate places computed a frame and handed it over, and nothing read
+   * any of them: `onShared` set `sceneFrame`, `askOut` set `date`, `onEnter` set
+   * `event` - while `renderFrame`, `dateFrame` and `eventFrame` were imported by
+   * nobody at all. Three more instances of this project's signature defect, and
+   * the first ones found by reading the source rather than by playing.
+   *
+   * What it buys is the thing a whole-day scene has no other way to get. An
+   * ordinary block is a room the model can see from `activity` alone; a date is
+   * a whole afternoon with nothing to aim at, and section 10 measured what that
+   * produces - a concept meeting that settled nothing and spent its one ledger
+   * line on a plate of food. The setting gives the day somewhere to open, the
+   * movements give it somewhere to go, and the agenda names what it is not
+   * allowed to leave without.
+   *
+   * IT IS PAID EVERY ROUND, which is the honest cost of tier 3 being where
+   * volatile things live. v1 froze this in block 4 and paid it once a scene;
+   * here it is a couple of hundred tokens of miss on every round of a framed
+   * scene. It cannot move up: tier 2 is append-only for the whole RUN, so a
+   * per-scene string at its head would invalidate the entire ledger prefix at
+   * every door - which is a far worse trade than paying for the frame. Framed
+   * scenes are the minority, and this is the tier that is allowed to change.
+   */
+  if (frame) lines.push('', '## THE DAY', frame);
+
+  /**
+   * ...and on one round of a day that DOES something, the work itself.
+   *
+   * Passed only on the round `roundEngine` picks, because only the engine can
+   * see the budget - the same argument that put v1's closing directive there.
+   * Every round would be worse than none: a scene where something is always
+   * being reset is a scene where nothing is.
+   */
+  if (work) lines.push('', work);
+
   lines.push('', '## VALUES');
   for (const id of present) {
     const rel = relations[id];
@@ -312,6 +366,27 @@ export function buildTier3({
     if (heard.length) known.push(`${id} - she has heard: ${heard.join('; ')}`);
   }
   if (known.length) lines.push('', '## WHAT IS KNOWN', ...known);
+
+  /**
+   * WHAT THE CAMPAIGN HAS SETTLED. Section 7.
+   *
+   * `systems/canon.js` has been complete and tested since M5 - written by the
+   * event's exit call, shown in the handbook, persisted at schemaVersion 3 - and
+   * the one thing it exists for never happened: nothing ever put it in a prompt.
+   * So the group chose a title track, the player could read about it in a menu,
+   * and no member ever mentioned it again. That is precisely the failure pillar
+   * 4 forbids - memory that shows in plumbing rather than in mechanics.
+   *
+   * Two or three lines of the current cycle on an ordinary block is the half
+   * that makes it visible: Irene bringing up the comeback in a wardrobe on a
+   * Tuesday costs nothing a framed scene was not already paying. An event gets
+   * the topics its `reads` field names, which is what lets a second concept
+   * meeting escalate instead of starting from nothing.
+   *
+   * Capped and superseded upstream (`canonForCycle`), so this renders what it is
+   * handed and never decides what fits.
+   */
+  if (canon) lines.push('', '## WHAT THE CAMPAIGN HAS SETTLED', canon);
 
   /**
    * WHY THIS SCENE IS NOT THE LAST ONE, second half.

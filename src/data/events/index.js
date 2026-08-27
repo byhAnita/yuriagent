@@ -8,15 +8,20 @@
  * FOUR OF THEM COME BACK EVERY CYCLE and two do not, which is fourteen event
  * days in a campaign from six authored ones. See `recurs` for which and why.
  *
- * An event is not a branching node and not a script. It is the same scene
- * engine every other scene runs on, given three things an ordinary block does
- * not get:
+ * An event is not a branching node and not a script. It is the same round loop
+ * every other scene runs on, given two things an ordinary block does not get:
  *
  *   1. a FRAME - a setting, the situations the day may pass through, and the
  *      business it is not allowed to leave without settling
- *   2. the `event` REGISTER - literary, sensory, room for a day to breathe
- *   3. sixteen turns instead of eight (SCENE_TURN_LIMITS.event)
- *   4. an ESTABLISHING BEAT before anyone speaks (`establishingDirective`)
+ *   2. the whole CAST in the room, which is what makes singling one of them out
+ *      the loudest act available to the player
+ *
+ * v1 gave it two more and v2 has neither. The `event` register is now the house
+ * register for every round (`config/rules.js`), and the establishing beat is
+ * simply the first round - a round with no `emo|` line is narration, so two call
+ * types collapsed into the one the loop was making anyway. The sixteen-turn
+ * budget went with `systems/dialogue.js`; see `config/constants.js` for the play
+ * question it leaves open.
  *
  * THE RULE, from `sceneFrames.js` and section 11: a movement sets the
  * SITUATION and never the OUTCOME. "The green room, and who talks to whom in
@@ -302,6 +307,40 @@ export const EVENTS = {
 };
 
 export const EVENT_IDS = Object.keys(EVENTS);
+
+/**
+ * WHAT `physical` IS FOR, now that the interlude call it used to trigger is
+ * gone. Section 10, PROPOSALS 23.
+ *
+ * One complaint, stated three times in a single played session: no description
+ * of the MV shoot, none of the comeback stage, none of the fan meeting. An
+ * anchor event produces a room full of women TALKING ABOUT the day. A meeting
+ * survives that, because a meeting is people talking; a shoot is a shoot, Music
+ * Bank is a stage, and a fan meeting is nine hundred albums and the people who
+ * bought them. What the player got at all three was a green room.
+ *
+ * Not a model failure. Every mechanism an event has produces dialogue between
+ * cast members, because that is what the engine is built to produce, and
+ * nothing in it can represent a thing happening TO the room.
+ *
+ * v1 answered it with a second call - one establishing-shaped beat at the
+ * two-thirds mark, `speaker: null`, no roster entry. v2 does not need the call:
+ * a round is already the room plus one voice, so this is a line in the tail on
+ * the round the engine picks, and whoever has the floor says her line inside
+ * the work instead of in a pause. No new call type, no narration mode, no case
+ * in the parser for somebody who is not a cast member.
+ *
+ * GENERIC ON PURPOSE. The specifics are already authored, one set per event, in
+ * the `movements` above - "her part, shot over and over", "the queue moving" -
+ * and the frame is sitting in the same tail three sections up. Writing them out
+ * a second time here would be the card-said-twice mistake; this points at them.
+ */
+export const WORK_INTERLUDE = [
+  'The work does not wait for the conversation. Something in it moves this round -',
+  'a take, a reset, the light going, the queue moving - and whoever is speaking says',
+  'her line inside it rather than in a pause. Show the day happening, not a room',
+  'discussing it.',
+].join('\n');
 
 /**
  * Does this event come back every cycle, or does it belong to one of them?

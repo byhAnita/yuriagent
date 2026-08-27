@@ -1,13 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import {
-  REGISTERS,
-  DATE_FRAMES,
-  PRIVATE_DATE_FRAME,
-  dateFrame,
-  renderFrame,
-} from './sceneFrames.js';
+import { DATE_FRAMES, PRIVATE_DATE_FRAME, dateFrame, renderFrame } from './sceneFrames.js';
 import { PHASES, locationsForRole } from './phaseMaps.js';
-import { SCENE_TURN_LIMITS } from '../config/constants.js';
 
 describe('every public venue has a frame', () => {
   it('covers the venue of every phase, so no date opens on nothing', () => {
@@ -146,33 +139,19 @@ describe('renderFrame carries the day business, when there is any', () => {
   });
 });
 
-describe('registers', () => {
-  it('leaves the ordinary scene terse, per pillar 1', () => {
-    expect(REGISTERS.ordinary).toBeNull();
-  });
-
-  it('gives a date and an event a literary register', () => {
-    for (const kind of ['date', 'event']) {
-      expect(REGISTERS[kind]).toContain('Literary and sensory');
-      expect(REGISTERS[kind]).toContain('atmosphere');
+/**
+ * `REGISTERS` and the four turn constants are gone with the v1 turn loop, and
+ * the register they carried is now `config/rules.js` for every round in the
+ * game. What replaces those assertions is the one rule that outlived them:
+ * everything in this file is an instruction to a model, so none of it may be
+ * localized or shown to a player.
+ */
+describe('a frame is model-facing English', () => {
+  it('keeps every authored frame in ASCII', () => {
+    const frames = [PRIVATE_DATE_FRAME, ...Object.values(DATE_FRAMES)];
+    for (const frame of frames) {
+      const text = [frame.setting, ...frame.movements].join(' ');
+      expect(text).toMatch(/^[\x20-\x7E]*$/);
     }
-  });
-
-  /**
-   * A date opens on atmosphere because her opening beat is the first thing in
-   * the scene. An event does not, because `establishingDirective` already wrote
-   * the room as its own beat - and asking twice made the first two beats of
-   * every anchor event both open by describing it, which is the padding that
-   * makes generated prose read as generated.
-   */
-  it('asks a date to open on atmosphere and an event not to open on it again', () => {
-    expect(REGISTERS.date).toContain('Open with one or two sentences');
-    expect(REGISTERS.event).not.toContain('Open with one or two sentences');
-    expect(REGISTERS.event).toContain('already been established');
-  });
-
-  it('gives a whole-day scene a longer budget than a block', () => {
-    expect(SCENE_TURN_LIMITS.date).toBeGreaterThan(SCENE_TURN_LIMITS.ordinary);
-    expect(SCENE_TURN_LIMITS.event).toBeGreaterThan(SCENE_TURN_LIMITS.ordinary);
   });
 });

@@ -513,25 +513,71 @@ rounds of 228 is a longer scene than 5 of 225.
 
 **943 tests, lint clean, build clean.**
 
-## PICK UP HERE: phase 5 - events, canon, endings
+## Phase 5, first half: five values that were written and never read
 
-**Start by wiring what is already written, because four things are.** Every one
-of them is a value some code computes and hands over, and nothing downstream
-reads - this project's signature bug, now on its seventh and eighth instances.
-Two were found while writing this section rather than by playing, which is the
-first time that has happened and the reason to look before building.
+**Built. 959 tests, lint clean, build clean.** The frame wiring the section
+below asked for, plus one more instance found on the way in.
 
-| written by | read by | what it is |
+The whole of it is one missing slot. Five separate pieces of code computed a
+correct value, handed it over, and nothing downstream ever looked at it - which
+is this project's signature bug, now on instances seven through eleven. **Three
+of them were found by reading the source rather than by playing**, which had
+never happened before and is the argument for looking before building.
+
+| written by | was read by | now |
 |---|---|---|
-| `onShared` sets `pendingScene.sceneFrame` | **nothing** | the dorm's cooking / film frame. `sharedFrame` is imported and called; the result goes nowhere |
-| `askOut` sets `pendingScene.date` | **nothing** | which kind of date this is. `dateFrame` and `REGISTERS` exist in `data/sceneFrames.js` and are imported by nobody |
-| `onEnter` sets `pendingScene.event` | `endScene` only, for canon | the anchor event. `eventFrame` exists and is imported by nobody |
-| `run.canon` | the handbook | `canonForCycle` / `canonForEvent` exist, are tested, and never reach tier 3 |
+| `onShared` sets `pendingScene.sceneFrame` | **nothing** | tier 3 `## THE DAY` |
+| `askOut` sets `pendingScene.date` | **nothing** | tier 3 `## THE DAY` |
+| `onEnter` sets `pendingScene.event` | `endScene` only, for canon | tier 3 `## THE DAY` |
+| `run.canon` | the handbook only | tier 3 `## WHAT THE CAMPAIGN HAS SETTLED` |
+| `physical` on three events | **nothing** | one round's work line |
 
-So the first job is one shape repeated: **tier 3 grows a frame line**, and
-`setup` passes whichever of the four applies. They are all model-facing English
-and all belong in the same slot, which is why this is one change rather than
-four.
+**One slot, because they all render to the same thing.** `renderFrame` takes an
+event frame, a date frame or a shared-evening frame and returns model-facing
+English; `setup` picks which applies and the engine never learns what kind of day
+it is holding. An event outranks a date where they could collide, because an
+event day *is* the event - the map is the site and there is nowhere else to walk.
+
+**Canon is deliberately not frame-conditional**, and that is the half section 7
+cares most about. An event reading its own chain is what stops cycle 2 repeating
+cycle 1; a member bringing up the title track in a wardrobe on a Tuesday is what
+makes the decision feel like it happened to the world rather than to a menu. For
+six milestones canon reached the handbook and nothing else - written, capped,
+persisted at `schemaVersion` 3, and never once in a prompt.
+
+**`physical` is the eleventh, and it is the one with a played complaint behind
+it.** Three times in one session: no description of the MV shoot, none of the
+comeback stage, none of the fan meeting. Every mechanism an event has produces
+dialogue *between cast members*, so nothing in it could represent a thing
+happening **to** the room. v1 answered with a second call at the two-thirds mark;
+v2 needs no call, because a round is already the room plus one voice - so it is a
+line in the tail on one round, and whoever has the floor says her line inside the
+work rather than in a pause. Generic on purpose: the specifics are already
+authored as that event's `movements`, sitting three sections up in the same tail.
+
+### What it costs, stated rather than hidden
+
+**The frame is paid every round**, which is the honest price of tier 3 being
+where volatile things live. v1 froze it in block 4 and paid once a scene. It
+cannot move up - tier 2 is append-only for the whole *run*, so a per-scene string
+at its head would invalidate the entire ledger prefix at every door, which is a
+far worse trade. Framed scenes are the minority and this is the tier that is
+allowed to change.
+
+### Deleted in the same pass
+
+`REGISTERS` and four turn constants, all of them readerless since phase 2.
+
+- **`REGISTERS`** existed because v1 wrote two ways - terse blocks, literary
+  dates. v2 has one way and it is in `config/rules.js`, byte-stable in tier 1, so
+  `REGISTERS.date` had become the house style said twice. What was genuinely
+  event-only survives where it can still be true: "several people are here" is
+  the tail's derived `Present:` line, and "there is business to get through" is
+  what `agenda` says at greater length with the business attached.
+- **`SCENE_TURN_LIMIT`, `SCENE_TURN_LIMITS`, `TURNS_PER_EXTRA_MEMBER`,
+  `SCENE_TURN_LIMIT_MAX`** were all read by `systems/dialogue.js`, which went
+  with the turn loop. **They leave one real question behind** and it is a play
+  question, so it is in the dials section below rather than answered in code.
 
 ### Then the part that needs a decision
 
@@ -554,12 +600,25 @@ guess:
 3. **Collapse is a floor on affection** - two scenes ending below some threshold
    with `peakAffection` high. Code-side, cheap, and closest to what v1 did.
 
+**The rest of the endings screen already works.** `resolveEnding`,
+`isBalanceEnding`, `GOOD_ENDINGS` and `ui/screens/Endings.jsx` are wired and run
+at campaign end; `resolveBadEnd` is the only unread one, and it is unread for
+exactly the reason above. So this decision is the last thing between here and a
+complete campaign, not the first of several.
+
 ### And the numbers hand test 3 is for
 
 `ROUND_WORDS` (60) and `SCENE_ROUNDS_MIN/MAX` (8-12) are both first guesses at
 dials that only play can set, and the live run says the first one is not being
 followed: mean prose was 228 characters, which is what the TWO-voice build
 produced. One speaker is writing what two used to.
+
+**Third dial, left open on purpose.** v1 gave a date or an anchor event sixteen
+turns against an ordinary block's eight; v2 draws 8-12 for everything, so a whole
+day and a wardrobe chat currently run the same length. That may well be wrong -
+but `SCENE_ROUNDS` is itself untested at its new value, and putting a second band
+on top of an unmeasured first one turns a dial into a guess. Both numbers want
+the same played session.
 
 ### Things a fresh session must not lose
 

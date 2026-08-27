@@ -279,6 +279,26 @@ export async function runRound(
     /** The player let the round pass. The tail says so; it is not silence. */
     skipped: skip && !spoke,
     owed: session.scene.owed ?? null,
+    /**
+     * What today is, and what the campaign has settled. Both are rendered
+     * model-facing English composed by the caller at the door - the engine does
+     * not know an event from a date and does not need to, which is what keeps
+     * `data/events/` and `systems/canon.js` out of `agent/`.
+     */
+    frame: session.scene.frame ?? null,
+    /**
+     * The work itself, on exactly one round of a day that does something.
+     *
+     * The ENGINE picks which, because the engine is the only thing that knows
+     * how many rounds are left - the same reason v1 owned the closing directive.
+     * Two thirds of the way in: late enough that the room is established, early
+     * enough that the day still has somewhere to go afterwards.
+     */
+    work:
+      session.scene.work && roundCount(pool) === Math.floor((session.total * 2) / 3)
+        ? session.scene.work
+        : null,
+    canon: session.scene.canon ?? null,
     note,
     lang: session.lang,
   });

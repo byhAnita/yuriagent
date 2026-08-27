@@ -57,7 +57,7 @@ import {
 import { appendLedger, addDossierEntry } from './agent/memory.js';
 import { propagate } from './systems/rumor.js';
 import { newPool, noteScene, fromSave as poolFromSave } from './agent/pool.js';
-import { addDecisions } from './systems/canon.js';
+import { addDecisions, canonForCycle, canonForEvent, renderCanon } from './systems/canon.js';
 import { makeRng, deriveSeed } from './systems/rng.js';
 import { createClient } from './tools/client.js';
 import RoundStage from './ui/vn/RoundStage.jsx';
@@ -72,8 +72,9 @@ import RelationsModal from './ui/modals/RelationsModal.jsx';
 import DateModal from './ui/modals/DateModal.jsx';
 import { dateOffers, askOut, dateCost, dateLocation } from './systems/dating.js';
 import { isWeekend } from './systems/calendar.js';
-import { eventFor, eventKey } from './data/events/index.js';
+import { eventFor, eventKey, eventFrame, WORK_INTERLUDE } from './data/events/index.js';
 import { sharedFrame } from './data/sharedActivities.js';
+import { renderFrame, dateFrame } from './data/sceneFrames.js';
 
 const SEED = 20260821;
 
@@ -623,6 +624,47 @@ export default function App() {
     const doing = first ? doingLine(occupancy[first]?.activity) : null;
     const firstName = cards.find((c) => c.id === first)?.name;
 
+    /**
+     * WHAT TODAY IS, and it is one slot rather than three.
+     *
+     * An event, a date and a shared dorm evening are three different reasons for
+     * a scene to be a whole day instead of a block, and every one of them had
+     * already computed its frame and handed it to `pendingScene` - `event`,
+     * `date`, `sceneFrame` - where it sat unread for the whole v2 rebuild. They
+     * all render to the same thing, so they all belong in the same field, and
+     * the engine never learns which kind it is holding.
+     *
+     * Order matters where they could overlap: an event day is the event
+     * (section 10 - the map is the site, there is nothing else to walk to), so
+     * it wins outright. Nothing else can collide - a date is a weekend and a
+     * shared evening is the dorm.
+     *
+     * DERIVED, NEVER STORED. `eventFrame` reproduces a comeback exactly from
+     * `(seed, cycle)`, which is the same rule `focusId` and the calendar follow,
+     * and it is what keeps the style pools out of the save file.
+     */
+    const cycle = cycleForWeek(run.week);
+    const frame = pendingScene.event
+      ? renderFrame(eventFrame(pendingScene.event, { cycle, seed: SEED }))
+      : pendingScene.date
+        ? renderFrame(dateFrame(pendingScene.date, pendingScene.locationId))
+        : renderFrame(pendingScene.sceneFrame ?? null);
+
+    /**
+     * ...and what the campaign has already settled.
+     *
+     * Not frame-conditional, and that is the half section 7 cares most about: an
+     * event reading its own chain is what stops cycle 2 repeating cycle 1, but a
+     * member mentioning the title track in a wardrobe on a Tuesday is what makes
+     * the decision feel like it happened to the world rather than to a menu.
+     */
+    const canonLines = renderCanon(
+      pendingScene.event
+        ? canonForEvent(canon, { cycle, reads: pendingScene.event.reads ?? [] })
+        : canonForCycle(canon, cycle),
+      cycle,
+    );
+
     return {
       cards,
       lineup,
@@ -655,6 +697,15 @@ export default function App() {
          * task costs anybody but the player.
          */
         owed: chorePhrase(task, { done: taskState.done }),
+        /** What today is, when it is more than a block. Null most of the time. */
+        frame,
+        /**
+         * A day that DOES something - the shoot, the stage, the fan meeting -
+         * rather than a room talking about one. The engine picks the round.
+         */
+        work: pendingScene.event?.physical ? WORK_INTERLUDE : null,
+        /** What the campaign has settled, or null in a week that has settled nothing. */
+        canon: canonLines,
         week: run.week,
         day: run.day,
         block: run.block,
@@ -672,6 +723,7 @@ export default function App() {
     memory.dossier,
     settings.lang,
     pool,
+    canon,
     sceneNo,
     run,
     task,

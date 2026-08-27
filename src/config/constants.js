@@ -146,38 +146,24 @@ export const FLOOR_FLOOR = 0.5;
 export const MAX_STREAK = 2;
 
 /**
- * v1's turn cap. Superseded by the two above and kept only while the v1 engine
- * is still in the tree.
- */
-export const SCENE_TURN_LIMIT = 8;
-
-/**
- * A date or an authored event is a whole DAY, not a block, so it gets a longer
- * budget and a different register (proposal 13). Keeping the ordinary scene
- * terse is deliberate: section 1's first pillar is 30-50 word bursts rather
- * than 300-word narration, and a literary register everywhere would repeal it.
- * The contrast is what makes a date feel like one.
- */
-export const SCENE_TURN_LIMITS = { ordinary: SCENE_TURN_LIMIT, date: 16, event: 16 };
-
-/**
- * What each extra person in the room is worth in turns.
+ * THE FOUR v1 TURN CONSTANTS ARE DELETED - `SCENE_TURN_LIMIT`,
+ * `SCENE_TURN_LIMITS`, `TURNS_PER_EXTRA_MEMBER`, `SCENE_TURN_LIMIT_MAX`.
  *
- * Eight turns across a full cast is a turn and a half each, which is not a
- * conversation with anybody - and a group scene is the one place the player's
- * attention is genuinely being divided. Two turns per extra member takes a
- * five-member room to sixteen, which is exactly where a date and an anchor
- * event already sit, so the three arrive at the same number from different
- * directions rather than being three separate decisions.
+ * All four were read by `systems/dialogue.js`, which went with the turn loop, so
+ * all four had been numbers with no reader since phase 2 - the mildest form of
+ * this project's signature defect and the easiest kind to leave lying around,
+ * because a constant nobody reads looks exactly like a constant nobody has
+ * needed lately. `SCENE_ROUNDS_MIN` and `SCENE_ROUNDS_MAX` above are the whole
+ * of scene length in v2.
  *
- * It does not make breadth better value than depth: five members at sixteen
- * turns is ~3 turns of attention each against a 1v1's eight. Section 5b wants
- * breadth cheap and shallow, and this keeps it that way.
+ * They leave one real question behind rather than none, and it is a PLAY
+ * question so it is not being answered here: v1 gave a date or an anchor event
+ * sixteen turns against an ordinary block's eight, and v2 draws 8-12 for
+ * everything. A whole day and a wardrobe chat currently run the same length.
+ * That may well be wrong - but `SCENE_ROUNDS` is itself untested at its new
+ * value, and inventing a second band on top of an unmeasured first one is how a
+ * dial becomes a guess. `docs/PROGRESS.md` carries it for hand test 3.
  */
-export const TURNS_PER_EXTRA_MEMBER = 2;
-
-/** A conversation longer than this stops being a scene and becomes a day. */
-export const SCENE_TURN_LIMIT_MAX = 16;
 
 // --- dating (CLAUDE.md section 10) ------------------------------------------
 /**

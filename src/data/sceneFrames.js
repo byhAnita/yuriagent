@@ -53,39 +53,26 @@
  */
 
 /**
- * The register a scene is played in.
+ * `REGISTERS` IS DELETED, and it is worth one paragraph rather than a silent
+ * removal, because half of it did not go anywhere - it was promoted.
  *
- * Keeping `ordinary` terse is deliberate. Section 1's first pillar is 30-50
- * word bursts rather than 300-word narration, and applying a literary register
- * everywhere would quietly repeal it. The CONTRAST is the feature: the game
- * changes how it writes when the day is hers, and the player feels that without
- * being told.
+ * It existed because v1 wrote two ways: ordinary blocks were 30-50 word bursts
+ * (section 1's first pillar) and a date or an event switched into a literary
+ * register, with the CONTRAST as the feature. v2 does not have two ways. Part
+ * I.7 makes literary-and-sensory the baseline for every round in the game and
+ * puts it in `config/rules.js`, where it is byte-stable in tier 1 rather than
+ * pasted per scene - so `REGISTERS.date` had become the house style said twice,
+ * and `REGISTERS.ordinary: null` had become a claim about a register that no
+ * longer exists.
+ *
+ * What was genuinely event-only survives in the two places that can still say
+ * it. "Several people are here" is the tail's `Present:` line, which is derived
+ * rather than authored and therefore always true; "it is a working day with
+ * things to settle" is what `agenda` below says at greater length and with the
+ * actual business attached. The one line that is really gone - carry the
+ * atmosphere rather than describing it again - was aimed at v1's separate
+ * establishing call, and v2 has no separate call to be redundant with.
  */
-export const REGISTERS = {
-  ordinary: null,
-  date: [
-    'Literary and sensory. Sight, sound, touch, smell.',
-    'Open with one or two sentences that establish the atmosphere before anyone speaks.',
-    'This is a whole day, not a snatched conversation. Let it breathe.',
-  ].join('\n'),
-  /**
-   * An event no longer asks for atmosphere at the top, because it already got
-   * it: `establishingDirective` writes the room as its own beat before anybody
-   * speaks (PROPOSALS 20 (a)). Leaving the line in made the first two beats of
-   * every anchor event both open by describing the room, which is the padding
-   * that makes generated prose read as generated.
-   *
-   * So the register spends those words on the thing an event actually needs
-   * and a date does not: it is a working day at a company, in front of other
-   * people, and it has business to get through.
-   */
-  event: [
-    'Literary and sensory. Sight, sound, touch, smell.',
-    'The room has already been established. Carry that atmosphere rather than describing it again.',
-    'Several people are here and the day belongs to the company, not to anyone in it.',
-    'It is also a working day with things to settle, so let the work happen in the room.',
-  ].join('\n'),
-};
 
 /** Public-date frames, keyed by the venue the phase happens to be using. */
 export const DATE_FRAMES = {

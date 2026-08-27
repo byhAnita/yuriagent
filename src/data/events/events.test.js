@@ -16,7 +16,7 @@ import { LOCATIONS } from '../locations.js';
 import { eventDays, generateWeek, occupancyAt, isWeekend } from '../../systems/calendar.js';
 import { cycleForWeek, WEEKS_PER_CAMPAIGN } from '../../systems/clock.js';
 import { getCast } from '../cast.js';
-import { SCENE_TURN_LIMITS, CYCLES_PER_CAMPAIGN } from '../../config/constants.js';
+import { CYCLES_PER_CAMPAIGN } from '../../config/constants.js';
 import en from '../../i18n/en.js';
 import zh from '../../i18n/zh.js';
 
@@ -113,9 +113,6 @@ describe('every frame has a spine', () => {
     }
   });
 
-  it('is long enough to be worth sixteen turns', () => {
-    expect(SCENE_TURN_LIMITS.event).toBeGreaterThan(SCENE_TURN_LIMITS.ordinary);
-  });
 });
 
 /**
