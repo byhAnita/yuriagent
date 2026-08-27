@@ -1,9 +1,12 @@
 # YuriAgent - Project Blueprint
 
-> **Status: v2 engine, phase 0 complete.** The spike is built and validated; the
-> loop is not. Read Part 0 and Part I first - they are the current design. Part
-> II is the v1 engine, most of which still stands, with the superseded sections
-> marked.
+> **Status: v2 engine, phases 0-4 built and hand-tested twice.** A campaign
+> plays: map to room to scene to aftermath to map, on a real clock, live in
+> `zh`. Phase 5 - events, canon, endings - is next, and `docs/PROGRESS.md`
+> opens with what to pick up and what is already written but unread.
+>
+> Read Part 0 and Part I first - they are the current design. Part II is the v1
+> engine, most of which still stands, with the superseded sections marked.
 >
 > `docs/PROPOSALS.md` §27 is the decision record behind Part I: twenty-one
 > decisions, why each was taken, and what was measured. Read it before arguing

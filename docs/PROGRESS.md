@@ -513,21 +513,53 @@ rounds of 228 is a longer scene than 5 of 225.
 
 **943 tests, lint clean, build clean.**
 
-### Then phase 5
+## PICK UP HERE: phase 5 - events, canon, endings
 
-Events, canon injection into tier 3, endings.
+**Start by wiring what is already written, because four things are.** Every one
+of them is a value some code computes and hands over, and nothing downstream
+reads - this project's signature bug, now on its seventh and eighth instances.
+Two were found while writing this section rather than by playing, which is the
+first time that has happened and the reason to look before building.
 
-**What a collapse IS in v2 is an open question.** `criticalScenes` used to
-trigger `resolveBadEnd` off two consecutive critical-strain scenes, and there is
-no strain. `resolveBadEnd` is kept, correct, and called by nothing; it says so in
-its own header, because an unwired function that looks wired is this project's
-most expensive recurring bug - and this file now records three of them
-(`markRisk`, `propagate`, `ENERGY_PER_READ`).
+| written by | read by | what it is |
+|---|---|---|
+| `onShared` sets `pendingScene.sceneFrame` | **nothing** | the dorm's cooking / film frame. `sharedFrame` is imported and called; the result goes nowhere |
+| `askOut` sets `pendingScene.date` | **nothing** | which kind of date this is. `dateFrame` and `REGISTERS` exist in `data/sceneFrames.js` and are imported by nobody |
+| `onEnter` sets `pendingScene.event` | `endScene` only, for canon | the anchor event. `eventFrame` exists and is imported by nobody |
+| `run.canon` | the handbook | `canonForCycle` / `canonForEvent` exist, are tested, and never reach tier 3 |
 
-**Currently unwired, pending phase 5, and each is a live import that was
-removed from `App.jsx`:** canon injection into tier 3 (the parser and engine
-already carry `canon|` through), `eventFrame`, `dateFrame`/`REGISTERS`,
-`sharedFrame`.
+So the first job is one shape repeated: **tier 3 grows a frame line**, and
+`setup` passes whichever of the four applies. They are all model-facing English
+and all belong in the same slot, which is why this is one change rather than
+four.
+
+### Then the part that needs a decision
+
+**What a collapse IS in v2 is still open.** `criticalScenes` triggered
+`resolveBadEnd` off two consecutive critical-strain scenes and there is no
+strain. `resolveBadEnd` is kept, correct, and called by nothing - it says so in
+its own header, because an unwired function that LOOKS wired is the most
+expensive recurring bug here.
+
+Three options, none of them obviously right, and this wants Yuhan rather than a
+guess:
+
+1. **No collapse at all.** Affection falls, the ending resolves from where the
+   two axes ended up, and the bad ends become the low corners of the map rather
+   than exits from it. Simplest, and it makes `peakAffection` the only thing the
+   high-water marks are still for.
+2. **Collapse is a scene the model declares** - a `break|` machine line, the way
+   `canon|` works. Fits I.1 exactly and is the most in keeping; costs a contract
+   field and a wire-format rule.
+3. **Collapse is a floor on affection** - two scenes ending below some threshold
+   with `peakAffection` high. Code-side, cheap, and closest to what v1 did.
+
+### And the numbers hand test 3 is for
+
+`ROUND_WORDS` (60) and `SCENE_ROUNDS_MIN/MAX` (8-12) are both first guesses at
+dials that only play can set, and the live run says the first one is not being
+followed: mean prose was 228 characters, which is what the TWO-voice build
+produced. One speaker is writing what two used to.
 
 ### Things a fresh session must not lose
 
@@ -542,7 +574,12 @@ unaided in a low-exposure room with `irene_adm+1` asked for and vetoed.
 **The model writes `irene+0`** rather than omitting a zero line as the rules ask.
 It costs three tokens and `applyDeltas` drops it. Not worth another instruction.
 
-**`.env.local` still holds a live DeepSeek key that wants revoking.**
+**`.env.local`'s DeepSeek key STAYS, and that is a decision rather than an
+oversight.** It has a spending cap set on it deliberately so the live suites can
+be run without revoking and re-issuing a key every time. Do not flag it again,
+and do not commit it - `.gitignore` is what keeps it out, and the provider names
+in it carry no `VITE_` prefix precisely so Vite cannot inline them into a client
+bundle (section 17).
 
 ---
 
@@ -2074,7 +2111,7 @@ it first.
 
 ---
 
-### 1. Play PROPOSALS 22-26 on the phone  <- PICK UP HERE
+### 1. Play PROPOSALS 22-26 on the phone
 
 **All five are built and none of them has been played.** Yuhan went through the
 entries, took the recommended option in each, and they shipped the same day. The
