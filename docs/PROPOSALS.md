@@ -2513,3 +2513,129 @@ And note what the two axes already are: **`admissibility` is 克制 expressed as
 number** - close, and not nameable, is the game's own signature zone. The model
 was right; the bar in front of it was wrong.
 
+
+---
+
+## 28. There is no way to lose
+
+**Status: proposed, 2026-08-27. Needs a decision before phase 5 can close.**
+
+`resolveBadEnd` is correct, tested, and called by nothing. It was triggered by
+`criticalScenes` - two consecutive scenes in the critical `strain` band - and
+Part I.8 deleted `strain`, on grounds that still hold: *a second damage axis only
+code can read is exactly the hidden machinery this redesign removes.*
+
+So the open item was recorded as "what a collapse IS in v2". Looking at it
+properly, that is the second question. The first one is worse.
+
+### The actual problem: being seen costs nothing
+
+Trace what a high-exposure scene does in the shipped v2 engine:
+
+| | |
+|---|---|
+| `admissibility` may rise | the player's benefit, and it gates four of the five good endings |
+| `propagate` writes a rumor into absent members' `heard_about` | she reacts next time she is in front of the player, worth a few points of affection |
+| ...and that is the whole list | |
+
+**Nothing else happens.** v1 priced a failed public risk at 10-20 `strain` and
+`strain` at 90 ended the route; both are gone. So the optimal play in v2 is
+maximum exposure, always, and §5b's central claim - *privacy is safe and
+stagnant, visibility is the only route to a relationship that can be named, and
+the same property that makes it real makes it contested* - is now only half true.
+The first clause holds. **Nothing contests anything.**
+
+That is also §1's non-goal arriving by the back door: *no failure state -> not a
+game.* `drift_end` is the only unhappy outcome left, and it means *it never
+started* - a player can be told they never got anywhere, but never that they had
+something and lost it. In a genre whose subject is risk, that is the wrong half
+to keep.
+
+### Three bad ends, and they are not the same kind of thing
+
+| id | v1 condition | who it is really about |
+|---|---|---|
+| `exposure_end` | `peakAdmissibility >= 60` at collapse | **the world.** The company, the fandom, a photo |
+| `severance_end` | stage was `reckless` at collapse | **her.** She cuts contact |
+| `nameless_end` | `peakAffection >= 70 && admissibility < 30` | **her**, passively - permanently filed as a friend |
+
+I.1 splits them cleanly. The first is a world fact: what a company does when a
+story gets out is not a reading of what a scene meant. The other two are what she
+decided, which is the model's.
+
+And the third is the one to question. `unnamed_end` is a **good** ending at the
+same coordinates - deeply close, never nameable, *not broken* - and §5 admits the
+pair is "deliberately close". The distinction was *reached and held* versus
+*reached and then broken*, and "broken" was a `strain` reading. With no strain
+there is nothing to tell them apart, and two endings that cannot be told apart is
+one ending and a bug.
+
+### Recommendation: A now, B measured, never C
+
+**A. The world catches you.** Code-owned, and it is the one the design already
+promised: §10 says outright that low `secrecy` *"feeds `exposure_end`"*, and
+nothing does. Twelfth instance of the shape.
+
+Three properties make this the right shape rather than `strain` under a new name:
+
+1. **The number is already on screen.** I.2's rule is that the values are
+   visible, and `secrecy` is a player stat in the tail and on the day screen. It
+   is not a second hidden axis; it is the first visible one finally being read.
+2. **It is a loop the player can watch.** Today `secrecy` only falls from
+   snooping, which is why a player who never snoops can never be caught - and it
+   makes no sense that being seen at the cafe with her every evening costs no
+   discretion at all. **A high-exposure scene should cost secrecy.** Then
+   exposure lowers secrecy, low secrecy amplifies exposure (`exposure.js` already
+   does this), and the player can see the spiral in a number rather than being
+   told about it afterwards.
+3. **It is visible one day before it bites**, which is §10's own rule - *the
+   calendar is deterministic specifically so it can be shown in full before the
+   player commits anything, because opportunity cost only bites when it is
+   visible.* Secrecy under a threshold puts a line on the day screen: people are
+   talking. Spend a quiet day and it clears overnight; take another loud scene
+   with the member who is most visible and the story breaks.
+
+No roll, no hidden counter, nothing new to store. `secrecy`, `exposure`,
+`peakAdmissibility` and `propagate` all exist.
+
+**B. She ends it.** Model-owned - a `break|` machine line, the way `canon|`
+works, with a code-side veto exactly like the admissibility one: refused unless
+`peakAffection >= 40`, because there has to have been something to break.
+
+This fits I.1 best and is the most in keeping with everything else in v2. **The
+risk is that it never fires.** The register is 60% sweet and the measured
+evidence says this model is a conservative writer: it held admissibility at 0
+unaided across a whole scene and writes `+0` rather than reaching for a delta. A
+`break|` line that arrives once a campaign is a feature; one that arrives never
+is a contract field pretending to be a mechanic. **That is measurable before it
+is built** - one live scene, affection deliberately low, and see whether it is
+even willing.
+
+**C. No collapse.** Rejected on the argument above: it is the shipped state, and
+the shipped state has no failure and no cost to being seen.
+
+### What this changes
+
+- `secrecy` gains a second sink (a loud scene) beside snooping.
+- The day screen gains one conditional line.
+- `resolveBadEnd` finally gets a caller, and loses its `nameless_end` branch.
+- `endingLocked` is written mid-campaign for the first time.
+
+### Three things that want Yuhan rather than a guess
+
+**1. Does a collapse lock the route, or cost enormously and let it continue?**
+§5 says bad ends are *exits from the map*, and a route locked in week 4 of 9
+leaves five weeks in which that member is still in rooms, still in scenes, and
+her ending already decided. The alternative - the story breaks, affection and
+admissibility take a large hit, the route continues, and the ending resolves
+normally at campaign end - keeps her playable but stops being an exit.
+
+**2. Do all three bad ends survive?** The recommendation retires `nameless_end`
+as indistinguishable from `unnamed_end`, keeps `exposure_end` under A, and makes
+`severance_end` depend on whether B measures as reachable. Retiring two of three
+is a real reduction in the endings screen.
+
+**3. Should exposure cost secrecy at all?** It is the piece that makes A a loop
+rather than a threshold, and it is also the piece that changes how every existing
+scene is priced - a player who has been taking her to the cafe all campaign will
+find their secrecy somewhere it has never been before.
