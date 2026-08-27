@@ -125,3 +125,30 @@ describe('a physical event reaches the work line', () => {
     expect(setup).toMatch(/pendingScene\.event\?\.physical \? WORK_INTERLUDE : null/);
   });
 });
+
+/**
+ * A CLAIMED CHECK NOBODY GOES LOOKING FOR.
+ *
+ * `App.jsx` said in a comment that `endScene` had already validated a decision
+ * against the event's agenda, and nothing had: `canon|` went from the parser
+ * into the session and out to `addDecisions`, which appends to a list that never
+ * compacts, is shown to the player, and is read back by the next event.
+ */
+describe('a decision may only be about what the day was for', () => {
+  it('hands the agenda to the engine', () => {
+    const setup = slice(app, 'const setup = useMemo');
+    expect(setup).toMatch(/agenda: pendingScene\.event\?\.frame\?\.agenda \?\? \[\]/);
+  });
+
+  it('vetoes there rather than trusting the model', () => {
+    expect(engine).toMatch(/topics\.includes\(d\.topic\)/);
+    expect(engine, 'canon is still appended unfiltered').not.toMatch(
+      /canon: round\.canon\.length \?/,
+    );
+  });
+
+  /** `agent/` may not import `data/events/`, the same rule that excludes i18n. */
+  it('does not reach into the event catalogue from the engine', () => {
+    expect(engine).not.toMatch(/from '\.\.\/data\/events/);
+  });
+});

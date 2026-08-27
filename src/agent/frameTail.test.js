@@ -123,6 +123,99 @@ describe('a day that does something says so, once', () => {
   });
 });
 
+/**
+ * THE CLOSING DIRECTIVE, and it is the half v2 was missing.
+ *
+ * Measured live: an eight-round concept meeting with a four-item agenda in the
+ * tail on every single round settled NOTHING. The prose was good and `canon`
+ * came back empty, so the campaign would have gone on to shoot a video for a
+ * concept nobody chose - which is v1's played defect arriving by a new door.
+ *
+ * Section 10 always had both halves: the agenda stated as an obligation where
+ * the movements are offered, AND said once more on the turn the client knows is
+ * last. A room told at the top of a scene that it must decide four things will
+ * spend the scene being a room, because that is what every other instruction it
+ * holds asks for.
+ */
+describe('the last round of an event has to decide something', () => {
+  const agenda = [
+    { id: 'title_track', text: 'which of the demos is the title track' },
+    { id: 'concept', text: 'the concept the comeback is built on' },
+  ];
+
+  it('says nothing while there are rounds left', () => {
+    const tail = buildTier3({ ...base, agenda, roundsLeft: 3 });
+    expect(tail).not.toContain('The day ends here');
+  });
+
+  it('names what is still unsettled on the last round', () => {
+    const tail = buildTier3({ ...base, agenda, roundIndex: 7, roundsLeft: 0 });
+
+    expect(tail).toContain('The day ends here');
+    expect(tail).toContain('which of the demos is the title track');
+    expect(tail).toContain('the concept the comeback is built on');
+  });
+
+  /**
+   * The `canon|` line rides with the FORMAT reminder, not with the agenda.
+   *
+   * Measured live: told to settle four things on the last round, the model
+   * settled all four by name - in the prose - and emitted no machine line for
+   * any of them. The instruction existed and sat three hundred tokens above the
+   * generation beside a request for prose, which this file has already measured
+   * being too far to see. The last line of the tail is the one place with a
+   * demonstrated hit rate, so that is where it goes.
+   */
+  it('asks for the machine line at the very bottom, where the format lives', () => {
+    const tail = buildTier3({ ...base, agenda, roundIndex: 7, roundsLeft: 0 });
+    const lines = tail.split('\n');
+
+    expect(tail).toContain('canon|title_track|');
+    expect(tail).toContain('canon|concept|');
+    // Below the four-options reminder, which is the last thing the model reads.
+    expect(lines.findIndex((l) => l.includes('canon|title_track|'))).toBeGreaterThan(
+      lines.findIndex((l) => l.includes('The four options are not optional')),
+    );
+  });
+
+  /**
+   * Only the unsettled ones. `canon` appends rather than merges, so a topic the
+   * room reached in round three and settles again, differently, on the last
+   * round leaves the campaign holding both answers.
+   */
+  it('leaves out what the room already decided', () => {
+    const tail = buildTier3({
+      ...base,
+      agenda,
+      settled: ['title_track'],
+      roundIndex: 7,
+      roundsLeft: 0,
+    });
+
+    expect(tail).not.toContain('which of the demos is the title track');
+    expect(tail).toContain('the concept the comeback is built on');
+  });
+
+  it('stays silent when the day settled all of it', () => {
+    const tail = buildTier3({
+      ...base,
+      agenda,
+      settled: ['title_track', 'concept'],
+      roundIndex: 7,
+      roundsLeft: 0,
+    });
+
+    expect(tail).toContain('This is the LAST round');
+    expect(tail).not.toContain('The day ends here');
+  });
+
+  /** An ordinary scene has no agenda and is not asked to decide anything. */
+  it('never appears in a scene that is not an event', () => {
+    const tail = buildTier3({ ...base, roundIndex: 7, roundsLeft: 0 });
+    expect(tail).not.toContain('The day ends here');
+  });
+});
+
 describe('canon reaches the tail', () => {
   const settled = addDecisions([], [{ topic: 'title_track', text: 'the title track is Surfin Summer' }], {
     cycle: 0,
@@ -251,6 +344,67 @@ describe('the engine carries a framed scene end to end', () => {
     }
 
     expect(hits).toBe(1);
+  });
+
+  /**
+   * The model proposes a decision; the code says whether the room was entitled
+   * to make it. Section 7's rule, which `App.jsx` claimed `endScene` enforced
+   * while nothing did - and a canon entry is permanent, shown to the player and
+   * read back by the next event in the chain.
+   */
+  it('keeps a decision that was on the agenda and drops one that was not', async () => {
+    const decided = (topic) =>
+      [
+        'They settle it.',
+        SENTINEL,
+        'A|a',
+        'B|b',
+        'C|c',
+        'D|d',
+        'emo|neutral',
+        `canon|${topic}|the title track is Winter Drive`,
+      ].join('\n');
+
+    const client = async ({ messages, onChunk }) => {
+      void messages;
+      const out = decided(client.topic);
+      onChunk?.(out);
+      return out;
+    };
+
+    let session = open({ agenda: [{ id: 'title_track', text: 'the title track' }, { id: 'concept', text: 'the concept' }] });
+    client.topic = 'title_track';
+    ({ session } = await runRound(session, { client }));
+    expect(session.canon).toHaveLength(1);
+
+    client.topic = 'centre';
+    ({ session } = await runRound(session, { client, choice: 'A' }));
+    expect(session.canon, 'a topic nobody put on the agenda was kept').toHaveLength(1);
+  });
+
+  /**
+   * The strong version: only an authored event has an agenda, and a wardrobe
+   * chat is not entitled to decide the group's title track however confidently
+   * the model writes the line.
+   */
+  it('records nothing at all in a scene with no agenda', async () => {
+    const client = async ({ onChunk }) => {
+      const out = [
+        'She shrugs.',
+        SENTINEL,
+        'A|a',
+        'B|b',
+        'C|c',
+        'D|d',
+        'emo|neutral',
+        'canon|title_track|the title track is Winter Drive',
+      ].join('\n');
+      onChunk?.(out);
+      return out;
+    };
+
+    const { session } = await runRound(open(), { client });
+    expect(session.canon).toHaveLength(0);
   });
 
   it('never spends it on a scene that is not physical', async () => {

@@ -77,9 +77,36 @@ const STRICT_FIELD = /^([a-z_]+)\s*[|｜]\s*(.*)$/i;
  * to imitate its own history would be one more rule for a Flash-tier model to
  * hold, against a defect one pattern closes for good.
  *
- * Safe to delete because `>` at the start of a line is not something narrative
- * prose does in any of the four locales - it is a markdown quote marker, and
- * nothing in the contract asks for markdown.
+ * IT DELETED THE LINE, AND THAT WAS WRONG - found by the live harness a second
+ * time, four days later, in the round the model wrote her dialogue as a
+ * blockquote:
+ *
+ *   她没急着开口，目光沿着那条线走了很远，才轻轻说了一句。
+ *   > 这条路不是让人开过去的。是让人想停下来，又不敢停。
+ *   她把话说完，手就缩回桌面...
+ *
+ * The player got the paragraph with a hole in it: she is described saying
+ * something and then does not say it. The claim above - that `>` is never
+ * narrative prose - is true and beside the point. It IS a quote marker, and the
+ * thing being quoted was her.
+ *
+ * WHAT SEPARATES THE TWO IS WHERE THEY SIT, and both live cases say so plainly.
+ * An echo is the option list written twice, so it is a RUN of quoted lines with
+ * nothing after them. Her dialogue is one quoted line with the rest of the
+ * paragraph underneath it - the model went back to narrating, which an option
+ * list never does.
+ *
+ *   trailing run of 2+ quoted lines  -> the echo. Dropped.
+ *   a quoted line that IS an option  -> the echo. Dropped (`parseRound`).
+ *   anything else                    -> hers. Marker comes off, text stays.
+ *
+ * The second rule is what makes a single trailing quote unambiguous, and it is
+ * exact rather than heuristic: a model does not put her spoken line in the
+ * option list as well.
+ *
+ * Both halves of "liberal inward, conservative outward" survive: nothing
+ * machine-shaped reaches the player, and nothing she said is thrown away to
+ * achieve it.
  */
 const STRICT_ECHO = /^>\s/;
 
@@ -162,12 +189,33 @@ export function splitRound(raw) {
  * ever runs on the prose half.
  */
 function cleanProse(text) {
-  return String(text ?? '')
+  const lines = String(text ?? '')
     .split('\n')
     .filter((line) => {
       const t = line.trim();
-      return !STRICT_OPTION.test(t) && !STRICT_FIELD.test(t) && !STRICT_ECHO.test(t);
-    })
+      return !STRICT_OPTION.test(t) && !STRICT_FIELD.test(t);
+    });
+
+  /**
+   * Walk back from the end over blanks and quoted lines. Two or more quoted
+   * lines with only whitespace after them is the option list written twice; one
+   * is her, and `parseRound` settles the case where it is not.
+   */
+  let end = lines.length;
+  let quoted = 0;
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const t = lines[i].trim();
+    if (t === '') continue;
+    if (!STRICT_ECHO.test(t)) break;
+    quoted += 1;
+    end = i;
+  }
+
+  const kept = quoted >= 2 ? lines.slice(0, end) : lines;
+
+  // Unquoted, not deleted. What is left is hers.
+  return kept
+    .map((line) => line.replace(STRICT_ECHO, ''))
     .join('\n')
     .trim();
 }
@@ -242,7 +290,35 @@ export function parseMachine(machine) {
  */
 export function parseRound(raw) {
   const { prose, machine } = splitRound(raw);
-  return { prose, ...parseMachine(machine) };
+  const parsed = parseMachine(machine);
+  return { prose: dropEchoedOptions(prose, parsed.options), ...parsed };
+}
+
+/**
+ * The option echo, caught by identity rather than by shape.
+ *
+ * The live harness found a `zh` scene that wrote its four options twice - once
+ * as quoted lines at the foot of the prose, once properly after the sentinel -
+ * so the player read every option as narration first. `STRICT_ECHO` used to
+ * close that by deleting every quoted line, which then ate a line of her
+ * dialogue the next time the model quoted HER (see above).
+ *
+ * Matching the parsed options is exact and needs no guess. Compared with
+ * punctuation and quote marks stripped, because the echo is rarely byte-identical
+ * - it arrives as `> "..."` while the option itself is bare.
+ */
+function dropEchoedOptions(prose, options) {
+  if (!prose || options.length === 0) return prose;
+
+  const bare = (s) => s.replace(/[\s"'“”‘’「」『』（）()·.,、。！？!?—-]/g, '');
+  const echoes = new Set(options.map(bare).filter((s) => s.length > 3));
+  if (echoes.size === 0) return prose;
+
+  return prose
+    .split('\n')
+    .filter((line) => !echoes.has(bare(line)))
+    .join('\n')
+    .trim();
 }
 
 /** A line that begins with two or more percent signs. Never prose. */

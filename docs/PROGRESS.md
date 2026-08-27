@@ -511,11 +511,11 @@ went 80 -> 60 and the model did not follow it down. If a round still reads long
 on the phone, that is the dial - and the second dial is `SCENE_ROUNDS`, since 9
 rounds of 228 is a longer scene than 5 of 225.
 
-**943 tests, lint clean, build clean.**
+**976 tests, lint clean, build clean.** All four live cases green.
 
 ## Phase 5, first half: five values that were written and never read
 
-**Built. 959 tests, lint clean, build clean.** The frame wiring the section
+**Built. 976 tests, lint clean, build clean, and driven live.** The frame wiring the section
 below asked for, plus one more instance found on the way in.
 
 The whole of it is one missing slot. Five separate pieces of code computed a
@@ -579,6 +579,63 @@ allowed to change.
   with the turn loop. **They leave one real question behind** and it is a play
   question, so it is in the dials section below rather than answered in code.
 
+### What the live harness found, which no reader would have
+
+The event case was driven against the real model for the first time, and it
+found three things. **Two of them were the feature not working at all**, in ways
+every offline test called green.
+
+**1. An eight-round concept meeting settled nothing.** The agenda was in the tail
+on every round, the prose was the best this project has produced - five distinct
+voices, a board picked up and argued over, somebody going red - and `canon` came
+back **empty**. That is v1's played defect arriving through a new door. §10 always
+had two halves: the agenda stated where the movements are offered, *and said once
+more on the turn the client knows is last*. v2 had wired the first only. A room
+told at the top of a scene to decide four things spends the scene being a room,
+because being a room is what every other instruction it holds asks for.
+
+**2. Told to decide, it decided - in prose - and wrote no machine line.** The
+second run settled all four items by name inside the paragraph and emitted no
+`canon|` at all, so the campaign was one scene from shooting a video for a
+concept nobody had recorded choosing. The instruction existed; it sat three
+hundred tokens above the generation next to a request for prose, and this file
+has already measured what that distance does. **Moved to ride with the format
+reminder** - the last thing the model reads, and the one place in the tail with a
+demonstrated hit rate. Both later runs settled all four with correct ids.
+
+**3. `STRICT_ECHO` was eating her dialogue.** The model set her line off as a
+blockquote and went back to narrating underneath it; the rule deleted the middle
+line, so the player read a paragraph that describes her saying something and then
+does not say it. The comment justifying it - *`>` at the start of a line is not
+something narrative prose does* - is true and beside the point: it **is** a quote
+marker, and the thing being quoted was her. What separates an echo from dialogue
+is position, and both live cases say so plainly: an echo is a *trailing run* of
+quoted lines with nothing after them; she goes back to being narrated, which an
+option list never does. The marker now comes off and the text stays.
+
+### ...and the dial that turned out not to be a dial
+
+**`ROUND_WORDS` was never being ignored - it was too far away to be read.** It
+lives in `config/rules.js`, which is tier 1, roughly two thousand tokens above
+the generation. Moving the number into the tail beside the format line, six
+tokens in a block rebuilt every round anyway:
+
+| | before | after |
+|---|---|---|
+| 1v1, `zh` | ~228 chars/round | **135-184** |
+| five-member room | mean 228 | **mean 150** |
+| four options parsed, event | 6/8 | **7/8 and 8/8** |
+
+Two consequences. **Rounds are now about a third shorter**, which is the layout
+constraint in I.3 finally holding, and it wants a read on the phone. And the
+rounds that lost their machine block entirely were the long ones - so the option
+rate went up without a single word about options being added.
+
+**A round with no options is survivable by design and always was**: `OptionBar`
+backfills to four, so the live assertion is a *rate* rather than every round. Four
+contentless options at an anchor event is still a bad round, which is why the
+rate is asserted at all.
+
 ### Then the part that needs a decision
 
 **What a collapse IS in v2 is still open.** `criticalScenes` triggered
@@ -608,10 +665,13 @@ complete campaign, not the first of several.
 
 ### And the numbers hand test 3 is for
 
-`ROUND_WORDS` (60) and `SCENE_ROUNDS_MIN/MAX` (8-12) are both first guesses at
-dials that only play can set, and the live run says the first one is not being
-followed: mean prose was 228 characters, which is what the TWO-voice build
-produced. One speaker is writing what two used to.
+`ROUND_WORDS` (60) is now actually being obeyed - see above - so the question has
+changed rather than gone away: **135-184 characters a round may be too short.**
+That is roughly fifteen seconds of reading against a three-to-four second wait,
+where I.3 wanted about thirty. The number to move is still one line in
+`config/rules.js`; what nobody can tell without playing is which way.
+
+`SCENE_ROUNDS_MIN/MAX` (8-12) is untouched and untested.
 
 **Third dial, left open on purpose.** v1 gave a date or an anchor event sixteen
 turns against an ordinary block's eight; v2 draws 8-12 for everything, so a whole

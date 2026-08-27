@@ -107,10 +107,31 @@ line. That keeps §1's third pillar for free.
 A scene is **4-6 rounds**, then the block ends. A Leave control forfeits the
 rest. The block stays the unit of opportunity cost, so rounds inside it are free.
 
-**Length: ~80 words is the instruction, and the model writes about twice that in
-`zh` (240-330 characters).** Measured, read, and kept - at that length a round is
-~30 seconds of reading against a ~4 second wait, which is the right ratio.
-`ROUND_WORDS` in `config/rules.js` is the one number to move.
+**Length: `ROUND_WORDS` is the instruction, and for four milestones it was not
+being followed** - the number said 80, then 60, and `zh` rounds came back at
+240-330 characters either way, which is what the *two*-voice build produced.
+
+It was not being ignored. **It was too far away to be read.** `config/rules.js`
+is tier 1, roughly two thousand tokens above the generation, and this file has
+already measured what that distance does twice: to `speechStyle` in v1, and to
+the wire format itself, which had to be repeated at the tail before one round in
+four stopped arriving with no machine block at all.
+
+> **The length rides with the format reminder, because they fail together.** Six
+> tokens in a block rebuilt every round anyway.
+
+| | before | after |
+|---|---|---|
+| 1v1, `zh` | ~228 chars/round | **135-184** |
+| five-member room | mean 228 | **mean 150** |
+| four options parsed, anchor event | 6/8 | **7/8, 8/8** |
+
+The second row is the one worth keeping: **the rounds that lost their machine
+block entirely were the long ones**, so the option rate improved without a word
+being said about options. And the first row is now the open question rather than
+the settled one - a third shorter is I.3's layout constraint finally holding, and
+possibly shorter than the ~30 seconds of reading this section wants. That is a
+play question, and `docs/PROGRESS.md` carries it.
 
 ### ...and that length is a layout constraint, not just a reading one
 
@@ -386,6 +407,34 @@ The streaming reader emits **raw** and cleans at the end, because a stream has
 half a line rather than a line. Holding every line back until its newline arrives
 would throw away most of the latency this format exists to buy.
 
+#### ...and the rule against echoes ate a line of her dialogue
+
+The same trade, got wrong in the other direction, four days later, and found by
+the same harness.
+
+The model imitates tier 2's `> what the player said` marker, and the first fix
+deleted every line that started with one. The justification was that **`>` is
+never narrative prose** - which is true, and beside the point. It is a *quote*
+marker, and the second live event scene quoted **her**:
+
+```
+她没急着开口，目光沿着那条线走了很远，才轻轻说了一句。
+> 这条路不是让人开过去的。是让人想停下来，又不敢停。
+她把话说完，手就缩回桌面...
+```
+
+The player got the paragraph with a hole in it: she is described saying
+something, and then does not say it.
+
+> **What separates an echo from her dialogue is position, and both live cases
+> say so plainly.** An echo is the option list written twice, so it is a
+> **trailing run** of quoted lines with nothing after them. She goes back to
+> being narrated underneath, which an option list never does.
+
+A single trailing quote is the one ambiguous case, and the parsed options settle
+it exactly: a model does not put her spoken line in the option list as well.
+Everything else keeps its text and loses its marker.
+
 ## I.5 Three tiers
 
 ```
@@ -449,6 +498,38 @@ picks - the engine, because it is the only thing that can see the budget - and
 whoever has the floor says her line inside the work rather than in a pause. It
 names no event: the specifics are already authored as that event's `movements`,
 sitting three sections above it in the same tail.
+
+#### A day that decides nothing did not happen, and twice it did not
+
+Both found by driving an anchor event live for the first time, and each one is
+the feature not working at all while every offline test called it green.
+
+**The first run settled nothing.** Eight rounds, a four-item agenda sitting in
+the tail every one of them, the best prose this project has produced - and
+`canon` came back empty. §10 always had two halves: the agenda stated as an
+obligation where the movements are offered, **and said once more on the turn the
+client knows is last**. v2 wired the first only. A room told at the top of a
+scene that it must decide four things spends the scene being a room, because
+being a room is what every other instruction it holds asks for.
+
+**The second run decided everything - in the prose - and wrote no machine line.**
+It named the concept, the title track, the styling and who the camera finds
+first, in the paragraph, and emitted no `canon|` at all. The campaign was one
+scene from shooting a video for a concept nobody had recorded choosing.
+
+That is the distance rule again, and by now it should be a habit rather than a
+discovery: the instruction was in `## THIS ROUND`, three hundred tokens above the
+generation, in the same breath as a request for prose.
+
+> **An instruction that has to be obeyed at the end of the output belongs at the
+> end of the tail.** The format reminder is the last thing the model reads and
+> the one place here with a demonstrated hit rate, so the `canon|` line rides
+> with it - named per item, ids included, because a decision written under an
+> invented id is exactly as lost as one never written.
+
+Only the **unsettled** items are named. `canon` appends rather than merges, so a
+topic the room reached in round three and settles again, differently, on the last
+round leaves the campaign holding both answers.
 
 > **The frame is paid on every round, and that is the honest price of tier 3.**
 > v1 froze it in block 4 and paid once a scene. It cannot move up: tier 2 is
@@ -2070,6 +2151,23 @@ problem again - **a fact awarded for nothing is worse than a fact never
 awarded.** A topic the day did not reach is simply absent; there is no filler
 and no placeholder, and the only consequence is that the next event in the chain
 reads one line fewer.
+
+#### ...and for the whole of v2 a comment said this was happening and it was not
+
+`App.jsx` stated in a comment that the check ran in `endScene`. **Nothing ran
+it.** A `canon|` line went from the parser into the session and out to
+`addDecisions`, which appends to a list that never compacts, is shown to the
+player in the handbook, and is read back by the next event in the chain.
+
+Worse than an unread value, and worth naming as its own shape: **an absent check
+that a comment claims exists is one nobody goes looking for.** Every other
+instance in this project's catalogue was silent - `markRisk` said nothing about
+itself. This one said it was fine.
+
+Now in `runRound`, which is handed the agenda as `scene.agenda`, and the rule is
+the strong version: **no agenda means no canon.** Only an authored event has one,
+and a wardrobe chat is not entitled to decide the group's title track however
+confidently the model writes the line.
 
 ### Dossier
 

@@ -704,6 +704,23 @@ export default function App() {
          * rather than a room talking about one. The engine picks the round.
          */
         work: pendingScene.event?.physical ? WORK_INTERLUDE : null,
+        /**
+         * WHAT THIS DAY MUST DECIDE, and it does two jobs.
+         *
+         * The engine drops a `canon|` line whose topic is not on it - section
+         * 7's rule, which this file's own comment claimed `endScene` enforced
+         * while nothing did, so a model inventing a topic wrote it permanently
+         * into a list that never compacts and is read back by the next event.
+         *
+         * And the tail names whatever is still unsettled on the last round.
+         * Measured live: a concept meeting with this agenda in the tail for all
+         * eight rounds settled NOTHING - good prose, an empty `canon`, and a
+         * campaign about to shoot a video for a concept nobody chose.
+         *
+         * The items rather than the event, because `agent/` may not import
+         * `data/events/` - the same rule that keeps `i18n/` out of it.
+         */
+        agenda: pendingScene.event?.frame?.agenda ?? [],
         /** What the campaign has settled, or null in a week that has settled nothing. */
         canon: canonLines,
         week: run.week,
@@ -746,8 +763,10 @@ export default function App() {
     /**
      * What the room settled, appended with the cycle it happened in.
      *
-     * Already validated against the event's agenda by `endScene` - a topic
-     * that was not on it never gets here. Appended rather than merged: cycle
+     * Validated against the event's agenda by `runRound`, which is handed the
+     * ids as `scene.agenda` - a topic that was not on it never gets here. This
+     * comment used to say `endScene` did it, and nothing did: a claimed check
+     * is one nobody goes looking for. Appended rather than merged: cycle
      * 2's title track does not delete cycle 1's, because the handbook should be
      * able to show a campaign that changed its mind. Superseding happens at
      * injection time (`canonForCycle`).

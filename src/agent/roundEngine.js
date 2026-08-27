@@ -161,6 +161,38 @@ export function rosterOf(session) {
   return session.scene.roster ?? session.scene.present ?? [];
 }
 
+/**
+ * WHAT THE ROOM IS ALLOWED TO HAVE SETTLED. Section 7.
+ *
+ * The rule is old and was written down twice - *a decision whose topic is not in
+ * this event's `agenda` is dropped entirely* - and `App.jsx` said in a comment
+ * that `endScene` already enforced it. It did not. `canon|` lines went straight
+ * from the parser into the session and out to `addDecisions`, which appends them
+ * to a list that never compacts, is shown to the player in the handbook, and is
+ * read back by the next event in the chain.
+ *
+ * Worse than an unread value, and the reason this is worth a paragraph: an
+ * absent check that a comment claims exists is one nobody goes looking for. A
+ * model asked what a room decided will happily report a decision the room never
+ * reached, and prompting alone does not hold it - the same finding as the
+ * parser's roster rule, in a place where the mistake is permanent.
+ *
+ * NO AGENDA MEANS NO CANON, which is the strong version rather than the lenient
+ * one. Only an authored event carries an agenda, and a wardrobe chat is not
+ * entitled to decide what the group's title track is however confidently the
+ * model writes the line.
+ */
+function keepDecisions(session, proposed) {
+  if (!proposed?.length) return session.canon;
+
+  const agenda = session.scene.agenda;
+  if (!agenda?.length) return session.canon;
+
+  const topics = agenda.map((a) => a.id);
+  const kept = proposed.filter((d) => topics.includes(d.topic));
+  return kept.length ? [...session.canon, ...kept] : session.canon;
+}
+
 /** How many rounds are still to come, the scene's own count included. */
 export function roundsLeft(session) {
   if (session.ended) return 0;
@@ -299,6 +331,14 @@ export async function runRound(
         ? session.scene.work
         : null,
     canon: session.scene.canon ?? null,
+    /**
+     * The business, and what is left of it. The tail states the whole agenda as
+     * part of the frame every round and names the UNSETTLED remainder on the
+     * last one - which is the half v1 had and v2 was missing, and the reason a
+     * live eight-round concept meeting decided nothing at all.
+     */
+    agenda: session.scene.agenda ?? [],
+    settled: session.canon.map((d) => d.topic),
     note,
     lang: session.lang,
   });
@@ -353,7 +393,7 @@ export async function runRound(
       relations,
       player,
       summary: round.summary ?? session.summary,
-      canon: round.canon.length ? [...session.canon, ...round.canon] : session.canon,
+      canon: keepDecisions(session, round.canon),
       gestured: session.gestured || Boolean(note),
       /**
        * The room ages AFTER the round, not before it. Whoever had the floor is

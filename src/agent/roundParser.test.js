@@ -289,4 +289,59 @@ describe('an echoed option block never reaches the player', () => {
     const round = parseRound(['>>> the cue light', SENTINEL, 'A|ok'].join('\n'));
     expect(round.prose).toContain('>>> the cue light');
   });
+
+  /**
+   * ...AND HER LINE IS NOT AN ECHO, which the live harness found the second time
+   * it ran an event scene. The model set her dialogue off as a blockquote and
+   * went back to narrating underneath it:
+   *
+   *   She did not speak straight away.
+   *   > This road is not for driving down.
+   *   She finished, and her hand came back to the table.
+   *
+   * The rule as first written deleted the middle line, so the player read a
+   * paragraph that describes her saying something and then does not say it.
+   *
+   * What separates the two is position: an echo is the option list written
+   * twice, so it is a RUN of quoted lines with nothing after them. She goes back
+   * to being narrated, which an option list never does.
+   */
+  it('keeps a quoted line that has narration after it, without the marker', () => {
+    const round = parseRound(
+      [
+        'She did not speak straight away.',
+        '> This road is not for driving down.',
+        'She finished, and her hand came back to the table.',
+        SENTINEL,
+        'A|Ask what she means',
+        'B|Say nothing',
+      ].join('\n'),
+    );
+
+    expect(round.prose).toContain('This road is not for driving down.');
+    expect(round.prose).not.toContain('>');
+    expect(round.prose).toContain('her hand came back to the table');
+  });
+
+  /**
+   * A single trailing quote is the ambiguous one, and the parsed options settle
+   * it exactly - a model does not put her spoken line in the option list too.
+   */
+  it('drops a lone trailing quote when it is verbatim an option', () => {
+    const round = parseRound(
+      ['She looks up.', '> "Say you remembered."', SENTINEL, 'A|Say you remembered', 'B|Wait'].join(
+        '\n',
+      ),
+    );
+
+    expect(round.prose).toBe('She looks up.');
+  });
+
+  it('keeps a lone trailing quote that is nobody else\'s line', () => {
+    const round = parseRound(
+      ['She looks up.', '> I did not think you would come.', SENTINEL, 'A|Say nothing'].join('\n'),
+    );
+
+    expect(round.prose).toContain('I did not think you would come.');
+  });
 });

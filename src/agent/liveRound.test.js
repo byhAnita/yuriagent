@@ -27,6 +27,8 @@ import { RISK_EXPOSURE_THRESHOLD, MAX_STREAK } from '../config/constants.js';
 import { getCast } from '../data/cast.js';
 import { buildLineup } from '../systems/castBuilder.js';
 import { getIdentity } from '../data/identities.js';
+import { EVENTS, eventFrame } from '../data/events/index.js';
+import { renderFrame } from '../data/sceneFrames.js';
 
 const { apiKey, modelId, live } = liveConfig();
 const enabled = live && Boolean(process.env.LIVE_ROUND);
@@ -315,5 +317,151 @@ describe.skipIf(!enabled)('the round engine, live', () => {
       expect(ids).toContain(closed.addresseeId);
     },
     600000,
+  );
+
+  /**
+   * AN ANCHOR EVENT, WHICH IS THE ONE THING NO OFFLINE TEST CAN JUDGE.
+   *
+   * The frame reaching tier 3 is asserted offline; whether a room handed two
+   * hundred tokens of agenda actually SETTLES anything is a question about a
+   * model, and section 10 records what happened the last time nobody asked it -
+   * fifteen turns of a concept meeting that produced a joke about ear colour and
+   * a plate of food, with the ledger line for the whole day going to the food.
+   *
+   * That was v1, and the fix was the agenda field this now carries. It has never
+   * been played through the v2 loop, where the frame sits in a tail rebuilt every
+   * round rather than in a header written once.
+   *
+   * Three things, and the third is the one with teeth:
+   *
+   *   1. the day survives at all - format, language, four options, five voices;
+   *   2. the room does the WORK rather than describing it, on the round the
+   *      engine spends the interlude line on;
+   *   3. `canon|` comes back, on a topic that was on the agenda, with a NAME in
+   *      it rather than "the third demo".
+   *
+   * (3) is asserted because `endScene` already drops a decision whose topic was
+   * not on the agenda - so what could fail here is the room settling nothing at
+   * all, which is exactly the played defect.
+   */
+  it(
+    'settles something at a concept meeting, in Chinese',
+    async () => {
+      /**
+       * RAW, KEPT. A round with no options is two completely different bugs -
+       * the model omitted the machine block, or the parser ate it - and the
+       * parsed round cannot tell them apart. The option-echo defect was found
+       * exactly this way and would not have been found any other way.
+       */
+      const inner = createClient({ apiKey, modelId });
+      let lastRaw = '';
+      const client = async (args) => {
+        lastRaw = await inner(args);
+        return lastRaw;
+      };
+
+      const ids = cards.map((c) => c.id);
+      const event = EVENTS.concept_meeting;
+      const frame = renderFrame(eventFrame(event, { cycle: 0, seed: 21 }));
+
+      let session = beginScene({
+        cards,
+        lineup,
+        identity: getIdentity(),
+        player: { name: 'Yuhan', selfId: 40, mood: 55, secrecy: 70, energy: 80 },
+        relations: Object.fromEntries(
+          cards.map((c) => [c.id, { affection: 20, admissibility: 5 }]),
+        ),
+        dossier: {},
+        lang: 'zh',
+        pool: newPool(),
+        seed: 21,
+        scene: {
+          id: 'live-event',
+          locationId: 'meeting_room',
+          locationLabel: 'Meeting Room',
+          present: ids,
+          roster: ids,
+          frame,
+          agenda: event.frame.agenda,
+          week: 0,
+          day: 2,
+          block: 'morning',
+          phase: 'prep',
+        },
+      });
+
+      const rounds = [];
+      let choice = null;
+      while (!isOver(session)) {
+        const out = await runRound(session, { client, choice });
+        session = out.session;
+        rounds.push(out.round);
+
+        log(`\n--- round ${rounds.length} (${session.turn.primary}, ${session.turn.mode}) ---`);
+        log(out.round.prose);
+        out.round.options.forEach((o, i) => log(`  ${'ABCD'[i]}. ${o}`));
+        if (out.round.canon?.length) log(`  [canon] ${JSON.stringify(out.round.canon)}`);
+        if (out.round.options.length < 4) {
+          log('  !! FEWER THAN FOUR OPTIONS - raw follows');
+          log(`  <<<${lastRaw}>>>`);
+        }
+
+        choice = out.round.options[1] ?? out.round.options[0] ?? null;
+      }
+
+      const closed = endScene(session);
+      const topics = event.frame.agenda.map((a) => a.id);
+
+      log('\n================ EVENT READINGS ================');
+      log(`rounds: ${rounds.length} of ${session.total}`);
+      log(`agenda: ${topics.join(', ')}`);
+      log(`settled: ${JSON.stringify(closed.canon)}`);
+      log('\nRead the day above. Did a meeting happen, or five friends in a room?');
+
+      for (const r of rounds) {
+        expect(HAN.test(r.prose)).toBe(true);
+        expect(LATIN_PROSE.test(r.prose)).toBe(false);
+      }
+
+      /**
+       * A RATE, NOT EVERY ROUND, and the difference is a design promise rather
+       * than a lowered bar.
+       *
+       * `OptionBar` backfills to four whatever the parser returns, so a round
+       * that lost its machine block costs the player four written options and
+       * never strands them - the same per-line tolerance the parser has. What
+       * would be a real defect is that happening OFTEN, and an event is where it
+       * is likeliest: the tail carries a frame, an agenda and the canon on top of
+       * everything an ordinary round has, so the format reminder is competing
+       * with twice as much text.
+       *
+       * Measured at one round in eight before `ROUND_WORDS` moved into the tail
+       * beside the format line - the rounds that lost their options were the long
+       * ones, every time.
+       */
+      const parsed = rounds.filter((r) => r.options.length === 4).length;
+      log(`four options: ${parsed}/${rounds.length}`);
+      expect(parsed / rounds.length).toBeGreaterThanOrEqual(0.75);
+
+      /**
+       * The day settled at least one of the things it was there to settle, and
+       * `endScene` has already thrown away anything that was not on the agenda.
+       * One rather than all four: a room that agrees pleasantly about every item
+       * is a room where nothing was at stake, and the prompt says so outright.
+       */
+      expect(closed.canon.length).toBeGreaterThan(0);
+      for (const d of closed.canon) expect(topics).toContain(d.topic);
+
+      /**
+       * ...and it has a NAME in it. The day-three playtest settled a title track
+       * four times and never once named it - "the third demo", "the slow one" -
+       * which reads as placeholder text in the scene and is worse afterwards,
+       * because canon keeps the sentence forever and the handbook shows it to
+       * the player.
+       */
+      expect(closed.canon.some((d) => HAN.test(d.text) || /[A-Z]/.test(d.text))).toBe(true);
+    },
+    900000,
   );
 });

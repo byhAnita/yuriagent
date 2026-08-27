@@ -23,7 +23,7 @@
  * native reader called the result machine translation.
  */
 
-import { rulesBlock, SENTINEL } from '../config/rules.js';
+import { rulesBlock, SENTINEL, ROUND_WORDS } from '../config/rules.js';
 
 /**
  * Her card as the model reads it, in the player's language.
@@ -183,6 +183,12 @@ export function buildTier3({
    */
   work = null,
   /**
+   * What this day must settle - `[{ id, text }]`, from the event's frame - and
+   * which of them the room has already reached. Empty outside an anchor event.
+   */
+  agenda = [],
+  settled = [],
+  /**
    * What the campaign has settled, rendered by `systems/canon.js`. An ordinary
    * scene carries the current cycle; an event carries the topics it reads.
    */
@@ -195,6 +201,9 @@ export function buildTier3({
     if (!card) return id;
     return (lang !== 'en' && card.nameLocal?.[lang]) || card.name;
   };
+
+  /** Agenda items the day still owes, set on the last round. See below. */
+  let owing = [];
 
   const lines = [
     '## NOW',
@@ -413,6 +422,39 @@ export function buildTier3({
   );
   if (roundsLeft === 0 && roundIndex > 0) {
     lines.push('This is the LAST round. Land the scene, and write the sum| line.');
+
+    /**
+     * ...AND THE DAY DOES NOT LEAVE WITHOUT DECIDING WHAT IT CAME FOR.
+     *
+     * Measured live, and it is v1's defect arriving by a different door: an
+     * eight-round concept meeting with a four-item agenda sitting in the tail
+     * every single round settled **nothing**. The prose was good - five distinct
+     * voices, a board picked up and argued over, somebody going red - and
+     * `canon` came back empty, so the campaign would have gone on to a shoot
+     * with no concept to shoot.
+     *
+     * Section 10 had this: the agenda is stated as an obligation where the
+     * movements are offered, **and the closing directive says it once more on
+     * the turn the client knows is last.** v2 wired the first half and not the
+     * second. A room told at the top of a scene that it must decide four things
+     * will spend eight rounds being a room, because being a room is what every
+     * other instruction it has asks for.
+     *
+     * Only the UNSETTLED ones, which is why this takes `settled` rather than
+     * repeating the frame. A model handed a topic the room reached in round
+     * three will settle it again, differently, on the last round - and `canon`
+     * appends rather than merges, so the campaign would keep both.
+     */
+    owing = agenda.filter((a) => !settled.includes(a.id));
+    if (owing.length > 0) {
+      lines.push(
+        '',
+        'The day ends here, and it has not settled everything it was for. Before it does:',
+        ...owing.map((a) => `- ${a.id} - ${a.text}`),
+        'Have the room actually decide, out loud, in this round, with a NAME for what it picks.',
+        'A day that decides nothing did not happen.',
+      );
+    }
   }
   if (lastChoice) lines.push('', `The player chose: ${lastChoice}`);
 
@@ -456,9 +498,51 @@ export function buildTier3({
    */
   lines.push(
     '',
-    `Write the next round now: the prose, then a line of exactly ${SENTINEL}, then the machine lines.`,
+    /**
+     * THE LENGTH RIDES WITH THE FORMAT, because they fail together.
+     *
+     * Measured on a live anchor event: one round in eight came back as three
+     * long paragraphs with no sentinel and no machine block at all - and the
+     * rounds that lost their options were the long ones. `ROUND_WORDS` is in
+     * tier 1, roughly two thousand tokens above the generation, and this file
+     * has already measured what that distance does; an event's tail is twice
+     * the length of an ordinary one, which pushes it further still.
+     *
+     * The player is never stranded - `OptionBar` backfills to four - but four
+     * contentless options at the loudest day in the game is a bad round, and it
+     * is bought back here for six tokens in a block rebuilt every round anyway.
+     */
+    `Write the next round now: about ${ROUND_WORDS} words of prose, then a line of exactly ${SENTINEL}, then the machine lines.`,
     'The four options are not optional. Never stop before them.',
   );
+
+  /**
+   * ...AND THE DECISIONS ARE A MACHINE LINE, WHICH IS THE HALF PROSE CANNOT DO.
+   *
+   * Measured live, and the transcript is the argument. Asked on the last round
+   * to settle four things, the model settled all four - beautifully, by name,
+   * in the prose: the concept, the title track, the styling, and who the camera
+   * finds first. **And it wrote no `canon|` lines at all**, so `settled` came
+   * back empty and the campaign was one scene from shooting a video for a
+   * concept nobody had recorded choosing.
+   *
+   * The instruction was there. It was in `## THIS ROUND`, three hundred tokens
+   * above the generation, in the same paragraph as a request for prose - and
+   * this file already measured what that distance does: an instruction the model
+   * can no longer see is not an instruction it is disobeying. So the format
+   * reminder carries it, because the format reminder is the last thing read and
+   * is the one place in this tail with a demonstrated hit rate.
+   *
+   * Named per item, ids included, because `keepDecisions` drops a topic that was
+   * not on the agenda - and a decision written under an invented id is exactly
+   * as lost as one never written.
+   */
+  if (owing.length > 0) {
+    lines.push(
+      `Then one canon| line per decision: ${owing.map((a) => `canon|${a.id}|<what the room settled>`).join('  ')}`,
+      'Use those ids exactly. The prose is what the player reads; the canon| line is what the game keeps.',
+    );
+  }
 
   return lines.join('\n');
 }
